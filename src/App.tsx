@@ -240,7 +240,7 @@ export default function App() {
       />
 
       {variantId === "custom" && (
-        <CustomRuleEditor rules={customRules} onChange={setCustomRules} />
+        <CustomRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
       )}
 
       <MoveLog t={t} game={game} onMoveClick={(i) => setRewindTarget(i)} />
@@ -476,9 +476,11 @@ function ModeOverlay({ t, onChoose }: { t: Translations; onChoose: (m: PlayMode)
 type CustomRules = Omit<RuleSet, "id" | "name" | "blurb">;
 
 function CustomRuleEditor({
+  t,
   rules,
   onChange,
 }: {
+  t: Translations;
   rules: CustomRules;
   onChange: (r: CustomRules) => void;
 }) {
@@ -487,21 +489,21 @@ function CustomRuleEditor({
   };
 
   const boolRules: Array<{ key: keyof CustomRules; label: string; hint: string }> = [
-    { key: "armedKing", label: "Armed king", hint: "King can act as a flanking piece in captures" },
-    { key: "throneHostileToSoldiers", label: "Empty throne hostile to soldiers", hint: "Empty throne acts as an anvil when capturing soldiers" },
-    { key: "throneHostileToKing", label: "Empty throne hostile to king", hint: "Empty throne counts as an enemy flank when capturing the king" },
-    { key: "kingMayReoccupyThrone", label: "King may return to throne", hint: "King can re-enter the throne after leaving it" },
-    { key: "soldiersPassThroughThrone", label: "Soldiers pass through empty throne", hint: "Soldiers may slide through (but not stop on) the empty throne" },
-    { key: "cornersHostile", label: "Corners hostile", hint: "Corner squares act as anvils for all captures including the king" },
-    { key: "strongKingOnThrone", label: "Strong king on throne", hint: "King on the throne requires all four sides surrounded to be captured" },
-    { key: "strongKingAdjacentToThrone", label: "Strong king adjacent to throne", hint: "King beside the throne also requires all four sides surrounded" },
-    { key: "encirclementWin", label: "Encirclement win", hint: "Attackers win by forming an unbroken ring around the king's side (no board edge)" },
+    { key: "armedKing", label: t.ruleArmedKing, hint: t.ruleArmedKingHint },
+    { key: "throneHostileToSoldiers", label: t.ruleThroneHostileSoldiers, hint: t.ruleThroneHostileSoldiersHint },
+    { key: "throneHostileToKing", label: t.ruleThroneHostileKing, hint: t.ruleThroneHostileKingHint },
+    { key: "kingMayReoccupyThrone", label: t.ruleKingReoccupyThrone, hint: t.ruleKingReoccupyThroneHint },
+    { key: "soldiersPassThroughThrone", label: t.ruleSoldiersPassThrone, hint: t.ruleSoldiersPassThroneHint },
+    { key: "cornersHostile", label: t.ruleCornersHostile, hint: t.ruleCornersHostileHint },
+    { key: "strongKingOnThrone", label: t.ruleStrongKingOnThrone, hint: t.ruleStrongKingOnThroneHint },
+    { key: "strongKingAdjacentToThrone", label: t.ruleStrongKingAdjacentThrone, hint: t.ruleStrongKingAdjacentThroneHint },
+    { key: "encirclementWin", label: t.ruleEncirclementWin, hint: t.ruleEncirclementWinHint },
   ];
 
   return (
     <div className="card mt-4 p-4">
       <h3 className="text-sm font-semibold uppercase tracking-wide text-parchment-dim">
-        Custom rules
+        {t.customRulesTitle}
       </h3>
       <ul className="mt-3 space-y-2">
         {boolRules.map(({ key, label, hint }) => (
@@ -521,13 +523,13 @@ function CustomRuleEditor({
         ))}
       </ul>
       <div className="mt-4">
-        <span className="text-sm text-parchment-dim">Repetition result</span>
+        <span className="text-sm text-parchment-dim">{t.repetitionResultLabel}</span>
         <div className="mt-1.5 flex flex-wrap gap-3">
           {(
             [
-              ["none", "Ignored"],
-              ["draw", "Draw"],
-              ["loss_for_defenders", "Loss for King's side"],
+              ["none", t.repetitionOptionNone],
+              ["draw", t.repetitionOptionDraw],
+              ["loss_for_defenders", t.repetitionOptionLossDefenders],
             ] as [CustomRules["repetitionResult"], string][]
           ).map(([val, label]) => (
             <label key={val} className="flex cursor-pointer items-center gap-1.5 text-sm">
