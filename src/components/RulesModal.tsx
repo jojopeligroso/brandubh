@@ -1,6 +1,7 @@
+import type { Translations } from "../i18n";
 import type { RuleSet } from "../game/variants";
 
-export default function RulesModal({ rules, onClose }: { rules: RuleSet; onClose: () => void }) {
+export default function RulesModal({ rules, t, onClose }: { rules: RuleSet; t: Translations; onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
@@ -11,65 +12,65 @@ export default function RulesModal({ rules, onClose }: { rules: RuleSet; onClose
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 className="font-display text-2xl text-gold">Conas Brandubh a imirt</h2>
+          <h2 className="font-display text-2xl text-gold">{t.rulesTitle}</h2>
           <button className="btn" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
 
         <p className="mt-3 text-sm text-parchment-dim">
-          Is é Brandubh (&lsquo;fiach dubh&rsquo;) an leagan Gaelach 7×7 de hnefatafl — cluiche cogaidh Lochlannach-Gaelach neamhshiméadrach. <em>Ní</em> ficheall shiméadrach é: tá rudaí éagsúla uaidh ag an dá thaobh.
+          {t.rulesIntro}<em>{t.rulesIntroNot}</em>{t.rulesIntroDifferent}
         </p>
 
-        <Section title="Na sluaite">
+        <Section title={t.sectionArmies}>
           <li>
-            <b className="text-gold">An Rí</b> ina shuí ar an ríchathaoir lár le <b>4 chosantóir</b>.
-            Tá a thaobh faoi mhíbhuntáiste uimhreach.
+            <b className="text-gold">{t.theKing}</b> {t.kingSitsOn} <b>{t.fourDefenders}</b>.
+            {" "}{t.outnumbered}
           </li>
           <li>
-            <b>8 bhfoghlaithe</b> (creachadóirí) timpeall na n-imeall. Bogann siad ar dtús.
-          </li>
-        </Section>
-
-        <Section title="Gluaiseacht">
-          <li>Bogann gach píosa mar chaiseal: aon líon cearnóg folamh suas, síos nó trasna.</li>
-          <li>Ní léimeann aon phíosa. Ní cheadaítear bogadh trasnánach.</li>
-          <li>
-            Ní féidir ach leis an Rí fanacht ar an <b>ríchathaoir</b> (lár) nó <b>cúinne</b>. Féadann saighdiúirí dul thar an ríchathaoir fholamh ach ní féidir leo stopadh uirthi.
+            <b>{t.eightAttackers}</b> {t.attackersRing}
           </li>
         </Section>
 
-        <Section title="Gabháil">
+        <Section title={t.sectionMovement}>
+          <li>{t.movementRook}</li>
+          <li>{t.movementNoJumps}</li>
           <li>
-            Cuir saighdiúir namhad i ngaiste idir dhá phíosa de do chuid féin (nó do phíosa agus cearnóg naimhdeach) ar líne — bainfear é. Ní ghabháiltear tú ach trí bhogadh <em>isteach</em> sa ghaiste; tá sé sábháilte bogadh idir dhá namhaid.
+            {t.movementThroneOnly} <b>{t.throne}</b> {t.orA} <b>{t.corner}</b>{t.movementThronePass}
           </li>
-          <li>Is cearnóga naimhdeacha iad na cúinní agus an ríchathaoir fholamh a chabhraíonn le gabháil.</li>
-          <li>Is féidir roinnt píosaí a ghabháil le bogadh amháin.</li>
+        </Section>
+
+        <Section title={t.sectionCapturing}>
+          <li>
+            {t.captureTrap1}<em>{t.captureInto}</em>{t.captureTrap2}
+          </li>
+          <li>{t.captureHostile}</li>
+          <li>{t.captureMultiple}</li>
           {!rules.armedKing && (
             <li className="text-blood">
-              Sa leagan seo tá an Rí <b>gan arm</b> — ní féidir leis cabhrú le gabháil riamh.
+              {t.weaponlessPrefix}<b>{t.weaponless}</b>{t.weaponlessSuffix}
             </li>
           )}
         </Section>
 
-        <Section title="Buachan">
+        <Section title={t.sectionWinning}>
           <li>
-            <b className="text-gold">Cosantóirí a bhuann</b> má shroicheann an Rí aon <b>cúinne</b>.
+            <b className="text-gold">{t.defendersWinLabel}</b> {t.defendersWinRule} <b>{t.corner}</b>.
           </li>
           <li>
-            <b className="text-blood">Foghlaithe a bhuann</b> má ghabhann siad an Rí — á thimpeallú ar dhá thaobh os comhair a chéile san oscailt, nó ar na ceithre thaobh nuair atá sé ina shuí ar an ríchathaoir nó in aice léi.
+            <b className="text-blood">{t.attackersWinLabel}</b> {t.attackersWinRule}
           </li>
-          <li>Cailleann imreoir gan bogadh dlíthiúil.</li>
-          {rules.repetitionIsDraw && <li>Is cluiche cothrom é suíomh a thagann trí huaire.</li>}
+          <li>{t.noMoveLoses}</li>
+          {rules.repetitionIsDraw && <li>{t.repetitionDraw}</li>}
         </Section>
 
         <div className="mt-5 rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
-          <div className="font-semibold text-gold">{rules.name}</div>
-          <p className="mt-1 text-parchment-dim">{rules.blurb}</p>
+          <div className="font-semibold text-gold">{t.variantNames[rules.id] ?? rules.name}</div>
+          <p className="mt-1 text-parchment-dim">{t.variantBlurbs[rules.id] ?? rules.blurb}</p>
         </div>
 
         <button className="btn btn-primary mt-5 w-full" onClick={onClose}>
-          Imir
+          {t.playButton}
         </button>
       </div>
     </div>

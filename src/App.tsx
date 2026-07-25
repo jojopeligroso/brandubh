@@ -13,12 +13,20 @@ import {
 } from "./game/engine";
 import type { GameState, Move, Side, Square } from "./game/types";
 import { DEFAULT_VARIANT, VARIANTS } from "./game/variants";
+import { type Lang, type Translations, translations } from "./i18n";
 
 type PlayMode = "attackers" | "defenders" | "hotseat";
 
 const opposite = (s: Side): Side => (s === "attackers" ? "defenders" : "attackers");
 
+function sideLabel(s: Side, t: Translations): string {
+  return s === "attackers" ? t.raiders : t.kingsSide;
+}
+
 export default function App() {
+  const [lang, setLang] = useState<Lang>("en");
+  const t = translations[lang];
+
   const [variantId, setVariantId] = useState(DEFAULT_VARIANT);
   const [playMode, setPlayMode] = useState<PlayMode>("defenders");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
@@ -30,6 +38,7 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [showModeOverlay, setShowModeOverlay] = useState(true);
+  const [rewindTarget, setRewindTarget] = useState<number | null>(null);
 
   const rules = VARIANTS[variantId];
   const humanSide: Side | null = playMode === "hotseat" ? null : playMode;
@@ -146,6 +155,25 @@ export default function App() {
     });
   }, [aiSide]);
 
+  const confirmRewind = useCallback(() => {
+    if (rewindTarget === null) return;
+    const i = rewindTarget;
+    setRewindTarget(null);
+    if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    if (i === game.history.length - 1) return; // already there
+    // undoStack[i+1] = state after move i
+    setUndoStack((stack) => {
+      const target = stack[i + 1];
+      if (target) {
+        setGame(target);
+        setSelected(null);
+        setFadingCaptures([]);
+        setThinking(false);
+      }
+      return stack.slice(0, i + 1);
+    });
+  }, [rewindTarget, game.history.length]);
+
   const changeVariant = (id: string) => {
     setVariantId(id);
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
@@ -163,9 +191,9 @@ export default function App() {
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
-      <Header onShowRules={() => setShowRules(true)} />
+      <Header t={t} lang={lang} onLang={setLang} onShowRules={() => setShowRules(true)} />
 
-      <StatusBar game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
+      <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
       <div className="mt-3">
         <Board
@@ -181,21 +209,22 @@ export default function App() {
         />
       </div>
 
-      <CapturedTray game={game} />
+      <CapturedTray t={t} game={game} />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button className="btn btn-primary" onClick={newGame}>
-          Cluiche nua
+          {t.newGame}
         </button>
         <button className="btn" onClick={undo} disabled={undoStack.length === 0 || thinking}>
-          Cealaigh
+          {t.undo}
         </button>
         <button className="btn" onClick={() => setShowRules(true)}>
-          Rialacha
+          {t.rules}
         </button>
       </div>
 
       <Settings
+        t={t}
         variantId={variantId}
         onVariant={changeVariant}
         playMode={playMode}
@@ -204,16 +233,26 @@ export default function App() {
         onDifficulty={setDifficulty}
       />
 
-      <MoveLog game={game} />
+      <MoveLog t={t} game={game} onMoveClick={(i) => setRewindTarget(i)} />
 
-      {showRules && <RulesModal rules={rules} onClose={() => setShowRules(false)} />}
+      {showRules && <RulesModal t={t} rules={rules} onClose={() => setShowRules(false)} />}
 
       {showModeOverlay && (
         <ModeOverlay
+          t={t}
           onChoose={(m) => {
             changeMode(m);
             setShowModeOverlay(false);
           }}
+        />
+      )}
+
+      {rewindTarget !== null && (
+        <RewindConfirm
+          t={t}
+          moveNumber={rewindTarget + 1}
+          onConfirm={confirmRewind}
+          onCancel={() => setRewindTarget(null)}
         />
       )}
     </div>
@@ -221,7 +260,17 @@ export default function App() {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────────
-function Header({ onShowRules }: { onShowRules: () => void }) {
+function Header({
+  t,
+  lang,
+  onLang,
+  onShowRules,
+}: {
+  t: Translations;
+  lang: Lang;
+  onLang: (l: Lang) => void;
+  onShowRules: () => void;
+}) {
   return (
     <header className="flex items-center justify-between">
       <div>
@@ -229,26 +278,34 @@ function Header({ onShowRules }: { onShowRules: () => void }) {
           Brand<span className="text-gold">ubh</span>
         </h1>
         <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
-          Hnefatafl Gaelach · 7×7
+          {t.subtitle}
         </p>
       </div>
-      <button className="btn" onClick={onShowRules}>
-        Conas imirt
-      </button>
+      <div className="flex items-center gap-2">
+        <div className="seg">
+          <button className={lang === "en" ? "on" : ""} onClick={() => onLang("en")}>
+            EN
+          </button>
+          <button className={lang === "es" ? "on" : ""} onClick={() => onLang("es")}>
+            ES
+          </button>
+        </div>
+        <button className="btn" onClick={onShowRules}>
+          {t.howToPlay}
+        </button>
+      </div>
     </header>
   );
 }
 
-function sideLabel(s: Side): string {
-  return s === "attackers" ? "Foghlaithe" : "Taobh an Rí";
-}
-
 function StatusBar({
+  t,
   game,
   thinking,
   humanSide,
   aiSide,
 }: {
+  t: Translations;
   game: GameState;
   thinking: boolean;
   humanSide: Side | null;
@@ -259,27 +316,24 @@ function StatusBar({
   if (isGameOver(game.status)) {
     const w = winnerOf(game.status);
     if (w === "draw") {
-      text = "Cluiche cothrom — tháinig an suíomh arís.";
+      text = t.drawMessage;
     } else {
-      const how =
-        game.status === "defenders_win_escape"
-          ? "D'éalaigh an Rí go dtí an cúinne!"
-          : game.status === "attackers_win_capture"
-            ? "Gabhadh an Rí!"
-            : "Níl bogadh ar bith fágtha.";
-      text = `${sideLabel(w as Side)} a bhuaigh — ${how}`;
+      if (game.status === "defenders_win_escape") text = t.defendersWinEscape;
+      else if (game.status === "attackers_win_capture") text = t.attackersWinCapture;
+      else if (game.status === "attackers_win_no_moves") text = t.attackersWinNoMoves;
+      else text = t.defendersWinNoMoves;
       tone = w === "defenders" ? "text-gold" : "text-blood";
     }
   } else {
-    const toMove = sideLabel(game.turn);
+    const toMove = sideLabel(game.turn, t);
     const who =
       humanSide === null
-        ? `${toMove} le bogadh`
+        ? `${toMove} ${t.toMove}`
         : game.turn === humanSide
-          ? `Do sheal · ${toMove}`
+          ? `${t.yourMove} \u00b7 ${toMove}`
           : thinking
-            ? `${toMove} ag smaoineamh…`
-            : `${toMove} le bogadh`;
+            ? `${toMove} ${t.thinkingSuffix}`
+            : `${toMove} ${t.toMove}`;
     text = who;
     if (aiSide && game.turn === aiSide) tone = "text-parchment-dim";
   }
@@ -287,25 +341,26 @@ function StatusBar({
   return (
     <div className="card mt-4 flex items-center justify-between px-4 py-2.5">
       <span className={`font-display text-lg ${tone}`}>{text}</span>
-      <span className="font-mono text-xs text-parchment-dim">bogadh {game.moveCount}</span>
+      <span className="font-mono text-xs text-parchment-dim">{t.moveLabel} {game.moveCount}</span>
     </div>
   );
 }
 
-function CapturedTray({ game }: { game: GameState }) {
+function CapturedTray({ t, game }: { t: Translations; game: GameState }) {
   return (
     <div className="mt-3 flex items-center justify-between text-xs text-parchment-dim">
       <span>
-        Foghlaithe caillte <b className="text-parchment">{game.captured.attackers}</b>
+        {t.raidersLost} <b className="text-parchment">{game.captured.attackers}</b>
       </span>
       <span>
-        Cosantóirí caillte <b className="text-parchment">{game.captured.defenders}</b>
+        {t.defendersLost} <b className="text-parchment">{game.captured.defenders}</b>
       </span>
     </div>
   );
 }
 
 function Settings({
+  t,
   variantId,
   onVariant,
   playMode,
@@ -313,6 +368,7 @@ function Settings({
   difficulty,
   onDifficulty,
 }: {
+  t: Translations;
   variantId: string;
   onVariant: (id: string) => void;
   playMode: PlayMode;
@@ -322,13 +378,13 @@ function Settings({
 }) {
   return (
     <div className="card mt-4 space-y-3 p-4">
-      <Row label="Imir mar">
+      <Row label={t.playAs}>
         <div className="seg">
           {(
             [
-              ["defenders", "Rí"],
-              ["attackers", "Foghlaithe"],
-              ["hotseat", "Os comhair a chéile"],
+              ["defenders", t.king],
+              ["attackers", t.raiders],
+              ["hotseat", t.overTheBoard],
             ] as [PlayMode, string][]
           ).map(([m, l]) => (
             <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
@@ -339,9 +395,9 @@ function Settings({
       </Row>
 
       {playMode !== "hotseat" && (
-        <Row label="Leibhéal RI">
+        <Row label={t.aiLevel}>
           <div className="seg">
-            {(([["easy", "Éasca"], ["medium", "Meánach"], ["hard", "Deacair"]] as [Difficulty, string][]).map(([d, label]) => (
+            {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard]] as [Difficulty, string][]).map(([d, label]) => (
               <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
                 {label}
               </button>
@@ -350,7 +406,7 @@ function Settings({
         </Row>
       )}
 
-      <Row label="Leagan">
+      <Row label={t.variant}>
         <select
           className="btn"
           value={variantId}
@@ -358,7 +414,7 @@ function Settings({
         >
           {Object.values(VARIANTS).map((v) => (
             <option key={v.id} value={v.id}>
-              {v.name}
+              {t.variantNames[v.id] ?? v.name}
             </option>
           ))}
         </select>
@@ -376,27 +432,27 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function ModeOverlay({ onChoose }: { onChoose: (m: PlayMode) => void }) {
+function ModeOverlay({ t, onChoose }: { t: Translations; onChoose: (m: PlayMode) => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
         <h2 className="font-display text-2xl text-parchment">
           Brand<span className="text-gold">ubh</span>
         </h2>
-        <p className="text-sm text-parchment-dim">Roghnaigh do chluiche</p>
+        <p className="text-sm text-parchment-dim">{t.chooseGame}</p>
         <div className="flex flex-col gap-3">
           <button
             className="btn btn-primary py-3 text-base"
             onClick={() => onChoose("defenders")}
           >
-            In aghaidh an ríomhaire
+            {t.playVsAi}
           </button>
           <button
             className="btn py-3 text-base"
             onClick={() => onChoose("hotseat")}
           >
-            Os comhair a chéile
-            <span className="block text-xs font-normal text-parchment-dim">le cara i bpearsa</span>
+            {t.otbOverlay}
+            <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
           </button>
         </div>
       </div>
@@ -404,16 +460,20 @@ function ModeOverlay({ onChoose }: { onChoose: (m: PlayMode) => void }) {
   );
 }
 
-function MoveLog({ game }: { game: GameState }) {
+function MoveLog({ t, game, onMoveClick }: { t: Translations; game: GameState; onMoveClick: (i: number) => void }) {
   if (game.history.length === 0) return null;
   return (
     <details className="card mt-4 p-4">
       <summary className="cursor-pointer text-sm font-semibold text-parchment-dim">
-        Loga bogtha ({game.history.length})
+        {t.moveLog} ({game.history.length})
       </summary>
       <ol className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs text-parchment-dim sm:grid-cols-3">
         {game.history.map((h, i) => (
-          <li key={i}>
+          <li
+            key={i}
+            className="cursor-pointer rounded px-1 hover:bg-parchment/10"
+            onClick={() => onMoveClick(i)}
+          >
             <span className="text-parchment/50">{i + 1}.</span>{" "}
             <span className={h.sideThatMoved === "attackers" ? "text-blood/90" : "text-gold/90"}>
               {moveName(h.move)}
@@ -422,5 +482,38 @@ function MoveLog({ game }: { game: GameState }) {
         ))}
       </ol>
     </details>
+  );
+}
+
+function RewindConfirm({
+  t,
+  moveNumber,
+  onConfirm,
+  onCancel,
+}: {
+  t: Translations;
+  moveNumber: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="card mx-4 w-full max-w-sm space-y-5 p-8 text-center">
+        <p className="font-display text-lg text-parchment">
+          {t.continueFromMove} {moveNumber}?
+        </p>
+        <p className="text-sm text-parchment-dim">
+          {t.movesWillBeLost}
+        </p>
+        <div className="flex gap-3 justify-center">
+          <button className="btn" onClick={onCancel}>
+            {t.back}
+          </button>
+          <button className="btn btn-primary" onClick={onConfirm}>
+            {t.confirm}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
