@@ -28,7 +28,9 @@ export type GameStatus =
   | "playing"
   | "defenders_win_escape"
   | "attackers_win_capture"
+  | "attackers_win_encirclement"
   | "attackers_win_no_moves"
+  | "attackers_win_repetition"
   | "defenders_win_no_moves"
   | "draw_repetition";
 

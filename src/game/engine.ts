@@ -213,17 +213,19 @@ export function kingIsCaptured(b: Board, rules: RuleSet): boolean {
   const flankHostile = (fr: number, fc: number): boolean => {
     if (!inBounds(fr, fc)) return false; // board edge is NOT hostile in Brandubh
     if (b[fr][fc] === "attacker") return true;
-    if (isThrone(fr, fc) && b[fr][fc] === null) return true; // empty throne flanks the king
+    if (isThrone(fr, fc) && b[fr][fc] === null) return rules.throneHostileToKing;
     if (isCorner(fr, fc) && rules.cornersHostile) return true;
     return false;
   };
 
-  if (rules.strongKingByThrone && (onThrone || throneAdjacent)) {
-    // Must be hostile on all four cardinal squares that exist on the board.
+  const needsAllFour =
+    (onThrone && rules.strongKingOnThrone) ||
+    (throneAdjacent && rules.strongKingAdjacentToThrone);
+  if (needsAllFour) {
     for (const [dr, dc] of DIRS) {
       const fr = r + dr;
       const fc = c + dc;
-      if (!inBounds(fr, fc)) return false; // an open edge means not surrounded
+      if (!inBounds(fr, fc)) return false; // open edge = not surrounded
       if (!flankHostile(fr, fc)) return false;
     }
     return true;
@@ -253,6 +255,43 @@ export function hashBoard(b: Board, turn: Side): string {
   for (let r = 0; r < BOARD_SIZE; r++)
     for (let c = 0; c < BOARD_SIZE; c++) s += b[r][c] ? GLYPH[b[r][c] as string] : ".";
   return s;
+}
+
+// ── Encirclement detection ────────────────────────────────────────────────────
+/**
+ * Returns true if the king and all remaining defenders are completely encircled
+ * by attackers — no path from the king through empty/defender/king squares
+ * reaches the board edge without crossing an attacker. Board edges do NOT count
+ * as part of the ring (WTF rule).
+ */
+export function isEncircled(b: Board): boolean {
+  const king = findKing(b);
+  if (!king) return false;
+  if (
+    king.row === 0 ||
+    king.row === BOARD_SIZE - 1 ||
+    king.col === 0 ||
+    king.col === BOARD_SIZE - 1
+  )
+    return false;
+  const visited = new Set<number>();
+  const queue: Array<[number, number]> = [[king.row, king.col]];
+  visited.add(king.row * BOARD_SIZE + king.col);
+  while (queue.length > 0) {
+    const [r, c] = queue.shift()!;
+    for (const [dr, dc] of DIRS) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      const key = nr * BOARD_SIZE + nc;
+      if (visited.has(key)) continue;
+      if (b[nr][nc] === "attacker") continue;
+      if (nr === 0 || nr === BOARD_SIZE - 1 || nc === 0 || nc === BOARD_SIZE - 1) return false;
+      visited.add(key);
+      queue.push([nr, nc]);
+    }
+  }
+  return true;
 }
 
 // ── Applying a move ───────────────────────────────────────────────────────────
@@ -310,15 +349,20 @@ function computeStatus(
   // 2. Attacker capture of the king.
   if (mover === "attackers" && kingIsCaptured(board, rules)) return "attackers_win_capture";
 
-  // 3. Threefold repetition draw.
-  if (rules.repetitionIsDraw) {
+  // 3. Attacker encirclement win.
+  if (mover === "attackers" && rules.encirclementWin && isEncircled(board))
+    return "attackers_win_encirclement";
+
+  // 4. Threefold repetition.
+  if (rules.repetitionResult !== "none") {
     const currentHash = hashBoard(board, nextTurn);
     let seen = 1;
     for (const h of history) if (h.hashBefore === currentHash) seen++;
-    if (seen >= 3) return "draw_repetition";
+    if (seen >= 3)
+      return rules.repetitionResult === "draw" ? "draw_repetition" : "attackers_win_repetition";
   }
 
-  // 4. Side to move has no legal move → they lose (a "block").
+  // 5. Side to move has no legal move → they lose (a "block").
   if (allMoves(board, nextTurn, rules).length === 0)
     return nextTurn === "attackers" ? "defenders_win_no_moves" : "attackers_win_no_moves";
 
@@ -339,6 +383,8 @@ export function winnerOf(status: GameStatus): Side | "draw" | null {
     case "defenders_win_no_moves":
       return "defenders";
     case "attackers_win_capture":
+    case "attackers_win_encirclement":
+    case "attackers_win_repetition":
     case "attackers_win_no_moves":
       return "attackers";
     case "draw_repetition":

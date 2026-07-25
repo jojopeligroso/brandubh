@@ -1,62 +1,125 @@
 // ── Rule variants ─────────────────────────────────────────────────────────────
-// Brandubh's medieval rules were never fully recorded, so several reconstructions
-// coexist. These two presets mirror the pair of Brandubh rule-sets used for
-// recorded play on Aage Nielsen's hnefatafl site (aagenielsen.dk): the modern
-// tournament ("Copenhagen"/World Tafl Federation) reconstruction with an *armed*
-// king, and the older *weaponless-king* reading drawn from the Hervarar saga
-// riddle. Everything a rule actually toggles lives here so the engine stays
-// declarative and both variants share one code path.
+// Two authentic Brandubh reconstructions, sourced directly from aagenielsen.dk:
+//   walker — Damian Walker / Cyningstan (2011), based on MacWhite 1946.
+//   wtf    — World Tafl Federation official tournament rules.
 
 export interface RuleSet {
   id: string;
   name: string;
   blurb: string;
+
+  // ── Piece behaviour ──────────────────────────────────────────────────────────
   /** King may take part in captures (act as a flanking piece). */
   armedKing: boolean;
+
+  // ── Throne rules ─────────────────────────────────────────────────────────────
   /**
-   * King on / next to the throne must be fully surrounded to be captured.
-   * When false the king is captured everywhere like a soldier (two sides).
+   * Empty throne acts as a hostile anvil when capturing *soldiers*
+   * (both attacker and defender soldiers, never the king directly).
+   * Walker: false. WTF: true.
    */
-  strongKingByThrone: boolean;
-  /** Empty throne is a hostile square that helps capture *soldiers*. */
   throneHostileToSoldiers: boolean;
-  /** Corner squares are hostile squares that help capture (both sides). */
-  cornersHostile: boolean;
-  /** Once the king leaves the throne he may not move back onto it. */
+  /**
+   * Empty throne counts as a hostile flank when checking whether the *king*
+   * is captured. WTF explicitly forbids this ("throne is never hostile to
+   * the king"). Walker: false. WTF: false.
+   */
+  throneHostileToKing: boolean;
+  /** King may return to the throne after leaving it. Both rulesets: true. */
   kingMayReoccupyThrone: boolean;
-  /** Soldiers may pass *over* (never stop on) the empty throne. */
+  /** Soldiers may slide *through* (never stop on) the empty throne. */
   soldiersPassThroughThrone: boolean;
-  /** Threefold repetition is scored as a draw (otherwise ignored). */
-  repetitionIsDraw: boolean;
+
+  // ── Corner rules ─────────────────────────────────────────────────────────────
+  /**
+   * Corner squares are hostile anvils for all captures, including the king.
+   * Both rulesets: true.
+   */
+  cornersHostile: boolean;
+
+  // ── King-capture strength ─────────────────────────────────────────────────────
+  /**
+   * King ON the throne requires all four cardinal sides to be hostile before
+   * he is captured. Walker: false. WTF: true.
+   */
+  strongKingOnThrone: boolean;
+  /**
+   * King on a square *adjacent* to the throne requires all four sides to be
+   * hostile (empty throne counts as one hostile side if throneHostileToKing).
+   * Neither Walker nor WTF uses this; available for custom play.
+   */
+  strongKingAdjacentToThrone: boolean;
+
+  // ── Win conditions ────────────────────────────────────────────────────────────
+  /**
+   * Attackers win if they encircle the king and all remaining defenders with
+   * an unbroken ring (not relying on board edges). Walker: false. WTF: true.
+   */
+  encirclementWin: boolean;
+
+  // ── Repetition ────────────────────────────────────────────────────────────────
+  /**
+   * What happens when a position is repeated three times.
+   * "none"               — ignored.
+   * "draw"               — game is a draw (Walker).
+   * "loss_for_defenders" — defenders (white) lose (WTF).
+   */
+  repetitionResult: "none" | "draw" | "loss_for_defenders";
 }
 
+// ── Presets ───────────────────────────────────────────────────────────────────
+
 export const VARIANTS: Record<string, RuleSet> = {
-  copenhagen: {
-    id: "copenhagen",
-    name: "Copenhagen Brandubh",
+  walker: {
+    id: "walker",
+    name: "Brandubh · Walker",
     blurb:
-      "Modern tournament reconstruction (World Tafl Federation). The king is armed and helps capture. He is caught between two raiders in the open, but must be surrounded on the throne.",
+      "Reconstruction by Damian Walker (Cyningstan, 2011), based on MacWhite's 1946 article. " +
+      "The throne is not a hostile square. No strong-king rule — the king is captured by " +
+      "two pieces anywhere on the board. Repetition is a draw.",
     armedKing: true,
-    strongKingByThrone: true,
-    throneHostileToSoldiers: true,
-    cornersHostile: true,
-    kingMayReoccupyThrone: false,
+    throneHostileToSoldiers: false,
+    throneHostileToKing: false,
+    kingMayReoccupyThrone: true,
     soldiersPassThroughThrone: true,
-    repetitionIsDraw: true,
+    cornersHostile: true,
+    strongKingOnThrone: false,
+    strongKingAdjacentToThrone: false,
+    encirclementWin: false,
+    repetitionResult: "draw",
   },
-  weaponless: {
-    id: "weaponless",
-    name: "Weaponless-King Brandubh",
+  wtf: {
+    id: "wtf",
+    name: "Brandubh · World Tafl Federation",
     blurb:
-      "Older 'historical' reading: the king carries no weapon and cannot take part in captures, so the defenders must clear his path with their four warriors alone. A tougher escape.",
-    armedKing: false,
-    strongKingByThrone: true,
+      "Official WTF tournament rules (aagenielsen.dk / branan). The empty throne is hostile to " +
+      "soldiers but never to the king. King on the throne needs all four sides surrounded. " +
+      "Encirclement wins. Repetition is a loss for the defending side.",
+    armedKing: true,
     throneHostileToSoldiers: true,
-    cornersHostile: true,
-    kingMayReoccupyThrone: false,
+    throneHostileToKing: false,
+    kingMayReoccupyThrone: true,
     soldiersPassThroughThrone: true,
-    repetitionIsDraw: true,
+    cornersHostile: true,
+    strongKingOnThrone: true,
+    strongKingAdjacentToThrone: false,
+    encirclementWin: true,
+    repetitionResult: "loss_for_defenders",
   },
 };
 
-export const DEFAULT_VARIANT = "copenhagen";
+export const DEFAULT_VARIANT = "wtf";
+
+/** Starting point for the custom rule editor — mirrors WTF. */
+export const CUSTOM_RULE_DEFAULTS: Omit<RuleSet, "id" | "name" | "blurb"> = {
+  armedKing: true,
+  throneHostileToSoldiers: true,
+  throneHostileToKing: false,
+  kingMayReoccupyThrone: true,
+  soldiersPassThroughThrone: true,
+  cornersHostile: true,
+  strongKingOnThrone: true,
+  strongKingAdjacentToThrone: false,
+  encirclementWin: true,
+  repetitionResult: "loss_for_defenders",
+};

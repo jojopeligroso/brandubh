@@ -61,7 +61,15 @@ export default function RulesModal({ rules, t, onClose }: { rules: RuleSet; t: T
             <b className="text-blood">{t.attackersWinLabel}</b> {t.attackersWinRule}
           </li>
           <li>{t.noMoveLoses}</li>
-          {rules.repetitionIsDraw && <li>{t.repetitionDraw}</li>}
+          {rules.encirclementWin && (
+            <li>
+              <b className="text-blood">{t.attackersWinLabel}</b> {t.encirclementWinRule}
+            </li>
+          )}
+          {rules.repetitionResult === "draw" && <li>{t.repetitionDraw}</li>}
+          {rules.repetitionResult === "loss_for_defenders" && (
+            <li className="text-blood">{t.repetitionLossDefenders}</li>
+          )}
         </Section>
 
         <div className="mt-5 rounded-lg border border-white/10 bg-black/20 p-3 text-sm">

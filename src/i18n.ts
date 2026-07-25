@@ -19,6 +19,8 @@ export interface Translations {
   drawMessage: string;
   defendersWinEscape: string;
   attackersWinCapture: string;
+  attackersWinEncirclement: string;
+  attackersWinRepetition: string;
   attackersWinNoMoves: string;
   defendersWinNoMoves: string;
 
@@ -98,6 +100,8 @@ export interface Translations {
   attackersWinRule: string;
   noMoveLoses: string;
   repetitionDraw: string;
+  repetitionLossDefenders: string;
+  encirclementWinRule: string;
   playButton: string;
 
   // Variant display
@@ -116,6 +120,8 @@ const en: Translations = {
   defendersWinEscape:
     "King\u2019s side win \u2014 The King has escaped to the corner!",
   attackersWinCapture: "Raiders win \u2014 The King is taken!",
+  attackersWinEncirclement: "Raiders win \u2014 The King\u2019s side is encircled!",
+  attackersWinRepetition: "Raiders win \u2014 Repetition: loss for the King\u2019s side.",
   attackersWinNoMoves: "Raiders win \u2014 No moves left.",
   defendersWinNoMoves: "King\u2019s side win \u2014 No moves left.",
 
@@ -194,17 +200,22 @@ const en: Translations = {
     "if they capture the King \u2014 surrounding him on two opposite sides in the open, or on all four sides when he sits on or beside the throne.",
   noMoveLoses: "A player with no legal move loses.",
   repetitionDraw: "A position repeated three times is a draw.",
+  repetitionLossDefenders: "A position repeated three times is a loss for the King\u2019s side.",
+  encirclementWinRule:
+    "if they completely encircle the King\u2019s side with an unbroken ring \u2014 without using the board edge.",
   playButton: "Play",
 
   variantNames: {
-    copenhagen: "Copenhagen Brandubh",
-    weaponless: "Weaponless-King Brandubh",
+    walker: "Brandubh \u00b7 Walker",
+    wtf: "Brandubh \u00b7 World Tafl Federation",
+    custom: "Custom",
   },
   variantBlurbs: {
-    copenhagen:
-      "Modern tournament reconstruction (World Tafl Federation). The king is armed and helps capture. He is caught between two raiders in the open, but must be surrounded on the throne.",
-    weaponless:
-      "Older \u2018historical\u2019 reading: the king carries no weapon and cannot take part in captures, so the defenders must clear his path with their four warriors alone. A tougher escape.",
+    walker:
+      "Reconstruction by Damian Walker (Cyningstan, 2011), based on MacWhite\u2019s 1946 article. The throne is not a hostile square. No strong-king rule \u2014 the king is captured by two pieces anywhere on the board. Repetition is a draw.",
+    wtf:
+      "Official WTF tournament rules (aagenielsen.dk). The empty throne is hostile to soldiers but never to the king. King on the throne needs all four sides surrounded. Encirclement wins. Repetition is a loss for the defending side.",
+    custom: "Your custom ruleset.",
   },
 };
 
@@ -220,6 +231,10 @@ const es: Translations = {
     "\u00a1El Bando del Rey gana! \u2014 \u00a1El Rey ha escapado a la esquina!",
   attackersWinCapture:
     "\u00a1Los Asaltantes ganan! \u2014 \u00a1El Rey ha sido capturado!",
+  attackersWinEncirclement:
+    "\u00a1Los Asaltantes ganan! \u2014 \u00a1El bando del Rey est\u00e1 cercado!",
+  attackersWinRepetition:
+    "\u00a1Los Asaltantes ganan! \u2014 Repetici\u00f3n: p\u00e9rdida para el bando del Rey.",
   attackersWinNoMoves:
     "\u00a1Los Asaltantes ganan! \u2014 No quedan movimientos.",
   defendersWinNoMoves:
@@ -304,17 +319,23 @@ const es: Translations = {
     "si capturan al Rey \u2014 rode\u00e1ndolo por dos lados opuestos en campo abierto, o por los cuatro lados cuando est\u00e1 en o junto al trono.",
   noMoveLoses: "Un jugador sin movimiento legal pierde.",
   repetitionDraw: "Una posici\u00f3n repetida tres veces es tablas.",
+  repetitionLossDefenders:
+    "Una posici\u00f3n repetida tres veces es una derrota para el bando del Rey.",
+  encirclementWinRule:
+    "si rodean completamente al bando del Rey con un anillo ininterrumpido \u2014 sin usar el borde del tablero.",
   playButton: "Jugar",
 
   variantNames: {
-    copenhagen: "Brandubh de Copenhague",
-    weaponless: "Brandubh del Rey Desarmado",
+    walker: "Brandubh \u00b7 Walker",
+    wtf: "Brandubh \u00b7 Federaci\u00f3n Mundial de Tafl",
+    custom: "Personalizado",
   },
   variantBlurbs: {
-    copenhagen:
-      "Reconstrucci\u00f3n moderna de torneo (Federaci\u00f3n Mundial de Tafl). El rey est\u00e1 armado y ayuda a capturar. Es atrapado entre dos asaltantes en campo abierto, pero debe ser rodeado en el trono.",
-    weaponless:
-      "Lectura \u2018hist\u00f3rica\u2019 m\u00e1s antigua: el rey no lleva arma y no puede participar en capturas, as\u00ed que los defensores deben despejar su camino con sus cuatro guerreros solos. Un escape m\u00e1s dif\u00edcil.",
+    walker:
+      "Reconstrucci\u00f3n de Damian Walker (Cyningstan, 2011), basada en el art\u00edculo de MacWhite de 1946. El trono no es una casilla hostil. Sin regla de rey fuerte \u2014 el rey es capturado por dos piezas en cualquier lugar del tablero. La repetici\u00f3n es tablas.",
+    wtf:
+      "Reglas oficiales del torneo FMT (aagenielsen.dk). El trono vac\u00edo es hostil para los soldados pero nunca para el rey. El rey en el trono necesita los cuatro lados rodeados. El cerco gana. La repetici\u00f3n es una derrota para el bando defensor.",
+    custom: "Tu conjunto de reglas personalizado.",
   },
 };
 
@@ -330,6 +351,10 @@ const ga: Translations = {
     "Taobh an R\u00ed a bhuaigh \u2014 D'\u00e9alaigh an R\u00ed go dt\u00ed an c\u00fainne!",
   attackersWinCapture:
     "Foghlaithe a bhuaigh \u2014 Gabhadh an R\u00ed!",
+  attackersWinEncirclement:
+    "Foghlaithe a bhuaigh \u2014 T\u00e1 taobh an R\u00ed timpeallaithe!",
+  attackersWinRepetition:
+    "Foghlaithe a bhuaigh \u2014 Athr\u00e1: caillteanas do thaobh an R\u00ed.",
   attackersWinNoMoves:
     "Foghlaithe a bhuaigh \u2014 N\u00edl bogadh ar bith f\u00e1gtha.",
   defendersWinNoMoves:
@@ -416,17 +441,23 @@ const ga: Translations = {
   noMoveLoses: "Cailleann imreoir gan bogadh dl\u00edthi\u00fail.",
   repetitionDraw:
     "Is cluiche cothrom \u00e9 su\u00edomh a thagann tr\u00ed huaire.",
+  repetitionLossDefenders:
+    "Is caillteanas \u00e9 su\u00edomh a thagann tr\u00ed huaire do thaobh an R\u00ed.",
+  encirclementWinRule:
+    "m\u00e1 thimpealla\u00edonn siad taobh an R\u00ed go hioml\u00e1n le fainne gan bhriseadh \u2014 gan teorainn an chlair a \u00fasaid.",
   playButton: "Imir",
 
   variantNames: {
-    copenhagen: "Brandubh Ch\u00f3banh\u00e1van",
-    weaponless: "Brandubh an R\u00ed gan Arm",
+    walker: "Brandubh \u00b7 Walker",
+    wtf: "Brandubh \u00b7 Cumann Domhanda Tafl",
+    custom: "Saincheap\u00faithe",
   },
   variantBlurbs: {
-    copenhagen:
-      "At\u00f3g\u00e1il nua-aimseartha com\u00f3rtais (Cumann Domhanda Tafl). T\u00e1 arm ag an R\u00ed agus cabbra\u00edonn s\u00e9 le gabh\u00e1il. Gabhtar \u00e9 idir dh\u00e1 fhoghlaithe san oscailt, ach caithfear \u00e9 a thimpeall\u00fa ar an r\u00edchathaoir.",
-    weaponless:
-      "An l\u00e9amh \u2018stairi\u00fail\u2019 n\u00edos sine: n\u00edl aon arm ag an R\u00ed agus n\u00ed f\u00e9idir leis p\u00e1irt a ghlacadh i ngabh\u00e1il, mar sin caithfidh na cosant\u00f3ir\u00ed a bhealach a ghlanadh lena gceathrar saighdi\u00fair\u00ed amh\u00e1in. \u00c9al\u00fa n\u00edos deacra.",
+    walker:
+      "At\u00f3g\u00e1il le Damian Walker (Cyningstan, 2011), bunaithe ar alt MacWhite 1946. N\u00ed cearn\u00f3g naimhdeach \u00ed an r\u00edchathaoir. Gan riail r\u00ed l\u00e1idir \u2014 gabhtar an r\u00ed ag d\u00e1 ph\u00edosa in \u00e1it ar bith ar an gclara\u00ed. Is cluiche cothrom an athr\u00e1.",
+    wtf:
+      "Rialacha oifigi\u00faila com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don thaobh cosanta.",
+    custom: "Do shraith rialacha f\u00e9in.",
   },
 };
 

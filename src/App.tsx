@@ -12,7 +12,7 @@ import {
   winnerOf,
 } from "./game/engine";
 import type { GameState, Move, Side, Square } from "./game/types";
-import { DEFAULT_VARIANT, VARIANTS } from "./game/variants";
+import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
 import { type Lang, type Translations, translations } from "./i18n";
 
 type PlayMode = "attackers" | "defenders" | "hotseat";
@@ -28,6 +28,9 @@ export default function App() {
   const t = translations[lang];
 
   const [variantId, setVariantId] = useState(DEFAULT_VARIANT);
+  const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
+    CUSTOM_RULE_DEFAULTS,
+  );
   const [playMode, setPlayMode] = useState<PlayMode>("defenders");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
@@ -40,7 +43,10 @@ export default function App() {
   const [showModeOverlay, setShowModeOverlay] = useState(true);
   const [rewindTarget, setRewindTarget] = useState<number | null>(null);
 
-  const rules = VARIANTS[variantId];
+  const rules: RuleSet =
+    variantId === "custom"
+      ? { id: "custom", name: "Custom", blurb: "Your custom ruleset.", ...customRules }
+      : VARIANTS[variantId];
   const humanSide: Side | null = playMode === "hotseat" ? null : playMode;
   const aiSide: Side | null = humanSide ? opposite(humanSide) : null;
 
@@ -233,6 +239,10 @@ export default function App() {
         onDifficulty={setDifficulty}
       />
 
+      {variantId === "custom" && (
+        <CustomRuleEditor rules={customRules} onChange={setCustomRules} />
+      )}
+
       <MoveLog t={t} game={game} onMoveClick={(i) => setRewindTarget(i)} />
 
       {showRules && <RulesModal t={t} rules={rules} onClose={() => setShowRules(false)} />}
@@ -320,6 +330,8 @@ function StatusBar({
     } else {
       if (game.status === "defenders_win_escape") text = t.defendersWinEscape;
       else if (game.status === "attackers_win_capture") text = t.attackersWinCapture;
+      else if (game.status === "attackers_win_encirclement") text = t.attackersWinEncirclement;
+      else if (game.status === "attackers_win_repetition") text = t.attackersWinRepetition;
       else if (game.status === "attackers_win_no_moves") text = t.attackersWinNoMoves;
       else text = t.defendersWinNoMoves;
       tone = w === "defenders" ? "text-gold" : "text-blood";
@@ -417,6 +429,7 @@ function Settings({
               {t.variantNames[v.id] ?? v.name}
             </option>
           ))}
+          <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
         </select>
       </Row>
     </div>
@@ -454,6 +467,83 @@ function ModeOverlay({ t, onChoose }: { t: Translations; onChoose: (m: PlayMode)
             {t.otbOverlay}
             <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type CustomRules = Omit<RuleSet, "id" | "name" | "blurb">;
+
+function CustomRuleEditor({
+  rules,
+  onChange,
+}: {
+  rules: CustomRules;
+  onChange: (r: CustomRules) => void;
+}) {
+  const toggle = (key: keyof CustomRules) => {
+    onChange({ ...rules, [key]: !rules[key] });
+  };
+
+  const boolRules: Array<{ key: keyof CustomRules; label: string; hint: string }> = [
+    { key: "armedKing", label: "Armed king", hint: "King can act as a flanking piece in captures" },
+    { key: "throneHostileToSoldiers", label: "Empty throne hostile to soldiers", hint: "Empty throne acts as an anvil when capturing soldiers" },
+    { key: "throneHostileToKing", label: "Empty throne hostile to king", hint: "Empty throne counts as an enemy flank when capturing the king" },
+    { key: "kingMayReoccupyThrone", label: "King may return to throne", hint: "King can re-enter the throne after leaving it" },
+    { key: "soldiersPassThroughThrone", label: "Soldiers pass through empty throne", hint: "Soldiers may slide through (but not stop on) the empty throne" },
+    { key: "cornersHostile", label: "Corners hostile", hint: "Corner squares act as anvils for all captures including the king" },
+    { key: "strongKingOnThrone", label: "Strong king on throne", hint: "King on the throne requires all four sides surrounded to be captured" },
+    { key: "strongKingAdjacentToThrone", label: "Strong king adjacent to throne", hint: "King beside the throne also requires all four sides surrounded" },
+    { key: "encirclementWin", label: "Encirclement win", hint: "Attackers win by forming an unbroken ring around the king's side (no board edge)" },
+  ];
+
+  return (
+    <div className="card mt-4 p-4">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-parchment-dim">
+        Custom rules
+      </h3>
+      <ul className="mt-3 space-y-2">
+        {boolRules.map(({ key, label, hint }) => (
+          <li key={key} className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id={`rule-${key}`}
+              checked={rules[key] as boolean}
+              onChange={() => toggle(key)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-gold"
+            />
+            <label htmlFor={`rule-${key}`} className="cursor-pointer text-sm">
+              <span className="text-parchment">{label}</span>
+              <span className="ml-1 text-parchment-dim">— {hint}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4">
+        <span className="text-sm text-parchment-dim">Repetition result</span>
+        <div className="mt-1.5 flex flex-wrap gap-3">
+          {(
+            [
+              ["none", "Ignored"],
+              ["draw", "Draw"],
+              ["loss_for_defenders", "Loss for King's side"],
+            ] as [CustomRules["repetitionResult"], string][]
+          ).map(([val, label]) => (
+            <label key={val} className="flex cursor-pointer items-center gap-1.5 text-sm">
+              <input
+                type="radio"
+                name="repetitionResult"
+                value={val}
+                checked={rules.repetitionResult === val}
+                onChange={() => onChange({ ...rules, repetitionResult: val })}
+                className="accent-gold"
+              />
+              <span className={rules.repetitionResult === val ? "text-parchment" : "text-parchment-dim"}>
+                {label}
+              </span>
+            </label>
+          ))}
         </div>
       </div>
     </div>
