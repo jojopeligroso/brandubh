@@ -33,9 +33,9 @@ export interface RuleSet {
 export const VARIANTS: Record<string, RuleSet> = {
   copenhagen: {
     id: "copenhagen",
-    name: "Copenhagen Brandubh",
+    name: "Brandubh Chóbanhávan",
     blurb:
-      "Modern tournament reconstruction (World Tafl Federation). The king is armed and helps capture. He is caught between two raiders in the open, but must be surrounded on the throne.",
+      "Atógáil nua-aimseartha comórtais (Cumann Domhanda Tafl). Tá arm ag an Rí agus cabhraíonn sé le gabháil. Gabhtar é idir dhá fhoghlaithe san oscailt, ach caithfear é a thimpeallú ar an ríchathaoir.",
     armedKing: true,
     strongKingByThrone: true,
     throneHostileToSoldiers: true,
@@ -46,9 +46,9 @@ export const VARIANTS: Record<string, RuleSet> = {
   },
   weaponless: {
     id: "weaponless",
-    name: "Weaponless-King Brandubh",
+    name: "Brandubh an Rí gan Arm",
     blurb:
-      "Older 'historical' reading: the king carries no weapon and cannot take part in captures, so the defenders must clear his path with their four warriors alone. A tougher escape.",
+      "An léamh 'stairiúil' níos sine: níl aon arm ag an Rí agus ní féidir leis páirt a ghlacadh i ngabháil, mar sin caithfidh na cosantóirí a bhealach a ghlanadh lena gceathrar saighdiúirí amháin. Éalú níos deacra.",
     armedKing: false,
     strongKingByThrone: true,
     throneHostileToSoldiers: true,

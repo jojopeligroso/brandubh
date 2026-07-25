@@ -185,13 +185,13 @@ export default function App() {
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button className="btn btn-primary" onClick={newGame}>
-          New game
+          Cluiche nua
         </button>
         <button className="btn" onClick={undo} disabled={undoStack.length === 0 || thinking}>
-          Undo
+          Cealaigh
         </button>
         <button className="btn" onClick={() => setShowRules(true)}>
-          Rules
+          Rialacha
         </button>
       </div>
 
@@ -229,18 +229,18 @@ function Header({ onShowRules }: { onShowRules: () => void }) {
           Brand<span className="text-gold">ubh</span>
         </h1>
         <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
-          Irish Hnefatafl · 7×7
+          Hnefatafl Gaelach · 7×7
         </p>
       </div>
       <button className="btn" onClick={onShowRules}>
-        How to play
+        Conas imirt
       </button>
     </header>
   );
 }
 
 function sideLabel(s: Side): string {
-  return s === "attackers" ? "Raiders" : "King’s side";
+  return s === "attackers" ? "Foghlaithe" : "Taobh an Rí";
 }
 
 function StatusBar({
@@ -259,27 +259,27 @@ function StatusBar({
   if (isGameOver(game.status)) {
     const w = winnerOf(game.status);
     if (w === "draw") {
-      text = "Draw — the position repeated.";
+      text = "Cluiche cothrom — tháinig an suíomh arís.";
     } else {
       const how =
         game.status === "defenders_win_escape"
-          ? "The King has escaped to the corner!"
+          ? "D'éalaigh an Rí go dtí an cúinne!"
           : game.status === "attackers_win_capture"
-            ? "The King is taken!"
-            : "No moves left.";
-      text = `${sideLabel(w as Side)} win — ${how}`;
+            ? "Gabhadh an Rí!"
+            : "Níl bogadh ar bith fágtha.";
+      text = `${sideLabel(w as Side)} a bhuaigh — ${how}`;
       tone = w === "defenders" ? "text-gold" : "text-blood";
     }
   } else {
     const toMove = sideLabel(game.turn);
     const who =
       humanSide === null
-        ? `${toMove} to move`
+        ? `${toMove} le bogadh`
         : game.turn === humanSide
-          ? `Your move · ${toMove}`
+          ? `Do sheal · ${toMove}`
           : thinking
-            ? `${toMove} thinking…`
-            : `${toMove} to move`;
+            ? `${toMove} ag smaoineamh…`
+            : `${toMove} le bogadh`;
     text = who;
     if (aiSide && game.turn === aiSide) tone = "text-parchment-dim";
   }
@@ -287,7 +287,7 @@ function StatusBar({
   return (
     <div className="card mt-4 flex items-center justify-between px-4 py-2.5">
       <span className={`font-display text-lg ${tone}`}>{text}</span>
-      <span className="font-mono text-xs text-parchment-dim">move {game.moveCount}</span>
+      <span className="font-mono text-xs text-parchment-dim">bogadh {game.moveCount}</span>
     </div>
   );
 }
@@ -296,10 +296,10 @@ function CapturedTray({ game }: { game: GameState }) {
   return (
     <div className="mt-3 flex items-center justify-between text-xs text-parchment-dim">
       <span>
-        Raiders lost <b className="text-parchment">{game.captured.attackers}</b>
+        Foghlaithe caillte <b className="text-parchment">{game.captured.attackers}</b>
       </span>
       <span>
-        Defenders lost <b className="text-parchment">{game.captured.defenders}</b>
+        Cosantóirí caillte <b className="text-parchment">{game.captured.defenders}</b>
       </span>
     </div>
   );
@@ -322,13 +322,13 @@ function Settings({
 }) {
   return (
     <div className="card mt-4 space-y-3 p-4">
-      <Row label="Play as">
+      <Row label="Imir mar">
         <div className="seg">
           {(
             [
-              ["defenders", "King"],
-              ["attackers", "Raiders"],
-              ["hotseat", "Over the board"],
+              ["defenders", "Rí"],
+              ["attackers", "Foghlaithe"],
+              ["hotseat", "Os comhair a chéile"],
             ] as [PlayMode, string][]
           ).map(([m, l]) => (
             <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
@@ -339,18 +339,18 @@ function Settings({
       </Row>
 
       {playMode !== "hotseat" && (
-        <Row label="AI level">
+        <Row label="Leibhéal RI">
           <div className="seg">
-            {(["easy", "medium", "hard"] as Difficulty[]).map((d) => (
+            {(([["easy", "Éasca"], ["medium", "Meánach"], ["hard", "Deacair"]] as [Difficulty, string][]).map(([d, label]) => (
               <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
-                {d[0].toUpperCase() + d.slice(1)}
+                {label}
               </button>
-            ))}
+            )))}
           </div>
         </Row>
       )}
 
-      <Row label="Variant">
+      <Row label="Leagan">
         <select
           className="btn"
           value={variantId}
@@ -383,19 +383,20 @@ function ModeOverlay({ onChoose }: { onChoose: (m: PlayMode) => void }) {
         <h2 className="font-display text-2xl text-parchment">
           Brand<span className="text-gold">ubh</span>
         </h2>
-        <p className="text-sm text-parchment-dim">Choose your game</p>
+        <p className="text-sm text-parchment-dim">Roghnaigh do chluiche</p>
         <div className="flex flex-col gap-3">
           <button
             className="btn btn-primary py-3 text-base"
             onClick={() => onChoose("defenders")}
           >
-            Play vs AI
+            In aghaidh an ríomhaire
           </button>
           <button
             className="btn py-3 text-base"
             onClick={() => onChoose("hotseat")}
           >
-            Over the board
+            Os comhair a chéile
+            <span className="block text-xs font-normal text-parchment-dim">le cara i bpearsa</span>
           </button>
         </div>
       </div>
@@ -408,7 +409,7 @@ function MoveLog({ game }: { game: GameState }) {
   return (
     <details className="card mt-4 p-4">
       <summary className="cursor-pointer text-sm font-semibold text-parchment-dim">
-        Move log ({game.history.length})
+        Loga bogtha ({game.history.length})
       </summary>
       <ol className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs text-parchment-dim sm:grid-cols-3">
         {game.history.map((h, i) => (

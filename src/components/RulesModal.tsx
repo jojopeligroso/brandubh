@@ -11,62 +11,56 @@ export default function RulesModal({ rules, onClose }: { rules: RuleSet; onClose
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 className="font-display text-2xl text-gold">How to play Brandubh</h2>
+          <h2 className="font-display text-2xl text-gold">Conas Brandubh a imirt</h2>
           <button className="btn" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
 
         <p className="mt-3 text-sm text-parchment-dim">
-          Brandubh (“black raven”) is the Irish 7×7 form of hnefatafl — an asymmetric Norse–Gaelic
-          war game. It is <em>not</em> symmetrical chess: the two sides want different things.
+          Is é Brandubh (&lsquo;fiach dubh&rsquo;) an leagan Gaelach 7×7 de hnefatafl — cluiche cogaidh Lochlannach-Gaelach neamhshiméadrach. <em>Ní</em> ficheall shiméadrach é: tá rudaí éagsúla uaidh ag an dá thaobh.
         </p>
 
-        <Section title="The armies">
+        <Section title="Na sluaite">
           <li>
-            <b className="text-gold">The King</b> sits on the centre throne with <b>4 defenders</b>.
-            His side is outnumbered.
+            <b className="text-gold">An Rí</b> ina shuí ar an ríchathaoir lár le <b>4 chosantóir</b>.
+            Tá a thaobh faoi mhíbhuntáiste uimhreach.
           </li>
           <li>
-            <b>8 attackers</b> (raiders) ring the edges. They move first.
-          </li>
-        </Section>
-
-        <Section title="Movement">
-          <li>Every piece moves like a rook: any number of empty squares up, down, or across.</li>
-          <li>No piece jumps. No diagonal moves.</li>
-          <li>
-            Only the King may rest on the <b>throne</b> (centre) or a <b>corner</b>. Soldiers may
-            pass over the empty throne but never stop on it.
+            <b>8 bhfoghlaithe</b> (creachadóirí) timpeall na n-imeall. Bogann siad ar dtús.
           </li>
         </Section>
 
-        <Section title="Capturing">
+        <Section title="Gluaiseacht">
+          <li>Bogann gach píosa mar chaiseal: aon líon cearnóg folamh suas, síos nó trasna.</li>
+          <li>Ní léimeann aon phíosa. Ní cheadaítear bogadh trasnánach.</li>
           <li>
-            Trap an enemy soldier between two of your own pieces (or your piece and a hostile
-            square) along a line — it is removed. You only capture by moving <em>into</em> the trap;
-            moving between two enemies is safe.
+            Ní féidir ach leis an Rí fanacht ar an <b>ríchathaoir</b> (lár) nó <b>cúinne</b>. Féadann saighdiúirí dul thar an ríchathaoir fholamh ach ní féidir leo stopadh uirthi.
           </li>
-          <li>The corners and the empty throne are hostile squares that help you capture.</li>
-          <li>Several pieces can be captured by a single move.</li>
+        </Section>
+
+        <Section title="Gabháil">
+          <li>
+            Cuir saighdiúir namhad i ngaiste idir dhá phíosa de do chuid féin (nó do phíosa agus cearnóg naimhdeach) ar líne — bainfear é. Ní ghabháiltear tú ach trí bhogadh <em>isteach</em> sa ghaiste; tá sé sábháilte bogadh idir dhá namhaid.
+          </li>
+          <li>Is cearnóga naimhdeacha iad na cúinní agus an ríchathaoir fholamh a chabhraíonn le gabháil.</li>
+          <li>Is féidir roinnt píosaí a ghabháil le bogadh amháin.</li>
           {!rules.armedKing && (
             <li className="text-blood">
-              In this variant the King is <b>weaponless</b> — he can never help make a capture.
+              Sa leagan seo tá an Rí <b>gan arm</b> — ní féidir leis cabhrú le gabháil riamh.
             </li>
           )}
         </Section>
 
-        <Section title="Winning">
+        <Section title="Buachan">
           <li>
-            <b className="text-gold">Defenders win</b> if the King reaches any <b>corner</b>.
+            <b className="text-gold">Cosantóirí a bhuann</b> má shroicheann an Rí aon <b>cúinne</b>.
           </li>
           <li>
-            <b className="text-blood">Attackers win</b> if they capture the King — surrounding him
-            on two opposite sides in the open, or on all four sides when he sits on or beside the
-            throne.
+            <b className="text-blood">Foghlaithe a bhuann</b> má ghabhann siad an Rí — á thimpeallú ar dhá thaobh os comhair a chéile san oscailt, nó ar na ceithre thaobh nuair atá sé ina shuí ar an ríchathaoir nó in aice léi.
           </li>
-          <li>A player with no legal move loses.</li>
-          {rules.repetitionIsDraw && <li>A position repeated three times is a draw.</li>}
+          <li>Cailleann imreoir gan bogadh dlíthiúil.</li>
+          {rules.repetitionIsDraw && <li>Is cluiche cothrom é suíomh a thagann trí huaire.</li>}
         </Section>
 
         <div className="mt-5 rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
@@ -75,7 +69,7 @@ export default function RulesModal({ rules, onClose }: { rules: RuleSet; onClose
         </div>
 
         <button className="btn btn-primary mt-5 w-full" onClick={onClose}>
-          Play
+          Imir
         </button>
       </div>
     </div>

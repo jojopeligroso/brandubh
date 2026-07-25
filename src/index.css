@@ -47,10 +47,45 @@ body {
   border-radius: 14px;
   padding: 10px;
   background:
+    /* carved-stone grain: fine diagonal hatching */
+    repeating-linear-gradient(
+      135deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(60, 36, 12, 0.04) 3px,
+      rgba(60, 36, 12, 0.04) 4px
+    ),
+    /* wood-grain feel: wide horizontal bands */
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 11px,
+      rgba(80, 48, 16, 0.06) 11px,
+      rgba(80, 48, 16, 0.06) 13px
+    ),
+    /* subtle knot/whorl accent */
+    radial-gradient(ellipse 18% 22% at 25% 35%, rgba(100, 60, 20, 0.08) 0%, transparent 100%),
+    radial-gradient(ellipse 14% 18% at 72% 68%, rgba(100, 60, 20, 0.06) 0%, transparent 100%),
+    /* base colour */
     linear-gradient(150deg, #caa06a 0%, #b6864e 45%, #a9793f 100%);
+  /* Celtic concentric border: inner highlight, mid frame, outer dark band */
+  border: 3px solid #6b4a24;
+  outline: 3px solid #4a3218;
+  outline-offset: 2px;
   box-shadow:
-    inset 0 0 0 2px rgba(255, 240, 210, 0.15),
+    /* innermost gold inlay line */
+    inset 0 0 0 2px rgba(224, 168, 58, 0.35),
+    /* second inner carved channel */
+    inset 0 0 0 5px rgba(60, 36, 12, 0.3),
+    /* third inner gold highlight */
+    inset 0 0 0 7px rgba(255, 240, 210, 0.12),
+    /* ambient interior shadow */
     inset 0 2px 30px rgba(60, 36, 12, 0.5),
+    /* outer gilded rim glow */
+    0 0 0 6px rgba(100, 68, 28, 0.6),
+    0 0 0 8px rgba(40, 24, 10, 0.7),
+    0 0 12px 8px rgba(224, 168, 58, 0.08),
+    /* drop shadow */
     0 20px 45px -20px rgba(0, 0, 0, 0.9),
     0 3px 8px rgba(0, 0, 0, 0.4);
   gap: 0;
@@ -73,18 +108,73 @@ body {
     radial-gradient(circle at 50% 42%, rgba(224, 168, 58, 0.28), transparent 62%),
     rgba(120, 80, 34, 0.28);
 }
+/* Throne: Celtic cross with interlace knot pattern */
+.cell.special::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    /* vertical bar of cross */
+    linear-gradient(to right, transparent 42%, rgba(60, 38, 14, 0.3) 43%, rgba(60, 38, 14, 0.3) 57%, transparent 58%),
+    /* horizontal bar of cross */
+    linear-gradient(to bottom, transparent 42%, rgba(60, 38, 14, 0.3) 43%, rgba(60, 38, 14, 0.3) 57%, transparent 58%),
+    /* central ring (nimbus of Celtic cross) */
+    radial-gradient(circle at 50% 50%, transparent 24%, rgba(60, 38, 14, 0.35) 26%, rgba(60, 38, 14, 0.35) 32%, transparent 34%),
+    /* inner ring */
+    radial-gradient(circle at 50% 50%, transparent 14%, rgba(224, 168, 58, 0.15) 15%, rgba(224, 168, 58, 0.15) 18%, transparent 19%);
+}
 .cell.special::after {
   content: "";
   position: absolute;
-  inset: 22%;
+  inset: 18%;
+  z-index: 0;
+  pointer-events: none;
+  /* Outer diamond with knotwork corners */
   border: 1.5px solid rgba(60, 38, 14, 0.5);
-  border-radius: 6px;
+  border-radius: 4px;
   transform: rotate(45deg);
+  box-shadow:
+    /* inner diamond echo */
+    inset 0 0 0 3px transparent,
+    inset 0 0 0 4px rgba(60, 38, 14, 0.2),
+    /* outer diamond echo */
+    0 0 0 3px rgba(60, 38, 14, 0.15),
+    /* gold glow at centre */
+    inset 0 0 8px rgba(224, 168, 58, 0.15);
+}
+/* Hide the throne cross pattern on corners (corners have special+corner) */
+.cell.corner::before {
+  display: none;
+}
+/* Corner squares: Celtic triskelion / carved-stone spiral motif */
+.cell.corner {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(100, 68, 28, 0.18), transparent 60%),
+    rgba(90, 58, 26, 0.16);
 }
 .cell.corner::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
   border-radius: 50%;
   transform: none;
-  inset: 26%;
+  border: none;
+  background:
+    /* central hub */
+    radial-gradient(circle at 50% 50%, rgba(60, 38, 14, 0.55) 0%, rgba(60, 38, 14, 0.55) 12%, transparent 13%),
+    /* three spiral arms radiating out */
+    radial-gradient(circle at 50% 22%, rgba(60, 38, 14, 0.4) 0%, rgba(60, 38, 14, 0.4) 10%, transparent 11%),
+    radial-gradient(circle at 26% 66%, rgba(60, 38, 14, 0.4) 0%, rgba(60, 38, 14, 0.4) 10%, transparent 11%),
+    radial-gradient(circle at 74% 66%, rgba(60, 38, 14, 0.4) 0%, rgba(60, 38, 14, 0.4) 10%, transparent 11%),
+    /* connecting arcs between arms */
+    conic-gradient(from 210deg at 50% 36%, rgba(60, 38, 14, 0.3) 0deg, transparent 40deg, transparent 120deg, rgba(60, 38, 14, 0.3) 160deg, transparent 200deg, transparent 280deg, rgba(60, 38, 14, 0.3) 320deg, transparent 360deg),
+    /* outer ring - carved stone channel */
+    radial-gradient(circle at 50% 50%, transparent 38%, rgba(60, 38, 14, 0.35) 40%, rgba(60, 38, 14, 0.35) 46%, transparent 48%);
+  box-shadow:
+    inset 0 0 3px rgba(60, 38, 14, 0.3),
+    0 0 2px rgba(255, 240, 210, 0.08);
 }
 .cell.playable {
   cursor: pointer;
@@ -93,7 +183,12 @@ body {
   background: rgba(224, 168, 58, 0.35) !important;
   box-shadow: inset 0 0 0 2px var(--color-gold);
 }
-.cell.lastmove::before {
+.cell.lastmove {
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    inset 0 0 12px 2px rgba(224, 168, 58, 0.18);
+}
+.cell.lastmove:not(.special)::before {
   content: "";
   position: absolute;
   inset: 0;
