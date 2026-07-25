@@ -1,4 +1,10 @@
-export type Lang = "en" | "es";
+export type Lang = "en" | "es" | "ga";
+
+/** Languages shown in the UI toggle. Irish is available but hidden for now. */
+export const VISIBLE_LANGS: { code: Lang; label: string }[] = [
+  { code: "en", label: "EN" },
+  { code: "es", label: "ES" },
+];
 
 export interface Translations {
   // Header
@@ -312,4 +318,116 @@ const es: Translations = {
   },
 };
 
-export const translations: Record<Lang, Translations> = { en, es };
+const ga: Translations = {
+  subtitle: "Hnefatafl Gaelach \u00b7 7\u00d77",
+  howToPlay: "Conas imirt",
+
+  raiders: "Foghlaithe",
+  kingsSide: "Taobh an R\u00ed",
+
+  drawMessage: "Cluiche cothrom \u2014 th\u00e1inig an su\u00edomh ar\u00eds.",
+  defendersWinEscape:
+    "Taobh an R\u00ed a bhuaigh \u2014 D'\u00e9alaigh an R\u00ed go dt\u00ed an c\u00fainne!",
+  attackersWinCapture:
+    "Foghlaithe a bhuaigh \u2014 Gabhadh an R\u00ed!",
+  attackersWinNoMoves:
+    "Foghlaithe a bhuaigh \u2014 N\u00edl bogadh ar bith f\u00e1gtha.",
+  defendersWinNoMoves:
+    "Taobh an R\u00ed a bhuaigh \u2014 N\u00edl bogadh ar bith f\u00e1gtha.",
+
+  toMove: "le bogadh",
+  yourMove: "Do sheal",
+  thinkingSuffix: "ag smaoineamh\u2026",
+  moveLabel: "bogadh",
+
+  raidersLost: "Foghlaithe caillte",
+  defendersLost: "Cosant\u00f3ir\u00ed caillte",
+
+  newGame: "Cluiche nua",
+  undo: "Cealaigh",
+  rules: "Rialacha",
+
+  playAs: "Imir mar",
+  king: "R\u00ed",
+  overTheBoard: "Os comhair a ch\u00e9ile",
+  aiLevel: "Leibh\u00e9al RI",
+  easy: "\u00c9asca",
+  medium: "Me\u00e1nach",
+  hard: "Deacair",
+  variant: "Leagan",
+
+  moveLog: "Loga bogtha",
+
+  chooseGame: "Roghnaigh do chluiche",
+  playVsAi: "In aghaidh an r\u00edomhaire",
+  otbOverlay: "Os comhair a ch\u00e9ile",
+  withFriend: "le cara i bpearsa",
+
+  continueFromMove: "Lean ar aghaidh \u00f3 bhogadh",
+  movesWillBeLost: "Caillfear gach bogadh ina dhiaidh seo.",
+  back: "Ar ais",
+  confirm: "Deimhnigh",
+
+  rulesTitle: "Conas Brandubh a imirt",
+  rulesIntro:
+    'Is \u00e9 Brandubh (\u201cfiach dubh\u201d) an leagan Gaelach 7\u00d77 de hnefatafl \u2014 cluiche cogaidh Lochlannach-Gaelach neamhshim\u00e9adrach. ',
+  rulesIntroNot: "N\u00ed",
+  rulesIntroDifferent:
+    " ficheall shim\u00e9adrach \u00e9: t\u00e1 ruda\u00ed \u00e9ags\u00fala uaidh ag an d\u00e1 thaobh.",
+  sectionArmies: "Na sluaite",
+  theKing: "An R\u00ed",
+  kingSitsOn: "ina shu\u00ed ar an r\u00edchathaoir l\u00e1r le",
+  fourDefenders: "4 chosant\u00f3ir",
+  outnumbered: "T\u00e1 a thaobh faoi mh\u00edbhunt\u00e1iste uimhreach.",
+  eightAttackers: "8 bhfoghlaithe",
+  attackersRing:
+    "(creachad\u00f3ir\u00ed) timpeall na n-imeall. Bogann siad ar dt\u00fas.",
+  sectionMovement: "Gluaiseacht",
+  movementRook:
+    "Bogann gach p\u00edosa mar chaiseal: aon l\u00edon cearn\u00f3g folamh suas, s\u00edos n\u00f3 trasna.",
+  movementNoJumps:
+    "N\u00ed l\u00e9imeann aon ph\u00edosa. N\u00ed chead\u00e1\u00edtear bogadh trasn\u00e1nach.",
+  movementThroneOnly: "N\u00ed f\u00e9idir ach leis an R\u00ed fanacht ar an",
+  throne: "r\u00edchathaoir",
+  orA: "(l\u00e1r) n\u00f3",
+  corner: "c\u00fainne",
+  movementThronePass:
+    ". F\u00e9adann saighdi\u00fair\u00ed dul thar an r\u00edchathaoir fholamh ach n\u00ed f\u00e9idir leo stopadh uirthi.",
+  sectionCapturing: "Gabh\u00e1il",
+  captureTrap1:
+    "Cuir saighdi\u00fair namhad i ngaiste idir dh\u00e1 ph\u00edosa de do chuid f\u00e9in (n\u00f3 do ph\u00edosa agus cearn\u00f3g naimhdeach) ar l\u00edne \u2014 bainfear \u00e9. N\u00ed ghab\u00e1iltear t\u00fa ach tr\u00ed bhogadh ",
+  captureInto: "isteach",
+  captureTrap2:
+    " sa ghaiste; t\u00e1 s\u00e9 s\u00e1bh\u00e1ilte bogadh idir dh\u00e1 namhaid.",
+  captureHostile:
+    "Is cearn\u00f3ga naimhdeacha iad na c\u00fainn\u00ed agus an r\u00edchathaoir fholamh a chabhra\u00edonn le gabh\u00e1il.",
+  captureMultiple:
+    "Is f\u00e9idir roinnt p\u00edosa\u00ed a ghab\u00e1il le bogadh amh\u00e1in.",
+  weaponlessPrefix: "Sa leagan seo t\u00e1 an R\u00ed ",
+  weaponless: "gan arm",
+  weaponlessSuffix:
+    " \u2014 n\u00ed f\u00e9idir leis cabhr\u00fa le gabh\u00e1il riamh.",
+  sectionWinning: "Buachan",
+  defendersWinLabel: "Cosant\u00f3ir\u00ed a bhuann",
+  defendersWinRule: "m\u00e1 shroicheann an R\u00ed aon",
+  attackersWinLabel: "Foghlaithe a bhuann",
+  attackersWinRule:
+    "m\u00e1 ghabhann siad an R\u00ed \u2014 \u00e1 thimpeall\u00fa ar dh\u00e1 thaobh os comhair a ch\u00e9ile san oscailt, n\u00f3 ar na ceithre thaobh nuair at\u00e1 s\u00e9 ina shu\u00ed ar an r\u00edchathaoir n\u00f3 in aice l\u00e9i.",
+  noMoveLoses: "Cailleann imreoir gan bogadh dl\u00edthi\u00fail.",
+  repetitionDraw:
+    "Is cluiche cothrom \u00e9 su\u00edomh a thagann tr\u00ed huaire.",
+  playButton: "Imir",
+
+  variantNames: {
+    copenhagen: "Brandubh Ch\u00f3banh\u00e1van",
+    weaponless: "Brandubh an R\u00ed gan Arm",
+  },
+  variantBlurbs: {
+    copenhagen:
+      "At\u00f3g\u00e1il nua-aimseartha com\u00f3rtais (Cumann Domhanda Tafl). T\u00e1 arm ag an R\u00ed agus cabbra\u00edonn s\u00e9 le gabh\u00e1il. Gabhtar \u00e9 idir dh\u00e1 fhoghlaithe san oscailt, ach caithfear \u00e9 a thimpeall\u00fa ar an r\u00edchathaoir.",
+    weaponless:
+      "An l\u00e9amh \u2018stairi\u00fail\u2019 n\u00edos sine: n\u00edl aon arm ag an R\u00ed agus n\u00ed f\u00e9idir leis p\u00e1irt a ghlacadh i ngabh\u00e1il, mar sin caithfidh na cosant\u00f3ir\u00ed a bhealach a ghlanadh lena gceathrar saighdi\u00fair\u00ed amh\u00e1in. \u00c9al\u00fa n\u00edos deacra.",
+  },
+};
+
+export const translations: Record<Lang, Translations> = { en, es, ga };
