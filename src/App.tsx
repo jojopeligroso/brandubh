@@ -29,6 +29,7 @@ export default function App() {
   const [fadingCaptures, setFadingCaptures] = useState<Square[]>([]);
   const [showRules, setShowRules] = useState(false);
   const [thinking, setThinking] = useState(false);
+  const [showModeOverlay, setShowModeOverlay] = useState(true);
 
   const rules = VARIANTS[variantId];
   const humanSide: Side | null = playMode === "hotseat" ? null : playMode;
@@ -206,6 +207,15 @@ export default function App() {
       <MoveLog game={game} />
 
       {showRules && <RulesModal rules={rules} onClose={() => setShowRules(false)} />}
+
+      {showModeOverlay && (
+        <ModeOverlay
+          onChoose={(m) => {
+            changeMode(m);
+            setShowModeOverlay(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -318,7 +328,7 @@ function Settings({
             [
               ["defenders", "King"],
               ["attackers", "Raiders"],
-              ["hotseat", "Pass & play"],
+              ["hotseat", "Over the board"],
             ] as [PlayMode, string][]
           ).map(([m, l]) => (
             <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
@@ -362,6 +372,33 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm text-parchment-dim">{label}</span>
       {children}
+    </div>
+  );
+}
+
+function ModeOverlay({ onChoose }: { onChoose: (m: PlayMode) => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
+        <h2 className="font-display text-2xl text-parchment">
+          Brand<span className="text-gold">ubh</span>
+        </h2>
+        <p className="text-sm text-parchment-dim">Choose your game</p>
+        <div className="flex flex-col gap-3">
+          <button
+            className="btn btn-primary py-3 text-base"
+            onClick={() => onChoose("defenders")}
+          >
+            Play vs AI
+          </button>
+          <button
+            className="btn py-3 text-base"
+            onClick={() => onChoose("hotseat")}
+          >
+            Over the board
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
