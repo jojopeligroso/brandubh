@@ -1,7 +1,173 @@
 @import "tailwindcss";
 
-/* ── Theme tokens ──────────────────────────────────────────────────────────── */
+/* ── Design tokens ─────────────────────────────────────────────────────────────
+   Semantic colour tokens (Tailwind `@theme`) plus board/piece variables (below)
+   are all overridable per theme via `[data-theme="…"]`. The base values here are
+   the "Tokyo Night" theme (the Omarchy default), used when no theme is selected. */
 @theme {
+  --color-night: #13141c;
+  --color-night-2: #1f2335;
+  --color-parchment: #c0caf5;
+  --color-parchment-dim: #7f88b3;
+  --color-wood: #2a2f45;
+  --color-wood-dark: #1c2033;
+  --color-gold: #7aa2f7;
+  --color-blood: #f7768e;
+  --color-moss: #9ece6a;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Board / piece variables — base (Tokyo Night). Themes override the same names. */
+:root {
+  --on-accent: #12131c;
+
+  --app-bg-radial: #292e42;
+  --app-bg-1: #1a1b26;
+  --app-bg-2: #13141c;
+
+  --board-c1: #2a2f45;
+  --board-c2: #22273c;
+  --board-c3: #1c2033;
+  --cell-dark: rgba(130, 170, 255, 0.05);
+  --motif-ink: #0d0e18;
+
+  --atk: #f7768e;
+  --atk-ink: #3a1420;
+  --def: #a9b1d6;
+  --def-ink: #24283b;
+  --king: #bb9af7;
+  --king-ink: #241a3d;
+}
+
+/* ── Themes (Omarchy-inspired) ─────────────────────────────────────────────── */
+
+/* Catppuccin (Mocha) — soft pastel lavender on dark. */
+[data-theme="catppuccin"] {
+  --color-night: #161620;
+  --color-night-2: #1e1e2e;
+  --color-parchment: #cdd6f4;
+  --color-parchment-dim: #9399b2;
+  --color-wood: #313244;
+  --color-wood-dark: #222232;
+  --color-gold: #f9e2af;
+  --color-blood: #f38ba8;
+  --color-moss: #a6e3a1;
+  --on-accent: #1e1e2e;
+
+  --app-bg-radial: #302d41;
+  --app-bg-1: #1e1e2e;
+  --app-bg-2: #141420;
+
+  --board-c1: #313244;
+  --board-c2: #2a2b3d;
+  --board-c3: #222232;
+  --cell-dark: rgba(203, 166, 247, 0.055);
+  --motif-ink: #11111b;
+
+  --atk: #f38ba8;
+  --atk-ink: #3a1622;
+  --def: #bac2de;
+  --def-ink: #292a3a;
+  --king: #cba6f7;
+  --king-ink: #2a1f45;
+}
+
+/* Gruvbox — warm retro amber, red and green. */
+[data-theme="gruvbox"] {
+  --color-night: #1d2021;
+  --color-night-2: #282828;
+  --color-parchment: #ebdbb2;
+  --color-parchment-dim: #a89984;
+  --color-wood: #504945;
+  --color-wood-dark: #3c3836;
+  --color-gold: #fabd2f;
+  --color-blood: #fb4934;
+  --color-moss: #b8bb26;
+  --on-accent: #282828;
+
+  --app-bg-radial: #3c3836;
+  --app-bg-1: #282828;
+  --app-bg-2: #1d2021;
+
+  --board-c1: #665c54;
+  --board-c2: #504945;
+  --board-c3: #3c3836;
+  --cell-dark: rgba(0, 0, 0, 0.14);
+  --motif-ink: #1d2021;
+
+  --atk: #fb4934;
+  --atk-ink: #2a0d07;
+  --def: #ebdbb2;
+  --def-ink: #3c3836;
+  --king: #fabd2f;
+  --king-ink: #3a2600;
+}
+
+/* Nord — cool arctic slate and frost. */
+[data-theme="nord"] {
+  --color-night: #262b34;
+  --color-night-2: #2e3440;
+  --color-parchment: #eceff4;
+  --color-parchment-dim: #a6afc0;
+  --color-wood: #434c5e;
+  --color-wood-dark: #3b4252;
+  --color-gold: #ebcb8b;
+  --color-blood: #bf616a;
+  --color-moss: #a3be8c;
+  --on-accent: #2e3440;
+
+  --app-bg-radial: #3b4252;
+  --app-bg-1: #2e3440;
+  --app-bg-2: #262b34;
+
+  --board-c1: #4c566a;
+  --board-c2: #434c5e;
+  --board-c3: #3b4252;
+  --cell-dark: rgba(216, 222, 233, 0.05);
+  --motif-ink: #232833;
+
+  --atk: #bf616a;
+  --atk-ink: #f3dcde;
+  --def: #e5e9f0;
+  --def-ink: #3b4252;
+  --king: #ebcb8b;
+  --king-ink: #3a2e12;
+}
+
+/* Everforest — muted forest greens and warm cream. */
+[data-theme="everforest"] {
+  --color-night: #232a2e;
+  --color-night-2: #2d353b;
+  --color-parchment: #d3c6aa;
+  --color-parchment-dim: #9aa69b;
+  --color-wood: #475258;
+  --color-wood-dark: #3d484d;
+  --color-gold: #dbbc7f;
+  --color-blood: #e67e80;
+  --color-moss: #a7c080;
+  --on-accent: #2d353b;
+
+  --app-bg-radial: #3d484d;
+  --app-bg-1: #2d353b;
+  --app-bg-2: #232a2e;
+
+  --board-c1: #4f585e;
+  --board-c2: #475258;
+  --board-c3: #3d484d;
+  --cell-dark: rgba(0, 0, 0, 0.12);
+  --motif-ink: #191f21;
+
+  --atk: #e67e80;
+  --atk-ink: #3a1414;
+  --def: #d3c6aa;
+  --def-ink: #3d484d;
+  --king: #dbbc7f;
+  --king-ink: #3a2c12;
+}
+
+/* Carved Wood — the original warm oak-and-parchment board. */
+[data-theme="carved-wood"] {
   --color-night: #16110c;
   --color-night-2: #201811;
   --color-parchment: #efe4cf;
@@ -11,10 +177,27 @@
   --color-gold: #e0a83a;
   --color-blood: #b23a48;
   --color-moss: #5c8a5a;
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --on-accent: #2a1c06;
+
+  --app-bg-radial: #2b2016;
+  --app-bg-1: #16110c;
+  --app-bg-2: #0e0a07;
+
+  --board-c1: #caa06a;
+  --board-c2: #b6864e;
+  --board-c3: #a9793f;
+  --cell-dark: rgba(90, 58, 26, 0.16);
+  --motif-ink: #3c260e;
+
+  --atk: #33303a;
+  --atk-ink: #d7b3b7;
+  --def: #e6d5b3;
+  --def-ink: #7a5a2c;
+  --king: #e6b849;
+  --king-ink: #6b4611;
 }
 
+/* ── Base layout ───────────────────────────────────────────────────────────── */
 html,
 body,
 #root {
@@ -26,10 +209,13 @@ body {
   font-family: var(--font-body);
   color: var(--color-parchment);
   background:
-    radial-gradient(1200px 600px at 50% -10%, #2b2016 0%, transparent 60%),
-    linear-gradient(160deg, #16110c 0%, #0e0a07 100%);
+    radial-gradient(1200px 600px at 50% -10%, var(--app-bg-radial) 0%, transparent 60%),
+    linear-gradient(160deg, var(--app-bg-1) 0%, var(--app-bg-2) 100%);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition:
+    background-color 240ms ease,
+    color 240ms ease;
 }
 
 .font-display {
@@ -38,7 +224,7 @@ body {
 
 /* ── Board ─────────────────────────────────────────────────────────────────── */
 .board {
-  --line: rgba(24, 16, 9, 0.55);
+  --line: color-mix(in srgb, var(--motif-ink) 45%, transparent);
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(7, 1fr);
@@ -47,48 +233,52 @@ body {
   border-radius: 14px;
   padding: 10px;
   background:
-    /* carved-stone grain: fine diagonal hatching */
+    /* fine diagonal hatching (surface grain) */
     repeating-linear-gradient(
       135deg,
       transparent 0px,
       transparent 3px,
-      rgba(60, 36, 12, 0.04) 3px,
-      rgba(60, 36, 12, 0.04) 4px
+      color-mix(in srgb, var(--motif-ink) 9%, transparent) 3px,
+      color-mix(in srgb, var(--motif-ink) 9%, transparent) 4px
     ),
-    /* wood-grain feel: wide horizontal bands */
+    /* wide horizontal bands */
     repeating-linear-gradient(
       180deg,
       transparent 0px,
       transparent 11px,
-      rgba(80, 48, 16, 0.06) 11px,
-      rgba(80, 48, 16, 0.06) 13px
+      color-mix(in srgb, var(--motif-ink) 11%, transparent) 11px,
+      color-mix(in srgb, var(--motif-ink) 11%, transparent) 13px
     ),
-    /* subtle knot/whorl accent */
-    radial-gradient(ellipse 18% 22% at 25% 35%, rgba(100, 60, 20, 0.08) 0%, transparent 100%),
-    radial-gradient(ellipse 14% 18% at 72% 68%, rgba(100, 60, 20, 0.06) 0%, transparent 100%),
-    /* base colour */
-    linear-gradient(150deg, #caa06a 0%, #b6864e 45%, #a9793f 100%);
-  /* Celtic concentric border: inner highlight, mid frame, outer dark band */
-  border: 3px solid #6b4a24;
-  outline: 3px solid #4a3218;
+    /* subtle knot / whorl accents */
+    radial-gradient(ellipse 18% 22% at 25% 35%, color-mix(in srgb, var(--motif-ink) 16%, transparent) 0%, transparent 100%),
+    radial-gradient(ellipse 14% 18% at 72% 68%, color-mix(in srgb, var(--motif-ink) 12%, transparent) 0%, transparent 100%),
+    /* base surface */
+    linear-gradient(150deg, var(--board-c1) 0%, var(--board-c2) 45%, var(--board-c3) 100%);
+  /* concentric carved border */
+  border: 3px solid color-mix(in srgb, var(--board-c3) 62%, #000 38%);
+  outline: 3px solid color-mix(in srgb, var(--board-c3) 45%, #000 55%);
   outline-offset: 2px;
   box-shadow:
-    /* innermost gold inlay line */
-    inset 0 0 0 2px rgba(224, 168, 58, 0.35),
+    /* innermost accent inlay line */
+    inset 0 0 0 2px color-mix(in srgb, var(--color-gold) 35%, transparent),
     /* second inner carved channel */
-    inset 0 0 0 5px rgba(60, 36, 12, 0.3),
-    /* third inner gold highlight */
-    inset 0 0 0 7px rgba(255, 240, 210, 0.12),
+    inset 0 0 0 5px color-mix(in srgb, var(--motif-ink) 40%, transparent),
+    /* third inner highlight */
+    inset 0 0 0 7px color-mix(in srgb, var(--color-parchment) 12%, transparent),
     /* ambient interior shadow */
-    inset 0 2px 30px rgba(60, 36, 12, 0.5),
-    /* outer gilded rim glow */
-    0 0 0 6px rgba(100, 68, 28, 0.6),
-    0 0 0 8px rgba(40, 24, 10, 0.7),
-    0 0 12px 8px rgba(224, 168, 58, 0.08),
+    inset 0 2px 30px color-mix(in srgb, var(--motif-ink) 55%, transparent),
+    /* outer gilded rim */
+    0 0 0 6px color-mix(in srgb, var(--board-c3) 60%, #000 40%),
+    0 0 0 8px color-mix(in srgb, #000 70%, transparent),
+    0 0 12px 8px color-mix(in srgb, var(--color-gold) 10%, transparent),
     /* drop shadow */
     0 20px 45px -20px rgba(0, 0, 0, 0.9),
     0 3px 8px rgba(0, 0, 0, 0.4);
   gap: 0;
+  transition:
+    background 240ms ease,
+    box-shadow 240ms ease,
+    border-color 240ms ease;
 }
 
 .cell {
@@ -101,12 +291,12 @@ body {
   transition: background-color 120ms ease;
 }
 .cell.dark {
-  background: rgba(90, 58, 26, 0.16);
+  background: var(--cell-dark);
 }
 .cell.special {
   background:
-    radial-gradient(circle at 50% 42%, rgba(224, 168, 58, 0.28), transparent 62%),
-    rgba(120, 80, 34, 0.28);
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-gold) 30%, transparent), transparent 62%),
+    color-mix(in srgb, var(--color-gold) 12%, var(--cell-dark));
 }
 /* Throne: Celtic cross with interlace knot pattern */
 .cell.special::before {
@@ -117,13 +307,13 @@ body {
   pointer-events: none;
   background:
     /* vertical bar of cross */
-    linear-gradient(to right, transparent 42%, rgba(60, 38, 14, 0.3) 43%, rgba(60, 38, 14, 0.3) 57%, transparent 58%),
+    linear-gradient(to right, transparent 42%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 43%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 57%, transparent 58%),
     /* horizontal bar of cross */
-    linear-gradient(to bottom, transparent 42%, rgba(60, 38, 14, 0.3) 43%, rgba(60, 38, 14, 0.3) 57%, transparent 58%),
+    linear-gradient(to bottom, transparent 42%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 43%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 57%, transparent 58%),
     /* central ring (nimbus of Celtic cross) */
-    radial-gradient(circle at 50% 50%, transparent 24%, rgba(60, 38, 14, 0.35) 26%, rgba(60, 38, 14, 0.35) 32%, transparent 34%),
+    radial-gradient(circle at 50% 50%, transparent 24%, color-mix(in srgb, var(--motif-ink) 50%, transparent) 26%, color-mix(in srgb, var(--motif-ink) 50%, transparent) 32%, transparent 34%),
     /* inner ring */
-    radial-gradient(circle at 50% 50%, transparent 14%, rgba(224, 168, 58, 0.15) 15%, rgba(224, 168, 58, 0.15) 18%, transparent 19%);
+    radial-gradient(circle at 50% 50%, transparent 14%, color-mix(in srgb, var(--color-gold) 22%, transparent) 15%, color-mix(in srgb, var(--color-gold) 22%, transparent) 18%, transparent 19%);
 }
 .cell.special::after {
   content: "";
@@ -132,17 +322,14 @@ body {
   z-index: 0;
   pointer-events: none;
   /* Outer diamond with knotwork corners */
-  border: 1.5px solid rgba(60, 38, 14, 0.5);
+  border: 1.5px solid color-mix(in srgb, var(--motif-ink) 55%, transparent);
   border-radius: 4px;
   transform: rotate(45deg);
   box-shadow:
-    /* inner diamond echo */
     inset 0 0 0 3px transparent,
-    inset 0 0 0 4px rgba(60, 38, 14, 0.2),
-    /* outer diamond echo */
-    0 0 0 3px rgba(60, 38, 14, 0.15),
-    /* gold glow at centre */
-    inset 0 0 8px rgba(224, 168, 58, 0.15);
+    inset 0 0 0 4px color-mix(in srgb, var(--motif-ink) 28%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--motif-ink) 22%, transparent),
+    inset 0 0 8px color-mix(in srgb, var(--color-gold) 20%, transparent);
 }
 /* Hide the throne cross pattern on corners (corners have special+corner) */
 .cell.corner::before {
@@ -151,8 +338,8 @@ body {
 /* Corner squares: Celtic triskelion / carved-stone spiral motif */
 .cell.corner {
   background:
-    radial-gradient(circle at 50% 50%, rgba(100, 68, 28, 0.18), transparent 60%),
-    rgba(90, 58, 26, 0.16);
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--color-gold) 18%, transparent), transparent 60%),
+    var(--cell-dark);
 }
 .cell.corner::after {
   content: "";
@@ -163,36 +350,36 @@ body {
   border: none;
   background:
     /* central hub */
-    radial-gradient(circle at 50% 50%, rgba(60, 38, 14, 0.55) 0%, rgba(60, 38, 14, 0.55) 12%, transparent 13%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--motif-ink) 60%, transparent) 0%, color-mix(in srgb, var(--motif-ink) 60%, transparent) 12%, transparent 13%),
     /* three spiral arms radiating out */
-    radial-gradient(circle at 50% 22%, rgba(60, 38, 14, 0.4) 0%, rgba(60, 38, 14, 0.4) 10%, transparent 11%),
-    radial-gradient(circle at 26% 66%, rgba(60, 38, 14, 0.4) 0%, rgba(60, 38, 14, 0.4) 10%, transparent 11%),
-    radial-gradient(circle at 74% 66%, rgba(60, 38, 14, 0.4) 0%, rgba(60, 38, 14, 0.4) 10%, transparent 11%),
+    radial-gradient(circle at 50% 22%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 0%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 10%, transparent 11%),
+    radial-gradient(circle at 26% 66%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 0%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 10%, transparent 11%),
+    radial-gradient(circle at 74% 66%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 0%, color-mix(in srgb, var(--motif-ink) 45%, transparent) 10%, transparent 11%),
     /* connecting arcs between arms */
-    conic-gradient(from 210deg at 50% 36%, rgba(60, 38, 14, 0.3) 0deg, transparent 40deg, transparent 120deg, rgba(60, 38, 14, 0.3) 160deg, transparent 200deg, transparent 280deg, rgba(60, 38, 14, 0.3) 320deg, transparent 360deg),
+    conic-gradient(from 210deg at 50% 36%, color-mix(in srgb, var(--motif-ink) 34%, transparent) 0deg, transparent 40deg, transparent 120deg, color-mix(in srgb, var(--motif-ink) 34%, transparent) 160deg, transparent 200deg, transparent 280deg, color-mix(in srgb, var(--motif-ink) 34%, transparent) 320deg, transparent 360deg),
     /* outer ring - carved stone channel */
-    radial-gradient(circle at 50% 50%, transparent 38%, rgba(60, 38, 14, 0.35) 40%, rgba(60, 38, 14, 0.35) 46%, transparent 48%);
+    radial-gradient(circle at 50% 50%, transparent 38%, color-mix(in srgb, var(--motif-ink) 40%, transparent) 40%, color-mix(in srgb, var(--motif-ink) 40%, transparent) 46%, transparent 48%);
   box-shadow:
-    inset 0 0 3px rgba(60, 38, 14, 0.3),
-    0 0 2px rgba(255, 240, 210, 0.08);
+    inset 0 0 3px color-mix(in srgb, var(--motif-ink) 30%, transparent),
+    0 0 2px color-mix(in srgb, var(--color-parchment) 8%, transparent);
 }
 .cell.playable {
   cursor: pointer;
 }
 .cell.selected {
-  background: rgba(224, 168, 58, 0.35) !important;
+  background: color-mix(in srgb, var(--color-gold) 35%, transparent) !important;
   box-shadow: inset 0 0 0 2px var(--color-gold);
 }
 .cell.lastmove {
   box-shadow:
     inset 0 0 0 1px var(--line),
-    inset 0 0 12px 2px rgba(224, 168, 58, 0.18);
+    inset 0 0 12px 2px color-mix(in srgb, var(--color-gold) 18%, transparent);
 }
 .cell.lastmove:not(.special)::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(224, 168, 58, 0.14);
+  background: color-mix(in srgb, var(--color-gold) 14%, transparent);
   pointer-events: none;
 }
 
@@ -202,16 +389,16 @@ body {
   width: 26%;
   height: 26%;
   border-radius: 50%;
-  background: rgba(30, 20, 10, 0.32);
-  box-shadow: 0 0 0 3px rgba(239, 228, 207, 0.18);
+  background: color-mix(in srgb, var(--motif-ink) 65%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-parchment) 18%, transparent);
   animation: pop 140ms ease-out;
 }
 .dot.capture {
   width: 72%;
   height: 72%;
   background: transparent;
-  border: 3px solid rgba(178, 58, 72, 0.75);
-  box-shadow: 0 0 12px rgba(178, 58, 72, 0.5);
+  border: 3px solid color-mix(in srgb, var(--color-blood) 75%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-blood) 50%, transparent);
 }
 
 /* ── Pieces ────────────────────────────────────────────────────────────────── */
@@ -234,20 +421,32 @@ body {
   box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.6);
 }
 .piece.attacker {
-  background:
-    radial-gradient(circle at 35% 28%, #5b5560 0%, #33303a 55%, #1b1920 100%);
-  border: 1.5px solid #6d2a33;
+  background: radial-gradient(
+    circle at 35% 28%,
+    color-mix(in srgb, var(--atk) 72%, #fff 22%) 0%,
+    var(--atk) 52%,
+    color-mix(in srgb, var(--atk) 60%, #000 48%) 100%
+  );
+  border: 1.5px solid color-mix(in srgb, var(--atk) 55%, #000 35%);
 }
 .piece.defender {
-  background:
-    radial-gradient(circle at 35% 28%, #fbf3e0 0%, #e6d5b3 55%, #c3a877 100%);
-  border: 1.5px solid #9c7b46;
+  background: radial-gradient(
+    circle at 35% 28%,
+    color-mix(in srgb, var(--def) 80%, #fff 30%) 0%,
+    var(--def) 52%,
+    color-mix(in srgb, var(--def) 62%, #000 40%) 100%
+  );
+  border: 1.5px solid color-mix(in srgb, var(--def) 55%, #000 38%);
 }
 .piece.king {
-  background:
-    radial-gradient(circle at 35% 28%, #ffe9ad 0%, #e6b849 50%, #b9832a 100%);
-  border: 1.5px solid #7a5216;
-  box-shadow: 0 0 16px rgba(224, 168, 58, 0.55);
+  background: radial-gradient(
+    circle at 35% 28%,
+    color-mix(in srgb, var(--king) 78%, #fff 34%) 0%,
+    var(--king) 50%,
+    color-mix(in srgb, var(--king) 66%, #000 42%) 100%
+  );
+  border: 1.5px solid color-mix(in srgb, var(--king) 58%, #000 32%);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--king) 55%, transparent);
 }
 .piece svg {
   width: 52%;
@@ -256,21 +455,21 @@ body {
   z-index: 1;
 }
 .piece.attacker svg {
-  color: #d7b3b7;
+  color: var(--atk-ink);
   opacity: 0.85;
 }
 .piece.defender svg {
-  color: #7a5a2c;
+  color: var(--def-ink);
   opacity: 0.8;
 }
 .piece.king svg {
-  color: #6b4611;
+  color: var(--king-ink);
 }
 .piece.captured {
   animation: capture 260ms ease-in forwards;
 }
 .piece.threat {
-  outline: 2px solid rgba(178, 58, 72, 0.85);
+  outline: 2px solid color-mix(in srgb, var(--color-blood) 85%, transparent);
   outline-offset: 1px;
 }
 
@@ -299,8 +498,8 @@ body {
   padding: 0.5rem 0.85rem;
   font-weight: 600;
   font-size: 0.9rem;
-  border: 1px solid rgba(239, 228, 207, 0.18);
-  background: rgba(239, 228, 207, 0.06);
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
   color: var(--color-parchment);
   cursor: pointer;
   transition:
@@ -308,7 +507,7 @@ body {
     transform 80ms ease;
 }
 .btn:hover {
-  background: rgba(239, 228, 207, 0.13);
+  background: color-mix(in srgb, var(--color-parchment) 13%, transparent);
 }
 .btn:active {
   transform: translateY(1px);
@@ -318,20 +517,20 @@ body {
   cursor: not-allowed;
 }
 .btn-primary {
-  background: linear-gradient(180deg, #e6b24a, #c98f27);
-  border-color: #a5751d;
-  color: #2a1c06;
+  background: linear-gradient(180deg, var(--color-gold), color-mix(in srgb, var(--color-gold) 78%, #000 22%));
+  border-color: color-mix(in srgb, var(--color-gold) 68%, #000 32%);
+  color: var(--on-accent);
 }
 .btn-primary:hover {
-  background: linear-gradient(180deg, #f0bd55, #d69a2f);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-gold) 92%, #fff 8%), var(--color-gold));
 }
 
 .seg {
   display: inline-flex;
-  background: rgba(0, 0, 0, 0.28);
+  background: color-mix(in srgb, var(--color-night) 55%, transparent);
   border-radius: 10px;
   padding: 3px;
-  border: 1px solid rgba(239, 228, 207, 0.12);
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 12%, transparent);
 }
 .seg button {
   border: none;
@@ -345,12 +544,121 @@ body {
   transition: all 120ms ease;
 }
 .seg button.on {
-  background: rgba(224, 168, 58, 0.9);
-  color: #2a1c06;
+  background: var(--color-gold);
+  color: var(--on-accent);
 }
 
 .card {
-  background: linear-gradient(180deg, rgba(32, 24, 17, 0.9), rgba(22, 17, 12, 0.9));
-  border: 1px solid rgba(239, 228, 207, 0.1);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-night-2) 90%, transparent),
+    color-mix(in srgb, var(--color-night) 90%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
   border-radius: 14px;
+}
+
+/* ── Theme picker swatches ─────────────────────────────────────────────────── */
+.theme-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.theme-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.55rem 0.3rem 0.4rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 14%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
+  color: var(--color-parchment-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.theme-swatch:hover {
+  background: color-mix(in srgb, var(--color-parchment) 10%, transparent);
+}
+.theme-swatch.on {
+  border-color: var(--color-gold);
+  color: var(--color-parchment);
+  background: color-mix(in srgb, var(--color-gold) 12%, transparent);
+}
+.theme-swatch .chips {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.theme-swatch .chips i {
+  display: block;
+  width: 10px;
+  height: 16px;
+}
+
+/* ── Move navigator ────────────────────────────────────────────────────────── */
+.iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
+  color: var(--color-parchment);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 80ms ease,
+    opacity 120ms ease;
+}
+.iconbtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-parchment) 14%, transparent);
+}
+.iconbtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.iconbtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.iconbtn svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 7.5rem;
+  justify-content: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  background: color-mix(in srgb, var(--color-night) 45%, transparent);
+  color: var(--color-parchment-dim);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: default;
+}
+.pill.pill-review {
+  cursor: pointer;
+  color: var(--color-parchment);
+  border-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 12%, transparent);
+}
+.live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-moss);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-moss) 70%, transparent);
 }

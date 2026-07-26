@@ -156,6 +156,29 @@ scripts/
   selftest.ts      headless engine assertions
 ```
 
+## Board themes
+
+The board ships with six colour themes, selectable in the settings and remembered
+between visits. Five take their palettes from the default themes of
+[Omarchy](https://omarchy.org/) — **Tokyo Night** (the default), **Catppuccin**,
+**Gruvbox**, **Nord** and **Everforest** — alongside the original **Carved Wood**.
+Everything is driven by CSS custom properties under a `[data-theme]` attribute, so
+adding another theme is just one more block in `src/index.css` plus an entry in
+`src/theme.ts`.
+
+## Reviewing moves
+
+- **Curved arrows** under the board cycle back and forth through every move
+  without discarding anything; **Play from here** branches the game at the
+  position you are viewing (against the same opponent, or against the computer).
+- **Over-the-board** play offers **Propose takeback**; either side may **Resign**.
+- When a game ends you can step back and **Play from here** to explore variations.
+
+## Credits
+
+The raven emblem on the raider pieces is from
+[game-icons.net](https://game-icons.net/) (CC BY 3.0) — see [NOTICE](NOTICE.md).
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).

@@ -23,39 +23,29 @@ function Emblem({ piece }: { piece: Piece }) {
     );
   if (piece === "attacker")
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-        {/* Crossed Celtic spears with leaf-shaped blade tips */}
-        {/* Spear shafts */}
-        <line x1="5" y1="19" x2="19" y2="5" strokeLinecap="round" />
-        <line x1="19" y1="19" x2="5" y2="5" strokeLinecap="round" />
-        {/* Leaf-shaped spearheads — top-right */}
-        <path d="M17.5 3.5q1.5-.5 2.5.5t.5 2.5q-1.2-.3-2-1.1T17.5 3.5z" fill="currentColor" stroke="none" />
-        {/* Leaf-shaped spearheads — top-left */}
-        <path d="M6.5 3.5q-1.5-.5-2.5.5T3.5 6.5q1.2-.3 2-1.1T6.5 3.5z" fill="currentColor" stroke="none" />
-        {/* Central binding knot — Celtic interlace ring */}
-        <circle cx="12" cy="12" r="2.2" strokeWidth="1.6" />
-        <circle cx="12" cy="12" r="1" strokeWidth="1" />
+      // Brandubh — "the black raven": the raiders' emblem.
+      // Raven glyph from game-icons.net (CC BY 3.0) — see NOTICE. Colour only is themed.
+      <svg viewBox="0 0 512 512" fill="currentColor" aria-hidden>
+        <path d="M343.313 22.22c-57.33 0-61.26 36.153-91.125 54.874C154.782 42.52 133.115 221.496 169.844 330c-15.396 31.924-30.736 75.9-43.813 134.906c56.828 30.66 119.124 38.655 182.22 9.906c-6.2-37.715-14.18-68.858-21.97-95.375c25.025-12.63 59.594-14.573 86.5 14.407c.24-28.626-19.022-40.956-40.53-42.25l-22.03-47.313c42.606-45.056 74.38-100.18 57.905-157.06c-10.303-38.45 58.203-62.225 122.344-53.75c-24.523-21.164-55.99-30.482-85.845-33.876c-8.843-21.763-32.616-37.375-61.313-37.375zm10.968 21.936c9.808 0 17.783 7.944 17.783 17.75s-7.974 17.75-17.782 17.75s-17.75-7.943-17.75-17.75c0-9.806 7.945-17.75 17.75-17.75zm-58.092 274.25l16.28 34.938c-11.62 2.698-22.325 8.217-29.312 15.687c-3.298-10.84-6.498-20.903-9.47-30.28a500 500 0 0 0 22.502-20.344z" />
       </svg>
     );
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      {/* Round Celtic shield with boss and radial cross */}
-      {/* Outer rim */}
-      <circle cx="12" cy="12" r="9" strokeWidth="2" />
-      {/* Inner ring — decorative band */}
-      <circle cx="12" cy="12" r="6" strokeWidth="1.2" />
-      {/* Central boss */}
-      <circle cx="12" cy="12" r="2.2" strokeWidth="1.6" />
-      {/* Radial cross lines */}
-      <line x1="12" y1="3" x2="12" y2="6" strokeWidth="1.4" />
-      <line x1="12" y1="18" x2="12" y2="21" strokeWidth="1.4" />
-      <line x1="3" y1="12" x2="6" y2="12" strokeWidth="1.4" />
-      <line x1="18" y1="12" x2="21" y2="12" strokeWidth="1.4" />
-      {/* Curved quadrant arcs between rings for Celtic feel */}
-      <path d="M9 6.5q3 1.5 6 0" strokeWidth="1" />
-      <path d="M9 17.5q3-1.5 6 0" strokeWidth="1" />
-      <path d="M6.5 9q1.5 3 0 6" strokeWidth="1" />
-      <path d="M17.5 9q-1.5 3 0 6" strokeWidth="1" />
+    // Celtic shield knot (interlaced "#" woven within a ring) — the king's bodyguards.
+    <svg
+      viewBox="0 0 100 100"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="9"
+      strokeLinecap="butt"
+      strokeLinejoin="miter"
+      aria-hidden
+    >
+      <circle cx="50" cy="50" r="44" strokeWidth="8" />
+      {/* two verticals + two horizontals, woven over/under at the four crossings */}
+      <path d="M38,8 L38,56 M38,68 L38,92" />
+      <path d="M62,8 L62,32 M62,44 L62,92" />
+      <path d="M8,38 L32,38 M44,38 L92,38" />
+      <path d="M8,62 L56,62 M68,62 L92,62" />
     </svg>
   );
 }

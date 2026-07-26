@@ -48,6 +48,54 @@ export interface Translations {
   medium: string;
   hard: string;
   variant: string;
+  theme: string;
+
+  // Move navigation
+  prevMove: string;
+  nextMove: string;
+  reviewingLabel: string;
+  liveLabel: string;
+  latest: string;
+  playFromHere: string;
+  playFromHereVsAi: string;
+  proposeTakeback: string;
+  takebackTitle: string;
+  takebackBody: string;
+  allow: string;
+  decline: string;
+  branchHint: string;
+
+  // Resign
+  resign: string;
+  resignTitle: string;
+  resignBody: string;
+  attackersWinResign: string;
+  defendersWinResign: string;
+
+  // Custom rules
+  customRulesTitle: string;
+  ruleArmedKing: string;
+  ruleArmedKingHint: string;
+  ruleThroneHostileSoldiers: string;
+  ruleThroneHostileSoldiersHint: string;
+  ruleThroneHostileKing: string;
+  ruleThroneHostileKingHint: string;
+  ruleKingReoccupyThrone: string;
+  ruleKingReoccupyThroneHint: string;
+  ruleSoldiersPassThrone: string;
+  ruleSoldiersPassThroneHint: string;
+  ruleCornersHostile: string;
+  ruleCornersHostileHint: string;
+  ruleStrongKingOnThrone: string;
+  ruleStrongKingOnThroneHint: string;
+  ruleStrongKingAdjacentThrone: string;
+  ruleStrongKingAdjacentThroneHint: string;
+  ruleEncirclementWin: string;
+  ruleEncirclementWinHint: string;
+  repetitionResultLabel: string;
+  repetitionOptionNone: string;
+  repetitionOptionDraw: string;
+  repetitionOptionLossDefenders: string;
 
   // Move log
   moveLog: string;
@@ -145,6 +193,51 @@ const en: Translations = {
   medium: "Medium",
   hard: "Hard",
   variant: "Variant",
+  theme: "Theme",
+
+  prevMove: "Previous move",
+  nextMove: "Next move",
+  reviewingLabel: "Reviewing",
+  liveLabel: "Live",
+  latest: "Latest",
+  playFromHere: "Play from here",
+  playFromHereVsAi: "Play from here vs Computer",
+  proposeTakeback: "Propose takeback",
+  takebackTitle: "Take back the last move?",
+  takebackBody: "Both players should agree before a move is taken back.",
+  allow: "Allow",
+  decline: "Decline",
+  branchHint: "Step back to an earlier move, then play on from there.",
+
+  resign: "Resign",
+  resignTitle: "Resign the game?",
+  resignBody: "You concede the game to your opponent.",
+  attackersWinResign: "Raiders win — The King’s side resigned.",
+  defendersWinResign: "King’s side win — The Raiders resigned.",
+
+  customRulesTitle: "Custom rules",
+  ruleArmedKing: "Armed king",
+  ruleArmedKingHint: "the king can help make captures",
+  ruleThroneHostileSoldiers: "Throne hostile to soldiers",
+  ruleThroneHostileSoldiersHint: "the empty throne helps capture soldiers",
+  ruleThroneHostileKing: "Throne hostile to king",
+  ruleThroneHostileKingHint: "the empty throne counts against the king",
+  ruleKingReoccupyThrone: "King may re-enter throne",
+  ruleKingReoccupyThroneHint: "the king can return to the throne",
+  ruleSoldiersPassThrone: "Soldiers pass through throne",
+  ruleSoldiersPassThroneHint: "soldiers may slide over the empty throne",
+  ruleCornersHostile: "Corners hostile",
+  ruleCornersHostileHint: "corners help capture, king included",
+  ruleStrongKingOnThrone: "Strong king on throne",
+  ruleStrongKingOnThroneHint: "on the throne the king needs all four sides",
+  ruleStrongKingAdjacentThrone: "Strong king beside throne",
+  ruleStrongKingAdjacentThroneHint: "beside the throne the king needs all four sides",
+  ruleEncirclementWin: "Encirclement win",
+  ruleEncirclementWinHint: "attackers win by fully surrounding the king’s side",
+  repetitionResultLabel: "On threefold repetition",
+  repetitionOptionNone: "Ignore",
+  repetitionOptionDraw: "Draw",
+  repetitionOptionLossDefenders: "King’s side loses",
 
   moveLog: "Move log",
 
@@ -260,6 +353,51 @@ const es: Translations = {
   medium: "Medio",
   hard: "Dif\u00edcil",
   variant: "Variante",
+  theme: "Tema",
+
+  prevMove: "Jugada anterior",
+  nextMove: "Jugada siguiente",
+  reviewingLabel: "Revisando",
+  liveLabel: "En vivo",
+  latest: "\u00daltima",
+  playFromHere: "Jugar desde aqu\u00ed",
+  playFromHereVsAi: "Jugar desde aqu\u00ed vs Ordenador",
+  proposeTakeback: "Proponer devoluci\u00f3n",
+  takebackTitle: "\u00bfDeshacer la \u00faltima jugada?",
+  takebackBody: "Ambos jugadores deben estar de acuerdo antes de deshacer una jugada.",
+  allow: "Permitir",
+  decline: "Rechazar",
+  branchHint: "Retrocede a una jugada anterior y contin\u00faa desde ah\u00ed.",
+
+  resign: "Rendirse",
+  resignTitle: "\u00bfRendir la partida?",
+  resignBody: "Concedes la partida a tu oponente.",
+  attackersWinResign: "Los Asaltantes ganan \u2014 El bando del Rey se rindi\u00f3.",
+  defendersWinResign: "El Bando del Rey gana \u2014 Los Asaltantes se rindieron.",
+
+  customRulesTitle: "Reglas personalizadas",
+  ruleArmedKing: "Rey armado",
+  ruleArmedKingHint: "el rey puede ayudar a capturar",
+  ruleThroneHostileSoldiers: "Trono hostil a soldados",
+  ruleThroneHostileSoldiersHint: "el trono vac\u00edo ayuda a capturar soldados",
+  ruleThroneHostileKing: "Trono hostil al rey",
+  ruleThroneHostileKingHint: "el trono vac\u00edo cuenta contra el rey",
+  ruleKingReoccupyThrone: "El rey puede volver al trono",
+  ruleKingReoccupyThroneHint: "el rey puede regresar al trono",
+  ruleSoldiersPassThrone: "Soldados cruzan el trono",
+  ruleSoldiersPassThroneHint: "los soldados pueden pasar sobre el trono vac\u00edo",
+  ruleCornersHostile: "Esquinas hostiles",
+  ruleCornersHostileHint: "las esquinas ayudan a capturar, incluido el rey",
+  ruleStrongKingOnThrone: "Rey fuerte en el trono",
+  ruleStrongKingOnThroneHint: "en el trono el rey necesita los cuatro lados",
+  ruleStrongKingAdjacentThrone: "Rey fuerte junto al trono",
+  ruleStrongKingAdjacentThroneHint: "junto al trono el rey necesita los cuatro lados",
+  ruleEncirclementWin: "Victoria por cerco",
+  ruleEncirclementWinHint: "los asaltantes ganan rodeando por completo al bando del rey",
+  repetitionResultLabel: "En triple repetici\u00f3n",
+  repetitionOptionNone: "Ignorar",
+  repetitionOptionDraw: "Tablas",
+  repetitionOptionLossDefenders: "El bando del Rey pierde",
 
   moveLog: "Registro de jugadas",
 
@@ -380,6 +518,51 @@ const ga: Translations = {
   medium: "Me\u00e1nach",
   hard: "Deacair",
   variant: "Leagan",
+  theme: "Téama",
+
+  prevMove: "An bogadh roimhe seo",
+  nextMove: "An chéad bhogadh eile",
+  reviewingLabel: "Ag athbhreithniú",
+  liveLabel: "Beo",
+  latest: "Is déanaí",
+  playFromHere: "Imir as seo",
+  playFromHereVsAi: "Imir as seo in aghaidh an ríomhaire",
+  proposeTakeback: "Mol aisghlacadh",
+  takebackTitle: "An bogadh deireanach a aisghlacadh?",
+  takebackBody: "Ba cheart don bheirt imreoir aontú sula n-aisghlactar bogadh.",
+  allow: "Ceadaigh",
+  decline: "Diúltaigh",
+  branchHint: "Téigh siar go bogadh níos luaithe, agus lean ar aghaidh as sin.",
+
+  resign: "Géill",
+  resignTitle: "An gcluiche a ghéilleadh?",
+  resignBody: "Géilleann tú an cluiche do do chéile comhraic.",
+  attackersWinResign: "Foghlaithe a bhuaigh — Ghéill taobh an Rí.",
+  defendersWinResign: "Taobh an Rí a bhuaigh — Ghéill na Foghlaithe.",
+
+  customRulesTitle: "Rialacha saincheaptha",
+  ruleArmedKing: "Rí armtha",
+  ruleArmedKingHint: "is féidir leis an rí cabhrú le gabháil",
+  ruleThroneHostileSoldiers: "Ríchathaoir naimhdeach do shaighdiúirí",
+  ruleThroneHostileSoldiersHint: "cabhraíonn an ríchathaoir fholamh le saighdiúirí a ghabháil",
+  ruleThroneHostileKing: "Ríchathaoir naimhdeach don rí",
+  ruleThroneHostileKingHint: "cuntar an ríchathaoir fholamh in aghaidh an rí",
+  ruleKingReoccupyThrone: "Féadann an rí filleadh ar an ríchathaoir",
+  ruleKingReoccupyThroneHint: "is féidir leis an rí filleadh ar an ríchathaoir",
+  ruleSoldiersPassThrone: "Saighdiúirí thar an ríchathaoir",
+  ruleSoldiersPassThroneHint: "féadann saighdiúirí sleamhnú thar an ríchathaoir fholamh",
+  ruleCornersHostile: "Cúinní naimhdeach",
+  ruleCornersHostileHint: "cabhraíonn na cúinní le gabháil, an rí san áireamh",
+  ruleStrongKingOnThrone: "Rí láidir ar an ríchathaoir",
+  ruleStrongKingOnThroneHint: "ar an ríchathaoir teastaíonn na ceithre thaobh ón rí",
+  ruleStrongKingAdjacentThrone: "Rí láidir in aice na ríchathaoireach",
+  ruleStrongKingAdjacentThroneHint: "in aice na ríchathaoireach teastaíonn na ceithre thaobh ón rí",
+  ruleEncirclementWin: "Bua trí thimpeallú",
+  ruleEncirclementWinHint: "buann na foghlaithe trí thaobh an rí a thimpeallú go hiomlán",
+  repetitionResultLabel: "Ar athrá faoi thrí",
+  repetitionOptionNone: "Déan neamhaird",
+  repetitionOptionDraw: "Cluiche cothrom",
+  repetitionOptionLossDefenders: "Cailleann taobh an Rí",
 
   moveLog: "Loga bogtha",
 

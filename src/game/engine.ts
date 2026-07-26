@@ -381,11 +381,13 @@ export function winnerOf(status: GameStatus): Side | "draw" | null {
   switch (status) {
     case "defenders_win_escape":
     case "defenders_win_no_moves":
+    case "defenders_win_resign":
       return "defenders";
     case "attackers_win_capture":
     case "attackers_win_encirclement":
     case "attackers_win_repetition":
     case "attackers_win_no_moves":
+    case "attackers_win_resign":
       return "attackers";
     case "draw_repetition":
       return "draw";
