@@ -242,7 +242,11 @@ export function kingIsCaptured(b: Board, rules: RuleSet, movedTo: Square): boole
     return true;
   }
 
-  // Custodial capture on two opposite sides.
+  // Custodial capture on two opposite sides. The piece that just moved must be
+  // one of the two flanks, otherwise a move on the perpendicular axis could
+  // "reuse" a pair the king merely walked into (passive capture).
+  const isMovedSquare = (fr: number, fc: number): boolean =>
+    fr === movedTo.row && fc === movedTo.col;
   const pairs: Array<[[number, number], [number, number]]> = [
     [
       [r - 1, c],
@@ -254,6 +258,7 @@ export function kingIsCaptured(b: Board, rules: RuleSet, movedTo: Square): boole
     ],
   ];
   for (const [[ar, ac], [br, bc]] of pairs) {
+    if (!isMovedSquare(ar, ac) && !isMovedSquare(br, bc)) continue;
     if (flankHostile(ar, ac) && flankHostile(br, bc)) return true;
   }
   return false;
