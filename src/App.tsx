@@ -783,7 +783,7 @@ function DesignModal({
                 <svg
                   viewBox={e.viewBox}
                   fill="currentColor"
-                  fillRule="evenodd"
+                  fillRule={e.fillRule ?? "evenodd"}
                   style={e.scale ? { transform: `scale(${e.scale})` } : undefined}
                   aria-hidden
                 >
