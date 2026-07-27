@@ -49,6 +49,7 @@ export interface Translations {
   hard: string;
   variant: string;
   theme: string;
+  attackerIcon: string;
 
   // Move navigation
   prevMove: string;
@@ -194,6 +195,7 @@ const en: Translations = {
   hard: "Hard",
   variant: "Variant",
   theme: "Theme",
+  attackerIcon: "Raider icon",
 
   prevMove: "Previous move",
   nextMove: "Next move",
@@ -354,6 +356,7 @@ const es: Translations = {
   hard: "Dif\u00edcil",
   variant: "Variante",
   theme: "Tema",
+  attackerIcon: "Icono de asaltante",
 
   prevMove: "Jugada anterior",
   nextMove: "Jugada siguiente",
@@ -519,6 +522,7 @@ const ga: Translations = {
   hard: "Deacair",
   variant: "Leagan",
   theme: "Téama",
+  attackerIcon: "Deilbhín foghlaí",
 
   prevMove: "An bogadh roimhe seo",
   nextMove: "An chéad bhogadh eile",

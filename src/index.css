@@ -662,3 +662,45 @@ body {
   background: var(--color-moss);
   box-shadow: 0 0 6px color-mix(in srgb, var(--color-moss) 70%, transparent);
 }
+
+/* ── Emblem (raider icon) picker ───────────────────────────────────────────── */
+.emblem-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr));
+  gap: 0.5rem;
+}
+.emblem-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.35rem 0.4rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 14%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
+  color: var(--color-parchment-dim);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.emblem-swatch:hover {
+  background: color-mix(in srgb, var(--color-parchment) 10%, transparent);
+}
+.emblem-swatch.on {
+  border-color: var(--color-gold);
+  color: var(--color-parchment);
+  background: color-mix(in srgb, var(--color-gold) 12%, transparent);
+}
+.emblem-swatch svg {
+  width: 2.2rem;
+  height: 2.2rem;
+  color: var(--color-parchment);
+}
+.emblem-swatch .emblem-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+}

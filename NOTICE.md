@@ -1,21 +1,17 @@
-# Third-party assets
+# Assets
 
-## Raven emblem (attacker pieces)
+## Piece emblems
 
-The raven glyph used for the raider (attacker) pieces is from
-**[game-icons.net](https://game-icons.net/)** (the
-[game-icons/icons](https://github.com/game-icons/icons) collection).
+The emblems on the pieces are vector traces of supplied reference images of
+traditional (public-domain) Celtic / Norse symbols. In every case the geometry
+of the source image is preserved unchanged — only the colour is themed at
+runtime via `currentColor`.
 
-- Icon: `raven`
-- Licence: **[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)**
-- Attribution: © GameIcons contributors, game-icons.net
+- **Raider (attacker) pieces** — selectable in Settings from a set of traced
+  symbols (The Crow, Triquetra, Triskele, and several Celtic shield / round
+  knots). Traces live in `src/emblems.ts`.
+- **King's-side (defender) pieces** — a Celtic shield knot. Trace in
+  `src/shieldKnot.ts`.
 
-Only the colour and size of the glyph have been changed; the artwork itself is
-used unmodified.
-
-## Celtic shield knot (defender pieces)
-
-The Celtic shield-knot emblem on the defender (king's-side) pieces is a vector
-trace of a supplied reference image of this traditional (public-domain) Celtic
-symbol. The geometry is unchanged; only the colour is themed. The trace lives in
-`src/shieldKnot.ts`.
+The traces were produced from the supplied artwork with an automatic raster→vector
+tracer; the shapes are faithful reproductions of those public-domain symbols.

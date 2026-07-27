@@ -3,9 +3,10 @@ import { isCorner, isThrone, movesFrom, sideOf } from "../game/engine";
 import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, type Square } from "../game/types";
 import type { RuleSet } from "../game/variants";
 import { SHIELD_KNOT_PATH, SHIELD_KNOT_VIEWBOX } from "../shieldKnot";
+import type { EmblemDef } from "../emblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
-function Emblem({ piece }: { piece: Piece }) {
+function Emblem({ piece, attackerEmblem }: { piece: Piece; attackerEmblem: EmblemDef }) {
   if (piece === "king")
     return (
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -24,10 +25,10 @@ function Emblem({ piece }: { piece: Piece }) {
     );
   if (piece === "attacker")
     return (
-      // Brandubh — "the black raven": the raiders' emblem.
-      // Raven glyph from game-icons.net (CC BY 3.0) — see NOTICE. Colour only is themed.
-      <svg viewBox="0 0 512 512" fill="currentColor" aria-hidden>
-        <path d="M343.313 22.22c-57.33 0-61.26 36.153-91.125 54.874C154.782 42.52 133.115 221.496 169.844 330c-15.396 31.924-30.736 75.9-43.813 134.906c56.828 30.66 119.124 38.655 182.22 9.906c-6.2-37.715-14.18-68.858-21.97-95.375c25.025-12.63 59.594-14.573 86.5 14.407c.24-28.626-19.022-40.956-40.53-42.25l-22.03-47.313c42.606-45.056 74.38-100.18 57.905-157.06c-10.303-38.45 58.203-62.225 122.344-53.75c-24.523-21.164-55.99-30.482-85.845-33.876c-8.843-21.763-32.616-37.375-61.313-37.375zm10.968 21.936c9.808 0 17.783 7.944 17.783 17.75s-7.974 17.75-17.782 17.75s-17.75-7.943-17.75-17.75c0-9.806 7.945-17.75 17.75-17.75zm-58.092 274.25l16.28 34.938c-11.62 2.698-22.325 8.217-29.312 15.687c-3.298-10.84-6.498-20.903-9.47-30.28a500 500 0 0 0 22.502-20.344z" />
+      // The raiders' emblem — an exact vector trace of the chosen artwork
+      // (see src/emblems.ts); only the colour is themed.
+      <svg viewBox={attackerEmblem.viewBox} fill="currentColor" aria-hidden>
+        <path d={attackerEmblem.path} />
       </svg>
     );
   return (
@@ -50,6 +51,8 @@ interface BoardProps {
   interactive: boolean;
   /** The side the local human is allowed to move (null = both, hotseat). */
   controllable: Side | null;
+  /** Chosen emblem for the attacker (raider) pieces. */
+  attackerEmblem: EmblemDef;
   onSquareClick: (sq: Square) => void;
 }
 
@@ -62,6 +65,7 @@ export default function Board({
   fadingCaptures,
   interactive,
   controllable,
+  attackerEmblem,
   onSquareClick,
 }: BoardProps) {
   const legal = useMemo<Square[]>(() => {
@@ -115,7 +119,7 @@ export default function Board({
             >
               {piece && (
                 <div className={`piece ${piece}`} title={piece}>
-                  <Emblem piece={piece} />
+                  <Emblem piece={piece} attackerEmblem={attackerEmblem} />
                 </div>
               )}
               {/* fading captured-piece flash */}

@@ -15,6 +15,13 @@ import type { GameState, Move, Side, Square } from "./game/types";
 import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
 import { type Lang, type Translations, translations } from "./i18n";
 import { applyTheme, loadTheme, THEMES, type ThemeId } from "./theme";
+import {
+  ATTACKER_EMBLEMS,
+  ATTACKER_EMBLEM_KEY,
+  type AttackerEmblemId,
+  emblemById,
+  loadAttackerEmblem,
+} from "./emblems";
 
 type PlayMode = "attackers" | "defenders" | "hotseat";
 
@@ -32,6 +39,15 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  const [attackerEmblem, setAttackerEmblem] = useState<AttackerEmblemId>(loadAttackerEmblem);
+  useEffect(() => {
+    try {
+      localStorage.setItem(ATTACKER_EMBLEM_KEY, attackerEmblem);
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [attackerEmblem]);
 
   const [variantId, setVariantId] = useState(DEFAULT_VARIANT);
   const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
@@ -250,6 +266,7 @@ export default function App() {
           fadingCaptures={fadingCaptures}
           interactive={interactive}
           controllable={humanSide}
+          attackerEmblem={emblemById(attackerEmblem)}
           onSquareClick={onSquareClick}
         />
       </div>
@@ -308,6 +325,8 @@ export default function App() {
         onDifficulty={setDifficulty}
         theme={theme}
         onTheme={setTheme}
+        attackerEmblem={attackerEmblem}
+        onAttackerEmblem={setAttackerEmblem}
       />
 
       {variantId === "custom" && (
@@ -581,6 +600,8 @@ function Settings({
   onDifficulty,
   theme,
   onTheme,
+  attackerEmblem,
+  onAttackerEmblem,
 }: {
   t: Translations;
   variantId: string;
@@ -591,6 +612,8 @@ function Settings({
   onDifficulty: (d: Difficulty) => void;
   theme: ThemeId;
   onTheme: (id: ThemeId) => void;
+  attackerEmblem: AttackerEmblemId;
+  onAttackerEmblem: (id: AttackerEmblemId) => void;
 }) {
   return (
     <div className="card mt-4 space-y-3 p-4">
@@ -654,6 +677,27 @@ function Settings({
                 ))}
               </span>
               {m.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <span className="text-sm text-parchment-dim">{t.attackerIcon}</span>
+        <div className="emblem-swatches mt-2">
+          {ATTACKER_EMBLEMS.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              className={`emblem-swatch ${attackerEmblem === e.id ? "on" : ""}`}
+              onClick={() => onAttackerEmblem(e.id)}
+              aria-pressed={attackerEmblem === e.id}
+              title={e.name}
+            >
+              <svg viewBox={e.viewBox} fill="currentColor" aria-hidden>
+                <path d={e.path} />
+              </svg>
+              <span className="emblem-name">{e.name}</span>
             </button>
           ))}
         </div>
