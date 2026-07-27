@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { isCorner, isThrone, movesFrom, sideOf } from "../game/engine";
 import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, type Square } from "../game/types";
 import type { RuleSet } from "../game/variants";
+import { SHIELD_KNOT_PATH, SHIELD_KNOT_VIEWBOX } from "../shieldKnot";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
 function Emblem({ piece }: { piece: Piece }) {
@@ -30,22 +31,10 @@ function Emblem({ piece }: { piece: Piece }) {
       </svg>
     );
   return (
-    // Celtic shield knot (interlaced "#" woven within a ring) — the king's bodyguards.
-    <svg
-      viewBox="0 0 100 100"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="9"
-      strokeLinecap="butt"
-      strokeLinejoin="miter"
-      aria-hidden
-    >
-      <circle cx="50" cy="50" r="44" strokeWidth="8" />
-      {/* two verticals + two horizontals, woven over/under at the four crossings */}
-      <path d="M38,8 L38,56 M38,68 L38,92" />
-      <path d="M62,8 L62,32 M62,44 L62,92" />
-      <path d="M8,38 L32,38 M44,38 L92,38" />
-      <path d="M8,62 L56,62 M68,62 L92,62" />
+    // Celtic shield knot — the king's bodyguards. Exact vector trace of the
+    // supplied artwork (see src/shieldKnot.ts); only the colour is themed.
+    <svg viewBox={SHIELD_KNOT_VIEWBOX} fill="currentColor" aria-hidden>
+      <path d={SHIELD_KNOT_PATH} />
     </svg>
   );
 }
