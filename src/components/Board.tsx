@@ -171,7 +171,10 @@ export default function Board({
                 </span>
               )}
               {piece && (
-                <div className={`piece ${piece}`} title={piece}>
+                <div
+                  className={`piece ${piece}${sideOf(piece) === turn ? " active-turn" : ""}`}
+                  title={piece}
+                >
                   <Emblem
                     piece={piece}
                     attackerEmblem={attackerEmblem}

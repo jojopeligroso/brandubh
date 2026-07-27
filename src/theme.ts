@@ -25,7 +25,7 @@ export interface ThemeMeta {
 
 // Softer, earthier themes lead; the more saturated ones follow.
 export const THEMES: ThemeMeta[] = [
-  { id: "everforest", name: "Everforest", chips: ["#3d484d", "#dbbc7f", "#a7c080", "#e67e80"] },
+  { id: "everforest", name: "Everforest", chips: ["#3d484d", "#dbbc7f", "#a7c080", "#1b1e20"] },
   { id: "carved-wood", name: "Carved Wood", chips: ["#a9793f", "#e0a83a", "#e6b849", "#b23a48"] },
   { id: "rose-pine", name: "Rosé Pine", chips: ["#232135", "#f6c177", "#c4a7e7", "#eb6f92"] },
   { id: "kanagawa", name: "Kanagawa", chips: ["#2a2a37", "#e6c384", "#98bb6c", "#c34043"] },

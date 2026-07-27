@@ -138,6 +138,8 @@ export default function App() {
   const [thinking, setThinking] = useState(false);
   const [showModeOverlay, setShowModeOverlay] = useState(true);
   const [showTakeback, setShowTakeback] = useState(false);
+  // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
+  const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
   const [showResign, setShowResign] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
 
@@ -318,6 +320,19 @@ export default function App() {
     [cursor, states],
   );
 
+  // Over the board, resuming from an earlier move discards every move that
+  // followed — a multi-move takeback — so it needs the opponent's agreement,
+  // routed through the same confirmation screen. Solo play (vs the computer)
+  // has no opponent to ask, so it branches immediately.
+  const requestPlayFromHere = useCallback(
+    (vsComputer: boolean) => {
+      if (isGameOver(states[cursor].status)) return;
+      if (humanSide === null) setPendingBranch({ vsComputer });
+      else playFromHere(vsComputer);
+    },
+    [states, cursor, humanSide, playFromHere],
+  );
+
   const doTakeback = useCallback(() => {
     setShowTakeback(false);
     if (tip < 1) return;
@@ -472,8 +487,8 @@ export default function App() {
           viewedTerminal={gameOver}
           showVsAi={showVsAiBranch}
           onLatest={goLatest}
-          onPlay={() => playFromHere(false)}
-          onPlayVsAi={() => playFromHere(true)}
+          onPlay={() => requestPlayFromHere(false)}
+          onPlayVsAi={() => requestPlayFromHere(true)}
         />
       )}
 
@@ -516,6 +531,22 @@ export default function App() {
           cancelLabel={t.decline}
           onConfirm={doTakeback}
           onCancel={() => setShowTakeback(false)}
+        />
+      )}
+
+      {pendingBranch && (
+        <ConfirmDialog
+          t={t}
+          title={t.takebackTitle}
+          body={t.takebackBody}
+          confirmLabel={t.allow}
+          cancelLabel={t.decline}
+          onConfirm={() => {
+            const { vsComputer } = pendingBranch;
+            setPendingBranch(null);
+            playFromHere(vsComputer);
+          }}
+          onCancel={() => setPendingBranch(null)}
         />
       )}
 
@@ -657,8 +688,11 @@ function StatusBar({
     if (aiSide && game.turn === aiSide) tone = "text-parchment-dim";
   }
 
+  const live = !isGameOver(game.status);
+  const turnGlow = live ? ` turn-glow turn-glow-${game.turn}` : "";
+
   return (
-    <div className="card mt-4 flex items-center justify-between px-4 py-2.5">
+    <div className={`card mt-4 flex items-center justify-between px-4 py-2.5${turnGlow}`}>
       <span className={`font-display text-lg ${tone}`}>{text}</span>
       <span className="font-mono text-xs text-parchment-dim">{t.moveLabel} {game.moveCount}</span>
     </div>
