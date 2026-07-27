@@ -104,6 +104,31 @@ export interface Translations {
   encirclementWinRule: string;
   playButton: string;
 
+  // Custom rule editor
+  customRulesTitle: string;
+  ruleArmedKing: string;
+  ruleArmedKingHint: string;
+  ruleThroneHostileSoldiers: string;
+  ruleThroneHostileSoldiersHint: string;
+  ruleThroneHostileKing: string;
+  ruleThroneHostileKingHint: string;
+  ruleKingReoccupyThrone: string;
+  ruleKingReoccupyThroneHint: string;
+  ruleSoldiersPassThrone: string;
+  ruleSoldiersPassThroneHint: string;
+  ruleCornersHostile: string;
+  ruleCornersHostileHint: string;
+  ruleStrongKingOnThrone: string;
+  ruleStrongKingOnThroneHint: string;
+  ruleStrongKingAdjacentThrone: string;
+  ruleStrongKingAdjacentThroneHint: string;
+  ruleEncirclementWin: string;
+  ruleEncirclementWinHint: string;
+  repetitionResultLabel: string;
+  repetitionOptionNone: string;
+  repetitionOptionDraw: string;
+  repetitionOptionLossDefenders: string;
+
   // Variant display
   variantNames: Record<string, string>;
   variantBlurbs: Record<string, string>;
@@ -204,6 +229,30 @@ const en: Translations = {
   encirclementWinRule:
     "if they completely encircle the King\u2019s side with an unbroken ring \u2014 without using the board edge.",
   playButton: "Play",
+
+  customRulesTitle: "Custom rules",
+  ruleArmedKing: "Armed king",
+  ruleArmedKingHint: "The king can help capture enemy soldiers.",
+  ruleThroneHostileSoldiers: "Hostile throne (soldiers)",
+  ruleThroneHostileSoldiersHint: "The empty throne helps capture soldiers of either side.",
+  ruleThroneHostileKing: "Hostile throne (king)",
+  ruleThroneHostileKingHint: "The empty throne counts as a hostile side when capturing the king.",
+  ruleKingReoccupyThrone: "King may re-enter throne",
+  ruleKingReoccupyThroneHint: "The king can return to the throne after leaving it.",
+  ruleSoldiersPassThrone: "Soldiers pass through throne",
+  ruleSoldiersPassThroneHint: "Soldiers may slide across the empty throne, but never stop on it.",
+  ruleCornersHostile: "Hostile corners",
+  ruleCornersHostileHint: "Corner squares help capture any piece, including the king.",
+  ruleStrongKingOnThrone: "Strong king on throne",
+  ruleStrongKingOnThroneHint: "On the throne, the king must be surrounded on all four sides.",
+  ruleStrongKingAdjacentThrone: "Strong king beside throne",
+  ruleStrongKingAdjacentThroneHint: "Next to the throne, the king must be surrounded on all four sides.",
+  ruleEncirclementWin: "Encirclement win",
+  ruleEncirclementWinHint: "Raiders win by fully encircling the King’s side.",
+  repetitionResultLabel: "Threefold repetition",
+  repetitionOptionNone: "Ignored",
+  repetitionOptionDraw: "Draw",
+  repetitionOptionLossDefenders: "King’s side loses",
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
@@ -324,6 +373,30 @@ const es: Translations = {
   encirclementWinRule:
     "si rodean completamente al bando del Rey con un anillo ininterrumpido \u2014 sin usar el borde del tablero.",
   playButton: "Jugar",
+
+  customRulesTitle: "Reglas personalizadas",
+  ruleArmedKing: "Rey armado",
+  ruleArmedKingHint: "El rey puede ayudar a capturar soldados enemigos.",
+  ruleThroneHostileSoldiers: "Trono hostil (soldados)",
+  ruleThroneHostileSoldiersHint: "El trono vacío ayuda a capturar soldados de cualquier bando.",
+  ruleThroneHostileKing: "Trono hostil (rey)",
+  ruleThroneHostileKingHint: "El trono vacío cuenta como lado hostil al capturar al rey.",
+  ruleKingReoccupyThrone: "El rey puede volver al trono",
+  ruleKingReoccupyThroneHint: "El rey puede regresar al trono tras abandonarlo.",
+  ruleSoldiersPassThrone: "Soldados cruzan el trono",
+  ruleSoldiersPassThroneHint: "Los soldados pueden atravesar el trono vacío, pero nunca detenerse en él.",
+  ruleCornersHostile: "Esquinas hostiles",
+  ruleCornersHostileHint: "Las esquinas ayudan a capturar cualquier pieza, incluido el rey.",
+  ruleStrongKingOnThrone: "Rey fuerte en el trono",
+  ruleStrongKingOnThroneHint: "En el trono, el rey debe ser rodeado por los cuatro lados.",
+  ruleStrongKingAdjacentThrone: "Rey fuerte junto al trono",
+  ruleStrongKingAdjacentThroneHint: "Junto al trono, el rey debe ser rodeado por los cuatro lados.",
+  ruleEncirclementWin: "Victoria por cerco",
+  ruleEncirclementWinHint: "Los asaltantes ganan al rodear por completo al bando del rey.",
+  repetitionResultLabel: "Repetición triple",
+  repetitionOptionNone: "Ignorada",
+  repetitionOptionDraw: "Tablas",
+  repetitionOptionLossDefenders: "Pierde el bando del rey",
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
@@ -446,6 +519,30 @@ const ga: Translations = {
   encirclementWinRule:
     "m\u00e1 thimpealla\u00edonn siad taobh an R\u00ed go hioml\u00e1n le fainne gan bhriseadh \u2014 gan teorainn an chlair a \u00fasaid.",
   playButton: "Imir",
+
+  customRulesTitle: "Rialacha saincheaptha",
+  ruleArmedKing: "Rí armtha",
+  ruleArmedKingHint: "Is féidir leis an rí cabhrú le saighdiúirí namhad a ghabháil.",
+  ruleThroneHostileSoldiers: "Ríchathaoir naimhdeach (saighdiúirí)",
+  ruleThroneHostileSoldiersHint: "Cabhraíonn an ríchathaoir fholamh le saighdiúirí an dá thaobh a ghabháil.",
+  ruleThroneHostileKing: "Ríchathaoir naimhdeach (rí)",
+  ruleThroneHostileKingHint: "Áirítear an ríchathaoir fholamh mar thaobh naimhdeach agus an rí á ghabháil.",
+  ruleKingReoccupyThrone: "Féadann an rí filleadh ar an ríchathaoir",
+  ruleKingReoccupyThroneHint: "Is féidir leis an rí filleadh ar an ríchathaoir tar éis imeacht di.",
+  ruleSoldiersPassThrone: "Saighdiúirí trasna na ríchathaoireach",
+  ruleSoldiersPassThroneHint: "Féadann saighdiúirí sleamhnú thar an ríchathaoir fholamh, ach gan stopadh uirthi.",
+  ruleCornersHostile: "Cúinní naimhdeacha",
+  ruleCornersHostileHint: "Cabhraíonn na cúinní le haon phíosa a ghabháil, an rí san áireamh.",
+  ruleStrongKingOnThrone: "Rí láidir ar an ríchathaoir",
+  ruleStrongKingOnThroneHint: "Ar an ríchathaoir, caithfear an rí a thimpeallú ar na ceithre thaobh.",
+  ruleStrongKingAdjacentThrone: "Rí láidir in aice na ríchathaoireach",
+  ruleStrongKingAdjacentThroneHint: "In aice na ríchathaoireach, caithfear an rí a thimpeallú ar na ceithre thaobh.",
+  ruleEncirclementWin: "Bua trí thimpeallú",
+  ruleEncirclementWinHint: "Buann na hionsaitheoirí trí thaobh an rí a thimpeallú go hiomlán.",
+  repetitionResultLabel: "Athdhéanamh faoi thrí",
+  repetitionOptionNone: "Neamhaird",
+  repetitionOptionDraw: "Comhscór",
+  repetitionOptionLossDefenders: "Cailleann taobh an rí",
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
