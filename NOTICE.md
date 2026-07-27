@@ -12,6 +12,10 @@ runtime via `currentColor`.
   knots). Traces live in `src/emblems.ts`.
 - **King's-side (defender) pieces** — a Celtic shield knot. Trace in
   `src/shieldKnot.ts`.
+- **Corner squares** — Celtic Tree-of-Life motifs (Tree Knot, Oak, Knotwork
+  Tree, Filigree Tree, Leafy Tree). Traces in `src/cornerEmblems.ts`.
+
+A gallery of the full set is saved at `docs/design/icons.html`.
 
 The traces were produced from the supplied artwork with an automatic raster→vector
 tracer; the shapes are faithful reproductions of those public-domain symbols.
