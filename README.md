@@ -181,10 +181,23 @@ adding another theme is just one more block in `src/index.css` plus an entry in
 - **Over-the-board** play offers **Propose takeback**; either side may **Resign**.
 - When a game ends you can step back and **Play from here** to explore variations.
 
+## Deploying
+
+The app is a static SPA, so any static host works. This repo ships a
+[`vercel.json`](vercel.json) so a connected [Vercel](https://vercel.com) project
+deploys automatically on every push — production from the default branch, and a
+preview URL for every other branch.
+
+One-time setup: import the repository at **vercel.com → Add New → Project**.
+Vercel reads `vercel.json` (framework `vite`, build `npm run build`, output
+`dist/`); no further configuration is needed. To deploy anywhere else, run
+`npm run build` and serve the `dist/` folder.
+
 ## Credits
 
-The raven emblem on the raider pieces is from
-[game-icons.net](https://game-icons.net/) (CC BY 3.0) — see [NOTICE](NOTICE.md).
+Piece and corner emblems are vector traces of supplied artwork of traditional
+public-domain Celtic / Norse symbols — see [NOTICE](NOTICE.md). A gallery of the
+full set lives at [`docs/design/icons.html`](docs/design/icons.html).
 
 ## Licence
 
