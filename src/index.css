@@ -795,6 +795,8 @@ body {
   justify-content: center;
   width: 2.4rem;
   height: 2.4rem;
+  flex: 0 0 auto;
+  aspect-ratio: 1 / 1;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
   background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
