@@ -183,23 +183,28 @@ adding another theme is just one more block in `src/index.css` plus an entry in
 - **Over-the-board** play offers **Propose takeback**; either side may **Resign**.
 - When a game ends you can step back and **Play from here** to explore variations.
 
-## Over-the-board sets
+## Over-the-board sets and matches
 
 Brandubh is asymmetric, so a single game never pits two people fairly against
 each other — whichever army is stronger has the edge. Over-the-board play is
-therefore scored as a **set**: two games in which the players swap sides, so
-each one sits behind both the king and the raiders. A scoreboard above the board
-tracks it live:
+therefore scored as a **set**: a group of games in which the players swap sides,
+so each one sits behind both the king and the raiders an equal number of times.
+A scoreboard above the board tracks it live:
 
-- **King’s side vs Raiders counters** — how many games each army has won so far.
+- **Editable player names** — type over “Player 1 / Player 2”; the names carry
+  through every game, set, and the whole match.
+- **Match tally** — sets won by each player across the running series.
+- **King’s side vs Raiders counters** — games each army has won this set.
 - **Per-player standings** — which side each player holds this game, their game
   wins, and their fastest victory (in moves).
 - **Each finished game** — winner, the side they held, and the moves it took.
 
-Because the stronger side is expected to win both games, a set usually finishes
-level (1–1). When it does, the **move-count tiebreaker** decides it: the player
-who won their game in **fewer moves** takes the set. *Next game* swaps the sides
-and starts game two; *New set* starts a fresh pair.
+Because the stronger side is expected to win, a set usually finishes level. When
+it does, the **move-count tiebreaker** decides it: the player who won in **fewer
+moves** (totalled across their wins) takes the set. *Next game* swaps the sides
+and plays on; *Next set* banks the result and starts a fresh set, alternating who
+leads and **continuing the match count**; *New match* wipes the score. Set length
+(2, 4 or 6 games) is chosen in the settings.
 
 ## Deploying
 

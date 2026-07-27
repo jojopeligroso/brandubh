@@ -13,11 +13,13 @@ import {
 } from "./game/engine";
 import type { GameState, Move, Side, Square } from "./game/types";
 import {
-  GAMES_PER_SET,
-  newSet,
-  recordGame,
+  matchTotals,
+  newMatch,
+  recordMatchGame,
+  SET_LENGTH_OPTIONS,
   standing,
-  type MatchSet,
+  startNextSet,
+  type Match,
   type PlayerId,
 } from "./game/matchSet";
 import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
@@ -80,10 +82,13 @@ export default function App() {
   const [playMode, setPlayMode] = useState<PlayMode>("defenders");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
-  // ── Over-the-board "set" scoring ────────────────────────────────────────────
-  // A set is two games in which the two players swap sides, so each sits behind
-  // both armies. Only meaningful in hotseat play; null otherwise.
-  const [matchSet, setMatchSet] = useState<MatchSet | null>(null);
+  // ── Over-the-board "match" scoring ──────────────────────────────────────────
+  // A match is a running series of sets; each set is a group of games in which
+  // the players swap sides. Only meaningful in hotseat play; null otherwise.
+  const [match, setMatch] = useState<Match | null>(null);
+  const [gamesPerSet, setGamesPerSet] = useState<number>(2);
+  // Editable player names; empty falls back to the localized "Player N".
+  const [names, setNames] = useState<{ p1: string; p2: string }>({ p1: "", p2: "" });
 
   // ── Move timeline ───────────────────────────────────────────────────────────
   // `states[k]` is the full position after k moves; `cursor` is the position
@@ -215,25 +220,31 @@ export default function App() {
     setShowTakeback(false);
   }, []);
 
-  // Fresh board and, in hotseat play, a fresh two-game set.
+  // Fresh board and, in hotseat play, a brand-new match (score reset to zero).
   const resetGame = useCallback(() => {
     resetBoard();
-    setMatchSet(playMode === "hotseat" ? newSet() : null);
-  }, [resetBoard, playMode]);
+    setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
+  }, [resetBoard, playMode, gamesPerSet]);
 
   // Start the next game of the current set (sides already swapped on record).
   const nextGame = useCallback(() => {
     resetBoard();
   }, [resetBoard]);
 
-  // ── Record a finished hotseat game into the set (exactly once) ───────────────
+  // Bank the finished set and open a fresh one, continuing the running count.
+  const nextSet = useCallback(() => {
+    resetBoard();
+    setMatch((m) => (m ? startNextSet(m) : m));
+  }, [resetBoard]);
+
+  // ── Record a finished hotseat game into the current set (exactly once) ───────
   useEffect(() => {
-    if (playMode !== "hotseat" || !matchSet) return;
+    if (playMode !== "hotseat" || !match) return;
     if (!atTip || !gameOver || recorded.current) return;
-    if (matchSet.results.length >= GAMES_PER_SET) return;
+    if (match.set.results.length >= match.set.gamesPerSet) return;
     recorded.current = true;
-    setMatchSet((s) => (s ? recordGame(s, game.status, game.moveCount) : s));
-  }, [playMode, matchSet, atTip, gameOver, game.status, game.moveCount]);
+    setMatch((m) => (m ? recordMatchGame(m, game.status, game.moveCount) : m));
+  }, [playMode, match, atTip, gameOver, game.status, game.moveCount]);
 
   const goPrev = useCallback(() => {
     setSelected(null);
@@ -298,25 +309,43 @@ export default function App() {
   const changeVariant = (id: string) => {
     setVariantId(id);
     resetBoard();
-    setMatchSet(playMode === "hotseat" ? newSet() : null);
+    setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
   };
 
   const changeMode = (m: PlayMode) => {
     setPlayMode(m);
     resetBoard();
-    // playMode state updates async, so decide the set from the new mode here.
-    setMatchSet(m === "hotseat" ? newSet() : null);
+    // playMode state updates async, so decide the match from the new mode here.
+    setMatch(m === "hotseat" ? newMatch(gamesPerSet) : null);
+  };
+
+  const changeSetLength = (n: number) => {
+    setGamesPerSet(n);
+    resetBoard();
+    setMatch(playMode === "hotseat" ? newMatch(n) : null);
   };
 
   const showVsAiBranch = playMode === "hotseat" || gameOver;
 
-  // In hotseat, the primary button advances the set: "Next game" between the
-  // two games, "New set" to start over. Everywhere else it's just "New game".
-  const otbSet = playMode === "hotseat" ? matchSet : null;
+  // In hotseat the primary button drives the match: "Next game" between games,
+  // "Next set" once a set is decided (continuing the count), and "New match" to
+  // wipe the score. Everywhere else it stays "New game".
+  const otbMatch = playMode === "hotseat" ? match : null;
+  const otbSet = otbMatch?.set ?? null;
+  const setComplete = otbSet !== null && standing(otbSet).complete;
   const midSet =
-    otbSet !== null && otbSet.results.length > 0 && otbSet.results.length < GAMES_PER_SET;
-  const primaryLabel = midSet ? t.nextGame : otbSet ? t.newSet : t.newGame;
-  const primaryAction = midSet ? nextGame : resetGame;
+    otbSet !== null && otbSet.results.length > 0 && !setComplete;
+  const primaryLabel = setComplete
+    ? t.nextSet
+    : midSet
+      ? t.nextGame
+      : otbMatch
+        ? t.newMatch
+        : t.newGame;
+  const primaryAction = setComplete ? nextSet : midSet ? nextGame : resetGame;
+  // Offer a full reset whenever a match has any progress to discard.
+  const showNewMatch =
+    otbMatch !== null && (otbSet!.results.length > 0 || matchTotals(otbMatch).setsCompleted > 0);
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
@@ -330,8 +359,15 @@ export default function App() {
 
       <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
-      {otbSet && (
-        <SetScoreboard t={t} set={otbSet} gameOver={gameOver} liveMoves={game.moveCount} />
+      {otbMatch && (
+        <SetScoreboard
+          t={t}
+          match={otbMatch}
+          names={names}
+          onRename={(id, value) => setNames((n) => ({ ...n, [id]: value }))}
+          gameOver={gameOver}
+          liveMoves={game.moveCount}
+        />
       )}
 
       <div className="mt-3">
@@ -365,6 +401,11 @@ export default function App() {
         <button className="btn btn-primary" onClick={primaryAction}>
           {primaryLabel}
         </button>
+        {showNewMatch && (
+          <button className="btn" onClick={resetGame}>
+            {t.newMatch}
+          </button>
+        )}
         <button className="btn" onClick={() => setShowRules(true)}>
           {t.rules}
         </button>
@@ -402,6 +443,8 @@ export default function App() {
         onMode={changeMode}
         difficulty={difficulty}
         onDifficulty={setDifficulty}
+        gamesPerSet={gamesPerSet}
+        onSetLength={changeSetLength}
       />
 
       {variantId === "custom" && (
@@ -588,25 +631,33 @@ function CapturedTray({ t, game }: { t: Translations; game: GameState }) {
   );
 }
 
-// ── Over-the-board set scoreboard ────────────────────────────────────────────
-// Shows the running king/raiders counters, which player holds which side this
-// game, each finished game's result with its move count, and — once both games
-// are played — who took the set (by wins, or by the move-count tiebreaker when
-// the set is level).
+// ── Over-the-board match scoreboard ──────────────────────────────────────────
+// Shows the running match (sets-won) tally, the current set's king/raiders
+// counters, which player holds which side this game, each finished game's
+// result with its move count, and — once the set is decided — who took it (by
+// wins, or by the move-count tiebreaker when the set is level).
 function SetScoreboard({
   t,
-  set,
+  match,
+  names,
+  onRename,
   gameOver,
   liveMoves,
 }: {
   t: Translations;
-  set: MatchSet;
+  match: Match;
+  names: { p1: string; p2: string };
+  onRename: (id: PlayerId, value: string) => void;
   gameOver: boolean;
   liveMoves: number;
 }) {
+  const set = match.set;
   const s = standing(set);
-  const playerName = (id: PlayerId) => (id === "p1" ? t.player1 : t.player2);
-  const currentGame = Math.min(set.results.length + 1, GAMES_PER_SET);
+  const totals = matchTotals(match);
+  const defaultName = (id: PlayerId) => (id === "p1" ? t.player1 : t.player2);
+  const playerName = (id: PlayerId) => names[id].trim() || defaultName(id);
+  const currentGame = Math.min(set.results.length + 1, set.gamesPerSet);
+  const seriesStarted = totals.setsCompleted > 0;
 
   const sideOfPlayer = (id: PlayerId): Side =>
     set.attackersPlayer === id ? "attackers" : "defenders";
@@ -616,11 +667,26 @@ function SetScoreboard({
       <div className="flex items-center justify-between">
         <h3 className="font-display text-lg text-parchment">{t.matchSet}</h3>
         <span className="font-mono text-xs text-parchment-dim">
-          {s.complete ? `${GAMES_PER_SET}/${GAMES_PER_SET}` : `${t.gameWord} ${currentGame}/${GAMES_PER_SET}`}
+          {s.complete
+            ? `${set.gamesPerSet}/${set.gamesPerSet}`
+            : `${t.gameWord} ${currentGame}/${set.gamesPerSet}`}
         </span>
       </div>
 
-      {/* King vs raiders counters across the set */}
+      {/* Running match (sets-won) tally */}
+      <div className="mt-2 flex items-center justify-between rounded-lg bg-parchment/5 px-3 py-1.5 text-sm">
+        <span className="text-xs uppercase tracking-wide text-parchment-dim">{t.matchScore}</span>
+        <span className="font-mono text-parchment">
+          {playerName("p1")} <b className="text-gold">{totals.setsWon.p1}</b>
+          <span className="text-parchment-dim"> – </span>
+          <b className="text-gold">{totals.setsWon.p2}</b> {playerName("p2")}
+          {totals.setsDrawn > 0 && (
+            <span className="text-parchment-dim"> · {totals.setsDrawn} {t.drawsShort}</span>
+          )}
+        </span>
+      </div>
+
+      {/* King vs raiders counters across the current set */}
       <div className="mt-3 grid grid-cols-2 gap-2 text-center">
         <div className="rounded-lg bg-gold/10 px-3 py-2">
           <div className="font-display text-2xl text-gold">{s.sideWins.defenders}</div>
@@ -632,18 +698,25 @@ function SetScoreboard({
         </div>
       </div>
 
-      {/* Per-player standings */}
+      {/* Per-player standings, with editable names */}
       <div className="mt-3 space-y-1.5">
         {(["p1", "p2"] as PlayerId[]).map((id) => {
           const side = sideOfPlayer(id);
           const best = s.fastestWin[id];
           return (
             <div key={id} className="flex items-center justify-between gap-2 text-sm">
-              <span className="flex items-center gap-2">
-                <span className="text-parchment">{playerName(id)}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <input
+                  value={names[id]}
+                  placeholder={defaultName(id)}
+                  onChange={(e) => onRename(id, e.target.value)}
+                  aria-label={defaultName(id)}
+                  maxLength={20}
+                  className="w-28 min-w-0 border-b border-parchment/20 bg-transparent text-parchment placeholder:text-parchment-dim focus:border-gold focus:outline-none"
+                />
                 {!s.complete && (
                   <span
-                    className={`rounded px-1.5 py-0.5 text-xs ${
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${
                       side === "attackers" ? "bg-blood/20 text-blood" : "bg-gold/20 text-gold"
                     }`}
                   >
@@ -651,7 +724,7 @@ function SetScoreboard({
                   </span>
                 )}
               </span>
-              <span className="flex items-center gap-2 font-mono text-xs text-parchment-dim">
+              <span className="flex shrink-0 items-center gap-2 font-mono text-xs text-parchment-dim">
                 {best !== null && (
                   <span>
                     {t.bestWin} {best} {t.movesWord}
@@ -716,7 +789,8 @@ function SetScoreboard({
           )}
         </p>
       ) : (
-        set.results.length === 0 && (
+        set.results.length === 0 &&
+        !seriesStarted && (
           <p className="mt-3 border-t border-parchment/10 pt-2 text-xs text-parchment-dim">
             {t.setInProgress}
           </p>
@@ -846,6 +920,8 @@ function Settings({
   onMode,
   difficulty,
   onDifficulty,
+  gamesPerSet,
+  onSetLength,
 }: {
   t: Translations;
   variantId: string;
@@ -854,6 +930,8 @@ function Settings({
   onMode: (m: PlayMode) => void;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
+  gamesPerSet: number;
+  onSetLength: (n: number) => void;
 }) {
   return (
     <div className="card mt-4 space-y-3 p-4">
@@ -881,6 +959,18 @@ function Settings({
                 {label}
               </button>
             )))}
+          </div>
+        </Row>
+      )}
+
+      {playMode === "hotseat" && (
+        <Row label={t.setLength}>
+          <div className="seg">
+            {SET_LENGTH_OPTIONS.map((n) => (
+              <button key={n} className={gamesPerSet === n ? "on" : ""} onClick={() => onSetLength(n)}>
+                {n}
+              </button>
+            ))}
           </div>
         </Row>
       )}

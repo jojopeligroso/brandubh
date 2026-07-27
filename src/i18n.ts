@@ -116,6 +116,12 @@ export interface Translations {
   bestWin: string;
   nextGame: string;
   newSet: string;
+  nextSet: string;
+  newMatch: string;
+  setLength: string;
+  matchScore: string;
+  setsWord: string;
+  drawsShort: string;
   sidesSwapNext: string;
   setInProgress: string;
   winsTheSet: string;
@@ -283,6 +289,12 @@ const en: Translations = {
   bestWin: "best",
   nextGame: "Next game",
   newSet: "New set",
+  nextSet: "Next set",
+  newMatch: "New match",
+  setLength: "Set length",
+  matchScore: "Match",
+  setsWord: "sets",
+  drawsShort: "drawn",
   sidesSwapNext: "Sides swap — start the next game.",
   setInProgress: "A set is two games; each player takes one side of each.",
   winsTheSet: "wins the set!",
@@ -468,6 +480,12 @@ const es: Translations = {
   bestWin: "mejor",
   nextGame: "Siguiente partida",
   newSet: "Nueva serie",
+  nextSet: "Siguiente serie",
+  newMatch: "Nuevo encuentro",
+  setLength: "Partidas por serie",
+  matchScore: "Encuentro",
+  setsWord: "series",
+  drawsShort: "empatadas",
   sidesSwapNext: "Cambian los bandos — empieza la siguiente partida.",
   setInProgress: "Una serie son dos partidas; cada jugador toma un bando en cada una.",
   winsTheSet: "¡gana la serie!",
@@ -658,6 +676,12 @@ const ga: Translations = {
   bestWin: "is fear",
   nextGame: "An chéad chluiche eile",
   newSet: "Sraith nua",
+  nextSet: "An chéad sraith eile",
+  newMatch: "Comórtas nua",
+  setLength: "Cluichí sa sraith",
+  matchScore: "Comórtas",
+  setsWord: "sraith",
+  drawsShort: "cothrom",
   sidesSwapNext: "Malartaítear na taobhanna — tosaigh an chéad chluiche eile.",
   setInProgress: "Dhá chluiche is ea sraith; glacann gach imreoir taobh amháin i ngach ceann.",
   winsTheSet: "buann an tsraith!",
