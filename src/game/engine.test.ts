@@ -323,6 +323,49 @@ describe("kingIsCaptured", () => {
     expect(kingIsCaptured(b, wtf, { row: 5, col: 5 })).toBe(false);
   });
 
+  it("is NOT captured when an adjacent move is perpendicular to a walked-into pair", () => {
+    // Regression: king walked between two attackers on the horizontal axis
+    // (2,3)/(2,5). An attacker then moves onto the perpendicular axis at (3,4)
+    // while (1,4) is empty — no real sandwich is closed, so the pre-existing
+    // horizontal pair must NOT be "reused" to declare a capture.
+    const b = board([
+      ".......",
+      ".......", // (1,4) empty — vertical sandwich is open
+      "...aka.", // king at (2,4) flanked by attackers at (2,3) and (2,5)
+      "....a..", // attacker just slid here, to (3,4)
+      ".......",
+      ".......",
+      ".......",
+    ]);
+    expect(kingIsCaptured(b, wtf, { row: 3, col: 4 })).toBe(false);
+    // Mirror case: the adjacent move lands above the king at (1,4), (3,4) empty.
+    const bAbove = board([
+      ".......",
+      "....a..", // attacker just slid here, to (1,4)
+      "...aka.", // king at (2,4) flanked horizontally by (2,3)/(2,5)
+      ".......", // (3,4) empty — vertical sandwich is open
+      ".......",
+      ".......",
+      ".......",
+    ]);
+    expect(kingIsCaptured(bAbove, wtf, { row: 1, col: 4 })).toBe(false);
+  });
+
+  it("IS captured when the moved attacker actually closes the perpendicular pair", () => {
+    // Same shape, but now (1,4) already holds an attacker: the move to (3,4)
+    // genuinely closes the vertical sandwich, so the king is captured.
+    const b = board([
+      ".......",
+      "....a..", // (1,4) attacker already present
+      "...aka.", // king at (2,4)
+      "....a..", // attacker just moved to (3,4), closing the vertical pair
+      ".......",
+      ".......",
+      ".......",
+    ]);
+    expect(kingIsCaptured(b, wtf, { row: 3, col: 4 })).toBe(true);
+  });
+
   it("is NOT captured with only one attacker", () => {
     const b = board([
       ".......",
