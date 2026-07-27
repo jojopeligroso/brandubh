@@ -194,16 +194,27 @@ function resolveCaptures(
 
 // ── King capture ──────────────────────────────────────────────────────────────
 /**
- * Is the king currently captured? Called after each attacker move.
+ * Is the king captured by the attacker that just moved to `movedTo`?
+ * Active-capture rule: the piece that just moved must participate in the
+ * sandwich, so it must land adjacent to the king. A king that walks between
+ * two raiders is safe (passive — the raiders didn't make the move).
+ *
  * - Strong-king variants: on/next-to the throne the king must be surrounded on
- *   every available cardinal side (throne counts as a hostile flank).
- * - Elsewhere: custodial — two attackers (or attacker + hostile square) on
- *   opposite sides.
+ *   every available cardinal side (throne counts as a hostile flank), and the
+ *   piece that just moved must be one of those flanking squares.
+ * - Elsewhere: custodial — two hostile squares on opposite sides, at least one
+ *   of which is the square the attacker just moved to.
  */
-export function kingIsCaptured(b: Board, rules: RuleSet): boolean {
+export function kingIsCaptured(b: Board, rules: RuleSet, movedTo: Square): boolean {
   const k = findKing(b);
   if (!k) return true; // no king on the board = captured/removed
   const { row: r, col: c } = k;
+
+  // Active capture: the moved piece must be adjacent to the king.
+  const movedAdjacentToKing = DIRS.some(
+    ([dr, dc]) => r + dr === movedTo.row && c + dc === movedTo.col,
+  );
+  if (!movedAdjacentToKing) return false;
 
   const throneAdjacent =
     (Math.abs(r - THRONE.row) === 1 && c === THRONE.col) ||
@@ -231,7 +242,11 @@ export function kingIsCaptured(b: Board, rules: RuleSet): boolean {
     return true;
   }
 
-  // Custodial capture on two opposite sides.
+  // Custodial capture on two opposite sides. The piece that just moved must be
+  // one of the two flanks, otherwise a move on the perpendicular axis could
+  // "reuse" a pair the king merely walked into (passive capture).
+  const isMovedSquare = (fr: number, fc: number): boolean =>
+    fr === movedTo.row && fc === movedTo.col;
   const pairs: Array<[[number, number], [number, number]]> = [
     [
       [r - 1, c],
@@ -243,6 +258,7 @@ export function kingIsCaptured(b: Board, rules: RuleSet): boolean {
     ],
   ];
   for (const [[ar, ac], [br, bc]] of pairs) {
+    if (!isMovedSquare(ar, ac) && !isMovedSquare(br, bc)) continue;
     if (flankHostile(ar, ac) && flankHostile(br, bc)) return true;
   }
   return false;
@@ -346,8 +362,8 @@ function computeStatus(
       return "defenders_win_escape";
   }
 
-  // 2. Attacker capture of the king.
-  if (mover === "attackers" && kingIsCaptured(board, rules)) return "attackers_win_capture";
+  // 2. Attacker capture of the king (active capture — the moved piece must participate).
+  if (mover === "attackers" && kingIsCaptured(board, rules, lastMove.to)) return "attackers_win_capture";
 
   // 3. Attacker encirclement win.
   if (mover === "attackers" && rules.encirclementWin && isEncircled(board))

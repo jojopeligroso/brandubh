@@ -13,7 +13,7 @@ import {
 import type { Board, GameState, Move, Piece } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 
-const rules = VARIANTS.copenhagen;
+const rules = VARIANTS.wtf;
 let pass = 0;
 let fail = 0;
 function check(name: string, cond: boolean) {
@@ -99,7 +99,7 @@ console.log("King capture in the open (two sides):");
   b[1][2] = "attacker";
   b[0][4] = "attacker"; // will move to (1,4) to complete the sandwich
   const st = stateFrom(b, "attackers");
-  check("king not yet captured", !kingIsCaptured(b, rules));
+  check("king not yet captured", !kingIsCaptured(b, rules, { row: 0, col: 4 }));
   const after = applyMove(st, { from: { row: 0, col: 4 }, to: { row: 1, col: 4 } }, rules);
   check("king flanked on two sides is captured", after.status === "attackers_win_capture");
 }
@@ -111,9 +111,9 @@ console.log("Strong king by the throne needs four sides:");
   b[2][3] = "attacker";
   b[4][3] = "attacker";
   b[3][2] = "attacker";
-  check("three attackers around throne = not captured", !kingIsCaptured(b, rules));
+  check("three attackers around throne = not captured", !kingIsCaptured(b, rules, { row: 3, col: 2 }));
   b[3][4] = "attacker";
-  check("four attackers around throne = captured", kingIsCaptured(b, rules));
+  check("four attackers around throne = captured", kingIsCaptured(b, rules, { row: 3, col: 4 }));
 }
 
 console.log("Full random/AI games terminate without error:");
