@@ -897,6 +897,170 @@ body {
   text-align: center;
 }
 
+/* ── Game clock (chess clock) ──────────────────────────────────────────────── */
+.clock {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  border-left-width: 3px;
+  background: color-mix(in srgb, var(--color-night) 45%, transparent);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+.clock-attackers {
+  border-left-color: color-mix(in srgb, var(--color-blood) 65%, transparent);
+}
+.clock-defenders {
+  border-left-color: color-mix(in srgb, var(--color-gold) 65%, transparent);
+}
+.clock-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-parchment-dim);
+}
+.clock-inc {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--color-parchment-dim) 85%, transparent);
+}
+.clock-time {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-parchment);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.clock-idle {
+  opacity: 0.68;
+}
+.clock-active {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--color-gold) 55%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 12%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-gold) 22%, transparent),
+    0 0 18px -8px color-mix(in srgb, var(--color-gold) 55%, transparent);
+}
+.clock-active .clock-name {
+  color: var(--color-parchment);
+}
+.clock-low .clock-time {
+  color: var(--color-blood);
+}
+.clock-low.clock-active {
+  border-color: color-mix(in srgb, var(--color-blood) 60%, transparent);
+  background: color-mix(in srgb, var(--color-blood) 14%, transparent);
+}
+.clock-low.clock-ticking {
+  animation: clockpulse 1s ease-in-out infinite;
+}
+.clock-flag {
+  opacity: 0.72;
+}
+.clock-flag .clock-time,
+.clock-flag .clock-name {
+  color: var(--color-blood);
+}
+
+@keyframes clockpulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--color-blood) 30%, transparent),
+      0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--color-blood) 55%, transparent),
+      0 0 22px -6px color-mix(in srgb, var(--color-blood) 65%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clock-low.clock-ticking {
+    animation: none;
+  }
+}
+
+/* Time-control picker (settings) */
+.tc-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.tc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.tc-cat {
+  width: 3.4rem;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-parchment-dim);
+}
+.tc-chip {
+  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 14%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
+  color: var(--color-parchment-dim);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.tc-chip:hover {
+  background: color-mix(in srgb, var(--color-parchment) 11%, transparent);
+}
+.tc-chip.on {
+  border-color: var(--color-gold);
+  background: color-mix(in srgb, var(--color-gold) 16%, transparent);
+  color: var(--color-parchment);
+}
+.tc-custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.2rem;
+}
+.tc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--color-parchment-dim);
+}
+.tc-field input[type="range"] {
+  width: 9rem;
+  accent-color: var(--color-gold);
+}
+.tc-field b {
+  color: var(--color-parchment);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Corner-square ward (Tree of Life) ─────────────────────────────────────── */
 /* The chosen corner emblem replaces the carved spiral motif. */
 .cell.corner::after {

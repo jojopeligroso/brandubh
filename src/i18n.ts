@@ -80,6 +80,22 @@ export interface Translations {
   attackersWinResign: string;
   defendersWinResign: string;
 
+  // Game clock
+  clock: string;
+  clockOff: string;
+  timeControlLabel: string;
+  customTimeControl: string;
+  minutesLabel: string;
+  incrementLabel: string;
+  pause: string;
+  resume: string;
+  flagLabel: string;
+  attackersWinTime: string;
+  defendersWinTime: string;
+  catBullet: string;
+  catBlitz: string;
+  catRapid: string;
+
   // Custom rules
   customRulesTitle: string;
   ruleArmedKing: string;
@@ -256,6 +272,21 @@ const en: Translations = {
   resignBody: "You concede the game to your opponent.",
   attackersWinResign: "Raiders win — The King’s side resigned.",
   defendersWinResign: "King’s side win — The Raiders resigned.",
+
+  clock: "Clock",
+  clockOff: "Off",
+  timeControlLabel: "Time control",
+  customTimeControl: "Custom",
+  minutesLabel: "Minutes",
+  incrementLabel: "Increment (s)",
+  pause: "Pause",
+  resume: "Resume",
+  flagLabel: "Flag",
+  attackersWinTime: "Raiders win — The King’s side ran out of time.",
+  defendersWinTime: "King’s side win — The Raiders ran out of time.",
+  catBullet: "Bullet",
+  catBlitz: "Blitz",
+  catRapid: "Rapid",
 
   customRulesTitle: "Custom rules",
   ruleArmedKing: "Armed king",
@@ -449,6 +480,21 @@ const es: Translations = {
   resignBody: "Concedes la partida a tu oponente.",
   attackersWinResign: "Los Asaltantes ganan \u2014 El bando del Rey se rindi\u00f3.",
   defendersWinResign: "El Bando del Rey gana \u2014 Los Asaltantes se rindieron.",
+
+  clock: "Reloj",
+  clockOff: "Apagado",
+  timeControlLabel: "Control de tiempo",
+  customTimeControl: "Personalizado",
+  minutesLabel: "Minutos",
+  incrementLabel: "Incremento (s)",
+  pause: "Pausar",
+  resume: "Reanudar",
+  flagLabel: "Sin tiempo",
+  attackersWinTime: "Los Asaltantes ganan \u2014 El bando del Rey se qued\u00f3 sin tiempo.",
+  defendersWinTime: "El Bando del Rey gana \u2014 Los Asaltantes se quedaron sin tiempo.",
+  catBullet: "Bala",
+  catBlitz: "Rel\u00e1mpago",
+  catRapid: "R\u00e1pido",
 
   customRulesTitle: "Reglas personalizadas",
   ruleArmedKing: "Rey armado",
@@ -647,6 +693,21 @@ const ga: Translations = {
   resignBody: "Géilleann tú an cluiche do do chéile comhraic.",
   attackersWinResign: "Foghlaithe a bhuaigh — Ghéill taobh an Rí.",
   defendersWinResign: "Taobh an Rí a bhuaigh — Ghéill na Foghlaithe.",
+
+  clock: "Clog",
+  clockOff: "Múchta",
+  timeControlLabel: "Rialú ama",
+  customTimeControl: "Saincheaptha",
+  minutesLabel: "Nóiméid",
+  incrementLabel: "Incrimint (s)",
+  pause: "Sos",
+  resume: "Lean ar aghaidh",
+  flagLabel: "Ama caite",
+  attackersWinTime: "Foghlaithe a bhuaigh — Rith taobh an Rí as am.",
+  defendersWinTime: "Taobh an Rí a bhuaigh — Rith na Foghlaithe as am.",
+  catBullet: "Piléar",
+  catBlitz: "Splanc",
+  catRapid: "Tapa",
 
   customRulesTitle: "Rialacha saincheaptha",
   ruleArmedKing: "Rí armtha",
