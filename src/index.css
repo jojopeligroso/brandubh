@@ -158,8 +158,8 @@
   --cell-dark: rgba(0, 0, 0, 0.12);
   --motif-ink: #191f21;
 
-  --atk: #e67e80;
-  --atk-ink: #3a1414;
+  --atk: #1b1e20;
+  --atk-ink: #d3c6aa;
   --def: #d3c6aa;
   --def-ink: #3d484d;
   --king: #dbbc7f;
@@ -655,6 +655,40 @@ body {
   height: 74%;
   color: var(--king-ink);
 }
+/* Backlight glow on the pieces of the side whose turn it is. A soft, slowly
+   pulsing halo painted behind the stone (negative z-index within the piece's
+   stacking context). Tinted by the always-vivid side accents so it reads even
+   on dark stones (e.g. Everforest's black raiders). */
+.piece.active-turn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  z-index: -1;
+  animation: turnpulse 2.4s ease-in-out infinite;
+}
+.piece.attacker.active-turn::before {
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-blood) 65%, transparent);
+}
+.piece.defender.active-turn::before,
+.piece.king.active-turn::before {
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-gold) 65%, transparent);
+}
+@keyframes turnpulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .piece.active-turn::before {
+    animation: none;
+    opacity: 0.6;
+  }
+}
 .piece.captured {
   animation: capture 260ms ease-in forwards;
 }
@@ -746,6 +780,22 @@ body {
   );
   border: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
   border-radius: 14px;
+}
+
+/* Backlight glow on the turn indicator, tinted by the side to move so it's
+   clear at a glance whose move it is. */
+.turn-glow {
+  transition: box-shadow 240ms ease;
+}
+.turn-glow-attackers {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-blood) 30%, transparent),
+    0 0 18px -2px color-mix(in srgb, var(--color-blood) 55%, transparent);
+}
+.turn-glow-defenders {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-gold) 30%, transparent),
+    0 0 18px -2px color-mix(in srgb, var(--color-gold) 55%, transparent);
 }
 
 /* ── Theme picker swatches ─────────────────────────────────────────────────── */
