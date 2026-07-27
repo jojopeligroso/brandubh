@@ -2,9 +2,12 @@ import { useMemo } from "react";
 import { isCorner, isThrone, movesFrom, sideOf } from "../game/engine";
 import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, type Square } from "../game/types";
 import type { RuleSet } from "../game/variants";
+import { SHIELD_KNOT_PATH, SHIELD_KNOT_VIEWBOX } from "../shieldKnot";
+import type { EmblemDef } from "../emblems";
+import type { CornerEmblemDef } from "../cornerEmblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
-function Emblem({ piece }: { piece: Piece }) {
+function Emblem({ piece, attackerEmblem }: { piece: Piece; attackerEmblem: EmblemDef }) {
   if (piece === "king")
     return (
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -23,39 +26,17 @@ function Emblem({ piece }: { piece: Piece }) {
     );
   if (piece === "attacker")
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-        {/* Crossed Celtic spears with leaf-shaped blade tips */}
-        {/* Spear shafts */}
-        <line x1="5" y1="19" x2="19" y2="5" strokeLinecap="round" />
-        <line x1="19" y1="19" x2="5" y2="5" strokeLinecap="round" />
-        {/* Leaf-shaped spearheads — top-right */}
-        <path d="M17.5 3.5q1.5-.5 2.5.5t.5 2.5q-1.2-.3-2-1.1T17.5 3.5z" fill="currentColor" stroke="none" />
-        {/* Leaf-shaped spearheads — top-left */}
-        <path d="M6.5 3.5q-1.5-.5-2.5.5T3.5 6.5q1.2-.3 2-1.1T6.5 3.5z" fill="currentColor" stroke="none" />
-        {/* Central binding knot — Celtic interlace ring */}
-        <circle cx="12" cy="12" r="2.2" strokeWidth="1.6" />
-        <circle cx="12" cy="12" r="1" strokeWidth="1" />
+      // The raiders' emblem — an exact vector trace of the chosen artwork
+      // (see src/emblems.ts); only the colour is themed.
+      <svg viewBox={attackerEmblem.viewBox} fill="currentColor" aria-hidden>
+        <path d={attackerEmblem.path} />
       </svg>
     );
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      {/* Round Celtic shield with boss and radial cross */}
-      {/* Outer rim */}
-      <circle cx="12" cy="12" r="9" strokeWidth="2" />
-      {/* Inner ring — decorative band */}
-      <circle cx="12" cy="12" r="6" strokeWidth="1.2" />
-      {/* Central boss */}
-      <circle cx="12" cy="12" r="2.2" strokeWidth="1.6" />
-      {/* Radial cross lines */}
-      <line x1="12" y1="3" x2="12" y2="6" strokeWidth="1.4" />
-      <line x1="12" y1="18" x2="12" y2="21" strokeWidth="1.4" />
-      <line x1="3" y1="12" x2="6" y2="12" strokeWidth="1.4" />
-      <line x1="18" y1="12" x2="21" y2="12" strokeWidth="1.4" />
-      {/* Curved quadrant arcs between rings for Celtic feel */}
-      <path d="M9 6.5q3 1.5 6 0" strokeWidth="1" />
-      <path d="M9 17.5q3-1.5 6 0" strokeWidth="1" />
-      <path d="M6.5 9q1.5 3 0 6" strokeWidth="1" />
-      <path d="M17.5 9q-1.5 3 0 6" strokeWidth="1" />
+    // Celtic shield knot — the king's bodyguards. Exact vector trace of the
+    // supplied artwork (see src/shieldKnot.ts); only the colour is themed.
+    <svg viewBox={SHIELD_KNOT_VIEWBOX} fill="currentColor" aria-hidden>
+      <path d={SHIELD_KNOT_PATH} />
     </svg>
   );
 }
@@ -71,6 +52,10 @@ interface BoardProps {
   interactive: boolean;
   /** The side the local human is allowed to move (null = both, hotseat). */
   controllable: Side | null;
+  /** Chosen emblem for the attacker (raider) pieces. */
+  attackerEmblem: EmblemDef;
+  /** Chosen emblem for the four corner squares. */
+  cornerEmblem: CornerEmblemDef;
   onSquareClick: (sq: Square) => void;
 }
 
@@ -83,6 +68,8 @@ export default function Board({
   fadingCaptures,
   interactive,
   controllable,
+  attackerEmblem,
+  cornerEmblem,
   onSquareClick,
 }: BoardProps) {
   const legal = useMemo<Square[]>(() => {
@@ -134,9 +121,16 @@ export default function Board({
                 .join(" ")}
               onClick={() => interactive && onSquareClick({ row: r, col: c })}
             >
+              {isCorner(r, c) && !piece && (
+                <span className="corner-emblem" aria-hidden>
+                  <svg viewBox={cornerEmblem.viewBox} fill="currentColor">
+                    <path d={cornerEmblem.path} />
+                  </svg>
+                </span>
+              )}
               {piece && (
                 <div className={`piece ${piece}`} title={piece}>
-                  <Emblem piece={piece} />
+                  <Emblem piece={piece} attackerEmblem={attackerEmblem} />
                 </div>
               )}
               {/* fading captured-piece flash */}

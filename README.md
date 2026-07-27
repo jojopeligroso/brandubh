@@ -163,6 +163,42 @@ scripts/
   selftest.ts        headless engine assertions
 ```
 
+## Board themes
+
+The board ships with six colour themes, selectable in the settings and remembered
+between visits. Five take their palettes from the default themes of
+[Omarchy](https://omarchy.org/) — **Tokyo Night** (the default), **Catppuccin**,
+**Gruvbox**, **Nord** and **Everforest** — alongside the original **Carved Wood**.
+Everything is driven by CSS custom properties under a `[data-theme]` attribute, so
+adding another theme is just one more block in `src/index.css` plus an entry in
+`src/theme.ts`.
+
+## Reviewing moves
+
+- **Curved arrows** under the board cycle back and forth through every move
+  without discarding anything; **Play from here** branches the game at the
+  position you are viewing (against the same opponent, or against the computer).
+- **Over-the-board** play offers **Propose takeback**; either side may **Resign**.
+- When a game ends you can step back and **Play from here** to explore variations.
+
+## Deploying
+
+The app is a static SPA, so any static host works. This repo ships a
+[`vercel.json`](vercel.json) so a connected [Vercel](https://vercel.com) project
+deploys automatically on every push — production from the default branch, and a
+preview URL for every other branch.
+
+One-time setup: import the repository at **vercel.com → Add New → Project**.
+Vercel reads `vercel.json` (framework `vite`, build `npm run build`, output
+`dist/`); no further configuration is needed. To deploy anywhere else, run
+`npm run build` and serve the `dist/` folder.
+
+## Credits
+
+Piece and corner emblems are vector traces of supplied artwork of traditional
+public-domain Celtic / Norse symbols — see [NOTICE](NOTICE.md). A gallery of the
+full set lives at [`docs/design/icons.html`](docs/design/icons.html).
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
