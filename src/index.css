@@ -197,6 +197,192 @@
   --king-ink: #6b4611;
 }
 
+/* Rosé Pine — soft, muted dusk of rose, gold and iris. */
+[data-theme="rose-pine"] {
+  --color-night: #16141f;
+  --color-night-2: #1f1d2e;
+  --color-parchment: #e0def4;
+  --color-parchment-dim: #908caa;
+  --color-wood: #2a2740;
+  --color-wood-dark: #1c1a2b;
+  --color-gold: #f6c177;
+  --color-blood: #eb6f92;
+  --color-moss: #9ccfd8;
+  --on-accent: #191724;
+
+  --app-bg-radial: #2a273f;
+  --app-bg-1: #191724;
+  --app-bg-2: #12111c;
+
+  --board-c1: #2a2740;
+  --board-c2: #232135;
+  --board-c3: #1c1a2b;
+  --cell-dark: rgba(224, 222, 244, 0.05);
+  --motif-ink: #12111c;
+
+  --atk: #eb6f92;
+  --atk-ink: #f4dbe4;
+  --def: #e0def4;
+  --def-ink: #26233a;
+  --king: #c4a7e7;
+  --king-ink: #2a1f45;
+}
+
+/* Kanagawa — soft, warm paper-and-ink with autumn accents. */
+[data-theme="kanagawa"] {
+  --color-night: #16161d;
+  --color-night-2: #1f1f28;
+  --color-parchment: #dcd7ba;
+  --color-parchment-dim: #a3a08a;
+  --color-wood: #2a2a37;
+  --color-wood-dark: #223249;
+  --color-gold: #e6c384;
+  --color-blood: #c34043;
+  --color-moss: #98bb6c;
+  --on-accent: #1f1f28;
+
+  --app-bg-radial: #2a2a37;
+  --app-bg-1: #1f1f28;
+  --app-bg-2: #16161d;
+
+  --board-c1: #363646;
+  --board-c2: #2a2a37;
+  --board-c3: #223249;
+  --cell-dark: rgba(220, 215, 186, 0.05);
+  --motif-ink: #16161d;
+
+  --atk: #c34043;
+  --atk-ink: #f3dcda;
+  --def: #dcd7ba;
+  --def-ink: #2a2a37;
+  --king: #e6c384;
+  --king-ink: #3a2a0c;
+}
+
+/* Lichess Brown — the classic cream-and-brown chessboard on a dark frame. */
+[data-theme="lichess-brown"] {
+  --color-night: #211f1c;
+  --color-night-2: #2b2825;
+  --color-parchment: #ece9e2;
+  --color-parchment-dim: #a39c8f;
+  --color-wood: #b58863;
+  --color-wood-dark: #8a6a4a;
+  --color-gold: #e0a83a;
+  --color-blood: #c34043;
+  --color-moss: #86a666;
+  --on-accent: #211f1c;
+
+  --app-bg-radial: #3a352d;
+  --app-bg-1: #262421;
+  --app-bg-2: #1a1815;
+
+  --board-c1: #f3ddba;
+  --board-c2: #f0d9b5;
+  --board-c3: #ecd3ac;
+  --cell-dark: #b58863;
+  --motif-ink: #6b4a2e;
+
+  --atk: #3a3733;
+  --atk-ink: #e8e2d3;
+  --def: #f7f3ea;
+  --def-ink: #6b4a2e;
+  --king: #e0a83a;
+  --king-ink: #5a3d0e;
+}
+
+/* Lichess Blue — cool blue-grey board. */
+[data-theme="lichess-blue"] {
+  --color-night: #1c2024;
+  --color-night-2: #262b30;
+  --color-parchment: #e6eaed;
+  --color-parchment-dim: #97a1a8;
+  --color-wood: #8ca2ad;
+  --color-wood-dark: #647883;
+  --color-gold: #e6c384;
+  --color-blood: #bf616a;
+  --color-moss: #8ca2ad;
+  --on-accent: #1c2024;
+
+  --app-bg-radial: #2e353b;
+  --app-bg-1: #222a30;
+  --app-bg-2: #171b1f;
+
+  --board-c1: #e6ebee;
+  --board-c2: #dee3e6;
+  --board-c3: #d6dce0;
+  --cell-dark: #8ca2ad;
+  --motif-ink: #4a5a63;
+
+  --atk: #33383d;
+  --atk-ink: #e2e8ec;
+  --def: #f4f7f9;
+  --def-ink: #4a5a63;
+  --king: #e6c384;
+  --king-ink: #3a2a0c;
+}
+
+/* Lichess Green — pale board with olive-green squares. */
+[data-theme="lichess-green"] {
+  --color-night: #1b1f1a;
+  --color-night-2: #252a22;
+  --color-parchment: #e9ece0;
+  --color-parchment-dim: #9aa38c;
+  --color-wood: #779952;
+  --color-wood-dark: #566f3a;
+  --color-gold: #d9a441;
+  --color-blood: #c34043;
+  --color-moss: #779952;
+  --on-accent: #1b1f1a;
+
+  --app-bg-radial: #2c3327;
+  --app-bg-1: #212720;
+  --app-bg-2: #161a14;
+
+  --board-c1: #f1f2dd;
+  --board-c2: #edeed1;
+  --board-c3: #e6e8c6;
+  --cell-dark: #779952;
+  --motif-ink: #4a5f2f;
+
+  --atk: #34382f;
+  --atk-ink: #e8ecd8;
+  --def: #f5f6ea;
+  --def-ink: #4a5f2f;
+  --king: #d9a441;
+  --king-ink: #3a2a0c;
+}
+
+/* Lichess Purple — soft lilac board. */
+[data-theme="lichess-purple"] {
+  --color-night: #201c24;
+  --color-night-2: #2a252f;
+  --color-parchment: #ece6f0;
+  --color-parchment-dim: #a396ad;
+  --color-wood: #9a6bbd;
+  --color-wood-dark: #744f90;
+  --color-gold: #e6c384;
+  --color-blood: #c34043;
+  --color-moss: #9a6bbd;
+  --on-accent: #201c24;
+
+  --app-bg-radial: #332b3a;
+  --app-bg-1: #26212b;
+  --app-bg-2: #19161d;
+
+  --board-c1: #e6dbef;
+  --board-c2: #e0d3ec;
+  --board-c3: #d8c8e6;
+  --cell-dark: #9a6bbd;
+  --motif-ink: #5f3f77;
+
+  --atk: #363040;
+  --atk-ink: #ece2f4;
+  --def: #f4eff8;
+  --def-ink: #5f3f77;
+  --king: #e6c384;
+  --king-ink: #3a2a0c;
+}
+
 /* ── Base layout ───────────────────────────────────────────────────────────── */
 html,
 body,

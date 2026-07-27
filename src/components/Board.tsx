@@ -28,14 +28,20 @@ function Emblem({ piece, attackerEmblem }: { piece: Piece; attackerEmblem: Emble
     return (
       // The raiders' emblem — an exact vector trace of the chosen artwork
       // (see src/emblems.ts); only the colour is themed.
-      <svg viewBox={attackerEmblem.viewBox} fill="currentColor" aria-hidden>
+      <svg
+        viewBox={attackerEmblem.viewBox}
+        fill="currentColor"
+        fillRule="evenodd"
+        style={attackerEmblem.scale ? { transform: `scale(${attackerEmblem.scale})` } : undefined}
+        aria-hidden
+      >
         <path d={attackerEmblem.path} />
       </svg>
     );
   return (
     // Celtic shield knot — the king's bodyguards. Exact vector trace of the
     // supplied artwork (see src/shieldKnot.ts); only the colour is themed.
-    <svg viewBox={SHIELD_KNOT_VIEWBOX} fill="currentColor" aria-hidden>
+    <svg viewBox={SHIELD_KNOT_VIEWBOX} fill="currentColor" fillRule="evenodd" aria-hidden>
       <path d={SHIELD_KNOT_PATH} />
     </svg>
   );
@@ -123,7 +129,7 @@ export default function Board({
             >
               {isCorner(r, c) && !piece && (
                 <span className="corner-emblem" aria-hidden>
-                  <svg viewBox={cornerEmblem.viewBox} fill="currentColor">
+                  <svg viewBox={cornerEmblem.viewBox} fill="currentColor" fillRule="evenodd">
                     <path d={cornerEmblem.path} />
                   </svg>
                 </span>

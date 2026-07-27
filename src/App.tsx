@@ -780,7 +780,13 @@ function DesignModal({
                 aria-pressed={attackerEmblem === e.id}
                 title={e.name}
               >
-                <svg viewBox={e.viewBox} fill="currentColor" aria-hidden>
+                <svg
+                  viewBox={e.viewBox}
+                  fill="currentColor"
+                  fillRule="evenodd"
+                  style={e.scale ? { transform: `scale(${e.scale})` } : undefined}
+                  aria-hidden
+                >
                   <path d={e.path} />
                 </svg>
                 <span className="emblem-name">{e.name}</span>
@@ -801,7 +807,7 @@ function DesignModal({
                 aria-pressed={cornerEmblem === e.id}
                 title={e.name}
               >
-                <svg viewBox={e.viewBox} fill="currentColor" aria-hidden>
+                <svg viewBox={e.viewBox} fill="currentColor" fillRule="evenodd" aria-hidden>
                   <path d={e.path} />
                 </svg>
                 <span className="emblem-name">{e.name}</span>
