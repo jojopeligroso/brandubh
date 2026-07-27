@@ -22,6 +22,13 @@ import {
   emblemById,
   loadAttackerEmblem,
 } from "./emblems";
+import {
+  CORNER_EMBLEMS,
+  CORNER_EMBLEM_KEY,
+  type CornerEmblemId,
+  cornerEmblemById,
+  loadCornerEmblem,
+} from "./cornerEmblems";
 
 type PlayMode = "attackers" | "defenders" | "hotseat";
 
@@ -49,6 +56,15 @@ export default function App() {
     }
   }, [attackerEmblem]);
 
+  const [cornerEmblem, setCornerEmblem] = useState<CornerEmblemId>(loadCornerEmblem);
+  useEffect(() => {
+    try {
+      localStorage.setItem(CORNER_EMBLEM_KEY, cornerEmblem);
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [cornerEmblem]);
+
   const [variantId, setVariantId] = useState(DEFAULT_VARIANT);
   const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
     CUSTOM_RULE_DEFAULTS,
@@ -71,6 +87,7 @@ export default function App() {
   const [showModeOverlay, setShowModeOverlay] = useState(true);
   const [showTakeback, setShowTakeback] = useState(false);
   const [showResign, setShowResign] = useState(false);
+  const [showDesign, setShowDesign] = useState(false);
 
   const rules: RuleSet =
     variantId === "custom"
@@ -252,7 +269,13 @@ export default function App() {
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
-      <Header t={t} lang={lang} onLang={setLang} onShowRules={() => setShowRules(true)} />
+      <Header
+        t={t}
+        lang={lang}
+        onLang={setLang}
+        onShowRules={() => setShowRules(true)}
+        onShowDesign={() => setShowDesign(true)}
+      />
 
       <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
@@ -267,6 +290,7 @@ export default function App() {
           interactive={interactive}
           controllable={humanSide}
           attackerEmblem={emblemById(attackerEmblem)}
+          cornerEmblem={cornerEmblemById(cornerEmblem)}
           onSquareClick={onSquareClick}
         />
       </div>
@@ -323,10 +347,6 @@ export default function App() {
         onMode={changeMode}
         difficulty={difficulty}
         onDifficulty={setDifficulty}
-        theme={theme}
-        onTheme={setTheme}
-        attackerEmblem={attackerEmblem}
-        onAttackerEmblem={setAttackerEmblem}
       />
 
       {variantId === "custom" && (
@@ -370,6 +390,19 @@ export default function App() {
           onCancel={() => setShowResign(false)}
         />
       )}
+
+      {showDesign && (
+        <DesignModal
+          t={t}
+          theme={theme}
+          onTheme={setTheme}
+          attackerEmblem={attackerEmblem}
+          onAttackerEmblem={setAttackerEmblem}
+          cornerEmblem={cornerEmblem}
+          onCornerEmblem={setCornerEmblem}
+          onClose={() => setShowDesign(false)}
+        />
+      )}
     </div>
   );
 }
@@ -380,14 +413,16 @@ function Header({
   lang,
   onLang,
   onShowRules,
+  onShowDesign,
 }: {
   t: Translations;
   lang: Lang;
   onLang: (l: Lang) => void;
   onShowRules: () => void;
+  onShowDesign: () => void;
 }) {
   return (
-    <header className="flex items-center justify-between">
+    <header className="flex items-center justify-between gap-2">
       <div>
         <h1 className="font-display text-3xl leading-none text-parchment">
           Brand<span className="text-gold">ubh</span>
@@ -408,8 +443,28 @@ function Header({
         <button className="btn" onClick={onShowRules}>
           {t.howToPlay}
         </button>
+        <button
+          className="iconbtn"
+          onClick={onShowDesign}
+          aria-label={t.design}
+          title={t.design}
+        >
+          <GearIcon />
+        </button>
       </div>
     </header>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <circle cx="12" cy="12" r="3.2" />
+      <path
+        d="M12 2.5l1.4 2.6 2.9-.5.4 2.9 2.6 1.4-1.3 2.6 1.3 2.6-2.6 1.4-.4 2.9-2.9-.5L12 21.5l-1.4-2.6-2.9.5-.4-2.9-2.6-1.4 1.3-2.6-1.3-2.6 2.6-1.4.4-2.9 2.9.5z"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -598,10 +653,6 @@ function Settings({
   onMode,
   difficulty,
   onDifficulty,
-  theme,
-  onTheme,
-  attackerEmblem,
-  onAttackerEmblem,
 }: {
   t: Translations;
   variantId: string;
@@ -610,10 +661,6 @@ function Settings({
   onMode: (m: PlayMode) => void;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
-  theme: ThemeId;
-  onTheme: (id: ThemeId) => void;
-  attackerEmblem: AttackerEmblemId;
-  onAttackerEmblem: (id: AttackerEmblemId) => void;
 }) {
   return (
     <div className="card mt-4 space-y-3 p-4">
@@ -659,48 +706,113 @@ function Settings({
           <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
         </select>
       </Row>
+    </div>
+  );
+}
 
-      <div>
-        <span className="text-sm text-parchment-dim">{t.theme}</span>
-        <div className="theme-swatches mt-2">
-          {THEMES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className={`theme-swatch ${theme === m.id ? "on" : ""}`}
-              onClick={() => onTheme(m.id)}
-              aria-pressed={theme === m.id}
-            >
-              <span className="chips" aria-hidden>
-                {m.chips.map((c, i) => (
-                  <i key={i} style={{ background: c }} />
-                ))}
-              </span>
-              {m.name}
-            </button>
-          ))}
+// "Design your board" — theme + piece/corner icon customisation (gear menu).
+function DesignModal({
+  t,
+  theme,
+  onTheme,
+  attackerEmblem,
+  onAttackerEmblem,
+  cornerEmblem,
+  onCornerEmblem,
+  onClose,
+}: {
+  t: Translations;
+  theme: ThemeId;
+  onTheme: (id: ThemeId) => void;
+  attackerEmblem: AttackerEmblemId;
+  onAttackerEmblem: (id: AttackerEmblemId) => void;
+  cornerEmblem: CornerEmblemId;
+  onCornerEmblem: (id: CornerEmblemId) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="font-display text-2xl text-gold">{t.design}</h2>
+          <button className="btn" onClick={onClose} aria-label={t.close}>
+            ✕
+          </button>
         </div>
-      </div>
 
-      <div>
-        <span className="text-sm text-parchment-dim">{t.attackerIcon}</span>
-        <div className="emblem-swatches mt-2">
-          {ATTACKER_EMBLEMS.map((e) => (
-            <button
-              key={e.id}
-              type="button"
-              className={`emblem-swatch ${attackerEmblem === e.id ? "on" : ""}`}
-              onClick={() => onAttackerEmblem(e.id)}
-              aria-pressed={attackerEmblem === e.id}
-              title={e.name}
-            >
-              <svg viewBox={e.viewBox} fill="currentColor" aria-hidden>
-                <path d={e.path} />
-              </svg>
-              <span className="emblem-name">{e.name}</span>
-            </button>
-          ))}
-        </div>
+        <section className="mt-5">
+          <span className="text-sm font-semibold text-parchment-dim">{t.colourTheme}</span>
+          <div className="theme-swatches mt-2">
+            {THEMES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`theme-swatch ${theme === m.id ? "on" : ""}`}
+                onClick={() => onTheme(m.id)}
+                aria-pressed={theme === m.id}
+              >
+                <span className="chips" aria-hidden>
+                  {m.chips.map((c, i) => (
+                    <i key={i} style={{ background: c }} />
+                  ))}
+                </span>
+                {m.name}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <span className="text-sm font-semibold text-parchment-dim">{t.attackerIcon}</span>
+          <div className="emblem-swatches mt-2">
+            {ATTACKER_EMBLEMS.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                className={`emblem-swatch ${attackerEmblem === e.id ? "on" : ""}`}
+                onClick={() => onAttackerEmblem(e.id)}
+                aria-pressed={attackerEmblem === e.id}
+                title={e.name}
+              >
+                <svg viewBox={e.viewBox} fill="currentColor" aria-hidden>
+                  <path d={e.path} />
+                </svg>
+                <span className="emblem-name">{e.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <span className="text-sm font-semibold text-parchment-dim">{t.cornerIcon}</span>
+          <div className="emblem-swatches mt-2">
+            {CORNER_EMBLEMS.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                className={`emblem-swatch ${cornerEmblem === e.id ? "on" : ""}`}
+                onClick={() => onCornerEmblem(e.id)}
+                aria-pressed={cornerEmblem === e.id}
+                title={e.name}
+              >
+                <svg viewBox={e.viewBox} fill="currentColor" aria-hidden>
+                  <path d={e.path} />
+                </svg>
+                <span className="emblem-name">{e.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <button className="btn btn-primary mt-6 w-full" onClick={onClose}>
+          {t.done}
+        </button>
       </div>
     </div>
   );

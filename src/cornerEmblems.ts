@@ -59,3 +59,13 @@ export function isCornerEmblemId(v: unknown): v is CornerEmblemId {
 export function cornerEmblemById(id: CornerEmblemId): CornerEmblemDef {
   return CORNER_EMBLEMS.find((e) => e.id === id) ?? CORNER_EMBLEMS[0];
 }
+
+export function loadCornerEmblem(): CornerEmblemId {
+  try {
+    const s = localStorage.getItem(CORNER_EMBLEM_KEY);
+    if (isCornerEmblemId(s)) return s;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_CORNER_EMBLEM;
+}

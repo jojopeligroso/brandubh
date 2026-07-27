@@ -4,6 +4,7 @@ import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, typ
 import type { RuleSet } from "../game/variants";
 import { SHIELD_KNOT_PATH, SHIELD_KNOT_VIEWBOX } from "../shieldKnot";
 import type { EmblemDef } from "../emblems";
+import type { CornerEmblemDef } from "../cornerEmblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
 function Emblem({ piece, attackerEmblem }: { piece: Piece; attackerEmblem: EmblemDef }) {
@@ -53,6 +54,8 @@ interface BoardProps {
   controllable: Side | null;
   /** Chosen emblem for the attacker (raider) pieces. */
   attackerEmblem: EmblemDef;
+  /** Chosen emblem for the four corner squares. */
+  cornerEmblem: CornerEmblemDef;
   onSquareClick: (sq: Square) => void;
 }
 
@@ -66,6 +69,7 @@ export default function Board({
   interactive,
   controllable,
   attackerEmblem,
+  cornerEmblem,
   onSquareClick,
 }: BoardProps) {
   const legal = useMemo<Square[]>(() => {
@@ -117,6 +121,13 @@ export default function Board({
                 .join(" ")}
               onClick={() => interactive && onSquareClick({ row: r, col: c })}
             >
+              {isCorner(r, c) && !piece && (
+                <span className="corner-emblem" aria-hidden>
+                  <svg viewBox={cornerEmblem.viewBox} fill="currentColor">
+                    <path d={cornerEmblem.path} />
+                  </svg>
+                </span>
+              )}
               {piece && (
                 <div className={`piece ${piece}`} title={piece}>
                   <Emblem piece={piece} attackerEmblem={attackerEmblem} />

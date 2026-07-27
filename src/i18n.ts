@@ -50,6 +50,11 @@ export interface Translations {
   variant: string;
   theme: string;
   attackerIcon: string;
+  cornerIcon: string;
+  colourTheme: string;
+  design: string;
+  done: string;
+  close: string;
 
   // Move navigation
   prevMove: string;
@@ -196,6 +201,11 @@ const en: Translations = {
   variant: "Variant",
   theme: "Theme",
   attackerIcon: "Raider icon",
+  cornerIcon: "Corner squares",
+  colourTheme: "Colour theme",
+  design: "Design your board",
+  done: "Done",
+  close: "Close",
 
   prevMove: "Previous move",
   nextMove: "Next move",
@@ -357,6 +367,11 @@ const es: Translations = {
   variant: "Variante",
   theme: "Tema",
   attackerIcon: "Icono de asaltante",
+  cornerIcon: "Esquinas",
+  colourTheme: "Tema de color",
+  design: "Diseña tu tablero",
+  done: "Listo",
+  close: "Cerrar",
 
   prevMove: "Jugada anterior",
   nextMove: "Jugada siguiente",
@@ -523,6 +538,11 @@ const ga: Translations = {
   variant: "Leagan",
   theme: "Téama",
   attackerIcon: "Deilbhín foghlaí",
+  cornerIcon: "Cúinní",
+  colourTheme: "Téama datha",
+  design: "Dear do chlár",
+  done: "Déanta",
+  close: "Dún",
 
   prevMove: "An bogadh roimhe seo",
   nextMove: "An chéad bhogadh eile",
