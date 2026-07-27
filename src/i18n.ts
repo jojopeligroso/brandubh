@@ -51,6 +51,7 @@ export interface Translations {
   theme: string;
   attackerIcon: string;
   cornerIcon: string;
+  kingIcon: string;
   colourTheme: string;
   design: string;
   done: string;
@@ -202,6 +203,7 @@ const en: Translations = {
   theme: "Theme",
   attackerIcon: "Raider icon",
   cornerIcon: "Corner squares",
+  kingIcon: "King icon",
   colourTheme: "Colour theme",
   design: "Design your board",
   done: "Done",
@@ -368,6 +370,7 @@ const es: Translations = {
   theme: "Tema",
   attackerIcon: "Icono de asaltante",
   cornerIcon: "Esquinas",
+  kingIcon: "Icono del rey",
   colourTheme: "Tema de color",
   design: "Diseña tu tablero",
   done: "Listo",
@@ -539,6 +542,7 @@ const ga: Translations = {
   theme: "Téama",
   attackerIcon: "Deilbhín foghlaí",
   cornerIcon: "Cúinní",
+  kingIcon: "Deilbhín rí",
   colourTheme: "Téama datha",
   design: "Dear do chlár",
   done: "Déanta",

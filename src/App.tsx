@@ -30,6 +30,14 @@ import {
   cornerEmblemById,
   loadCornerEmblem,
 } from "./cornerEmblems";
+import {
+  DEFAULT_KING_EMBLEM,
+  KING_EMBLEM_KEY,
+  type KingEmblemId,
+  availableKingEmblems,
+  kingEmblemById,
+  loadKingEmblem,
+} from "./kingEmblems";
 
 type PlayMode = "attackers" | "defenders" | "hotseat";
 
@@ -66,6 +74,15 @@ export default function App() {
     }
   }, [cornerEmblem]);
 
+  const [kingEmblem, setKingEmblem] = useState<KingEmblemId>(loadKingEmblem);
+  useEffect(() => {
+    try {
+      localStorage.setItem(KING_EMBLEM_KEY, kingEmblem);
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [kingEmblem]);
+
   const [variantId, setVariantId] = useState(DEFAULT_VARIANT);
   const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
     CUSTOM_RULE_DEFAULTS,
@@ -94,6 +111,12 @@ export default function App() {
     variantId === "custom"
       ? { id: "custom", name: "Custom", blurb: "Your custom ruleset.", ...customRules }
       : VARIANTS[variantId];
+  // A sword king emblem is only valid when the king is armed; fall back otherwise.
+  useEffect(() => {
+    if (!availableKingEmblems(rules.armedKing).some((e) => e.id === kingEmblem)) {
+      setKingEmblem(DEFAULT_KING_EMBLEM);
+    }
+  }, [rules.armedKing, kingEmblem]);
   const humanSide: Side | null = playMode === "hotseat" ? null : playMode;
   const aiSide: Side | null = humanSide ? opposite(humanSide) : null;
 
@@ -291,6 +314,7 @@ export default function App() {
           interactive={interactive}
           controllable={humanSide}
           attackerEmblem={emblemById(attackerEmblem)}
+          kingEmblem={kingEmblemById(kingEmblem)}
           cornerEmblem={cornerEmblemById(cornerEmblem)}
           onSquareClick={onSquareClick}
         />
@@ -399,6 +423,9 @@ export default function App() {
           onTheme={setTheme}
           attackerEmblem={attackerEmblem}
           onAttackerEmblem={setAttackerEmblem}
+          kingEmblem={kingEmblem}
+          onKingEmblem={setKingEmblem}
+          armedKing={rules.armedKing}
           cornerEmblem={cornerEmblem}
           onCornerEmblem={setCornerEmblem}
           onClose={() => setShowDesign(false)}
@@ -718,6 +745,9 @@ function DesignModal({
   onTheme,
   attackerEmblem,
   onAttackerEmblem,
+  kingEmblem,
+  onKingEmblem,
+  armedKing,
   cornerEmblem,
   onCornerEmblem,
   onClose,
@@ -727,6 +757,9 @@ function DesignModal({
   onTheme: (id: ThemeId) => void;
   attackerEmblem: AttackerEmblemId;
   onAttackerEmblem: (id: AttackerEmblemId) => void;
+  kingEmblem: KingEmblemId;
+  onKingEmblem: (id: KingEmblemId) => void;
+  armedKing: boolean;
   cornerEmblem: CornerEmblemId;
   onCornerEmblem: (id: CornerEmblemId) => void;
   onClose: () => void;
@@ -803,6 +836,33 @@ function DesignModal({
                         />
                       );
                     })()}
+                </svg>
+                <span className="emblem-name">{e.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <span className="text-sm font-semibold text-parchment-dim">{t.kingIcon}</span>
+          <div className="emblem-swatches mt-2">
+            {availableKingEmblems(armedKing).map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                className={`emblem-swatch ${kingEmblem === e.id ? "on" : ""}`}
+                onClick={() => onKingEmblem(e.id)}
+                aria-pressed={kingEmblem === e.id}
+                title={e.name}
+              >
+                <svg
+                  viewBox={e.viewBox}
+                  fill="currentColor"
+                  fillRule="evenodd"
+                  style={e.scale ? { transform: `scale(${e.scale})` } : undefined}
+                  aria-hidden
+                >
+                  <path d={e.path} />
                 </svg>
                 <span className="emblem-name">{e.name}</span>
               </button>

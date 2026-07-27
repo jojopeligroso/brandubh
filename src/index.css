@@ -649,6 +649,10 @@ body {
   opacity: 0.8;
 }
 .piece.king svg {
+  /* King emblems are traced crowns/sigils — render larger than the soldier
+     marks so the fine Celtic detail reads on the round stone. */
+  width: 74%;
+  height: 74%;
   color: var(--king-ink);
 }
 .piece.captured {

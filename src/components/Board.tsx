@@ -6,23 +6,30 @@ import { SHIELD_KNOT_PATH, SHIELD_KNOT_VIEWBOX } from "../shieldKnot";
 import type { EmblemDef } from "../emblems";
 import { emblemCenter } from "../emblems";
 import type { CornerEmblemDef } from "../cornerEmblems";
+import type { KingEmblemDef } from "../kingEmblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
-function Emblem({ piece, attackerEmblem }: { piece: Piece; attackerEmblem: EmblemDef }) {
+function Emblem({
+  piece,
+  attackerEmblem,
+  kingEmblem,
+}: {
+  piece: Piece;
+  attackerEmblem: EmblemDef;
+  kingEmblem: KingEmblemDef;
+}) {
   if (piece === "king")
     return (
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-        {/* Celtic crown with triskelion */}
-        {/* Crown base and points */}
-        <path d="M5 18h14v2H5zM5 16h14l1 2H4l1-2z" />
-        <path d="M6 10q0-3 2-5t4-2q2 0 4 2t2 5l-1 6H7l-1-6z" />
-        {/* Crown points with Celtic curves */}
-        <path d="M8 6q1-3 4-4Q10 4 8 6zM16 6q-1-3-4-4Q14 4 16 6zM12 4q0-2.5 0-3Q12 3 12 4z" />
-        {/* Triskelion triple spiral at centre */}
-        <path d="M12 11.5q1.5 0 1.5 1.2t-1.5 1.3q-1.5 0-1.5-1.3T12 11.5z" />
-        <path d="M12 12.7q.9-.5 1.6.2t0 1.6q-.8.5-1.6-.2T12 12.7z" />
-        <path d="M12 12.7q-.9-.5-1.6.2t0 1.6q.8.5 1.6-.2T12 12.7z" />
-        <path d="M12 12.7q.9.5 1.6-.2t0-1.6q-.8-.5-1.6.2T12 12.7z" />
+      // The king's emblem — a vector trace of the chosen artwork
+      // (see src/kingEmblems.ts); only the colour is themed.
+      <svg
+        viewBox={kingEmblem.viewBox}
+        fill="currentColor"
+        fillRule="evenodd"
+        style={kingEmblem.scale ? { transform: `scale(${kingEmblem.scale})` } : undefined}
+        aria-hidden
+      >
+        <path d={kingEmblem.path} />
       </svg>
     );
   if (piece === "attacker")
@@ -75,6 +82,8 @@ interface BoardProps {
   controllable: Side | null;
   /** Chosen emblem for the attacker (raider) pieces. */
   attackerEmblem: EmblemDef;
+  /** Chosen emblem for the king piece. */
+  kingEmblem: KingEmblemDef;
   /** Chosen emblem for the four corner squares. */
   cornerEmblem: CornerEmblemDef;
   onSquareClick: (sq: Square) => void;
@@ -90,6 +99,7 @@ export default function Board({
   interactive,
   controllable,
   attackerEmblem,
+  kingEmblem,
   cornerEmblem,
   onSquareClick,
 }: BoardProps) {
@@ -151,7 +161,7 @@ export default function Board({
               )}
               {piece && (
                 <div className={`piece ${piece}`} title={piece}>
-                  <Emblem piece={piece} attackerEmblem={attackerEmblem} />
+                  <Emblem piece={piece} attackerEmblem={attackerEmblem} kingEmblem={kingEmblem} />
                 </div>
               )}
               {/* fading captured-piece flash */}
