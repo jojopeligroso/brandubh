@@ -12,6 +12,14 @@ import {
   winnerOf,
 } from "./game/engine";
 import type { GameState, Move, Side, Square } from "./game/types";
+import {
+  GAMES_PER_SET,
+  newSet,
+  recordGame,
+  standing,
+  type MatchSet,
+  type PlayerId,
+} from "./game/matchSet";
 import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
 import { type Lang, type Translations, translations } from "./i18n";
 import { applyTheme, loadTheme, THEMES, type ThemeId } from "./theme";
@@ -72,6 +80,11 @@ export default function App() {
   const [playMode, setPlayMode] = useState<PlayMode>("defenders");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
+  // ── Over-the-board "set" scoring ────────────────────────────────────────────
+  // A set is two games in which the two players swap sides, so each sits behind
+  // both armies. Only meaningful in hotseat play; null otherwise.
+  const [matchSet, setMatchSet] = useState<MatchSet | null>(null);
+
   // ── Move timeline ───────────────────────────────────────────────────────────
   // `states[k]` is the full position after k moves; `cursor` is the position
   // currently on screen. Browsing with the arrows only moves the cursor — it
@@ -107,6 +120,9 @@ export default function App() {
     : null;
 
   const aiTimer = useRef<number | null>(null);
+  // Guards the set recorder so a finished game is counted exactly once, even as
+  // the cursor is moved back and forth over the terminal position.
+  const recorded = useRef(false);
 
   // ── Applying a move (shared by human + AI) ──────────────────────────────────
   const commitMove = useCallback(
@@ -186,8 +202,11 @@ export default function App() {
   );
 
   // ── Controls ────────────────────────────────────────────────────────────────
-  const resetGame = useCallback(() => {
+  // Clear the board back to the opening position. Shared by every "start a
+  // game" path; it does not touch the set score.
+  const resetBoard = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    recorded.current = false;
     setStates([initialState()]);
     setCursor(0);
     setSelected(null);
@@ -195,6 +214,26 @@ export default function App() {
     setThinking(false);
     setShowTakeback(false);
   }, []);
+
+  // Fresh board and, in hotseat play, a fresh two-game set.
+  const resetGame = useCallback(() => {
+    resetBoard();
+    setMatchSet(playMode === "hotseat" ? newSet() : null);
+  }, [resetBoard, playMode]);
+
+  // Start the next game of the current set (sides already swapped on record).
+  const nextGame = useCallback(() => {
+    resetBoard();
+  }, [resetBoard]);
+
+  // ── Record a finished hotseat game into the set (exactly once) ───────────────
+  useEffect(() => {
+    if (playMode !== "hotseat" || !matchSet) return;
+    if (!atTip || !gameOver || recorded.current) return;
+    if (matchSet.results.length >= GAMES_PER_SET) return;
+    recorded.current = true;
+    setMatchSet((s) => (s ? recordGame(s, game.status, game.moveCount) : s));
+  }, [playMode, matchSet, atTip, gameOver, game.status, game.moveCount]);
 
   const goPrev = useCallback(() => {
     setSelected(null);
@@ -214,6 +253,7 @@ export default function App() {
     (vsComputer: boolean) => {
       if (isGameOver(states[cursor].status)) return; // nothing to play from a finished position
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
+      recorded.current = false; // this branch becomes a fresh live game
       const sideToMove = states[cursor].turn;
       setStates((prev) => prev.slice(0, cursor + 1));
       setSelected(null);
@@ -257,15 +297,26 @@ export default function App() {
 
   const changeVariant = (id: string) => {
     setVariantId(id);
-    resetGame();
+    resetBoard();
+    setMatchSet(playMode === "hotseat" ? newSet() : null);
   };
 
   const changeMode = (m: PlayMode) => {
     setPlayMode(m);
-    resetGame();
+    resetBoard();
+    // playMode state updates async, so decide the set from the new mode here.
+    setMatchSet(m === "hotseat" ? newSet() : null);
   };
 
   const showVsAiBranch = playMode === "hotseat" || gameOver;
+
+  // In hotseat, the primary button advances the set: "Next game" between the
+  // two games, "New set" to start over. Everywhere else it's just "New game".
+  const otbSet = playMode === "hotseat" ? matchSet : null;
+  const midSet =
+    otbSet !== null && otbSet.results.length > 0 && otbSet.results.length < GAMES_PER_SET;
+  const primaryLabel = midSet ? t.nextGame : otbSet ? t.newSet : t.newGame;
+  const primaryAction = midSet ? nextGame : resetGame;
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
@@ -278,6 +329,10 @@ export default function App() {
       />
 
       <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
+
+      {otbSet && (
+        <SetScoreboard t={t} set={otbSet} gameOver={gameOver} liveMoves={game.moveCount} />
+      )}
 
       <div className="mt-3">
         <Board
@@ -307,8 +362,8 @@ export default function App() {
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn btn-primary" onClick={resetGame}>
-          {t.newGame}
+        <button className="btn btn-primary" onClick={primaryAction}>
+          {primaryLabel}
         </button>
         <button className="btn" onClick={() => setShowRules(true)}>
           {t.rules}
@@ -529,6 +584,144 @@ function CapturedTray({ t, game }: { t: Translations; game: GameState }) {
       <span>
         {t.defendersLost} <b className="text-parchment">{game.captured.defenders}</b>
       </span>
+    </div>
+  );
+}
+
+// ── Over-the-board set scoreboard ────────────────────────────────────────────
+// Shows the running king/raiders counters, which player holds which side this
+// game, each finished game's result with its move count, and — once both games
+// are played — who took the set (by wins, or by the move-count tiebreaker when
+// the set is level).
+function SetScoreboard({
+  t,
+  set,
+  gameOver,
+  liveMoves,
+}: {
+  t: Translations;
+  set: MatchSet;
+  gameOver: boolean;
+  liveMoves: number;
+}) {
+  const s = standing(set);
+  const playerName = (id: PlayerId) => (id === "p1" ? t.player1 : t.player2);
+  const currentGame = Math.min(set.results.length + 1, GAMES_PER_SET);
+
+  const sideOfPlayer = (id: PlayerId): Side =>
+    set.attackersPlayer === id ? "attackers" : "defenders";
+
+  return (
+    <div className="card mt-3 p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-lg text-parchment">{t.matchSet}</h3>
+        <span className="font-mono text-xs text-parchment-dim">
+          {s.complete ? `${GAMES_PER_SET}/${GAMES_PER_SET}` : `${t.gameWord} ${currentGame}/${GAMES_PER_SET}`}
+        </span>
+      </div>
+
+      {/* King vs raiders counters across the set */}
+      <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+        <div className="rounded-lg bg-gold/10 px-3 py-2">
+          <div className="font-display text-2xl text-gold">{s.sideWins.defenders}</div>
+          <div className="text-xs uppercase tracking-wide text-parchment-dim">{t.kingCounter}</div>
+        </div>
+        <div className="rounded-lg bg-blood/10 px-3 py-2">
+          <div className="font-display text-2xl text-blood">{s.sideWins.attackers}</div>
+          <div className="text-xs uppercase tracking-wide text-parchment-dim">{t.raidersCounter}</div>
+        </div>
+      </div>
+
+      {/* Per-player standings */}
+      <div className="mt-3 space-y-1.5">
+        {(["p1", "p2"] as PlayerId[]).map((id) => {
+          const side = sideOfPlayer(id);
+          const best = s.fastestWin[id];
+          return (
+            <div key={id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="flex items-center gap-2">
+                <span className="text-parchment">{playerName(id)}</span>
+                {!s.complete && (
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-xs ${
+                      side === "attackers" ? "bg-blood/20 text-blood" : "bg-gold/20 text-gold"
+                    }`}
+                  >
+                    {sideLabel(side, t)}
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-2 font-mono text-xs text-parchment-dim">
+                {best !== null && (
+                  <span>
+                    {t.bestWin} {best} {t.movesWord}
+                  </span>
+                )}
+                <span className="font-display text-base text-parchment">{s.wins[id]}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Finished-game lines */}
+      {set.results.length > 0 && (
+        <ol className="mt-3 space-y-1 border-t border-parchment/10 pt-2 font-mono text-xs text-parchment-dim">
+          {set.results.map((r, i) => (
+            <li key={i} className="flex items-center justify-between gap-2">
+              <span>
+                {t.gameWord} {i + 1}
+                {r.winningPlayer ? (
+                  <>
+                    {" · "}
+                    <span className={r.winner === "attackers" ? "text-blood/90" : "text-gold/90"}>
+                      {playerName(r.winningPlayer)}
+                    </span>{" "}
+                    {t.wonAs} {sideLabel(r.winner as Side, t)}
+                  </>
+                ) : (
+                  <> · {t.drawShort}</>
+                )}
+              </span>
+              <span>
+                {r.moves} {t.movesWord}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {/* Live move count for the game in progress (the tiebreaker metric) */}
+      {!s.complete && !gameOver && (
+        <p className="mt-2 font-mono text-xs text-parchment-dim">
+          {t.gameWord} {currentGame}: {liveMoves} {t.movesWord}
+        </p>
+      )}
+
+      {/* Between-games prompt */}
+      {gameOver && !s.complete && (
+        <p className="mt-2 text-xs text-parchment-dim">{t.sidesSwapNext}</p>
+      )}
+
+      {/* Set outcome */}
+      {s.complete ? (
+        <p className="mt-3 border-t border-parchment/10 pt-2 font-display text-base text-parchment">
+          {s.winner === "draw" ? (
+            t.setDrawn
+          ) : (
+            <>
+              <span className="text-gold">{playerName(s.winner as PlayerId)}</span>{" "}
+              {s.decidedByMoves ? t.winsSetOnMoves : t.winsTheSet}
+            </>
+          )}
+        </p>
+      ) : (
+        set.results.length === 0 && (
+          <p className="mt-3 border-t border-parchment/10 pt-2 text-xs text-parchment-dim">
+            {t.setInProgress}
+          </p>
+        )
+      )}
     </div>
   );
 }

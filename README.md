@@ -153,6 +153,8 @@ src/
     variants.ts      rule presets (Walker, WTF) + RuleSet flags
     engine.ts        move generation, captures, king capture, win detection, notation
     engine.test.ts   vitest unit tests for the engine
+    matchSet.ts      over-the-board set scoring (side swap, tiebreak by moves)
+    matchSet.test.ts vitest unit tests for set scoring
     ai.ts            alpha–beta minimax + evaluation
   components/
     Board.tsx        the board grid + piece emblems
@@ -180,6 +182,24 @@ adding another theme is just one more block in `src/index.css` plus an entry in
   position you are viewing (against the same opponent, or against the computer).
 - **Over-the-board** play offers **Propose takeback**; either side may **Resign**.
 - When a game ends you can step back and **Play from here** to explore variations.
+
+## Over-the-board sets
+
+Brandubh is asymmetric, so a single game never pits two people fairly against
+each other — whichever army is stronger has the edge. Over-the-board play is
+therefore scored as a **set**: two games in which the players swap sides, so
+each one sits behind both the king and the raiders. A scoreboard above the board
+tracks it live:
+
+- **King’s side vs Raiders counters** — how many games each army has won so far.
+- **Per-player standings** — which side each player holds this game, their game
+  wins, and their fastest victory (in moves).
+- **Each finished game** — winner, the side they held, and the moves it took.
+
+Because the stronger side is expected to win both games, a set usually finishes
+level (1–1). When it does, the **move-count tiebreaker** decides it: the player
+who won their game in **fewer moves** takes the set. *Next game* swaps the sides
+and starts game two; *New set* starts a fresh pair.
 
 ## Deploying
 

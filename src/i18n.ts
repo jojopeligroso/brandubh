@@ -103,6 +103,26 @@ export interface Translations {
   repetitionOptionDraw: string;
   repetitionOptionLossDefenders: string;
 
+  // Over-the-board set / scoreboard
+  matchSet: string;
+  gameWord: string;
+  player1: string;
+  player2: string;
+  setStanding: string;
+  kingCounter: string;
+  raidersCounter: string;
+  movesWord: string;
+  drawShort: string;
+  bestWin: string;
+  nextGame: string;
+  newSet: string;
+  sidesSwapNext: string;
+  setInProgress: string;
+  winsTheSet: string;
+  winsSetOnMoves: string;
+  setDrawn: string;
+  wonAs: string;
+
   // Move log
   moveLog: string;
 
@@ -250,6 +270,25 @@ const en: Translations = {
   repetitionOptionNone: "Ignore",
   repetitionOptionDraw: "Draw",
   repetitionOptionLossDefenders: "King’s side loses",
+
+  matchSet: "Set",
+  gameWord: "Game",
+  player1: "Player 1",
+  player2: "Player 2",
+  setStanding: "Set standing",
+  kingCounter: "King’s side",
+  raidersCounter: "Raiders",
+  movesWord: "moves",
+  drawShort: "Draw",
+  bestWin: "best",
+  nextGame: "Next game",
+  newSet: "New set",
+  sidesSwapNext: "Sides swap — start the next game.",
+  setInProgress: "A set is two games; each player takes one side of each.",
+  winsTheSet: "wins the set!",
+  winsSetOnMoves: "wins the set — fewer moves to victory.",
+  setDrawn: "Set drawn.",
+  wonAs: "won as",
 
   moveLog: "Move log",
 
@@ -416,6 +455,25 @@ const es: Translations = {
   repetitionOptionNone: "Ignorar",
   repetitionOptionDraw: "Tablas",
   repetitionOptionLossDefenders: "El bando del Rey pierde",
+
+  matchSet: "Serie",
+  gameWord: "Partida",
+  player1: "Jugador 1",
+  player2: "Jugador 2",
+  setStanding: "Marcador de la serie",
+  kingCounter: "Bando del Rey",
+  raidersCounter: "Asaltantes",
+  movesWord: "jugadas",
+  drawShort: "Tablas",
+  bestWin: "mejor",
+  nextGame: "Siguiente partida",
+  newSet: "Nueva serie",
+  sidesSwapNext: "Cambian los bandos — empieza la siguiente partida.",
+  setInProgress: "Una serie son dos partidas; cada jugador toma un bando en cada una.",
+  winsTheSet: "¡gana la serie!",
+  winsSetOnMoves: "gana la serie — menos jugadas para la victoria.",
+  setDrawn: "Serie empatada.",
+  wonAs: "ganó con",
 
   moveLog: "Registro de jugadas",
 
@@ -587,6 +645,25 @@ const ga: Translations = {
   repetitionOptionNone: "Déan neamhaird",
   repetitionOptionDraw: "Cluiche cothrom",
   repetitionOptionLossDefenders: "Cailleann taobh an Rí",
+
+  matchSet: "Sraith",
+  gameWord: "Cluiche",
+  player1: "Imreoir 1",
+  player2: "Imreoir 2",
+  setStanding: "Staid na sraithe",
+  kingCounter: "Taobh an Rí",
+  raidersCounter: "Foghlaithe",
+  movesWord: "bogadh",
+  drawShort: "Cothrom",
+  bestWin: "is fear",
+  nextGame: "An chéad chluiche eile",
+  newSet: "Sraith nua",
+  sidesSwapNext: "Malartaítear na taobhanna — tosaigh an chéad chluiche eile.",
+  setInProgress: "Dhá chluiche is ea sraith; glacann gach imreoir taobh amháin i ngach ceann.",
+  winsTheSet: "buann an tsraith!",
+  winsSetOnMoves: "buann an tsraith — níos lú bogadh chun na bua.",
+  setDrawn: "Sraith cothrom.",
+  wonAs: "bhuaigh mar",
 
   moveLog: "Loga bogtha",
 
