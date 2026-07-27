@@ -2,14 +2,15 @@
 
 A slick, fully playable browser version of **Brandubh** — the Irish 7×7 form of
 hnefatafl, the asymmetric Norse–Gaelic “king’s table” war game. Play the King’s
-desperate escape or the raiders’ hunt, against a friend (pass-and-play) or a
-built-in AI, with two historical rule variants.
+desperate escape or the raiders’ hunt, against a friend (over the board) or a
+built-in AI, with two historical rule variants and a custom rule editor.
 
 ![Brandubh board](docs/screenshot.png)
 
 - ⚔️ Correct, tested tafl engine (custodial capture, hostile corners & throne, strong-king throne capture)
 - 🤖 Minimax + alpha–beta AI with three difficulty levels
-- 👑 Two rule variants: **Copenhagen** (armed king) and **Weaponless-King**
+- 👑 Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
+- 🌐 Localised in English and Spanish
 - 📱 Mobile-first, no backend, works offline — pure static SPA
 - 🎨 Carved-wood board, crown / shield / axe piece emblems, move log, undo
 
@@ -63,8 +64,7 @@ competitively on Aage Nielsen’s hnefatafl site and by the World Tafl Federatio
 - Only the **King** may stop on the **throne** or a **corner**. Ordinary
   soldiers may pass *over* the empty throne but may never rest on it, and may
   never enter a corner.
-- In these reconstructions the King, once he leaves the throne, may not move
-  back onto it.
+- In both reconstructions the King may return to the throne after leaving it.
 
 ### Capturing
 
@@ -92,7 +92,8 @@ competitively on Aage Nielsen’s hnefatafl site and by the World Tafl Federatio
   square next to it**, the attackers must surround him on **all four sides**
   (the empty throne counts as one hostile side).
 - A player who has **no legal move** loses.
-- A position repeated three times is a **draw** (repetition rule).
+- A position repeated three times ends the game (draw in Walker rules, loss
+  for defenders in WTF rules).
 
 > Some tournament rule-sets add a *shieldwall* capture (bracketing a whole row of
 > pieces against the edge) and an *exit-fort* win for the King. This
@@ -103,22 +104,26 @@ competitively on Aage Nielsen’s hnefatafl site and by the World Tafl Federatio
 
 ## The two variants
 
-Brandubh has been reconstructed more than one way. The app ships the two
-rule-sets that are used for recorded Brandubh play, selectable in the settings:
+Brandubh has been reconstructed more than one way. The app ships two
+rule-sets sourced from [aagenielsen.dk](https://aagenielsen.dk), selectable
+in the settings, plus a custom rule editor for mixing and matching flags:
 
-1. **Copenhagen Brandubh** *(default)* — the modern World Tafl Federation
-   tournament reconstruction. The **king is armed**: he can take part in
-   captures like any other piece. This is the balanced, competitive ruleset.
+1. **Brandubh · World Tafl Federation** *(default)* — official WTF tournament
+   rules. The empty throne is hostile to soldiers but never to the king. The
+   king on the throne requires all four sides surrounded. Encirclement wins.
+   Threefold repetition is a loss for the defending side.
 
-2. **Weaponless-King Brandubh** — an older “historical” reading in which the
-   **king carries no weapon** and cannot help make captures (one interpretation
-   of the Hervarar-saga riddle). The four defenders must clear the king’s path
-   alone, making the escape harder.
+2. **Brandubh · Walker** — Damian Walker’s reconstruction (Cyningstan, 2011),
+   based on MacWhite’s 1946 article. The throne is not hostile. The king is
+   captured by two pieces anywhere on the board (no strong-king rule).
+   Threefold repetition is a draw.
 
-Both share the same board, setup, movement, hostile squares, and win
-conditions; they differ only in whether the king may capture (and are wired
-through a single declarative `RuleSet` in `src/game/variants.ts`, so adding
-further variants is a matter of flipping flags).
+Both variants use an armed king (the king can participate in captures). They
+share the same board, setup, movement, and corner rules; they differ in throne
+hostility, strong-king behaviour, encirclement, and repetition handling. All
+flags are wired through a declarative `RuleSet` in `src/game/variants.ts`, so
+adding further variants is a matter of flipping flags — or use the in-app
+custom rule editor to experiment live.
 
 ---
 
@@ -144,16 +149,18 @@ compatible with a simple game-record replay.
 ```
 src/
   game/
-    types.ts       core types (board, move, state)
-    variants.ts    the two rule presets + RuleSet flags
-    engine.ts      move generation, captures, king capture, win detection, notation
-    ai.ts          alpha–beta minimax + evaluation
+    types.ts         core types (board, move, state)
+    variants.ts      rule presets (Walker, WTF) + RuleSet flags
+    engine.ts        move generation, captures, king capture, win detection, notation
+    engine.test.ts   vitest unit tests for the engine
+    ai.ts            alpha–beta minimax + evaluation
   components/
-    Board.tsx      the board grid + piece emblems
-    RulesModal.tsx in-app how-to-play
-  App.tsx          game state, controls, AI orchestration
+    Board.tsx        the board grid + piece emblems
+    RulesModal.tsx   in-app how-to-play
+  i18n.ts            translations (EN, ES)
+  App.tsx            game state, controls, AI orchestration, custom rule editor
 scripts/
-  selftest.ts      headless engine assertions
+  selftest.ts        headless engine assertions
 ```
 
 ## Licence
