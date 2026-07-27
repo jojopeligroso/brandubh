@@ -38,6 +38,13 @@ import {
   kingEmblemById,
   loadKingEmblem,
 } from "./kingEmblems";
+import {
+  DEFENDER_EMBLEMS,
+  DEFENDER_EMBLEM_KEY,
+  type DefenderEmblemId,
+  defenderEmblemById,
+  loadDefenderEmblem,
+} from "./defenderEmblems";
 
 type PlayMode = "attackers" | "defenders" | "hotseat";
 
@@ -82,6 +89,15 @@ export default function App() {
       /* ignore persistence failures */
     }
   }, [kingEmblem]);
+
+  const [defenderEmblem, setDefenderEmblem] = useState<DefenderEmblemId>(loadDefenderEmblem);
+  useEffect(() => {
+    try {
+      localStorage.setItem(DEFENDER_EMBLEM_KEY, defenderEmblem);
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [defenderEmblem]);
 
   const [variantId, setVariantId] = useState(DEFAULT_VARIANT);
   const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
@@ -315,6 +331,7 @@ export default function App() {
           controllable={humanSide}
           attackerEmblem={emblemById(attackerEmblem)}
           kingEmblem={kingEmblemById(kingEmblem)}
+          defenderEmblem={defenderEmblemById(defenderEmblem)}
           cornerEmblem={cornerEmblemById(cornerEmblem)}
           onSquareClick={onSquareClick}
         />
@@ -426,6 +443,8 @@ export default function App() {
           kingEmblem={kingEmblem}
           onKingEmblem={setKingEmblem}
           armedKing={rules.armedKing}
+          defenderEmblem={defenderEmblem}
+          onDefenderEmblem={setDefenderEmblem}
           cornerEmblem={cornerEmblem}
           onCornerEmblem={setCornerEmblem}
           onClose={() => setShowDesign(false)}
@@ -748,6 +767,8 @@ function DesignModal({
   kingEmblem,
   onKingEmblem,
   armedKing,
+  defenderEmblem,
+  onDefenderEmblem,
   cornerEmblem,
   onCornerEmblem,
   onClose,
@@ -760,6 +781,8 @@ function DesignModal({
   kingEmblem: KingEmblemId;
   onKingEmblem: (id: KingEmblemId) => void;
   armedKing: boolean;
+  defenderEmblem: DefenderEmblemId;
+  onDefenderEmblem: (id: DefenderEmblemId) => void;
   cornerEmblem: CornerEmblemId;
   onCornerEmblem: (id: CornerEmblemId) => void;
   onClose: () => void;
@@ -822,20 +845,6 @@ function DesignModal({
                   aria-hidden
                 >
                   <path d={e.path} />
-                  {e.outerRing &&
-                    (() => {
-                      const { cx, cy } = emblemCenter(e.viewBox);
-                      return (
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={e.outerRing.r}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={e.outerRing.width}
-                        />
-                      );
-                    })()}
                 </svg>
                 <span className="emblem-name">{e.name}</span>
               </button>
@@ -867,6 +876,47 @@ function DesignModal({
                 <span className="emblem-name">{e.name}</span>
               </button>
             ))}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <span className="text-sm font-semibold text-parchment-dim">{t.defenderIcon}</span>
+          <div className="emblem-swatches mt-2">
+            {DEFENDER_EMBLEMS.map((e) => {
+              const ring = e.outerRing;
+              const center = ring ? emblemCenter(e.viewBox) : null;
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={`emblem-swatch ${defenderEmblem === e.id ? "on" : ""}`}
+                  onClick={() => onDefenderEmblem(e.id)}
+                  aria-pressed={defenderEmblem === e.id}
+                  title={e.name}
+                >
+                  <svg
+                    viewBox={e.viewBox}
+                    fill="currentColor"
+                    fillRule="evenodd"
+                    style={e.scale ? { transform: `scale(${e.scale})` } : undefined}
+                    aria-hidden
+                  >
+                    <path d={e.path} />
+                    {ring && center && (
+                      <circle
+                        cx={center.cx}
+                        cy={center.cy}
+                        r={ring.r}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={ring.width}
+                      />
+                    )}
+                  </svg>
+                  <span className="emblem-name">{e.name}</span>
+                </button>
+              );
+            })}
           </div>
         </section>
 

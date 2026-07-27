@@ -2,21 +2,23 @@ import { useMemo } from "react";
 import { isCorner, isThrone, movesFrom, sideOf } from "../game/engine";
 import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, type Square } from "../game/types";
 import type { RuleSet } from "../game/variants";
-import { SHIELD_KNOT_PATH, SHIELD_KNOT_VIEWBOX } from "../shieldKnot";
 import type { EmblemDef } from "../emblems";
 import { emblemCenter } from "../emblems";
 import type { CornerEmblemDef } from "../cornerEmblems";
 import type { KingEmblemDef } from "../kingEmblems";
+import type { DefenderEmblemDef } from "../defenderEmblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
 function Emblem({
   piece,
   attackerEmblem,
   kingEmblem,
+  defenderEmblem,
 }: {
   piece: Piece;
   attackerEmblem: EmblemDef;
   kingEmblem: KingEmblemDef;
+  defenderEmblem: DefenderEmblemDef;
 }) {
   if (piece === "king")
     return (
@@ -44,27 +46,33 @@ function Emblem({
         aria-hidden
       >
         <path d={attackerEmblem.path} />
-        {attackerEmblem.outerRing &&
-          (() => {
-            const { cx, cy } = emblemCenter(attackerEmblem.viewBox);
-            return (
-              <circle
-                cx={cx}
-                cy={cy}
-                r={attackerEmblem.outerRing.r}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={attackerEmblem.outerRing.width}
-              />
-            );
-          })()}
       </svg>
     );
   return (
-    // Celtic shield knot — the king's bodyguards. Exact vector trace of the
-    // supplied artwork (see src/shieldKnot.ts); only the colour is themed.
-    <svg viewBox={SHIELD_KNOT_VIEWBOX} fill="currentColor" fillRule="evenodd" aria-hidden>
-      <path d={SHIELD_KNOT_PATH} />
+    // The defenders' emblem — a vector trace of the chosen artwork
+    // (see src/defenderEmblems.ts); only the colour is themed.
+    <svg
+      viewBox={defenderEmblem.viewBox}
+      fill="currentColor"
+      fillRule="evenodd"
+      style={defenderEmblem.scale ? { transform: `scale(${defenderEmblem.scale})` } : undefined}
+      aria-hidden
+    >
+      <path d={defenderEmblem.path} />
+      {defenderEmblem.outerRing &&
+        (() => {
+          const { cx, cy } = emblemCenter(defenderEmblem.viewBox);
+          return (
+            <circle
+              cx={cx}
+              cy={cy}
+              r={defenderEmblem.outerRing.r}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={defenderEmblem.outerRing.width}
+            />
+          );
+        })()}
     </svg>
   );
 }
@@ -84,6 +92,8 @@ interface BoardProps {
   attackerEmblem: EmblemDef;
   /** Chosen emblem for the king piece. */
   kingEmblem: KingEmblemDef;
+  /** Chosen emblem for the defender (king's guard) pieces. */
+  defenderEmblem: DefenderEmblemDef;
   /** Chosen emblem for the four corner squares. */
   cornerEmblem: CornerEmblemDef;
   onSquareClick: (sq: Square) => void;
@@ -100,6 +110,7 @@ export default function Board({
   controllable,
   attackerEmblem,
   kingEmblem,
+  defenderEmblem,
   cornerEmblem,
   onSquareClick,
 }: BoardProps) {
@@ -161,7 +172,12 @@ export default function Board({
               )}
               {piece && (
                 <div className={`piece ${piece}`} title={piece}>
-                  <Emblem piece={piece} attackerEmblem={attackerEmblem} kingEmblem={kingEmblem} />
+                  <Emblem
+                    piece={piece}
+                    attackerEmblem={attackerEmblem}
+                    kingEmblem={kingEmblem}
+                    defenderEmblem={defenderEmblem}
+                  />
                 </div>
               )}
               {/* fading captured-piece flash */}
