@@ -31,7 +31,7 @@ function Emblem({ piece, attackerEmblem }: { piece: Piece; attackerEmblem: Emble
       <svg
         viewBox={attackerEmblem.viewBox}
         fill="currentColor"
-        fillRule="evenodd"
+        fillRule={attackerEmblem.fillRule ?? "evenodd"}
         style={attackerEmblem.scale ? { transform: `scale(${attackerEmblem.scale})` } : undefined}
         aria-hidden
       >
