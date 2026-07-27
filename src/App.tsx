@@ -20,6 +20,7 @@ import {
   ATTACKER_EMBLEM_KEY,
   type AttackerEmblemId,
   emblemById,
+  emblemCenter,
   loadAttackerEmblem,
 } from "./emblems";
 import {
@@ -788,6 +789,20 @@ function DesignModal({
                   aria-hidden
                 >
                   <path d={e.path} />
+                  {e.outerRing &&
+                    (() => {
+                      const { cx, cy } = emblemCenter(e.viewBox);
+                      return (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={e.outerRing.r}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={e.outerRing.width}
+                        />
+                      );
+                    })()}
                 </svg>
                 <span className="emblem-name">{e.name}</span>
               </button>

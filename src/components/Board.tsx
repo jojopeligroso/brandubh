@@ -4,6 +4,7 @@ import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, typ
 import type { RuleSet } from "../game/variants";
 import { SHIELD_KNOT_PATH, SHIELD_KNOT_VIEWBOX } from "../shieldKnot";
 import type { EmblemDef } from "../emblems";
+import { emblemCenter } from "../emblems";
 import type { CornerEmblemDef } from "../cornerEmblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
@@ -36,6 +37,20 @@ function Emblem({ piece, attackerEmblem }: { piece: Piece; attackerEmblem: Emble
         aria-hidden
       >
         <path d={attackerEmblem.path} />
+        {attackerEmblem.outerRing &&
+          (() => {
+            const { cx, cy } = emblemCenter(attackerEmblem.viewBox);
+            return (
+              <circle
+                cx={cx}
+                cy={cy}
+                r={attackerEmblem.outerRing.r}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={attackerEmblem.outerRing.width}
+              />
+            );
+          })()}
       </svg>
     );
   return (
