@@ -569,6 +569,30 @@ body {
   pointer-events: none;
 }
 
+/* chessboard-style coordinates: files a–g along the bottom, ranks 1–7 up the left */
+.coord {
+  position: absolute;
+  z-index: 3;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.5rem, 1.6vw, 0.78rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--motif-ink) 78%, transparent);
+  text-shadow: 0 1px 1px color-mix(in srgb, var(--color-parchment) 45%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+.coord-rank {
+  top: 3px;
+  left: 3px;
+}
+.coord-file {
+  right: 4px;
+  bottom: 2px;
+  text-transform: lowercase;
+}
+
 /* legal-move markers */
 .dot {
   position: absolute;
