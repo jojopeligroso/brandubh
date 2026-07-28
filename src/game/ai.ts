@@ -32,10 +32,44 @@ const DIRS: ReadonlyArray<readonly [number, number]> = [
 ];
 
 // ── Evaluation (attacker-positive) ────────────────────────────────────────────
-// Deliberately unchanged from the original heuristic: the search rewrite is kept
-// isolated so self-play can attribute strength gains to search alone. Evaluation
-// tuning is a separate, measured follow-up. Everything here already reads from
-// CORNERS / BOARD_SIZE, so it is variant- and board-size-agnostic.
+// Every term is weighted so eval variants can be compared head-to-head via
+// self-play (scripts/aibench.ts). All terms read from CORNERS / BOARD_SIZE and
+// the RuleSet, so they stay variant- and board-size-agnostic (Tablut etc.).
+export interface EvalWeights {
+  /** Per (attackers − 2·defenders). Defenders are scarcer, so worth ~2×. */
+  material: number;
+  /** Per unit of king→corner distance. Positive ⇒ attackers want the king far. */
+  kingCorner: number;
+  /** Subtracted per open escape lane². One lane is worrying, two nearly lost. */
+  escapeLane: number;
+  /** Per attacker orthogonally adjacent to the king (capture pressure). */
+  hug: number;
+  /** Per empty orthogonal square around the king that is *not* an open lane —
+   *  raw breathing room. Subtracted, so fewer liberties favour attackers. */
+  liberties: number;
+  /** Subtracted per defender orthogonally adjacent to the king (a shield that
+   *  blocks custodial capture). */
+  shield: number;
+  /** Per (attacker legal moves − defender legal moves). 0 ⇒ skip (it costs a
+   *  full move-gen for both sides, so only pay it when it earns its keep). */
+  mobility: number;
+  /** Use the blocker-aware king→corner distance (1/2/3 real king-moves) instead
+   *  of the crude aligned?1:2 estimate that ignores pieces in the lane. */
+  blockerAwareKingDist: boolean;
+}
+
+/** The original hand-tuned heuristic, exactly. The self-play baseline. */
+export const DEFAULT_WEIGHTS: EvalWeights = {
+  material: 40,
+  kingCorner: 25,
+  escapeLane: 120,
+  hug: 30,
+  liberties: 0,
+  shield: 0,
+  mobility: 0,
+  blockerAwareKingDist: false,
+};
+
 function clearPathToCorner(b: Board, kr: number, kc: number): number {
   // Count corners the king could slide to *right now* with an unobstructed
   // straight path. Two or more open paths is a near-certain escape.
@@ -63,11 +97,43 @@ function clearPathToCorner(b: Board, kr: number, kc: number): number {
   return open;
 }
 
-export function evaluate(state: GameState): number {
+/** All squares strictly between the two aligned points are empty. */
+function lineClear(b: Board, r0: number, c0: number, r1: number, c1: number): boolean {
+  if (r0 === r1) {
+    const step = c1 > c0 ? 1 : -1;
+    for (let c = c0 + step; c !== c1; c += step) if (b[r0][c] !== null) return false;
+    return true;
+  }
+  const step = r1 > r0 ? 1 : -1;
+  for (let r = r0 + step; r !== r1; r += step) if (b[r][c0] !== null) return false;
+  return true;
+}
+
+/** Real king-moves to the nearest corner, honouring blockers: 1 (aligned, clear
+ *  lane), 2 (one clear L-path via a pivot), else 3 (capped). A rook needs ≤2
+ *  moves to any square, via one of two pivots — so this is exact for 1 and 2. */
+function kingCornerMoves(b: Board, kr: number, kc: number): number {
+  let best = 3;
+  for (const corner of CORNERS) {
+    const { row: cr, col: cc } = corner;
+    if ((kr === cr || kc === cc) && lineClear(b, kr, kc, cr, cc)) return 1;
+    for (const [pr, pc] of [
+      [kr, cc],
+      [cr, kc],
+    ] as const) {
+      if (b[pr][pc] !== null) continue; // pivot must be empty to stop on
+      if ((pr === kr || pc === kc) && lineClear(b, kr, kc, pr, pc) && lineClear(b, pr, pc, cr, cc))
+        best = Math.min(best, 2);
+    }
+  }
+  return best;
+}
+
+export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rules?: RuleSet): number {
   if (isGameOver(state.status)) {
-    const w = winnerOf(state.status);
-    if (w === "attackers") return WIN;
-    if (w === "defenders") return -WIN;
+    const winner = winnerOf(state.status);
+    if (winner === "attackers") return WIN;
+    if (winner === "defenders") return -WIN;
     return 0; // draw
   }
 
@@ -81,34 +147,50 @@ export function evaluate(state: GameState): number {
       else if (p === "defender") defenders++;
     }
 
-  let score = 0;
-  score += (attackers - defenders * 2) * 40; // defenders are scarcer → worth more
+  let score = (attackers - defenders * 2) * w.material;
 
   const k = findKing(b);
   if (k) {
-    // King's distance to the nearest corner (in rook moves ≈ 1 or 2). Attackers
-    // want it far; defenders want it near.
-    let best = 99;
-    for (const corner of CORNERS) {
-      const d =
-        (k.row === corner.row || k.col === corner.col ? 1 : 2) +
-        (Math.abs(k.row - corner.row) + Math.abs(k.col - corner.col)) / 100;
-      best = Math.min(best, d);
+    // King→corner distance. Attackers want it far, defenders near.
+    if (w.blockerAwareKingDist) {
+      score += kingCornerMoves(b, k.row, k.col) * w.kingCorner;
+    } else {
+      let best = 99;
+      for (const corner of CORNERS) {
+        const d =
+          (k.row === corner.row || k.col === corner.col ? 1 : 2) +
+          (Math.abs(k.row - corner.row) + Math.abs(k.col - corner.col)) / 100;
+        best = Math.min(best, d);
+      }
+      score += best * w.kingCorner;
     }
-    score += best * 25; // larger distance = better for attackers
 
-    // Open escape lanes are dangerous. One is worrying, two is nearly lost.
     const open = clearPathToCorner(b, k.row, k.col);
-    score -= open * open * 120;
+    score -= open * open * w.escapeLane;
 
-    // Reward attackers hugging the king (progress toward a capture).
+    // Piece structure around the king: attacker pressure, defender shield, and
+    // raw breathing room.
     let hug = 0;
+    let shield = 0;
+    let liberties = 0;
     for (const [dr, dc] of DIRS) {
       const nr = k.row + dr;
       const nc = k.col + dc;
-      if (inBounds(nr, nc) && b[nr][nc] === "attacker") hug++;
+      if (!inBounds(nr, nc)) continue;
+      const p = b[nr][nc];
+      if (p === "attacker") hug++;
+      else if (p === "defender") shield++;
+      else if (p === null) liberties++;
     }
-    score += hug * 30;
+    score += hug * w.hug;
+    score -= shield * w.shield;
+    score -= liberties * w.liberties;
+  }
+
+  if (w.mobility !== 0 && rules) {
+    const am = allMoves(b, "attackers", rules).length;
+    const dm = allMoves(b, "defenders", rules).length;
+    score += (am - dm) * w.mobility;
   }
 
   return score;
@@ -240,6 +322,7 @@ const ABORT = Symbol("search-aborted");
 interface Ctx {
   rules: RuleSet;
   cfg: SearchConfig;
+  weights: EvalWeights;
   deadline: number; // Infinity ⇒ no time limit (fixed-depth, deterministic)
   now: () => number;
   nodes: number;
@@ -323,9 +406,9 @@ function tacticalMoves(state: GameState, ctx: Ctx): Move[] {
 function quiesce(state: GameState, alpha: number, beta: number, qply: number, ctx: Ctx): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state);
+  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
 
-  const standPat = evaluate(state);
+  const standPat = evaluate(state, ctx.weights, ctx.rules);
   const maximizing = state.turn === "attackers";
   if (maximizing) {
     if (standPat >= beta) return standPat;
@@ -360,8 +443,8 @@ function quiesce(state: GameState, alpha: number, beta: number, qply: number, ct
 function search(state: GameState, depth: number, ply: number, alpha: number, beta: number, ctx: Ctx): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state);
-  if (depth <= 0) return ctx.cfg.useQuiescence ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ctx) : evaluate(state);
+  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
+  if (depth <= 0) return ctx.cfg.useQuiescence ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ctx) : evaluate(state, ctx.weights, ctx.rules);
 
   const alpha0 = alpha;
   const beta0 = beta;
@@ -382,7 +465,7 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
 
   const maximizing = state.turn === "attackers";
   const moves = orderMoves(state, allMoves(state.board, state.turn, ctx.rules), ttMove, ply, ctx);
-  if (moves.length === 0) return evaluate(state); // no legal move ⇒ status is already terminal
+  if (moves.length === 0) return evaluate(state, ctx.weights, ctx.rules); // no legal move ⇒ status is already terminal
 
   let best = maximizing ? -Infinity : Infinity;
   let bestMove: Move | null = null;
@@ -424,7 +507,7 @@ export interface SearchResult {
   nodes: number;
 }
 
-const defaultNow = (): number =>
+export const defaultNow = (): number =>
   typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
 
 /**
@@ -438,10 +521,11 @@ export function pickMove(
   limits: SearchLimits,
   config: SearchConfig = FULL_CONFIG,
   rng: () => number = Math.random,
+  weights: EvalWeights = DEFAULT_WEIGHTS,
   now: () => number = defaultNow,
 ): SearchResult {
   const rootMoves = allMoves(state.board, state.turn, rules);
-  if (rootMoves.length === 0) return { move: null, score: evaluate(state), depth: 0, nodes: 0 };
+  if (rootMoves.length === 0) return { move: null, score: evaluate(state, weights, rules), depth: 0, nodes: 0 };
 
   TT_GEN++;
   if (TT.size > TT_MAX) TT.clear();
@@ -449,6 +533,7 @@ export function pickMove(
   const ctx: Ctx = {
     rules,
     cfg: config,
+    weights,
     deadline: limits.deadlineMs != null ? now() + limits.deadlineMs : Infinity,
     now,
     nodes: 0,
