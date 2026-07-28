@@ -23,6 +23,15 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   weak, samey opening play.
 - [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is
   added, revisit the `hard` time budget and eval weights for the larger board.
+- [ ] **Board-symmetry (D4) root-move folding** — the opening is invariant under
+  all 8 dihedral symmetries, so its 40 legal first moves collapse to just 5
+  distinct moves (e.g. `d7-c7`, `d1-e1`, `g4-g5`, `a4-a3` are one move in four
+  costumes). Search only one representative per orbit *at symmetric positions*
+  (cheap: per-turn, not per-node) for ~1 extra opening ply. Efficiency only, not
+  strength — equivalent moves already score identically — and the payoff is
+  opening-concentrated (symmetry breaks within a move or two). Skip TT-key
+  canonicalisation: ~8× per-node hashing cost for negligible midgame gain. The
+  symmetry group generalises to any square board, so it carries to Tablut.
 
 ## Not implemented (documented as future)
 
