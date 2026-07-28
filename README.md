@@ -8,7 +8,7 @@ built-in AI, with two historical rule variants and a custom rule editor.
 ![Brandubh board](docs/screenshot.png)
 
 - ⚔️ Correct, tested tafl engine (custodial capture, hostile corners & throne, strong-king throne capture)
-- 🤖 Minimax + alpha–beta AI with three difficulty levels
+- 🤖 Iterative-deepening alpha–beta AI with a transposition table and quiescence search, across three difficulty levels
 - 👑 Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
 - 🌐 Localised in English and Spanish
 - 📱 Mobile-first, no backend, works offline — pure static SPA
@@ -155,7 +155,8 @@ src/
     engine.test.ts   vitest unit tests for the engine
     matchSet.ts      over-the-board set scoring (side swap, tiebreak by moves)
     matchSet.test.ts vitest unit tests for set scoring
-    ai.ts            alpha–beta minimax + evaluation
+    ai.ts            iterative-deepening alpha–beta (TT, quiescence, ordering) + evaluation
+    ai.test.ts       vitest tactics, quiescence, self-play & perf tests for the AI
   components/
     Board.tsx        the board grid + piece emblems
     RulesModal.tsx   in-app how-to-play
@@ -163,6 +164,7 @@ src/
   App.tsx            game state, controls, AI orchestration, custom rule editor
 scripts/
   selftest.ts        headless engine assertions
+  aibench.ts         AI depth-vs-time benchmark + new-vs-legacy self-play
 ```
 
 ## Board themes

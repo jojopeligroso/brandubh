@@ -134,6 +134,17 @@ export function allMoves(b: Board, side: Side, rules: RuleSet): Move[] {
   return moves;
 }
 
+/** True if `side` has at least one legal move. Early-exits at the first piece
+ *  that can move, so in the common (has-moves) case it is far cheaper than
+ *  `allMoves(...).length !== 0` — which matters because the "no legal move = loss"
+ *  test runs at every search node. Reuses movesFrom so it stays rule-exact. */
+export function hasAnyMove(b: Board, side: Side, rules: RuleSet): boolean {
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (sideOf(b[r][c]) === side && movesFrom(b, r, c, rules).length > 0) return true;
+  return false;
+}
+
 // ── Capture resolution ────────────────────────────────────────────────────────
 /**
  * A square acts as an "anvil" for capturing an enemy *soldier* when it holds a
@@ -379,7 +390,7 @@ function computeStatus(
   }
 
   // 5. Side to move has no legal move → they lose (a "block").
-  if (allMoves(board, nextTurn, rules).length === 0)
+  if (!hasAnyMove(board, nextTurn, rules))
     return nextTurn === "attackers" ? "defenders_win_no_moves" : "attackers_win_no_moves";
 
   return "playing";
