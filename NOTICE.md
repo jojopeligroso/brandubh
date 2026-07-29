@@ -22,10 +22,10 @@ tracer; the shapes are faithful reproductions of those public-domain symbols.
 
 ## Fonts
 
-The display face for headings and board coordinates is **Gadelica Cursiva**, a
-traditional cló Gaelach (Irish typeface) — the cursive *cló scríobh* hand —
-© Séamas Ó Brógáin, 2007. It is bundled verbatim at
-`src/fonts/Gadelica-Cursiva.otf` and used unmodified under the author's own
+The display face for headings and board coordinates is **Gadelica**, a
+traditional cló Gaelach (Irish typeface) modelled on the 17th-century printed
+letterforms — © Séamas Ó Brógáin, 2007. It is bundled verbatim at
+`src/fonts/Gadelica.otf` and used unmodified under the author's own
 distribution terms: free to use and redistribute, not modified or renamed, not
 sold, with authorship credited. Full terms in `src/fonts/Gadelica-LICENCE.txt`.
 
