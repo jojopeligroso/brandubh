@@ -19,9 +19,6 @@
 :root[data-theme="dark"]{
   --bg:#12131c; --panel:#181a26; --ink:#e9e3d3; --muted:#8b8496; --gold:#d8b25a; --line:rgba(220,210,180,.12);
 }
-/* Cló Gaelach display face — Gadelica, © Séamas Ó Brógáin 2007.
-   See src/fonts/Gadelica-LICENCE.txt. Path is relative to this doc in-repo. */
-@font-face{font-family:"Gadelica";src:url("../../src/fonts/Gadelica.otf") format("opentype");font-display:swap}
 *{box-sizing:border-box}
 body{margin:0;background:
   radial-gradient(1200px 620px at 50% -12%, color-mix(in srgb,var(--gold) 12%,transparent), transparent 60%),
@@ -32,7 +29,7 @@ body{margin:0;background:
 .wrap{max-width:1080px;margin:0 auto;padding:clamp(1.5rem,4vw,3.5rem) clamp(1rem,4vw,2rem) 4rem}
 .masthead{border-bottom:1px solid var(--line);padding-bottom:1.6rem;margin-bottom:2.4rem}
 .kicker{font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:0 0 .6rem}
-h1{font-family:"Gadelica","Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+h1{font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
    font-weight:600;font-size:clamp(2.1rem,6vw,3.4rem);line-height:1.02;margin:0;text-wrap:balance;letter-spacing:-.01em}
 h1 .accent{color:var(--gold)}
 .dek{color:var(--muted);max-width:60ch;margin:.9rem 0 0;font-size:1.02rem}
@@ -42,7 +39,7 @@ h1 .accent{color:var(--gold)}
 .sect{margin-top:3rem}
 .sect-head{margin-bottom:1.3rem}
 .eyebrow{font-size:.7rem;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);font-weight:700;margin:0 0 .35rem}
-.sect h2{font-family:"Gadelica","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-weight:600;
+.sect h2{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-weight:600;
   font-size:clamp(1.4rem,3.4vw,1.9rem);margin:0;letter-spacing:-.01em}
 .lede{color:var(--muted);max-width:64ch;margin:.5rem 0 0;font-size:.95rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;margin-top:1.4rem}

@@ -2,7 +2,7 @@ Gadelica — a cló Gaelach (traditional Irish typeface)
 © Séamas Ó Brógáin, 2007  <sob@iol.ie>
 
 This directory bundles "Gadelica" (Gadelica.otf), used verbatim and unmodified
-as the display face for Irish/Gaelic text in this project.
+as the face for the "Branduḃ" title wordmark in this project.
 
 Distribution terms (from the font's own "Nóta", Feabhra 2007), translated:
 
