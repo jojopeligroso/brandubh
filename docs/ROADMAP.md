@@ -45,12 +45,16 @@ Match-setup (difficulty/variant/side) already persists; extend it to the live ga
 - [ ] Verify `aiSide`/`topSide`/board orientation already follow `humanSide` (they do); wire the choice through.
 - [ ] Side already persists (done in Session 0). Test both sides drive the AI correctly.
 
-### Session 3 — Export / import games (PGN-style) *(L — see design doc)*
+### Session 3 — Export / import games (PGN-style) *(L — see design doc)* — **shipped**
 **Goal:** save a game to a file and load one back, Lichess-style.
-- [ ] Serialize a finished/in-progress game to the PGN-style text format (metadata header + move list in the app's existing notation).
-- [ ] Download/copy export; paste/upload import with a tolerant parser (aagenielsen.dk-compatible).
-- [ ] Load an imported game into the existing replay timeline (step/branch already exist).
-- [ ] Parser/round-trip tests; reject malformed input gracefully.
+- [x] Serialize a finished/in-progress game to the PGN-style text format (metadata header + move list in the app's existing notation) — `src/game/gameFile.ts`.
+- [x] Download/copy export; paste/upload import with a tolerant parser (aagenielsen.dk-compatible) — `src/components/GameFilePanel.tsx`.
+- [x] Load an imported game into the existing replay timeline (step/branch already exist).
+- [x] Parser/round-trip tests; reject malformed input gracefully — `gameFile.test.ts`, `replay.test.ts` (60 tests), plus a browser pass (29 checks).
+
+`src/game/replay.ts` came out of this session: replay-and-validate, with no
+knowledge of any file format. Session 1's storage format should sit on it too —
+one trust boundary, two encodings, neither coupled to the other.
 
 ### Session 4 — Attacker endgame recognizer *(M)*
 **Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture / forced encirclement) — helps the side you're pressure-testing.

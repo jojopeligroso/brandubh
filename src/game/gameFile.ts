@@ -124,6 +124,13 @@ export const customRuleSet = (rules: CustomRules): RuleSet => ({
   ...rules,
 });
 
+/** The rule flags on their own — the shape the custom-rule editor holds, so an
+ *  imported custom game can be dropped straight into it. */
+export function ruleFlags(rules: RuleSet): CustomRules {
+  const { id, name, blurb, ...flags } = rules;
+  return flags;
+}
+
 // ── Export ────────────────────────────────────────────────────────────────────
 
 /**

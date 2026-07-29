@@ -246,6 +246,33 @@ export interface Translations {
   // Variant display
   variantNames: Record<string, string>;
   variantBlurbs: Record<string, string>;
+  // Export / import (PGN-style game file)
+  gameFileTitle: string;
+  exportLabel: string;
+  exportDownload: string;
+  exportCopy: string;
+  exportCopied: string;
+  exportCopyFailed: string;
+  exportHint: string;
+  exportNothingYet: string;
+  importLabel: string;
+  importPlaceholder: string;
+  importLoad: string;
+  importChooseFile: string;
+  importHint: string;
+  importLoaded: string;
+  importNotes: string;
+  importFailed: string;
+  importErrNoMoves: string;
+  importErrBadTag: string;
+  importErrUnknownVariant: string;
+  importErrMissingRules: string;
+  importErrBadToken: string;
+  importErrIllegalMove: string;
+  importErrMovesAfterEnd: string;
+  importErrCaptureMismatch: string;
+  importErrUnreadableFile: string;
+  zenElGameFile: string;
 }
 
 const en: Translations = {
@@ -492,6 +519,32 @@ const en: Translations = {
       "Official WTF tournament rules (aagenielsen.dk). The empty throne is hostile to soldiers but never to the king. King on the throne needs all four sides surrounded. Encirclement wins. Repetition is a loss for the defending side.",
     custom: "Your custom ruleset.",
   },
+  gameFileTitle: "Export / import game",
+  exportLabel: "Export this game",
+  exportDownload: "Download",
+  exportCopy: "Copy",
+  exportCopied: "Copied",
+  exportCopyFailed: "Copy failed",
+  exportHint: "A plain-text .tafl file: a tag header plus the move list, like a chess PGN.",
+  exportNothingYet: "Play a move first \u2014 there is nothing to export yet.",
+  importLabel: "Import a game",
+  importPlaceholder: "Paste a game here\u2026",
+  importLoad: "Load game",
+  importChooseFile: "Choose file\u2026",
+  importHint: "The game loads into review, so you can step through it or play on from any position.",
+  importLoaded: "Game loaded",
+  importNotes: "Loaded, with notes:",
+  importFailed: "Could not import that game",
+  importErrNoMoves: "no moves were found in it.",
+  importErrBadTag: "a header line could not be read.",
+  importErrUnknownVariant: "its ruleset is not one this app knows.",
+  importErrMissingRules: "a custom game has to carry its own [Rules] tag.",
+  importErrBadToken: "something in the move list is not a move.",
+  importErrIllegalMove: "one of the moves is not legal in that position.",
+  importErrMovesAfterEnd: "the move list carries on after the game had ended.",
+  importErrCaptureMismatch: "the captures do not match this ruleset.",
+  importErrUnreadableFile: "that file could not be read.",
+  zenElGameFile: "Export / import",
 };
 
 const es: Translations = {
@@ -748,6 +801,32 @@ const es: Translations = {
       "Reglas oficiales del torneo FMT (aagenielsen.dk). El trono vac\u00edo es hostil para los soldados pero nunca para el rey. El rey en el trono necesita los cuatro lados rodeados. El cerco gana. La repetici\u00f3n es una derrota para el bando defensor.",
     custom: "Tu conjunto de reglas personalizado.",
   },
+  gameFileTitle: "Exportar / importar partida",
+  exportLabel: "Exportar esta partida",
+  exportDownload: "Descargar",
+  exportCopy: "Copiar",
+  exportCopied: "Copiado",
+  exportCopyFailed: "Fall\u00f3 la copia",
+  exportHint: "Un archivo .tafl de texto: cabecera de etiquetas m\u00e1s la lista de jugadas, como un PGN de ajedrez.",
+  exportNothingYet: "Haz una jugada primero \u2014 a\u00fan no hay nada que exportar.",
+  importLabel: "Importar una partida",
+  importPlaceholder: "Pega una partida aqu\u00ed\u2026",
+  importLoad: "Cargar partida",
+  importChooseFile: "Elegir archivo\u2026",
+  importHint: "La partida se carga en modo revisi\u00f3n: puedes recorrerla o seguir jugando desde cualquier posici\u00f3n.",
+  importLoaded: "Partida cargada",
+  importNotes: "Cargada, con avisos:",
+  importFailed: "No se pudo importar esa partida",
+  importErrNoMoves: "no se encontr\u00f3 ninguna jugada.",
+  importErrBadTag: "no se pudo leer una l\u00ednea de la cabecera.",
+  importErrUnknownVariant: "su reglamento no es uno que esta app conozca.",
+  importErrMissingRules: "una partida personalizada debe llevar su propia etiqueta [Rules].",
+  importErrBadToken: "algo en la lista de jugadas no es una jugada.",
+  importErrIllegalMove: "una de las jugadas no es legal en esa posici\u00f3n.",
+  importErrMovesAfterEnd: "la lista de jugadas contin\u00faa despu\u00e9s de terminar la partida.",
+  importErrCaptureMismatch: "las capturas no cuadran con este reglamento.",
+  importErrUnreadableFile: "no se pudo leer ese archivo.",
+  zenElGameFile: "Exportar / importar",
 };
 
 const ga: Translations = {
@@ -1006,6 +1085,32 @@ const ga: Translations = {
       "Rialacha oifigi\u00faila com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don thaobh cosanta.",
     custom: "Do shraith rialacha f\u00e9in.",
   },
+  gameFileTitle: "Easport\u00e1il / iomp\u00f3rt\u00e1il cluiche",
+  exportLabel: "Easport\u00e1il an cluiche seo",
+  exportDownload: "\u00cdosl\u00f3d\u00e1il",
+  exportCopy: "C\u00f3ipe\u00e1il",
+  exportCopied: "C\u00f3ipe\u00e1ilte",
+  exportCopyFailed: "Theip ar an gc\u00f3ipe\u00e1il",
+  exportHint: "Comhad t\u00e9acs .tafl: ceannt\u00e1sc clibeanna agus liosta na mbeart, ar n\u00f3s PGN fichille.",
+  exportNothingYet: "D\u00e9an beart ar dt\u00fas \u2014 n\u00edl aon rud le heasport\u00e1il go f\u00f3ill.",
+  importLabel: "Iomp\u00f3rt\u00e1il cluiche",
+  importPlaceholder: "Greamaigh cluiche isteach anseo\u2026",
+  importLoad: "Luchtaigh cluiche",
+  importChooseFile: "Roghnaigh comhad\u2026",
+  importHint: "Luchta\u00edtear an cluiche i m\u00f3d athbhreithnithe: is f\u00e9idir si\u00fal tr\u00edd n\u00f3 imirt ar aghaidh \u00f3 aon su\u00edomh.",
+  importLoaded: "Cluiche luchtaithe",
+  importNotes: "Luchtaithe, le n\u00f3ta\u00ed:",
+  importFailed: "N\u00edorbh fh\u00e9idir an cluiche sin a iomp\u00f3rt\u00e1il",
+  importErrNoMoves: "n\u00edor aims\u00edodh aon bheart ann.",
+  importErrBadTag: "n\u00edorbh fh\u00e9idir l\u00edne den cheannt\u00e1sc a l\u00e9amh.",
+  importErrUnknownVariant: "n\u00edl an sraith rialacha sin ar eolas ag an aip seo.",
+  importErrMissingRules: "n\u00ed m\u00f3r do chluiche saincheaptha a chlib [Rules] f\u00e9in a bheith leis.",
+  importErrBadToken: "n\u00edl rud \u00e9igin i liosta na mbeart ina bheart.",
+  importErrIllegalMove: "n\u00edl ceann de na bearta dleathach sa su\u00edomh sin.",
+  importErrMovesAfterEnd: "leanann liosta na mbeart ar aghaidh tar \u00e9is dheireadh an chluiche.",
+  importErrCaptureMismatch: "n\u00ed r\u00e9it\u00edonn na gabh\u00e1lacha leis an sraith rialacha seo.",
+  importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
+  zenElGameFile: "Easport\u00e1il / iomp\u00f3rt\u00e1il",
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };

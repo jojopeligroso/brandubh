@@ -60,3 +60,56 @@ is an image; not "PVG".) Tafl/hnefatafl has **no universal standard**, but:
   so status is recomputed exactly (don't trust a stored result blindly; recompute).
 - Keep the format stable and versioned (a `[Format "brandubh-1"]` tag) so future
   changes stay backward-compatible.
+
+---
+
+# As shipped
+
+Code: `src/game/gameFile.ts` (format), `src/game/replay.ts` (replay-and-validate),
+`src/components/GameFilePanel.tsx` (UI). Tests: `gameFile.test.ts`,
+`replay.test.ts`.
+
+## Decisions this doc left open
+
+- **Custom rulesets** ride in one flat tag — `[Rules "armedKing=1
+  throneHostileToSoldiers=1 … repetitionResult=loss_for_defenders"]` — rather than
+  a nested block, so the header stays a plain PGN-style tag list. It is read only
+  for `Variant "custom"` (a `Rules` tag beside a named variant is ignored, with a
+  warning). Unknown keys are ignored and absent keys keep their default, so a
+  partial hand-written block still loads. The key list is derived from the
+  `RuleSet` type, so a new rule flag travels for free.
+- **Resignations and flags** cannot be derived by replay — they are decisions
+  *about* a game, not moves within it — so they travel in `[Termination "…"]`.
+  It is honoured **only** when the replay left the game unfinished, which is what
+  stops a doctored tag inventing a win. Every other terminal status is recomputed
+  and a `Termination` tag claiming one is ignored with a warning.
+- **`[Result]` is advisory.** It is written from the recomputed status and, on
+  import, only cross-checked: a disagreement raises a warning (it almost always
+  means a wrong `[Variant]` tag) rather than overriding either side.
+- **Capture suffixes are cross-checked, not trusted.** `x2` must match what the
+  engine computes, and a mismatch is refused — it is the cheapest detector of a
+  game imported under the wrong ruleset. A capture written as a separator
+  (`d5xc5`, chess-style) asserts no count and so is accepted either way.
+- **Unreadable tokens are refused, not skipped.** Tolerance covers comments
+  (`;`, `{…}`, leading `%`), CRLF, BOM, ragged whitespace, missing tags,
+  eccentric numbering (`1.`, `1...`, `2)`, none at all, one per ply, starting
+  from 0), uppercase files, en/em dashes, a missing separator and annotation
+  glyphs. It stops at guessing: silently dropping a token would import a
+  *different* game than the file describes.
+- **Imports land over the board.** An imported game is often mid-position and
+  often the computer's turn; leaving the AI switched on would have it play a move
+  on top of the import the instant it appeared. "Play from here vs the computer"
+  hands a side back.
+- **`Variant` matching is generous** — id, display name, or the shorthands people
+  type (`WTF`, `Cyningstan`) — but an unrecognised ruleset is an error rather
+  than a guess.
+
+## Format independence
+
+The export format is deliberately **not** coupled to any storage encoding, the
+same split chess keeps between PGN and an engine's on-disk format. Session 1
+(localStorage resumability, `brandubh.game.v1`) had not landed on `main` when
+this shipped, so there was nothing to reuse from `persist.ts`; the replay-and-
+validate pattern it needs lives in `src/game/replay.ts` instead, format-agnostic
+and ready for the storage side to sit on. A test asserts the export carries no
+storage keys and is not JSON, so the two cannot drift into each other.
