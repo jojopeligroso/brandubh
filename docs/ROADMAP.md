@@ -49,6 +49,7 @@ Design + Lichess comparison: [`docs/design/game-persistence.md`](./design/game-p
 - [x] Clock placement follows the human: they sit at the bottom whichever side they took; over the board the raiders keep the top (they move first).
 - [x] Side persists (Session 0) and rides in the resumable game (Session 1) for **both** sides — `sides.test.ts` round-trips each.
 - [x] `sides.test.ts` (13 tests): both sides drive the AI to legal moves by pieces it owns, and the computer opens when the human takes the king (the raiders always move first).
+- [x] Driven-browser check against the production build (29 assertions, all passing): a game played as the raiders (human opens, the AI answers with a defender) and as the king (the AI opens with a raider unprompted), each refreshed mid-game and resumed to an identical board, move log and side; plus the clock faces — the computer above the board, the human below, either way.
 
 ### Session 3 — Export / import games (PGN-style) *(L — see design doc)*
 **Goal:** save a game to a file and load one back, Lichess-style.
