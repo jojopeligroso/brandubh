@@ -15,7 +15,7 @@ import {
 import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side } from "./types";
 import type { RuleSet } from "./variants";
 
-export type Difficulty = "easy" | "medium" | "hard";
+export type Difficulty = "easy" | "medium" | "hard" | "ollamh";
 
 const WIN = 1_000_000;
 /** Scores this close to ±WIN are decisive (a forced mate); deepening can stop. */
@@ -641,6 +641,11 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
   // the floor, the 3s budget + predictive stopping deepen as far as the device
   // allows; quiescence extends tactical lines further still.
   hard: { limits: { maxDepth: 6, deadlineMs: 3000, minDepth: 4 }, config: FULL_CONFIG, blunder: 0 },
+  // ollamh ("master sage"): the strongest tier. A depth-5 floor plus an 8s budget
+  // pushes it to depth 6+ where the clock allows; a perfect-play opening book (when
+  // present) skips the slowest, most-analysed early moves and plays them optimally.
+  // Named for the highest rank of Gaelic filí. Slower to move by design.
+  ollamh: { limits: { maxDepth: 10, deadlineMs: 8000, minDepth: 5 }, config: FULL_CONFIG, blunder: 0 },
 };
 
 /** A chosen move plus what the search actually did to find it — surfaced to the

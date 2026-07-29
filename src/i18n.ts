@@ -47,6 +47,7 @@ export interface Translations {
   easy: string;
   medium: string;
   hard: string;
+  ollamh: string;
   variant: string;
   theme: string;
   attackerIcon: string;
@@ -282,6 +283,7 @@ const en: Translations = {
   easy: "Easy",
   medium: "Medium",
   hard: "Hard",
+  ollamh: "Ollamh",
   variant: "Variant",
   theme: "Theme",
   attackerIcon: "Raider icon",
@@ -532,6 +534,7 @@ const es: Translations = {
   easy: "F\u00e1cil",
   medium: "Medio",
   hard: "Dif\u00edcil",
+  ollamh: "Ollamh",
   variant: "Variante",
   theme: "Tema",
   attackerIcon: "Icono de asaltante",
@@ -787,6 +790,7 @@ const ga: Translations = {
   easy: "\u00c9asca",
   medium: "Me\u00e1nach",
   hard: "Deacair",
+  ollamh: "Ollamh",
   variant: "Leagan",
   theme: "Téama",
   attackerIcon: "Deilbhín foghlaí",

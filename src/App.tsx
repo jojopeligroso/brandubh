@@ -1391,7 +1391,7 @@ function Settings({
         {playMode !== "hotseat" && (
           <Row label={t.aiLevel}>
             <div className="seg">
-              {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard]] as [Difficulty, string][]).map(([d, label]) => (
+              {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard], ["ollamh", t.ollamh]] as [Difficulty, string][]).map(([d, label]) => (
                 <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
                   {label}
                 </button>
@@ -1956,6 +1956,7 @@ function ModeOverlay({
                   ["easy", t.easy],
                   ["medium", t.medium],
                   ["hard", t.hard],
+                  ["ollamh", t.ollamh],
                 ] as [Difficulty, string][]
               ).map(([d, label]) => (
                 <button
