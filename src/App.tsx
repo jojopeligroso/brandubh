@@ -1915,8 +1915,8 @@ function ModeOverlay({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
-        <h2 className="font-display text-2xl text-parchment">
-          Brand<span className="text-gold">ubh</span>
+        <h2 className="font-wordmark text-3xl text-parchment">
+          Brand<span className="text-gold">uḃ</span>
         </h2>
         {pickingDifficulty ? (
           <>
@@ -1969,9 +1969,9 @@ function ModeOverlay({
             <button
               type="button"
               onClick={onShowDemo}
-              className="mt-1 inline-flex items-center justify-center gap-1.5 text-sm text-parchment-dim underline decoration-dotted underline-offset-4 transition hover:text-parchment"
+              className="btn flex w-full items-center justify-center gap-2 py-3 text-base font-semibold text-gold"
             >
-              <span className="text-gold" aria-hidden>
+              <span aria-hidden className="text-lg leading-none">
                 ⓘ
               </span>
               {t.demoCta}
