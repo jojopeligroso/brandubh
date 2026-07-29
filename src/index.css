@@ -14,15 +14,15 @@
   --color-gold: #7aa2f7;
   --color-blood: #f7768e;
   --color-moss: #9ece6a;
-  --font-display: "Gadelica", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Cló Gaelach display face — Gadelica (the upright 17th-century printed model),
+/* Cló Gaelach face — Gadelica (the upright 17th-century printed model),
    © Séamas Ó Brógáin 2007, bundled verbatim. See src/fonts/Gadelica-LICENCE.txt.
-   Drives the display role only (headings + board coordinates); the serif stack
-   above remains as a per-glyph fallback. Irish text shown in this face uses the
-   traditional overdot orthography (ponc séimhithe) — see src/seimhiu.ts. */
+   Scoped to the "Branduḃ" title wordmark only (.font-wordmark); the rest of the
+   UI keeps the serif display / system body fonts. Irish text in this face uses
+   the traditional overdot orthography (ponc séimhithe): "Brandubh" → "Branduḃ". */
 @font-face {
   font-family: "Gadelica";
   src: url("./fonts/Gadelica.otf") format("opentype");
@@ -419,6 +419,11 @@ body {
 
 .font-display {
   font-family: var(--font-display);
+}
+
+/* The Brandubh title wordmark — the only element in the cló Gaelach face. */
+.font-wordmark {
+  font-family: "Gadelica", var(--font-display);
 }
 
 /* ── Board ─────────────────────────────────────────────────────────────────── */

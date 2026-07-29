@@ -53,7 +53,6 @@ import {
   type ZenExtraId,
 } from "./zen";
 import { type Lang, type Translations, translations } from "./i18n";
-import { toSeanchloTable } from "./seimhiu";
 import {
   applyPieceColors,
   applyTheme,
@@ -105,14 +104,7 @@ function sideLabel(s: Side, t: Translations): string {
 
 export default function App() {
   const [lang, setLang] = useState<Lang>("en");
-  // Irish is rendered in traditional cló Gaelach orthography: séimhiú marked
-  // with the overdot (ponc séimhithe) rather than a following "h". Other
-  // locales pass through unchanged. Memoised so the table converts once per
-  // language change, not every render.
-  const t = useMemo(
-    () => (lang === "ga" ? toSeanchloTable(translations.ga) : translations[lang]),
-    [lang],
-  );
+  const t = translations[lang];
 
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
   useEffect(() => {
@@ -921,8 +913,8 @@ function Header({
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
-        <h1 className="font-display text-3xl leading-none text-parchment">
-          {/* Cló Gaelach wordmark: the séimhiú on "-ubh" is shown with the
+        <h1 className="font-wordmark text-3xl leading-none text-parchment">
+          {/* The only cló Gaelach element. Séimhiú on "-ubh" shown with the
               overdot (ponc séimhithe), so "Brandubh" reads "Branduḃ". */}
           Brand<span className="text-gold">uḃ</span>
         </h1>
