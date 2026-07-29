@@ -312,6 +312,10 @@ export interface SearchConfig {
    *  the lines that matter. Captures, king moves and early (promising) moves are
    *  never reduced, so tactics are unaffected. */
   useLMR: boolean;
+  /** Principal-variation search: after the first move, scout each move with a
+   *  null window and only re-search in full when the scout beats the bound. Same
+   *  values as plain alpha–beta, fewer nodes when move ordering is good. */
+  usePVS: boolean;
 }
 
 export const FULL_CONFIG: SearchConfig = {
@@ -321,6 +325,13 @@ export const FULL_CONFIG: SearchConfig = {
   useQuiescence: true,
   maxQuiescencePly: 6,
   useLMR: true,
+  // PVS ships OFF: measured neutral for Brandubh (±1% nodes, identical scores at
+  // depths 5-7) because smart ordering + the TT + LMR already tighten the search
+  // windows, leaving nothing for null-window scouting to save — the re-searches
+  // cost as much as they save. Kept as a knob for wider-branching variants (Tablut)
+  // where ordering dominates less. Aspiration windows were skipped for the same
+  // reason: the root already searches the PV move full-window and the rest narrow.
+  usePVS: false,
 };
 
 /** The original engine's behaviour — a fixed-depth searcher with legacy ordering
@@ -332,6 +343,7 @@ export const LEGACY_CONFIG: SearchConfig = {
   useQuiescence: false,
   maxQuiescencePly: 0,
   useLMR: false,
+  usePVS: false,
 };
 
 export interface SearchLimits {
@@ -550,9 +562,21 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
     ) {
       d2 = Math.max(1, depth - 2 - (i >= LMR_MIN_INDEX + 6 ? 1 : 0));
     }
-    let v = search(child, d2, ply + 1, alpha, beta, ctx);
-    if (d2 < depth - 1 && (maximizing ? v > alpha : v < beta))
-      v = search(child, depth - 1, ply + 1, alpha, beta, ctx); // promising ⇒ verify at full depth
+    let v: number;
+    if (!ctx.cfg.usePVS || i === 0) {
+      // First move (the PV candidate) — or PVS off — gets a full window.
+      v = search(child, d2, ply + 1, alpha, beta, ctx);
+      if (d2 < depth - 1 && (maximizing ? v > alpha : v < beta))
+        v = search(child, depth - 1, ply + 1, alpha, beta, ctx); // LMR promise ⇒ verify full depth
+    } else if (maximizing) {
+      // Scout with a null window at (possibly LMR-reduced) depth; re-search in full
+      // only if it beats alpha. Same value as alpha–beta, far fewer nodes.
+      v = search(child, d2, ply + 1, alpha, alpha + 1, ctx);
+      if (v > alpha) v = search(child, depth - 1, ply + 1, alpha, beta, ctx);
+    } else {
+      v = search(child, d2, ply + 1, beta - 1, beta, ctx);
+      if (v < beta) v = search(child, depth - 1, ply + 1, alpha, beta, ctx);
+    }
     i++;
     if (maximizing) {
       if (v > best) {
