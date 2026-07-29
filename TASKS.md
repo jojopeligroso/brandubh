@@ -17,6 +17,14 @@ Ordered by value ÷ effort:
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
 the raw backlog those sessions draw from.
 
+## ⚠ Rules under review
+
+Open, contested rules questions with a shipped default + custom toggle — see
+[`docs/rules-review.md`](docs/rules-review.md). Currently: **king capture next to
+the throne** (four-sided surround with the empty throne as the fourth wall) — needs
+verification against authoritative Brandub/Copenhagen sources; toggleable in the
+custom-rule editor.
+
 ## Half-built
 
 - [ ] **Irish (ga) locale** — Full translation exists in `i18n.ts` but hidden from UI via `VISIBLE_LANGS`. Unhide when ready.

@@ -98,16 +98,25 @@ export const VARIANTS: Record<string, RuleSet> = {
       "as one). Encirclement wins. Repetition is a loss for the defending side.",
     armedKing: true,
     throneHostileToSoldiers: true,
-    // The empty throne helps capture the king, but only in the four-sided surround
-    // (with strongKingAdjacentToThrone) — never as one half of an ordinary custodial
-    // pair. See kingIsCaptured: the "needs all four" branch is the only place a king
-    // flank consults throneHostileToKing.
+    // ⚠ CONTESTED RULE — RE-EXAMINE against authoritative sources before treating as
+    // settled. These two flags together make a king *next to the throne* capturable
+    // only by a full four-sided surround, with the empty throne as the fourth wall
+    // (throneHostileToKing), and never by an ordinary two-sided custodial pair
+    // (strongKingAdjacentToThrone). This matches the aagenielsen.dk / Copenhagen
+    // wording ("next to the throne, occupy the three remaining squares"), and fixed a
+    // real miss (a king walled against its own throne was not captured).
+    // BUT it is open whether the ordinary two-sided custodial capture should *also*
+    // remain valid in some throne-adjacent cases — e.g. when the king has moved into a
+    // tight space and is then closed on two opposite sides. Aage Nielsen's rules pages
+    // were unreachable at fix time; verify directly (fetlar/copenhagen/brandub) before
+    // relying on this. Both flags are exposed in the custom-rule editor so the rule can
+    // be toggled while it is under review. See docs/rules-review.md.
     throneHostileToKing: true,
     kingMayReoccupyThrone: true,
     soldiersPassThroughThrone: true,
     cornersHostile: true,
     strongKingOnThrone: true,
-    strongKingAdjacentToThrone: true,
+    strongKingAdjacentToThrone: true, // ⚠ see CONTESTED RULE note above
     encirclementWin: true,
     repetitionResult: "loss_for_defenders",
   },
