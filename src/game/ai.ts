@@ -72,11 +72,12 @@ export interface EvalWeights {
 }
 
 /**
- * The shipping weights for Brandubh. These are the original hand-tuned heuristic,
- * kept after an A/B gauntlet (scripts/evaltune.ts) found no candidate term beat it
- * at the depths the game actually plays: shield/liberties were worse (redundant
+ * The shipping weights for Brandubh, set by A/B gauntlet (scripts/evaltune.ts).
+ * The original hand-tuned terms held up: shield/liberties were worse (redundant
  * with the king-safety terms), mobility helped only at depth 2 (gone by depth 3)
- * and cost ~2× per node, and blocker-aware king distance was neutral. The extra
+ * and cost ~2× per node, and blocker-aware king distance was neutral. The one term
+ * that *did* earn its keep is `kingRegion` (king confinement): at depth 4 it beat
+ * the baseline 31–9 at weight 6 (24–16 at weight 8), so it ships at 6. The unused
  * terms remain as opt-in knobs for retuning on differently-balanced variants.
  */
 export const DEFAULT_WEIGHTS: EvalWeights = {
@@ -87,7 +88,7 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   liberties: 0,
   shield: 0,
   mobility: 0,
-  kingRegion: 0,
+  kingRegion: 6,
   blockerAwareKingDist: false,
 };
 
