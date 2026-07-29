@@ -537,11 +537,12 @@ export function pickMove(
   TT_GEN++;
   if (TT.size > TT_MAX) TT.clear();
 
+  const t0 = now();
   const ctx: Ctx = {
     rules,
     cfg: config,
     weights,
-    deadline: limits.deadlineMs != null ? now() + limits.deadlineMs : Infinity,
+    deadline: limits.deadlineMs != null ? t0 + limits.deadlineMs : Infinity,
     now,
     nodes: 0,
     killers: [],
@@ -553,8 +554,10 @@ export function pickMove(
   let bestTies: Move[] = [rootMoves[0]];
   let bestScore = maximizing ? -Infinity : Infinity;
   let reached = 0;
+  let prevIterMs = 0;
 
   for (let d = 1; d <= limits.maxDepth; d++) {
+    const iterStart = now();
     try {
       const ttMove = config.useTT ? (TT.get(rootKey)?.move ?? null) : null;
       const ordered = orderMoves(state, allMoves(state.board, state.turn, rules), ttMove, 0, ctx);
@@ -586,6 +589,15 @@ export function pickMove(
       if (e === ABORT) break; // keep the last fully-completed depth
       throw e;
     }
+    // Predictive time management: don't *start* a depth we can't finish, so a
+    // generous budget never means waiting the full time for a shallower result.
+    // Estimate the next iteration from the observed effective branching factor.
+    if (ctx.deadline < Infinity) {
+      const iterMs = now() - iterStart;
+      const ebf = prevIterMs > 0 ? Math.max(2, iterMs / prevIterMs) : 5;
+      if (now() - t0 + iterMs * ebf > ctx.deadline - t0) break;
+      prevIterMs = iterMs;
+    }
   }
 
   const chosen = bestTies[Math.floor(rng() * bestTies.length)] ?? bestMove;
@@ -603,10 +615,13 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
   // medium: fixed depth 3 with the full machinery — already stronger than the old
   // hard (depth 3, no quiescence/ordering/TT), and effectively instant (~50ms).
   medium: { limits: { maxDepth: 3 }, config: FULL_CONFIG, blunder: 0 },
-  // hard: time-budgeted iterative deepening. ~500ms typically reaches depth 4–5,
-  // and quiescence pushes tactical lines several plies deeper still. The depth cap
-  // is a safety net; on slower devices it simply reaches a shallower depth in time.
-  hard: { limits: { maxDepth: 6, deadlineMs: 500 }, config: FULL_CONFIG, blunder: 0 },
+  // hard: time-budgeted iterative deepening, run off the main thread in a Web
+  // Worker so the ~1.5s budget never freezes the UI. Predictive stopping (see
+  // pickMove) means it only spends the whole budget when it can actually use the
+  // extra depth — otherwise it returns as soon as the next ply won't finish, so
+  // slower devices wait less and simply search shallower. Quiescence extends
+  // tactical lines further still.
+  hard: { limits: { maxDepth: 6, deadlineMs: 1500 }, config: FULL_CONFIG, blunder: 0 },
 };
 
 /**

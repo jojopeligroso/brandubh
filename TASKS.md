@@ -11,10 +11,13 @@ The search core (iterative deepening + transposition table + quiescence + move
 ordering) landed in `ai.ts`; it is board-size-agnostic and variant-driven, so it
 carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
-- [ ] **Move search to a Web Worker** — `chooseMove` is synchronous, so `hard`'s
-  ~500 ms budget briefly blocks the UI. A worker keeps it fully offline (Vite
-  bundles the worker into `dist/`) while freeing the main thread. Would let the
-  hard budget grow without janking the board.
+- [x] **Move search to a Web Worker** — done. `src/game/ai.worker.ts` runs the
+  search off the main thread (bundled into `dist/`, so still 100% offline);
+  `src/game/useAiWorker.ts` manages its lifecycle, cancels a stale search by
+  terminating the worker, and falls back to synchronous play if Workers are
+  unavailable. With the UI freed, `hard` grew to a ~1.5 s budget, and pickMove
+  gained predictive iteration stopping so slower devices wait less (they simply
+  search shallower) instead of burning the whole budget on an unfinishable ply.
 - [x] **Evaluation tuning** — investigated via `scripts/evaltune.ts` (weighted
   `evaluate()` + self-play gauntlet). Outcome: **keep the default weights.** No
   candidate term beat the baseline at the depths the game plays — mobility only
