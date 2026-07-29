@@ -69,6 +69,11 @@ export interface EvalWeights {
   /** Use the blocker-aware king→corner distance (1/2/3 real king-moves) instead
    *  of the crude aligned?1:2 estimate that ignores pieces in the lane. */
   blockerAwareKingDist: boolean;
+  /** Consult the exact endgame recognizers (two-lane fork, guarded corner race) at
+   *  leaf nodes: they return a *proven* defender win where a heuristic would only
+   *  guess, sharpening the search's horizon. Sound (validated against the exhaustive
+   *  solver) — never claims a win that isn't forced. */
+  endgameRecognizers: boolean;
 }
 
 /**
@@ -90,6 +95,7 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   mobility: 0,
   kingRegion: 6,
   blockerAwareKingDist: false,
+  endgameRecognizers: true,
 };
 
 /** Cap on the king's flood-filled confinement region, so a wide-open board
@@ -177,6 +183,77 @@ function kingCornerMoves(b: Board, kr: number, kc: number): number {
   return best;
 }
 
+// ── Exact endgame recognizers (proven defender wins) ──────────────────────────
+// These return a *proof*, not a heuristic: they only ever report a forced defender
+// win, and only when the win is genuinely forced. Each is a shallow, fully-verified
+// lookahead (2–3 plies) gated behind a cheap precondition so it stays cheap in the
+// common case. Validated exhaustively against the sound solver (solver.test-style).
+//
+// The escape value returned by the caller is just below a literal terminal escape,
+// so the search still prefers an *immediate* escape (a faster win) when it has one.
+const RECOGNIZED_WIN = WIN - 2;
+
+/** Attacker to move, but the king already has ≥2 clear straight lanes to distinct
+ *  corners. A single attacker move can block at most one lane and cannot occupy two
+ *  squares, so unless some attacker move captures the king outright, the defender
+ *  escapes through a still-open lane next move. Verified move-by-move (no assumption
+ *  is trusted): every attacker reply must leave the king a clear lane and must not
+ *  end the game in the attackers' favour. Cheap precondition (≥2 lanes) makes the
+ *  per-reply loop rare. */
+function forkWinAttackerToMove(state: GameState, rules: RuleSet): boolean {
+  const b = state.board;
+  const k = findKing(b);
+  if (!k || clearPathToCorner(b, k.row, k.col) < 2) return false;
+  for (const m of allMoves(b, "attackers", rules)) {
+    const child = applyMove(state, m, rules);
+    if (isGameOver(child.status)) {
+      if (winnerOf(child.status) !== "defenders") return false; // a saving/winning attacker reply
+      continue;
+    }
+    const kk = findKing(child.board);
+    if (!kk || clearPathToCorner(child.board, kk.row, kk.col) < 1) return false; // escape sealed
+  }
+  return true; // every reply leaves an escape ⇒ defender wins next move
+}
+
+/** Is `state` a proven defender win via immediate escape, a two-lane fork, or the
+ *  king stepping into such a fork (a guarded corner race)? Sound subset — a false
+ *  result just means "not proven", never a missed loss. Exported for validation
+ *  against the exhaustive solver. */
+export function forcedDefenderWin(state: GameState, rules: RuleSet): boolean {
+  const b = state.board;
+  const k = findKing(b);
+  if (!k) return false;
+
+  // Cheap escape-zone gate: a ≤3-ply forced escape needs the king on or one step
+  // from an edge (an immediate lane or a two-lane fork square both lie on rows/cols
+  // 0-1 or 5-6). Deep-centre kings bail here in O(1); a rarer centre-king race is
+  // left to the main search to find. Keeps the recognizer near-free at most leaves.
+  const near = (x: number) => x <= 1 || x >= BOARD_SIZE - 2;
+  if (!near(k.row) && !near(k.col)) return false;
+
+  if (state.turn === "attackers") return forkWinAttackerToMove(state, rules);
+
+  // Defender to move: escape now if a lane is already open …
+  if (clearPathToCorner(b, k.row, k.col) >= 1) return true;
+  // … else the guarded corner race: the king is close enough to step onto a square
+  // from which it forks two corners the attacker can't both stop. Gate on real
+  // king-distance ≤2 so central positions don't pay for the king-move loop.
+  if (kingCornerMoves(b, k.row, k.col) > 2) return false;
+  for (const m of allMoves(b, "defenders", rules)) {
+    if (b[m.from.row][m.from.col] !== "king") continue; // the race is about the king
+    // A two-lane fork square is always on an edge (only rows/cols 0 and 6 hold
+    // corners), so only king moves that land on an edge can create one. Skipping
+    // interior destinations keeps this loop to a handful of squares.
+    const onEdge = m.to.row === 0 || m.to.row === BOARD_SIZE - 1 || m.to.col === 0 || m.to.col === BOARD_SIZE - 1;
+    if (!onEdge) continue;
+    const child = applyMove(state, m, rules);
+    if (winnerOf(child.status) === "defenders") return true; // stepped straight out
+    if (!isGameOver(child.status) && forkWinAttackerToMove(child, rules)) return true; // stepped into a fork
+  }
+  return false;
+}
+
 export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rules?: RuleSet): number {
   if (isGameOver(state.status)) {
     const winner = winnerOf(state.status);
@@ -184,6 +261,9 @@ export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rul
     if (winner === "defenders") return -WIN;
     return 0; // draw
   }
+
+  // Exact endgame recognizers: a proven forced escape is worth (−)a decisive score.
+  if (w.endgameRecognizers && rules && forcedDefenderWin(state, rules)) return -RECOGNIZED_WIN;
 
   const b = state.board;
   let attackers = 0;
