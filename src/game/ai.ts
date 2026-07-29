@@ -15,7 +15,11 @@ import {
 import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side } from "./types";
 import type { RuleSet } from "./variants";
 
-export type Difficulty = "easy" | "medium" | "hard" | "ollamh";
+/** The difficulty ladder, in order. Also the whitelist for anything restored
+ *  from storage (see persist.ts) or read back out of a settings key. */
+export const DIFFICULTIES = ["easy", "medium", "hard", "ollamh"] as const;
+
+export type Difficulty = (typeof DIFFICULTIES)[number];
 
 const WIN = 1_000_000;
 /** Scores this close to ±WIN are decisive (a forced mate); deepening can stop. */

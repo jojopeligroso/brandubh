@@ -110,8 +110,11 @@ export const VARIANTS: Record<string, RuleSet> = {
 
 export const DEFAULT_VARIANT = "wtf";
 
+/** A ruleset without its identity — what the custom rule editor edits. */
+export type CustomRuleSet = Omit<RuleSet, "id" | "name" | "blurb">;
+
 /** Starting point for the custom rule editor — mirrors WTF. */
-export const CUSTOM_RULE_DEFAULTS: Omit<RuleSet, "id" | "name" | "blurb"> = {
+export const CUSTOM_RULE_DEFAULTS: CustomRuleSet = {
   armedKing: true,
   throneHostileToSoldiers: true,
   throneHostileToKing: false,
