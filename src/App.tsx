@@ -53,6 +53,7 @@ import {
   type ZenExtraId,
 } from "./zen";
 import { type Lang, type Translations, translations } from "./i18n";
+import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
 import {
   applyPieceColors,
   applyTheme,
@@ -104,7 +105,19 @@ function sideLabel(s: Side, t: Translations): string {
 
 export default function App() {
   const [lang, setLang] = useState<Lang>("en");
-  const t = translations[lang];
+  // Gaelic locales (Irish/Scottish Gaelic) render in traditional overdot
+  // orthography; every other language passes through unchanged. See gaelic.ts.
+  const t = useMemo(
+    () => (isGaelicLang(lang) ? toSeanchloTable(translations[lang]) : translations[lang]),
+    [lang],
+  );
+  // Flag the document for a Gaelic locale so display text uses the cló face
+  // (the [data-lang-gaelic] rules in index.css); cleared for other languages.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isGaelicLang(lang)) root.setAttribute("data-lang-gaelic", "");
+    else root.removeAttribute("data-lang-gaelic");
+  }, [lang]);
 
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
   useEffect(() => {
@@ -913,10 +926,10 @@ function Header({
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
-        <h1 className="font-wordmark text-3xl leading-none text-parchment">
-          {/* The only cló Gaelach element. Séimhiú on "-ubh" shown with the
-              overdot (ponc séimhithe), so "Brandubh" reads "Branduḃ". */}
-          Brand<span className="text-gold">uḃ</span>
+        <h1 className="gaelic text-3xl leading-none text-parchment">
+          {/* Gaelic word → cló face + overdot orthography (see gaelic.ts):
+              "Brandubh" renders "Branduḃ". */}
+          {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h1>
         <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
           {t.subtitle}
@@ -1915,8 +1928,8 @@ function ModeOverlay({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
-        <h2 className="font-wordmark text-3xl text-parchment">
-          Brand<span className="text-gold">uḃ</span>
+        <h2 className="gaelic text-3xl text-parchment">
+          {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h2>
         {pickingDifficulty ? (
           <>

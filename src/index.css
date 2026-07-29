@@ -20,9 +20,13 @@
 
 /* Cló Gaelach face — Gadelica (the upright 17th-century printed model),
    © Séamas Ó Brógáin 2007, bundled verbatim. See src/fonts/Gadelica-LICENCE.txt.
-   Scoped to the "Branduḃ" title wordmark only (.font-wordmark); the rest of the
-   UI keeps the serif display / system body fonts. Irish text in this face uses
-   the traditional overdot orthography (ponc séimhithe): "Brandubh" → "Branduḃ". */
+
+   RULE (see src/gaelic.ts): this face is used ONLY for Irish / Scottish-Gaelic
+   text — never English, Spanish, or any other language. It is reached only via
+   the `.gaelic` marker: on individual Gaelic words (e.g. the Branduḃ wordmark),
+   or on display text when a Gaelic locale flags the document with
+   `data-lang-gaelic`. Gaelic text here uses the overdot orthography (ponc
+   séimhithe): "Brandubh" → "Branduḃ". */
 @font-face {
   font-family: "Gadelica";
   src: url("./fonts/Gadelica.otf") format("opentype");
@@ -421,8 +425,17 @@ body {
   font-family: var(--font-display);
 }
 
-/* The Brandubh title wordmark — the only element in the cló Gaelach face. */
-.font-wordmark {
+/* The cló Gaelach marker: the ONLY way text is set in the Gadelica face. Put it
+   on Gaelic words (e.g. the Branduḃ wordmark). See src/gaelic.ts for the rule. */
+.gaelic {
+  font-family: "Gadelica", var(--font-display);
+}
+
+/* A Gaelic locale (Irish/Scottish Gaelic): the app sets data-lang-gaelic on the
+   document root, and display headings + board coordinates render in the cló
+   face. Body/UI text keeps the system font; move notation stays monospace. */
+:root[data-lang-gaelic] .font-display,
+:root[data-lang-gaelic] .coord {
   font-family: "Gadelica", var(--font-display);
 }
 

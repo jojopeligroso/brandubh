@@ -29,8 +29,13 @@ and used unmodified under the author's own distribution terms: free to use and
 redistribute, not modified or renamed, not sold, with authorship credited. Full
 terms in `src/fonts/Gadelica-LICENCE.txt`.
 
-The wordmark uses traditional overdot orthography — the séimhiú on "-ubh" is
-shown with the ponc séimhithe, so "Brandubh" reads **Branduḃ**.
+**Standard for the cló face (`src/gaelic.ts`):** Gadelica is used *only* for
+Irish / Scottish-Gaelic text — never English, Spanish, or any other language.
+It is reached solely through the `.gaelic` marker: on individual Gaelic words
+(e.g. the **Brandubh** wordmark), or on display text when a Gaelic locale flags
+the document with `data-lang-gaelic`. Gaelic text in this face uses traditional
+overdot orthography — séimhiú marked with the ponc séimhithe (`bh → ḃ`, … `th →
+ṫ`, eclipsis preserved: `bhfear → bḟear`), so "Brandubh" reads **Branduḃ**.
 
 The rest of the interface keeps the platform's native serif, sans-serif and
 monospace fonts (no other bundled files).
