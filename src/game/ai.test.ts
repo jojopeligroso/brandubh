@@ -187,6 +187,37 @@ describe("self-play: the new search outplays the legacy search", () => {
   });
 });
 
+describe("depth floor: slow devices still search deep enough", () => {
+  it("honours minDepth even under an impossibly tight budget", () => {
+    // A 1ms budget would normally stop hard at depth 1–2 on a slow device — exactly
+    // the shallow, materialistic play we're fixing. minDepth must override the clock.
+    resetTT();
+    const r = pickMove(
+      initialState(),
+      wtf,
+      { maxDepth: 6, deadlineMs: 1, minDepth: 4 },
+      FULL_CONFIG,
+      fixed,
+    );
+    expect(r.depth).toBeGreaterThanOrEqual(4);
+  });
+
+  it("still stops past the floor when the budget is spent (does not run to maxDepth)", () => {
+    // Past minDepth the real budget applies again, so a tiny budget caps the search
+    // near the floor rather than grinding all the way to maxDepth.
+    resetTT();
+    const r = pickMove(
+      initialState(),
+      wtf,
+      { maxDepth: 12, deadlineMs: 1, minDepth: 4 },
+      FULL_CONFIG,
+      fixed,
+    );
+    expect(r.depth).toBeGreaterThanOrEqual(4);
+    expect(r.depth).toBeLessThan(12);
+  });
+});
+
 describe("performance guard", () => {
   it("keeps the opening depth-4 search within a sane node budget", () => {
     resetTT();

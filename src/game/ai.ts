@@ -20,6 +20,10 @@ export type Difficulty = "easy" | "medium" | "hard";
 const WIN = 1_000_000;
 /** Scores this close to ±WIN are decisive (a forced mate); deepening can stop. */
 const DECISIVE = WIN - 1000;
+/** Absolute ceiling for reaching a difficulty's depth floor, so honouring the
+ *  floor can never hang even on a pathological position. Far above any real
+ *  floored search on the boards this game plays. */
+const MIN_DEPTH_SAFETY_MS = 8000;
 
 /** Centre of the board, derived so ordering works for any size (7×7, 9×9 Tablut…). */
 const CENTER = (BOARD_SIZE - 1) / 2;
@@ -288,6 +292,11 @@ export interface SearchLimits {
   maxDepth: number;
   /** Wall-clock budget in ms. Omit for a pure fixed-depth (deterministic) search. */
   deadlineMs?: number;
+  /** Depth the search always completes before the clock is allowed to stop it, so
+   *  slow devices never fall below a floor. The budget is honoured as a *soft*
+   *  limit up to this depth (a generous absolute safety cap still prevents a true
+   *  hang) and as the real limit beyond it. Omit for no floor. */
+  minDepth?: number;
 }
 
 // ── Transposition table (persists across moves) ───────────────────────────────
@@ -538,11 +547,18 @@ export function pickMove(
   if (TT.size > TT_MAX) TT.clear();
 
   const t0 = now();
+  // The real budget stops the search beyond the depth floor; below it, a generous
+  // absolute safety deadline applies instead so a floored depth always completes
+  // on slow devices (without ever risking a true hang on a pathological node).
+  const floorDepth = limits.minDepth ?? 0;
+  const hardDeadline = limits.deadlineMs != null ? t0 + limits.deadlineMs : Infinity;
+  const floorDeadline =
+    limits.deadlineMs != null ? t0 + Math.max(limits.deadlineMs, MIN_DEPTH_SAFETY_MS) : Infinity;
   const ctx: Ctx = {
     rules,
     cfg: config,
     weights,
-    deadline: limits.deadlineMs != null ? t0 + limits.deadlineMs : Infinity,
+    deadline: hardDeadline,
     now,
     nodes: 0,
     killers: [],
@@ -557,6 +573,8 @@ export function pickMove(
   let prevIterMs = 0;
 
   for (let d = 1; d <= limits.maxDepth; d++) {
+    // Protect depths up to the floor from the clock; use the real budget past it.
+    ctx.deadline = d <= floorDepth ? floorDeadline : hardDeadline;
     const iterStart = now();
     try {
       const ttMove = config.useTT ? (TT.get(rootKey)?.move ?? null) : null;
@@ -592,12 +610,13 @@ export function pickMove(
     // Predictive time management: don't *start* a depth we can't finish, so a
     // generous budget never means waiting the full time for a shallower result.
     // Estimate the next iteration from the observed effective branching factor.
-    if (ctx.deadline < Infinity) {
-      const iterMs = now() - iterStart;
+    // Never stop before the depth floor — the floor is honoured regardless of clock.
+    const iterMs = now() - iterStart;
+    if (hardDeadline < Infinity && d >= floorDepth) {
       const ebf = prevIterMs > 0 ? Math.max(2, iterMs / prevIterMs) : 5;
-      if (now() - t0 + iterMs * ebf > ctx.deadline - t0) break;
-      prevIterMs = iterMs;
+      if (now() - t0 + iterMs * ebf > hardDeadline - t0) break;
     }
+    prevIterMs = iterMs;
   }
 
   const chosen = bestTies[Math.floor(rng() * bestTies.length)] ?? bestMove;
@@ -616,31 +635,55 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
   // hard (depth 3, no quiescence/ordering/TT), and effectively instant (~50ms).
   medium: { limits: { maxDepth: 3 }, config: FULL_CONFIG, blunder: 0 },
   // hard: time-budgeted iterative deepening, run off the main thread in a Web
-  // Worker so the ~1.5s budget never freezes the UI. Predictive stopping (see
-  // pickMove) means it only spends the whole budget when it can actually use the
-  // extra depth — otherwise it returns as soon as the next ply won't finish, so
-  // slower devices wait less and simply search shallower. Quiescence extends
-  // tactical lines further still.
-  hard: { limits: { maxDepth: 6, deadlineMs: 1500 }, config: FULL_CONFIG, blunder: 0 },
+  // Worker so the budget never freezes the UI. `minDepth` guarantees a 4-ply floor
+  // even on slow phones — enough to foresee (and block) the king's two-move dash to
+  // a corner, which a shallower search grabs material instead of preventing. Past
+  // the floor, the 3s budget + predictive stopping deepen as far as the device
+  // allows; quiescence extends tactical lines further still.
+  hard: { limits: { maxDepth: 6, deadlineMs: 3000, minDepth: 4 }, config: FULL_CONFIG, blunder: 0 },
 };
 
+/** A chosen move plus what the search actually did to find it — surfaced to the
+ *  UI so the depth/nodes reached on the real device (not just the benchmark) are
+ *  observable. `depth`/`nodes` are 0 for a "no move" or a random blunder. */
+export interface MoveInfo {
+  move: Move | null;
+  depth: number;
+  nodes: number;
+  elapsedMs: number;
+}
+
 /**
- * Choose the AI's move for whichever side is to move. `rng` (0..1) breaks ties
- * and injects a little blunder chance on easy so it feels human. Public signature
- * is unchanged; the strength now comes from iterative deepening + a transposition
- * table + quiescence rather than a single shallow fixed-depth pass.
+ * Choose the AI's move for whichever side is to move, reporting the search stats.
+ * `rng` (0..1) breaks ties and injects a little blunder chance on easy so it feels
+ * human. Strength comes from iterative deepening + a transposition table +
+ * quiescence rather than a single shallow fixed-depth pass.
  */
+export function chooseMoveDetailed(
+  state: GameState,
+  difficulty: Difficulty,
+  rules: RuleSet,
+  rng: () => number = Math.random,
+): MoveInfo {
+  const moves = allMoves(state.board, state.turn, rules);
+  if (moves.length === 0) return { move: null, depth: 0, nodes: 0, elapsedMs: 0 };
+
+  const { limits, config, blunder } = DIFFICULTY[difficulty];
+  if (blunder > 0 && rng() < blunder)
+    return { move: moves[Math.floor(rng() * moves.length)], depth: 0, nodes: 0, elapsedMs: 0 };
+
+  const t0 = defaultNow();
+  const r = pickMove(state, rules, limits, config, rng);
+  return { move: r.move, depth: r.depth, nodes: r.nodes, elapsedMs: defaultNow() - t0 };
+}
+
+/** Back-compatible thin wrapper: the move only (used by tests and any caller that
+ *  doesn't care about search stats). */
 export function chooseMove(
   state: GameState,
   difficulty: Difficulty,
   rules: RuleSet,
   rng: () => number = Math.random,
 ): Move | null {
-  const moves = allMoves(state.board, state.turn, rules);
-  if (moves.length === 0) return null;
-
-  const { limits, config, blunder } = DIFFICULTY[difficulty];
-  if (blunder > 0 && rng() < blunder) return moves[Math.floor(rng() * moves.length)];
-
-  return pickMove(state, rules, limits, config, rng).move;
+  return chooseMoveDetailed(state, difficulty, rules, rng).move;
 }

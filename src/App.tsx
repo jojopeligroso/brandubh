@@ -232,6 +232,14 @@ export default function App() {
   const [fadingCaptures, setFadingCaptures] = useState<Square[]>([]);
   const [showRules, setShowRules] = useState(false);
   const [thinking, setThinking] = useState(false);
+  // Stats from the AI's last search — surfaced so the depth/nodes actually reached
+  // on this device (not just the benchmark machine) are visible while diagnosing.
+  const [lastAiInfo, setLastAiInfo] = useState<{
+    depth: number;
+    nodes: number;
+    elapsedMs: number;
+    difficulty: Difficulty;
+  } | null>(null);
   const [showModeOverlay, setShowModeOverlay] = useState(true);
   const [showDemo, setShowDemo] = useState(false);
   const [showTakeback, setShowTakeback] = useState(false);
@@ -316,13 +324,14 @@ export default function App() {
     setThinking(true);
     let cancelled = false;
     const start = performance.now();
-    requestMove(game, difficulty, rules).then((move) => {
+    requestMove(game, difficulty, rules).then((res) => {
       if (cancelled) return;
       const wait = Math.max(0, AI_MIN_THINK_MS - (performance.now() - start));
       aiTimer.current = window.setTimeout(() => {
         if (cancelled) return;
         setThinking(false);
-        if (move) commitMove(move);
+        setLastAiInfo({ depth: res.depth, nodes: res.nodes, elapsedMs: res.elapsedMs, difficulty });
+        if (res.move) commitMove(res.move);
       }, wait);
     });
     return () => {
@@ -785,6 +794,13 @@ export default function App() {
       )}
 
       <MoveLog t={t} game={states[tip]} activeIndex={cursor - 1} onMoveClick={(i) => setCursor(i + 1)} />
+
+      {aiSide !== null && lastAiInfo && (
+        <p className="mt-1 text-center font-mono text-[11px] text-parchment-dim/70 tabular-nums">
+          {lastAiInfo.difficulty} · depth {lastAiInfo.depth} · {lastAiInfo.nodes.toLocaleString()} nodes ·{" "}
+          {Math.round(lastAiInfo.elapsedMs)} ms
+        </p>
+      )}
 
       {showRules && <RulesModal t={t} rules={rules} onClose={() => setShowRules(false)} />}
 
