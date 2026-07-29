@@ -787,18 +787,19 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
   // medium: fixed depth 3 with the full machinery — already stronger than the old
   // hard (depth 3, no quiescence/ordering/TT), and effectively instant (~50ms).
   medium: { limits: { maxDepth: 3 }, config: FULL_CONFIG, blunder: 0 },
-  // hard: time-budgeted iterative deepening, run off the main thread in a Web
-  // Worker so the budget never freezes the UI. `minDepth` guarantees a 4-ply floor
-  // even on slow phones — enough to foresee (and block) the king's two-move dash to
-  // a corner, which a shallower search grabs material instead of preventing. Past
-  // the floor, the 3s budget + predictive stopping deepen as far as the device
-  // allows; quiescence extends tactical lines further still.
+  // hard: time-budgeted iterative deepening in a Web Worker so the budget never
+  // freezes the UI. `minDepth` guarantees a 4-ply floor even on slow phones. Root
+  // D4-folding + late-move reductions make the search ~6× leaner than before, so the
+  // opening now reaches this depth-6 cap in well under a second on desktop (a phone
+  // uses more of the 3s budget); the floor still catches the worst-case slow device.
+  // Quiescence extends tactical lines further still.
   hard: { limits: { maxDepth: 6, deadlineMs: 3000, minDepth: 4 }, config: FULL_CONFIG, blunder: 0 },
-  // ollamh ("master sage"): the strongest tier. A depth-5 floor plus an 8s budget
-  // pushes it to depth 6+ where the clock allows; a perfect-play opening book (when
-  // present) skips the slowest, most-analysed early moves and plays them optimally.
-  // Named for the highest rank of Gaelic filí. Slower to move by design.
-  ollamh: { limits: { maxDepth: 10, deadlineMs: 8000, minDepth: 5 }, config: FULL_CONFIG, blunder: 0 },
+  // ollamh ("master sage"): the strongest tier. A depth-5 floor plus an 8s budget,
+  // with folding + LMR, reaches depth ~8–9 in the opening where the clock allows —
+  // deep enough to see the king's corner races several moves out. A perfect-play
+  // opening book (when present) skips the slowest early moves and plays them
+  // optimally. Named for the highest rank of Gaelic filí. Slower to move by design.
+  ollamh: { limits: { maxDepth: 12, deadlineMs: 8000, minDepth: 5 }, config: FULL_CONFIG, blunder: 0 },
 };
 
 /** A chosen move plus what the search actually did to find it — surfaced to the
