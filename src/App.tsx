@@ -43,6 +43,13 @@ import {
   loadCustomMinutes,
   resolveTimeControl,
 } from "./game/clock";
+import {
+  ZEN_ELEMENTS,
+  loadZenConfig,
+  saveZenConfig,
+  type ZenConfig,
+  type ZenElementId,
+} from "./zen";
 import { type Lang, type Translations, translations } from "./i18n";
 import { applyTheme, loadTheme, THEMES, type ThemeId } from "./theme";
 import {
@@ -138,7 +145,7 @@ export default function App() {
 
   // ── Game clock (chess clock) ────────────────────────────────────────────────
   // A bank of thinking time plus a Fischer increment per move, à la Lichess.
-  // Defaults to 3+2 (three-minute bank, two-second increment).
+  // Off by default (no timer); when enabled, defaults to 3+2.
   const [clockEnabled, setClockEnabled] = useState<boolean>(loadClockEnabled);
   const [controlId, setControlId] = useState<string>(loadControlId);
   const [customMinutes, setCustomMinutes] = useState<number>(loadCustomMinutes);
@@ -157,6 +164,17 @@ export default function App() {
     () => resolveTimeControl(clockEnabled, controlId, customMinutes, customIncrement),
     [clockEnabled, controlId, customMinutes, customIncrement],
   );
+
+  // ── Zen mode (decluttered board) ────────────────────────────────────────────
+  const [zen, setZen] = useState<ZenConfig>(loadZenConfig);
+  useEffect(() => {
+    saveZenConfig(zen);
+  }, [zen]);
+  // A panel shows when zen is off, or when it has been individually revealed.
+  const zenShow = (id: ZenElementId): boolean => !zen.enabled || zen.show[id];
+  const setZenEnabled = (enabled: boolean) => setZen((z) => ({ ...z, enabled }));
+  const toggleZenElement = (id: ZenElementId) =>
+    setZen((z) => ({ ...z, show: { ...z.show, [id]: !z.show[id] } }));
 
   // ── Over-the-board "match" scoring ──────────────────────────────────────────
   // A match is a running series of sets; each set is a group of games in which
@@ -499,7 +517,7 @@ export default function App() {
 
       <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
-      {otbMatch && (
+      {otbMatch && zenShow("scoreboard") && (
         <SetScoreboard
           t={t}
           match={otbMatch}
@@ -532,47 +550,66 @@ export default function App() {
 
       {clock.enabled && <div className="mt-3">{renderClock(bottomSide)}</div>}
 
-      <CapturedTray t={t} game={game} />
+      {zenShow("captured") && <CapturedTray t={t} game={game} />}
 
-      <MoveNav
-        t={t}
-        cursor={cursor}
-        tip={tip}
-        onPrev={goPrev}
-        onNext={goNext}
-        onLatest={goLatest}
-      />
+      {zenShow("nav") && (
+        <MoveNav
+          t={t}
+          cursor={cursor}
+          tip={tip}
+          onPrev={goPrev}
+          onNext={goNext}
+          onLatest={goLatest}
+        />
+      )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn btn-primary" onClick={primaryAction}>
-          {primaryLabel}
-        </button>
-        {showNewMatch && (
-          <button className="btn" onClick={resetGame}>
-            {t.newMatch}
-          </button>
-        )}
-        <button className="btn" onClick={() => setShowRules(true)}>
-          {t.rules}
-        </button>
-        {humanSide === null && atTip && !gameOver && tip >= 1 && (
-          <button className="btn" onClick={() => setShowTakeback(true)}>
-            {t.proposeTakeback}
-          </button>
-        )}
-        {atTip && !gameOver && (
-          <button className="btn" onClick={() => setShowResign(true)}>
-            {t.resign}
-          </button>
-        )}
-        {showPause && (
-          <button className="btn" onClick={clock.togglePause} aria-pressed={clock.paused}>
-            {clock.paused ? t.resume : t.pause}
-          </button>
-        )}
-      </div>
+      {(() => {
+        const showControls = zenShow("controls");
+        const showRulesBtn = zenShow("rules");
+        const showTakebackBtn =
+          zenShow("takeback") && humanSide === null && atTip && !gameOver && tip >= 1;
+        const showResignBtn = zenShow("resign") && atTip && !gameOver;
+        const showPauseBtn = showPause && showControls;
+        const anyControls =
+          showControls || showRulesBtn || showTakebackBtn || showResignBtn || showPauseBtn;
+        if (!anyControls) return null;
+        return (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {showControls && (
+              <button className="btn btn-primary" onClick={primaryAction}>
+                {primaryLabel}
+              </button>
+            )}
+            {showControls && showNewMatch && (
+              <button className="btn" onClick={resetGame}>
+                {t.newMatch}
+              </button>
+            )}
+            {showRulesBtn && (
+              <button className="btn" onClick={() => setShowRules(true)}>
+                {t.rules}
+              </button>
+            )}
+            {showTakebackBtn && (
+              <button className="btn" onClick={() => setShowTakeback(true)}>
+                {t.proposeTakeback}
+              </button>
+            )}
+            {showResignBtn && (
+              <button className="btn" onClick={() => setShowResign(true)}>
+                {t.resign}
+              </button>
+            )}
+            {showPauseBtn && (
+              <button className="btn" onClick={clock.togglePause} aria-pressed={clock.paused}>
+                {clock.paused ? t.resume : t.pause}
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
-      {(reviewing || gameOver) && (
+      {(reviewing || gameOver) && zenShow("nav") && (
         <ReviewBar
           t={t}
           reviewing={reviewing}
@@ -586,32 +623,38 @@ export default function App() {
         />
       )}
 
-      <Settings
-        t={t}
-        variantId={variantId}
-        onVariant={changeVariant}
-        playMode={playMode}
-        onMode={changeMode}
-        difficulty={difficulty}
-        onDifficulty={setDifficulty}
-        gamesPerSet={gamesPerSet}
-        onSetLength={changeSetLength}
-      />
+      {/* The settings panels declutter away in zen mode. Zen itself is toggled
+          from the gear ⚙ modal, and these panels return when zen is off. */}
+      {!zen.enabled && (
+        <>
+          <Settings
+            t={t}
+            variantId={variantId}
+            onVariant={changeVariant}
+            playMode={playMode}
+            onMode={changeMode}
+            difficulty={difficulty}
+            onDifficulty={setDifficulty}
+            gamesPerSet={gamesPerSet}
+            onSetLength={changeSetLength}
+          />
 
-      <ClockSettings
-        t={t}
-        enabled={clockEnabled}
-        onEnabled={setClockEnabled}
-        controlId={controlId}
-        onControl={setControlId}
-        customMinutes={customMinutes}
-        onCustomMinutes={setCustomMinutes}
-        customIncrement={customIncrement}
-        onCustomIncrement={setCustomIncrement}
-      />
+          <ClockSettings
+            t={t}
+            enabled={clockEnabled}
+            onEnabled={setClockEnabled}
+            controlId={controlId}
+            onControl={setControlId}
+            customMinutes={customMinutes}
+            onCustomMinutes={setCustomMinutes}
+            customIncrement={customIncrement}
+            onCustomIncrement={setCustomIncrement}
+          />
 
-      {variantId === "custom" && (
-        <CustomRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
+          {variantId === "custom" && (
+            <CustomRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
+          )}
+        </>
       )}
 
       <MoveLog t={t} game={states[tip]} activeIndex={cursor - 1} onMoveClick={(i) => setCursor(i + 1)} />
@@ -666,6 +709,9 @@ export default function App() {
           onDefenderEmblem={setDefenderEmblem}
           cornerEmblem={cornerEmblem}
           onCornerEmblem={setCornerEmblem}
+          zen={zen}
+          onZenEnabled={setZenEnabled}
+          onToggleZenElement={toggleZenElement}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -1289,6 +1335,9 @@ function DesignModal({
   onDefenderEmblem,
   cornerEmblem,
   onCornerEmblem,
+  zen,
+  onZenEnabled,
+  onToggleZenElement,
   onClose,
 }: {
   t: Translations;
@@ -1303,8 +1352,20 @@ function DesignModal({
   onDefenderEmblem: (id: DefenderEmblemId) => void;
   cornerEmblem: CornerEmblemId;
   onCornerEmblem: (id: CornerEmblemId) => void;
+  zen: ZenConfig;
+  onZenEnabled: (v: boolean) => void;
+  onToggleZenElement: (id: ZenElementId) => void;
   onClose: () => void;
 }) {
+  const zenLabels: Record<ZenElementId, string> = {
+    scoreboard: t.zenElScoreboard,
+    captured: t.zenElCaptured,
+    nav: t.zenElNav,
+    controls: t.zenElControls,
+    rules: t.zenElRules,
+    takeback: t.proposeTakeback,
+    resign: t.resign,
+  };
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
@@ -1320,6 +1381,44 @@ function DesignModal({
             ✕
           </button>
         </div>
+
+        <section className="mt-5">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-parchment-dim">{t.zenMode}</span>
+            <div className="seg">
+              <button className={!zen.enabled ? "on" : ""} onClick={() => onZenEnabled(false)}>
+                {t.off}
+              </button>
+              <button className={zen.enabled ? "on" : ""} onClick={() => onZenEnabled(true)}>
+                {t.on}
+              </button>
+            </div>
+          </div>
+          <p className="mt-1.5 text-xs text-parchment-dim">{t.zenHint}</p>
+          {zen.enabled && (
+            <div className="mt-3">
+              <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+                {t.zenShowExtras}
+              </span>
+              <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                {ZEN_ELEMENTS.map((id) => (
+                  <li key={id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`zen-${id}`}
+                      checked={zen.show[id]}
+                      onChange={() => onToggleZenElement(id)}
+                      className="h-4 w-4 shrink-0 accent-gold"
+                    />
+                    <label htmlFor={`zen-${id}`} className="cursor-pointer text-sm text-parchment">
+                      {zenLabels[id]}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
 
         <section className="mt-5">
           <span className="text-sm font-semibold text-parchment-dim">{t.colourTheme}</span>

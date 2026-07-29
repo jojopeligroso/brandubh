@@ -11,7 +11,8 @@ built-in AI, with two historical rule variants and a custom rule editor.
 - 🤖 Minimax + alpha–beta AI with three difficulty levels
 - 👑 Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
 - 🌐 Localised in English and Spanish
-- ⏱️ Lichess-style chess clock — a time bank plus per-move Fischer increment (default **3+2**), bullet → rapid presets and a custom control, with flag-on-time
+- ⏱️ Optional Lichess-style chess clock (**off by default** — no timer) — a time bank plus per-move Fischer increment (**3+2** when enabled), bullet → rapid presets and a custom control, with flag-on-time
+- 🧘 **Zen mode** — a decluttered over-the-board layout showing just the board, whose turn it is, the clock and the move log; every other panel (scoreboard, captured tray, controls, takeback, resign, …) is opt-in from settings
 - 📱 Mobile-first, no backend, works offline — pure static SPA
 - 🎨 Carved-wood board, crown / shield / axe piece emblems, move log, undo
 

@@ -110,16 +110,20 @@ export const CLOCK_CUSTOM_INCREMENT_KEY = "brandubh.clock.customIncrement";
 const clampNumber = (n: number, lo: number, hi: number): number =>
   Math.min(hi, Math.max(lo, n));
 
-/** Whether a clock is used at all. Defaults to on (3+2 out of the box). */
+/**
+ * Whether a clock is used at all. Defaults to **off** — no timer — so a game is
+ * untimed unless the player opts in. When switched on, the control defaults to
+ * 3+2 (see {@link DEFAULT_TIME_CONTROL_ID}).
+ */
 export function loadClockEnabled(): boolean {
   try {
     const stored = localStorage.getItem(CLOCK_ENABLED_KEY);
-    if (stored === "0") return false;
     if (stored === "1") return true;
+    if (stored === "0") return false;
   } catch {
     /* localStorage unavailable */
   }
-  return true;
+  return false;
 }
 
 /** The chosen preset id, or the custom sentinel. Defaults to "3+2". */

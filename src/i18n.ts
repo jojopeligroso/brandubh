@@ -96,6 +96,18 @@ export interface Translations {
   catBlitz: string;
   catRapid: string;
 
+  // Zen mode
+  zenMode: string;
+  zenHint: string;
+  zenShowExtras: string;
+  on: string;
+  off: string;
+  zenElScoreboard: string;
+  zenElCaptured: string;
+  zenElNav: string;
+  zenElControls: string;
+  zenElRules: string;
+
   // Custom rules
   customRulesTitle: string;
   ruleArmedKing: string;
@@ -287,6 +299,17 @@ const en: Translations = {
   catBullet: "Bullet",
   catBlitz: "Blitz",
   catRapid: "Rapid",
+
+  zenMode: "Zen mode",
+  zenHint: "A calm, decluttered board — just the pieces, the turn, the clock and the move log. Choose any extras to keep.",
+  zenShowExtras: "Also show",
+  on: "On",
+  off: "Off",
+  zenElScoreboard: "Match scoreboard",
+  zenElCaptured: "Captured pieces",
+  zenElNav: "Move navigation",
+  zenElControls: "Game controls",
+  zenElRules: "Rules button",
 
   customRulesTitle: "Custom rules",
   ruleArmedKing: "Armed king",
@@ -495,6 +518,17 @@ const es: Translations = {
   catBullet: "Bala",
   catBlitz: "Rel\u00e1mpago",
   catRapid: "R\u00e1pido",
+
+  zenMode: "Modo zen",
+  zenHint: "Un tablero sereno y despejado \u2014 solo las piezas, el turno, el reloj y el registro de jugadas. Elige los extras que quieras mantener.",
+  zenShowExtras: "Mostrar tambi\u00e9n",
+  on: "Activado",
+  off: "Apagado",
+  zenElScoreboard: "Marcador de la serie",
+  zenElCaptured: "Piezas capturadas",
+  zenElNav: "Navegaci\u00f3n de jugadas",
+  zenElControls: "Controles del juego",
+  zenElRules: "Bot\u00f3n de reglas",
 
   customRulesTitle: "Reglas personalizadas",
   ruleArmedKing: "Rey armado",
@@ -708,6 +742,17 @@ const ga: Translations = {
   catBullet: "Piléar",
   catBlitz: "Splanc",
   catRapid: "Tapa",
+
+  zenMode: "Mód zen",
+  zenHint: "Clár ciúin, néata — na píosaí, an seal, an clog agus an loga bogtha amháin. Roghnaigh aon bhreiseán le coinneáil.",
+  zenShowExtras: "Taispeáin freisin",
+  on: "Air",
+  off: "As",
+  zenElScoreboard: "Scórchlár na sraithe",
+  zenElCaptured: "Píosaí gafa",
+  zenElNav: "Nascleanúint bogtha",
+  zenElControls: "Rialuithe an chluiche",
+  zenElRules: "Cnaipe rialacha",
 
   customRulesTitle: "Rialacha saincheaptha",
   ruleArmedKing: "Rí armtha",
