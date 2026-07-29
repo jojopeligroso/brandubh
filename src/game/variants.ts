@@ -93,16 +93,30 @@ export const VARIANTS: Record<string, RuleSet> = {
     name: "Brandubh · World Tafl Federation",
     blurb:
       "Official WTF tournament rules (aagenielsen.dk / branan). The empty throne is hostile to " +
-      "soldiers but never to the king. King on the throne needs all four sides surrounded. " +
-      "Encirclement wins. Repetition is a loss for the defending side.",
+      "soldiers, and to the king as the fourth wall when he stands next to it. King on OR next to " +
+      "the throne is captured only by being surrounded on all four sides (the empty throne counting " +
+      "as one). Encirclement wins. Repetition is a loss for the defending side.",
     armedKing: true,
     throneHostileToSoldiers: true,
-    throneHostileToKing: false,
+    // ⚠ CONTESTED RULE — RE-EXAMINE against authoritative sources before treating as
+    // settled. These two flags together make a king *next to the throne* capturable
+    // only by a full four-sided surround, with the empty throne as the fourth wall
+    // (throneHostileToKing), and never by an ordinary two-sided custodial pair
+    // (strongKingAdjacentToThrone). This matches the aagenielsen.dk / Copenhagen
+    // wording ("next to the throne, occupy the three remaining squares"), and fixed a
+    // real miss (a king walled against its own throne was not captured).
+    // BUT it is open whether the ordinary two-sided custodial capture should *also*
+    // remain valid in some throne-adjacent cases — e.g. when the king has moved into a
+    // tight space and is then closed on two opposite sides. Aage Nielsen's rules pages
+    // were unreachable at fix time; verify directly (fetlar/copenhagen/brandub) before
+    // relying on this. Both flags are exposed in the custom-rule editor so the rule can
+    // be toggled while it is under review. See docs/rules-review.md.
+    throneHostileToKing: true,
     kingMayReoccupyThrone: true,
     soldiersPassThroughThrone: true,
     cornersHostile: true,
     strongKingOnThrone: true,
-    strongKingAdjacentToThrone: false,
+    strongKingAdjacentToThrone: true, // ⚠ see CONTESTED RULE note above
     encirclementWin: true,
     repetitionResult: "loss_for_defenders",
   },
@@ -117,12 +131,12 @@ export type CustomRuleSet = Omit<RuleSet, "id" | "name" | "blurb">;
 export const CUSTOM_RULE_DEFAULTS: CustomRuleSet = {
   armedKing: true,
   throneHostileToSoldiers: true,
-  throneHostileToKing: false,
+  throneHostileToKing: true,
   kingMayReoccupyThrone: true,
   soldiersPassThroughThrone: true,
   cornersHostile: true,
   strongKingOnThrone: true,
-  strongKingAdjacentToThrone: false,
+  strongKingAdjacentToThrone: true,
   encirclementWin: true,
   repetitionResult: "loss_for_defenders",
 };
