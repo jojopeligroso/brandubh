@@ -44,15 +44,11 @@ import {
   resolveTimeControl,
 } from "./game/clock";
 import {
-  BOARD_ELEMENTS,
-  isAllShown,
-  isZen,
-  loadDisplay,
-  saveDisplay,
-  showAllPreset,
-  zenPreset,
-  type BoardElementId,
-  type DisplayShow,
+  ZEN_EXTRAS,
+  loadZenConfig,
+  saveZenConfig,
+  type ZenConfig,
+  type ZenExtraId,
 } from "./zen";
 import { type Lang, type Translations, translations } from "./i18n";
 import { applyTheme, loadTheme, THEMES, type ThemeId } from "./theme";
@@ -169,18 +165,19 @@ export default function App() {
     [clockEnabled, controlId, customMinutes, customIncrement],
   );
 
-  // ── Board display (what is shown) ───────────────────────────────────────────
-  // Per-panel visibility, configurable in settings. Zen is the "hide extras"
-  // preset; "Show all" restores everything.
-  const [display, setDisplay] = useState<DisplayShow>(() => loadDisplay().show);
+  // ── Zen mode (calm, over-the-board board) ───────────────────────────────────
+  // Off by default. When on, only the essentials show — board, turn, clock,
+  // move log — plus any opted-in extras. Game-flow controls are contextual and
+  // handled separately, so they are never part of this config.
+  const [zen, setZen] = useState<ZenConfig>(loadZenConfig);
   useEffect(() => {
-    saveDisplay({ show: display });
-  }, [display]);
-  const showEl = (id: BoardElementId): boolean => display[id];
-  const toggleEl = (id: BoardElementId) =>
-    setDisplay((d) => ({ ...d, [id]: !d[id] }));
-  const applyZenPreset = () => setDisplay(zenPreset());
-  const applyShowAll = () => setDisplay(showAllPreset());
+    saveZenConfig(zen);
+  }, [zen]);
+  // An optional extra shows when Zen is off, or when it has been opted in.
+  const showExtra = (id: ZenExtraId): boolean => !zen.enabled || zen.extras[id];
+  const setZenEnabled = (enabled: boolean) => setZen((z) => ({ ...z, enabled }));
+  const toggleZenExtra = (id: ZenExtraId) =>
+    setZen((z) => ({ ...z, extras: { ...z.extras, [id]: !z.extras[id] } }));
 
   // ── Over-the-board "match" scoring ──────────────────────────────────────────
   // A match is a running series of sets; each set is a group of games in which
@@ -532,7 +529,7 @@ export default function App() {
 
       <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
-      {otbMatch && showEl("scoreboard") && (
+      {otbMatch && showExtra("scoreboard") && (
         <SetScoreboard
           t={t}
           match={otbMatch}
@@ -565,9 +562,9 @@ export default function App() {
 
       {clock.enabled && <div className="mt-3">{renderClock(bottomSide)}</div>}
 
-      {showEl("captured") && <CapturedTray t={t} game={game} />}
+      {showExtra("captured") && <CapturedTray t={t} game={game} />}
 
-      {showEl("nav") && (
+      {showExtra("nav") && (
         <MoveNav
           t={t}
           cursor={cursor}
@@ -579,23 +576,27 @@ export default function App() {
       )}
 
       {(() => {
-        const showControls = showEl("controls");
-        const showRulesBtn = showEl("rules");
+        // Game-flow controls are contextual. Outside Zen they show as usual; in
+        // Zen they surface only when a game ends — a minimal "Next game" /
+        // "Next set" prompt — never as a persistent button mid-play. The action
+        // buttons (rules / takeback / resign / pause) are opt-in Zen extras.
+        const progression = !zen.enabled || gameOver;
+        const showRulesBtn = showExtra("rules");
         const showTakebackBtn =
-          showEl("takeback") && humanSide === null && atTip && !gameOver && tip >= 1;
-        const showResignBtn = showEl("resign") && atTip && !gameOver;
-        const showPauseBtn = showPause && showControls;
+          showExtra("takeback") && humanSide === null && atTip && !gameOver && tip >= 1;
+        const showResignBtn = showExtra("resign") && atTip && !gameOver;
+        const showPauseBtn = showExtra("pause") && showPause;
         const anyControls =
-          showControls || showRulesBtn || showTakebackBtn || showResignBtn || showPauseBtn;
+          progression || showRulesBtn || showTakebackBtn || showResignBtn || showPauseBtn;
         if (!anyControls) return null;
         return (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {showControls && (
+            {progression && (
               <button className="btn btn-primary" onClick={primaryAction}>
                 {primaryLabel}
               </button>
             )}
-            {showControls && showNewMatch && (
+            {progression && showNewMatch && (
               <button className="btn" onClick={resetGame}>
                 {t.newMatch}
               </button>
@@ -624,7 +625,7 @@ export default function App() {
         );
       })()}
 
-      {(reviewing || gameOver) && showEl("nav") && (
+      {(reviewing || gameOver) && showExtra("nav") && (
         <ReviewBar
           t={t}
           reviewing={reviewing}
@@ -638,10 +639,10 @@ export default function App() {
         />
       )}
 
-      {/* The settings panels can themselves be hidden (e.g. by the Zen preset).
-          When they are, the same controls remain in the always-reachable gear
-          ⚙ modal, so you are never locked out. */}
-      {showEl("settings") && (
+      {/* The settings panels can themselves be hidden in Zen. When they are, the
+          same Zen controls remain in the always-reachable gear ⚙ modal, so you
+          are never locked out. */}
+      {showExtra("settings") && (
         <>
           <Settings
             t={t}
@@ -668,12 +669,11 @@ export default function App() {
           />
 
           <div className="card mt-4 p-4">
-            <DisplayControls
+            <ZenSettings
               t={t}
-              show={display}
-              onToggle={toggleEl}
-              onZen={applyZenPreset}
-              onShowAll={applyShowAll}
+              zen={zen}
+              onEnabled={setZenEnabled}
+              onToggleExtra={toggleZenExtra}
             />
           </div>
 
@@ -735,10 +735,9 @@ export default function App() {
           onDefenderEmblem={setDefenderEmblem}
           cornerEmblem={cornerEmblem}
           onCornerEmblem={setCornerEmblem}
-          display={display}
-          onToggleElement={toggleEl}
-          onZenPreset={applyZenPreset}
-          onShowAll={applyShowAll}
+          zen={zen}
+          onZenEnabled={setZenEnabled}
+          onToggleZenExtra={toggleZenExtra}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -1348,62 +1347,67 @@ function ClockSettings({
   );
 }
 
-// ── Display controls — choose which optional panels are shown ─────────────────
-// Used both inline (in the settings stack) and in the gear ⚙ modal, so the
-// configuration is reachable even after the inline settings have been hidden.
-function DisplayControls({
+// ── Zen mode settings — toggle + opt-in extras ────────────────────────────────
+// Used both inline (in the settings stack) and in the gear ⚙ modal, so it stays
+// reachable even when Zen has hidden the inline settings panels.
+function ZenSettings({
   t,
-  show,
-  onToggle,
-  onZen,
-  onShowAll,
+  zen,
+  onEnabled,
+  onToggleExtra,
 }: {
   t: Translations;
-  show: DisplayShow;
-  onToggle: (id: BoardElementId) => void;
-  onZen: () => void;
-  onShowAll: () => void;
+  zen: ZenConfig;
+  onEnabled: (v: boolean) => void;
+  onToggleExtra: (id: ZenExtraId) => void;
 }) {
-  const labels: Record<BoardElementId, string> = {
+  const labels: Record<ZenExtraId, string> = {
     scoreboard: t.zenElScoreboard,
     captured: t.zenElCaptured,
     nav: t.zenElNav,
-    controls: t.zenElControls,
     rules: t.zenElRules,
     takeback: t.proposeTakeback,
     resign: t.resign,
+    pause: t.pause,
     settings: t.zenElSettings,
   };
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-parchment-dim">{t.displayTitle}</span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold text-parchment-dim">{t.zenMode}</span>
         <div className="seg">
-          <button className={isZen(show) ? "on" : ""} onClick={onZen}>
-            {t.zenPresetLabel}
+          <button className={!zen.enabled ? "on" : ""} onClick={() => onEnabled(false)}>
+            {t.off}
           </button>
-          <button className={isAllShown(show) ? "on" : ""} onClick={onShowAll}>
-            {t.showAllLabel}
+          <button className={zen.enabled ? "on" : ""} onClick={() => onEnabled(true)}>
+            {t.on}
           </button>
         </div>
       </div>
-      <p className="mt-1.5 text-xs text-parchment-dim">{t.displayHint}</p>
-      <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
-        {BOARD_ELEMENTS.map((id) => (
-          <li key={id} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id={`disp-${id}`}
-              checked={show[id]}
-              onChange={() => onToggle(id)}
-              className="h-4 w-4 shrink-0 accent-gold"
-            />
-            <label htmlFor={`disp-${id}`} className="cursor-pointer text-sm text-parchment">
-              {labels[id]}
-            </label>
-          </li>
-        ))}
-      </ul>
+      <p className="mt-1.5 text-xs text-parchment-dim">{t.zenHint}</p>
+      {zen.enabled && (
+        <div className="mt-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+            {t.zenShowExtras}
+          </span>
+          <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {ZEN_EXTRAS.map((id) => (
+              <li key={id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={`zen-${id}`}
+                  checked={zen.extras[id]}
+                  onChange={() => onToggleExtra(id)}
+                  className="h-4 w-4 shrink-0 accent-gold"
+                />
+                <label htmlFor={`zen-${id}`} className="cursor-pointer text-sm text-parchment">
+                  {labels[id]}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -1422,10 +1426,9 @@ function DesignModal({
   onDefenderEmblem,
   cornerEmblem,
   onCornerEmblem,
-  display,
-  onToggleElement,
-  onZenPreset,
-  onShowAll,
+  zen,
+  onZenEnabled,
+  onToggleZenExtra,
   onClose,
 }: {
   t: Translations;
@@ -1440,10 +1443,9 @@ function DesignModal({
   onDefenderEmblem: (id: DefenderEmblemId) => void;
   cornerEmblem: CornerEmblemId;
   onCornerEmblem: (id: CornerEmblemId) => void;
-  display: DisplayShow;
-  onToggleElement: (id: BoardElementId) => void;
-  onZenPreset: () => void;
-  onShowAll: () => void;
+  zen: ZenConfig;
+  onZenEnabled: (v: boolean) => void;
+  onToggleZenExtra: (id: ZenExtraId) => void;
   onClose: () => void;
 }) {
   return (
@@ -1463,12 +1465,11 @@ function DesignModal({
         </div>
 
         <section className="mt-5">
-          <DisplayControls
+          <ZenSettings
             t={t}
-            show={display}
-            onToggle={onToggleElement}
-            onZen={onZenPreset}
-            onShowAll={onShowAll}
+            zen={zen}
+            onEnabled={onZenEnabled}
+            onToggleExtra={onToggleZenExtra}
           />
         </section>
 

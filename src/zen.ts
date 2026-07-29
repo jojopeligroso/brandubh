@@ -1,94 +1,91 @@
-// ── Board display config (what is shown) ─────────────────────────────────────
+// ── Zen mode (calm, over-the-board board) ────────────────────────────────────
 //
-// The board itself, whose turn it is, the clock (when running) and the move log
-// are the essentials — always on screen. Every other panel is optional and
-// individually toggleable from settings: the match scoreboard, captured tray,
-// move navigator, game controls, rules button, takeback, resign, and the inline
-// settings panels themselves.
+// Zen mode strips the screen to the essentials of a game in progress — the
+// board, whose turn it is, the clock (when running) and the move log. Nothing
+// else shows while you play.
 //
-// "Zen" is simply the preset that hides every optional panel for a calm,
-// over-the-board board; "Show all" brings them back. The settings panels can be
-// hidden too, so the same controls always live in the always-reachable gear ⚙
-// modal as well.
+// Game-flow controls are deliberately NOT part of this config: they are
+// contextual, so a minimal "Next game" / "Next set" prompt appears only when a
+// game actually ends, never as a persistent button mid-play. Everything else is
+// an opt-in *extra* — hidden by default in Zen and revealed individually from
+// settings: the match scoreboard, captured tray, move navigator, rules button,
+// propose-takeback, resign, pause and the settings panels themselves.
 
-export type BoardElementId =
+export type ZenExtraId =
   | "scoreboard"
   | "captured"
   | "nav"
-  | "controls"
   | "rules"
   | "takeback"
   | "resign"
+  | "pause"
   | "settings";
 
-/** Optional panels, in the order they appear in the settings picker. */
-export const BOARD_ELEMENTS: BoardElementId[] = [
+/** Opt-in extras, in the order they appear in the settings picker. */
+export const ZEN_EXTRAS: ZenExtraId[] = [
   "scoreboard",
   "captured",
   "nav",
-  "controls",
   "rules",
   "takeback",
   "resign",
+  "pause",
   "settings",
 ];
 
-export type DisplayShow = Record<BoardElementId, boolean>;
-
-export interface DisplayConfig {
-  show: DisplayShow;
+export interface ZenConfig {
+  /** Whether Zen mode is active. */
+  enabled: boolean;
+  /** Which optional extras are revealed while Zen is active. */
+  extras: Record<ZenExtraId, boolean>;
 }
 
-export const DISPLAY_SHOW_KEY = "brandubh.display.show";
+export const ZEN_ENABLED_KEY = "brandubh.zen.enabled";
+export const ZEN_EXTRAS_KEY = "brandubh.zen.extras";
 
-const fill = (value: boolean): DisplayShow =>
-  BOARD_ELEMENTS.reduce((acc, id) => {
-    acc[id] = value;
-    return acc;
-  }, {} as DisplayShow);
+const noExtras = (): Record<ZenExtraId, boolean> =>
+  ZEN_EXTRAS.reduce(
+    (acc, id) => {
+      acc[id] = false;
+      return acc;
+    },
+    {} as Record<ZenExtraId, boolean>,
+  );
 
-/** Everything visible — the default. */
-export const showAllPreset = (): DisplayShow => fill(true);
-/** The zen preset — every optional panel hidden. */
-export const zenPreset = (): DisplayShow => fill(false);
+export const defaultZenConfig = (): ZenConfig => ({ enabled: false, extras: noExtras() });
 
-export const defaultDisplay = (): DisplayConfig => ({ show: showAllPreset() });
-
-/** True when nothing optional is shown (the zen preset is in effect). */
-export const isZen = (show: DisplayShow): boolean => BOARD_ELEMENTS.every((id) => !show[id]);
-/** True when every optional panel is shown. */
-export const isAllShown = (show: DisplayShow): boolean =>
-  BOARD_ELEMENTS.every((id) => show[id]);
-
-/** Parse a stored show map. Unknown keys are dropped; missing ones default to
- *  visible, so a new panel added in a later version shows by default. */
-export function parseDisplayShow(raw: string | null): DisplayShow {
-  const show = showAllPreset();
-  if (!raw) return show;
+/** Parse a stored extras map, keeping only known boolean flags (missing → off). */
+export function parseZenExtras(raw: string | null): Record<ZenExtraId, boolean> {
+  const extras = noExtras();
+  if (!raw) return extras;
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     if (parsed && typeof parsed === "object") {
-      for (const id of BOARD_ELEMENTS) {
-        if (typeof parsed[id] === "boolean") show[id] = parsed[id] as boolean;
+      for (const id of ZEN_EXTRAS) {
+        if (typeof parsed[id] === "boolean") extras[id] = parsed[id] as boolean;
       }
     }
   } catch {
-    /* malformed — fall back to all shown */
+    /* malformed — fall back to no extras */
   }
-  return show;
+  return extras;
 }
 
-export function loadDisplay(): DisplayConfig {
+export function loadZenConfig(): ZenConfig {
+  const cfg = defaultZenConfig();
   try {
-    return { show: parseDisplayShow(localStorage.getItem(DISPLAY_SHOW_KEY)) };
+    cfg.enabled = localStorage.getItem(ZEN_ENABLED_KEY) === "1";
+    cfg.extras = parseZenExtras(localStorage.getItem(ZEN_EXTRAS_KEY));
   } catch {
-    return defaultDisplay();
+    /* localStorage unavailable */
   }
+  return cfg;
 }
 
-export function saveDisplay(cfg: DisplayConfig): void {
+export function saveZenConfig(cfg: ZenConfig): void {
   try {
-    localStorage.setItem(DISPLAY_SHOW_KEY, JSON.stringify(cfg.show));
+    localStorage.setItem(ZEN_ENABLED_KEY, cfg.enabled ? "1" : "0");
+    localStorage.setItem(ZEN_EXTRAS_KEY, JSON.stringify(cfg.extras));
   } catch {
     /* ignore persistence failures */
   }

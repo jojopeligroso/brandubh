@@ -1,46 +1,31 @@
 import { describe, expect, it } from "vitest";
-import {
-  BOARD_ELEMENTS,
-  defaultDisplay,
-  isAllShown,
-  isZen,
-  parseDisplayShow,
-  showAllPreset,
-  zenPreset,
-} from "./zen";
+import { ZEN_EXTRAS, defaultZenConfig, parseZenExtras } from "./zen";
 
-describe("display config", () => {
-  it("defaults to everything shown", () => {
-    const cfg = defaultDisplay();
-    for (const id of BOARD_ELEMENTS) expect(cfg.show[id]).toBe(true);
-    expect(isAllShown(cfg.show)).toBe(true);
-    expect(isZen(cfg.show)).toBe(false);
+describe("zen config", () => {
+  it("defaults to off with every optional extra hidden", () => {
+    const cfg = defaultZenConfig();
+    expect(cfg.enabled).toBe(false);
+    for (const id of ZEN_EXTRAS) expect(cfg.extras[id]).toBe(false);
   });
 
-  it("zen preset hides every optional panel", () => {
-    const show = zenPreset();
-    for (const id of BOARD_ELEMENTS) expect(show[id]).toBe(false);
-    expect(isZen(show)).toBe(true);
-    expect(isAllShown(show)).toBe(false);
+  it("does not treat game-flow controls as an extra", () => {
+    // Progression (New game / Next set / New match) is contextual, never a
+    // toggle, so it must not appear in the opt-in extras list.
+    expect(ZEN_EXTRAS).not.toContain("controls");
   });
 
-  it("show-all preset reveals every optional panel", () => {
-    expect(isAllShown(showAllPreset())).toBe(true);
+  it("parses a stored extras map, keeping only known boolean flags", () => {
+    const extras = parseZenExtras(JSON.stringify({ nav: true, resign: true, bogus: true }));
+    expect(extras.nav).toBe(true);
+    expect(extras.resign).toBe(true);
+    expect(extras.captured).toBe(false);
+    expect((extras as Record<string, unknown>).bogus).toBeUndefined();
   });
 
-  it("parses a stored show map, keeping only known boolean flags", () => {
-    const show = parseDisplayShow(JSON.stringify({ nav: false, resign: false, bogus: true }));
-    expect(show.nav).toBe(false);
-    expect(show.resign).toBe(false);
-    // Missing keys default to visible.
-    expect(show.captured).toBe(true);
-    expect((show as Record<string, unknown>).bogus).toBeUndefined();
-  });
-
-  it("falls back to all-shown on null or malformed input", () => {
-    for (const id of BOARD_ELEMENTS) {
-      expect(parseDisplayShow(null)[id]).toBe(true);
-      expect(parseDisplayShow("not json")[id]).toBe(true);
+  it("falls back to all-hidden on null or malformed input", () => {
+    for (const id of ZEN_EXTRAS) {
+      expect(parseZenExtras(null)[id]).toBe(false);
+      expect(parseZenExtras("not json")[id]).toBe(false);
     }
   });
 });
