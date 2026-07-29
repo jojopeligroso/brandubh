@@ -9,7 +9,7 @@ import type { KingEmblemDef } from "../kingEmblems";
 import type { DefenderEmblemDef } from "../defenderEmblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
-function Emblem({
+export function Emblem({
   piece,
   attackerEmblem,
   kingEmblem,
