@@ -9,6 +9,12 @@ export type Piece = "attacker" | "defender" | "king";
 /** Which army is to move / owns a piece. */
 export type Side = "attackers" | "defenders";
 
+/**
+ * Who is behind each army: the human takes the named side against the
+ * computer, or "hotseat" for two people sharing the board.
+ */
+export type PlayMode = Side | "hotseat";
+
 export interface Square {
   row: number;
   col: number;

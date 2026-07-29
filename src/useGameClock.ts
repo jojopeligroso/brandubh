@@ -28,6 +28,16 @@ export interface GameClock {
   /** Hand the running clock to a specific side without any increment (takeback
    *  / branch), so the bank that ticks matches the side now to move. */
   handTo: (side: Side) => void;
+  /** Re-arm both banks from a saved game (see game/persist.ts). */
+  restore: (snapshot: ClockSnapshot) => void;
+}
+
+/** The parts of the clock worth persisting across a reload. */
+export interface ClockSnapshot {
+  remaining: Record<Side, number>;
+  active: Side | null;
+  started: boolean;
+  flagged: Side | null;
 }
 
 /**
@@ -107,6 +117,19 @@ export function useGameClock(
     lastRef.current = performance.now();
   }, []);
 
+  // Resuming a saved game puts the banks back exactly where they were left.
+  // The clock is frozen while the tab is away — there is no server to arbitrate
+  // time spent off the page — so no elapsed time is charged here.
+  const restore = useCallback((snapshot: ClockSnapshot) => {
+    remainingRef.current = snapshot.remaining;
+    setRemaining(snapshot.remaining);
+    setActive(snapshot.active);
+    setStarted(snapshot.started);
+    setPaused(false);
+    setFlagged(snapshot.flagged);
+    lastRef.current = performance.now();
+  }, []);
+
   const running =
     config !== null && started && !paused && liveGate && flagged === null && active !== null;
 
@@ -141,5 +164,6 @@ export function useGameClock(
     reset,
     togglePause,
     handTo,
+    restore,
   };
 }

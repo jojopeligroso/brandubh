@@ -181,6 +181,8 @@ export interface Translations {
   otbOverlay: string;
   withFriend: string;
   chooseDifficulty: string;
+  resumeBody: string;
+  resumeGame: string;
 
   // Rewind
   continueFromMove: string;
@@ -409,6 +411,8 @@ const en: Translations = {
   otbOverlay: "Over the board",
   withFriend: "with a friend in person",
   chooseDifficulty: "Choose difficulty",
+  resumeBody: "You have a game in progress.",
+  resumeGame: "Resume game",
 
   continueFromMove: "Continue from move",
   movesWillBeLost: "All subsequent moves will be lost.",
@@ -660,6 +664,8 @@ const es: Translations = {
   otbOverlay: "Frente al tablero",
   withFriend: "con un amigo en persona",
   chooseDifficulty: "Elige la dificultad",
+  resumeBody: "Tienes una partida en curso.",
+  resumeGame: "Reanudar partida",
 
   continueFromMove: "\u00bfContinuar desde el movimiento",
   movesWillBeLost:
@@ -916,6 +922,8 @@ const ga: Translations = {
   otbOverlay: "Os comhair a ch\u00e9ile",
   withFriend: "le cara i bpearsa",
   chooseDifficulty: "Roghnaigh an deacracht",
+  resumeBody: "Tá cluiche ar siúl agat.",
+  resumeGame: "Lean ar aghaidh leis an gcluiche",
 
   continueFromMove: "Lean ar aghaidh \u00f3 bhogadh",
   movesWillBeLost: "Caillfear gach bogadh ina dhiaidh seo.",

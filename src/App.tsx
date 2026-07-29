@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from "./components/Board";
 import RulesModal from "./components/RulesModal";
 import HowToDemo from "./components/HowToDemo";
-import { type Difficulty } from "./game/ai";
+import { DIFFICULTIES, type Difficulty } from "./game/ai";
 import { useAiWorker } from "./game/useAiWorker";
 import {
   allMoves,
@@ -13,7 +13,15 @@ import {
   sideOf,
   winnerOf,
 } from "./game/engine";
-import type { GameState, Move, Side, Square } from "./game/types";
+import type { GameState, Move, PlayMode, Side, Square } from "./game/types";
+import {
+  clearSavedGame,
+  hasMatchProgress,
+  loadResumableGame,
+  saveGame,
+  snapshotGame,
+  type RestoredGame,
+} from "./game/persist";
 import {
   matchTotals,
   newMatch,
@@ -24,7 +32,13 @@ import {
   type Match,
   type PlayerId,
 } from "./game/matchSet";
-import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
+import {
+  CUSTOM_RULE_DEFAULTS,
+  DEFAULT_VARIANT,
+  VARIANTS,
+  type CustomRuleSet,
+  type RuleSet,
+} from "./game/variants";
 import GameClock from "./components/GameClock";
 import { useGameClock } from "./useGameClock";
 import {
@@ -94,8 +108,6 @@ import {
   defenderEmblemById,
   loadDefenderEmblem,
 } from "./defenderEmblems";
-
-type PlayMode = "attackers" | "defenders" | "hotseat";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
 // Difficulty, variant and side survive a page refresh (a reload otherwise silently
@@ -188,14 +200,12 @@ export default function App() {
   const [variantId, setVariantId] = useState(() =>
     loadSetting(VARIANT_KEY, [...Object.keys(VARIANTS), "custom"], DEFAULT_VARIANT),
   );
-  const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
-    CUSTOM_RULE_DEFAULTS,
-  );
+  const [customRules, setCustomRules] = useState<CustomRuleSet>(CUSTOM_RULE_DEFAULTS);
   const [playMode, setPlayMode] = useState<PlayMode>(() =>
     loadSetting(PLAYMODE_KEY, ["attackers", "defenders", "hotseat"], "defenders"),
   );
   const [difficulty, setDifficulty] = useState<Difficulty>(() =>
-    loadSetting(DIFFICULTY_KEY, ["easy", "medium", "hard", "ollamh"], "medium"),
+    loadSetting(DIFFICULTY_KEY, DIFFICULTIES, "medium"),
   );
   // Remember the match setup across refreshes.
   useEffect(() => {
@@ -259,6 +269,13 @@ export default function App() {
   // here" is the only action that branches (truncates) the timeline.
   const [states, setStates] = useState<GameState[]>(() => [initialState()]);
   const [cursor, setCursor] = useState(0);
+
+  // ── Resumable game ──────────────────────────────────────────────────────────
+  // A game in progress is written to localStorage as it is played (see
+  // game/persist.ts) and read back once, here, at startup. It is never restored
+  // silently: while it is pending, the opening overlay offers Resume or a fresh
+  // game, and nothing is saved over it until that choice is made.
+  const [pendingResume, setPendingResume] = useState<RestoredGame | null>(loadResumableGame);
 
   const [selected, setSelected] = useState<Square | null>(null);
   const [fadingCaptures, setFadingCaptures] = useState<Square[]>([]);
@@ -467,9 +484,11 @@ export default function App() {
   }, [clock.reset]);
 
   // Fresh board and, in hotseat play, a brand-new match (score reset to zero).
+  // Starting over is also the moment a saved game stops being worth keeping.
   const resetGame = useCallback(() => {
     resetBoard();
     setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
+    clearSavedGame();
   }, [resetBoard, playMode, gamesPerSet]);
 
   // Start the next game of the current set (sides already swapped on record).
@@ -491,6 +510,125 @@ export default function App() {
     recorded.current = true;
     setMatch((m) => (m ? recordMatchGame(m, game.status, game.moveCount) : m));
   }, [playMode, match, atTip, gameOver, game.status, game.moveCount]);
+
+  // ── Resume a saved game ─────────────────────────────────────────────────────
+  // Put back the setup the game was played under, then the timeline itself.
+  // The clock banks only come back onto a matching time control: resuming a 3+2
+  // game into a 10+0 setting would otherwise hand out or steal time.
+  const resumeSavedGame = useCallback(() => {
+    const r = pendingResume;
+    if (!r) return;
+    if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    setVariantId(r.variantId);
+    setCustomRules(r.customRules);
+    setPlayMode(r.playMode);
+    setDifficulty(r.difficulty);
+    setGamesPerSet(r.gamesPerSet);
+    setNames(r.names);
+    setMatch(r.match);
+    recorded.current = r.recorded;
+    // The timeline arrives whole rather than a move at a time, so the clock
+    // must not read the jump as a move being played.
+    prevTipRef.current = r.states.length - 1;
+    setStates(r.states);
+    setCursor(r.cursor);
+    setSelected(null);
+    setFadingCaptures([]);
+    setThinking(false);
+    if (
+      r.clock &&
+      timeControl &&
+      r.clock.initialSeconds === timeControl.initialSeconds &&
+      r.clock.incrementSeconds === timeControl.incrementSeconds
+    ) {
+      clock.restore(r.clock);
+    }
+    setPendingResume(null);
+    setShowModeOverlay(false);
+  }, [pendingResume, timeControl, clock.restore]);
+
+  // Declining the offer discards the save immediately, so the fresh game starts
+  // from a clean slate however the player sets it up.
+  const discardSavedGame = useCallback(() => {
+    setPendingResume(null);
+    clearSavedGame();
+  }, []);
+
+  // ── Autosave ────────────────────────────────────────────────────────────────
+  // Written on every move, cursor move and score change; the clock banks ride
+  // along, refreshed whenever the clock is pressed (the between-press ticking is
+  // caught by the page-hide handler below rather than by writing ten times a
+  // second). Nothing is written while the overlay is still offering to resume —
+  // an empty board must never overwrite the game it is offering to restore.
+  const clockRef = useRef(clock);
+  clockRef.current = clock;
+  const persistGame = useCallback(() => {
+    if (showModeOverlay || pendingResume) return;
+    if (tip < 1 && !hasMatchProgress(match)) {
+      clearSavedGame(); // nothing worth resuming
+      return;
+    }
+    const c = clockRef.current;
+    saveGame(
+      snapshotGame({
+        states,
+        cursor,
+        variantId,
+        customRules,
+        playMode,
+        difficulty,
+        recorded: recorded.current,
+        clock: timeControl
+          ? {
+              initialSeconds: timeControl.initialSeconds,
+              incrementSeconds: timeControl.incrementSeconds,
+              remaining: c.remaining,
+              active: c.active,
+              started: c.started,
+              flagged: c.flagged,
+            }
+          : null,
+        match,
+        gamesPerSet,
+        names,
+      }),
+    );
+  }, [
+    showModeOverlay,
+    pendingResume,
+    tip,
+    states,
+    cursor,
+    variantId,
+    customRules,
+    playMode,
+    difficulty,
+    match,
+    gamesPerSet,
+    names,
+    timeControl,
+    // Clock book-keeping changes on a press/reset, never on a tick.
+    clock.active,
+    clock.started,
+    clock.flagged,
+  ]);
+  useEffect(() => {
+    persistGame();
+  }, [persistGame]);
+  // Leaving the page (closing the tab, backgrounding on mobile) is the one
+  // moment the ticking clock has to be captured — `pagehide` fires where
+  // `unload` is unreliable on iOS, and `visibilitychange` covers app switching.
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") persistGame();
+    };
+    window.addEventListener("pagehide", persistGame);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", persistGame);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, [persistGame]);
 
   const goPrev = useCallback(() => {
     setSelected(null);
@@ -842,6 +980,9 @@ export default function App() {
           difficulty={difficulty}
           onDifficulty={setDifficulty}
           onShowDemo={() => setShowDemo(true)}
+          resume={pendingResume}
+          onResume={resumeSavedGame}
+          onDiscardResume={discardSavedGame}
           onChoose={(m) => {
             changeMode(m);
             setShowModeOverlay(false);
@@ -1963,16 +2104,24 @@ function ModeOverlay({
   difficulty,
   onDifficulty,
   onShowDemo,
+  resume,
+  onResume,
+  onDiscardResume,
   onChoose,
 }: {
   t: Translations;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
   onShowDemo: () => void;
+  /** A game found in storage, offered before anything else. */
+  resume: RestoredGame | null;
+  onResume: () => void;
+  onDiscardResume: () => void;
   onChoose: (m: PlayMode) => void;
 }) {
   // Two-step overlay: pick opponent (AI or a friend), then — for the AI — pick
-  // the difficulty before the board appears.
+  // the difficulty before the board appears. A saved game, if there is one,
+  // gets asked about first: resume it, or drop it and set a new game up.
   const [pickingDifficulty, setPickingDifficulty] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -1980,7 +2129,25 @@ function ModeOverlay({
         <h2 className="gaelic text-3xl text-parchment">
           {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h2>
-        {pickingDifficulty ? (
+        {resume ? (
+          <>
+            <div className="space-y-1">
+              <p className="text-sm text-parchment-dim">{t.resumeBody}</p>
+              <p className="font-mono text-xs text-parchment-dim/80 tabular-nums">
+                {resume.states.length - 1} {t.movesWord} ·{" "}
+                {resume.playMode === "hotseat" ? t.otbOverlay : t.playVsAi}
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button className="btn btn-primary py-3 text-base" onClick={onResume}>
+                {t.resumeGame}
+              </button>
+              <button className="btn py-3 text-base" onClick={onDiscardResume}>
+                {t.newGame}
+              </button>
+            </div>
+          </>
+        ) : pickingDifficulty ? (
           <>
             <p className="text-sm text-parchment-dim">{t.chooseDifficulty}</p>
             <div className="flex flex-col gap-3">
@@ -2047,22 +2214,20 @@ function ModeOverlay({
   );
 }
 
-type CustomRules = Omit<RuleSet, "id" | "name" | "blurb">;
-
 function CustomRuleEditor({
   t,
   rules,
   onChange,
 }: {
   t: Translations;
-  rules: CustomRules;
-  onChange: (r: CustomRules) => void;
+  rules: CustomRuleSet;
+  onChange: (r: CustomRuleSet) => void;
 }) {
-  const toggle = (key: keyof CustomRules) => {
+  const toggle = (key: keyof CustomRuleSet) => {
     onChange({ ...rules, [key]: !rules[key] });
   };
 
-  const boolRules: Array<{ key: keyof CustomRules; label: string; hint: string }> = [
+  const boolRules: Array<{ key: keyof CustomRuleSet; label: string; hint: string }> = [
     { key: "armedKing", label: t.ruleArmedKing, hint: t.ruleArmedKingHint },
     { key: "throneHostileToSoldiers", label: t.ruleThroneHostileSoldiers, hint: t.ruleThroneHostileSoldiersHint },
     { key: "throneHostileToKing", label: t.ruleThroneHostileKing, hint: t.ruleThroneHostileKingHint },
@@ -2104,7 +2269,7 @@ function CustomRuleEditor({
               ["none", t.repetitionOptionNone],
               ["draw", t.repetitionOptionDraw],
               ["loss_for_defenders", t.repetitionOptionLossDefenders],
-            ] as [CustomRules["repetitionResult"], string][]
+            ] as [CustomRuleSet["repetitionResult"], string][]
           ).map(([val, label]) => (
             <label key={val} className="flex cursor-pointer items-center gap-1.5 text-sm">
               <input
