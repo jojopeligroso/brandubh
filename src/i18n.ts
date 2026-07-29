@@ -120,6 +120,8 @@ export interface Translations {
   newSet: string;
   nextSet: string;
   newMatch: string;
+  newMatchTitle: string;
+  newMatchBody: string;
   setLength: string;
   matchScore: string;
   setsWord: string;
@@ -295,6 +297,8 @@ const en: Translations = {
   newSet: "New set",
   nextSet: "Next set",
   newMatch: "New match",
+  newMatchTitle: "Start a new match?",
+  newMatchBody: "This clears the current score and starts the match over.",
   setLength: "Set length",
   matchScore: "Match",
   setsWord: "sets",
@@ -488,6 +492,8 @@ const es: Translations = {
   newSet: "Nueva serie",
   nextSet: "Siguiente serie",
   newMatch: "Nuevo encuentro",
+  newMatchTitle: "¿Empezar un nuevo encuentro?",
+  newMatchBody: "Esto borra la puntuación actual y reinicia el encuentro.",
   setLength: "Partidas por serie",
   matchScore: "Encuentro",
   setsWord: "series",
@@ -686,6 +692,8 @@ const ga: Translations = {
   newSet: "Sraith nua",
   nextSet: "An chéad sraith eile",
   newMatch: "Comórtas nua",
+  newMatchTitle: "Comórtas nua a thosú?",
+  newMatchBody: "Glanann sé seo an scór reatha agus tosaíonn an comórtas as an nua.",
   setLength: "Cluichí sa sraith",
   matchScore: "Comórtas",
   setsWord: "sraith",

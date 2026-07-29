@@ -141,6 +141,7 @@ export default function App() {
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
   const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
   const [showResign, setShowResign] = useState(false);
+  const [showNewMatchConfirm, setShowNewMatchConfirm] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
 
   const rules: RuleSet =
@@ -397,10 +398,22 @@ export default function App() {
       : otbMatch
         ? t.newMatch
         : t.newGame;
-  const primaryAction = setComplete ? nextSet : midSet ? nextGame : resetGame;
-  // Offer a full reset whenever a match has any progress to discard.
-  const showNewMatch =
+  // Starting a new match wipes the running score, so route it through a
+  // confirmation whenever there's actually progress to lose. Anything with
+  // nothing to discard (a fresh board, solo "New game") falls straight through.
+  const matchHasProgress =
     otbMatch !== null && (otbSet!.results.length > 0 || matchTotals(otbMatch).setsCompleted > 0);
+  const requestNewMatch = useCallback(() => {
+    if (matchHasProgress) setShowNewMatchConfirm(true);
+    else resetGame();
+  }, [matchHasProgress, resetGame]);
+
+  const primaryAction = setComplete ? nextSet : midSet ? nextGame : requestNewMatch;
+  // The standalone "New match" button is a shortcut for discarding a match in
+  // progress. Hide it while a set is live over the board — the primary button
+  // is "Next game" there and this sits right beside it, easy to fumble — so a
+  // mid-set reset goes through Settings instead. Between sets it stays handy.
+  const showNewMatch = matchHasProgress && !midSet;
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
@@ -459,7 +472,7 @@ export default function App() {
           {primaryLabel}
         </button>
         {showNewMatch && (
-          <button className="btn" onClick={resetGame}>
+          <button className="btn" onClick={requestNewMatch}>
             {t.newMatch}
           </button>
         )}
@@ -502,6 +515,8 @@ export default function App() {
         onDifficulty={setDifficulty}
         gamesPerSet={gamesPerSet}
         onSetLength={changeSetLength}
+        canNewMatch={matchHasProgress}
+        onNewMatch={requestNewMatch}
       />
 
       {variantId === "custom" && (
@@ -559,6 +574,21 @@ export default function App() {
           cancelLabel={t.back}
           onConfirm={resign}
           onCancel={() => setShowResign(false)}
+        />
+      )}
+
+      {showNewMatchConfirm && (
+        <ConfirmDialog
+          t={t}
+          title={t.newMatchTitle}
+          body={t.newMatchBody}
+          confirmLabel={t.newMatch}
+          cancelLabel={t.back}
+          onConfirm={() => {
+            setShowNewMatchConfirm(false);
+            resetGame();
+          }}
+          onCancel={() => setShowNewMatchConfirm(false)}
         />
       )}
 
@@ -1003,6 +1033,8 @@ function Settings({
   onDifficulty,
   gamesPerSet,
   onSetLength,
+  canNewMatch,
+  onNewMatch,
 }: {
   t: Translations;
   variantId: string;
@@ -1013,6 +1045,8 @@ function Settings({
   onDifficulty: (d: Difficulty) => void;
   gamesPerSet: number;
   onSetLength: (n: number) => void;
+  canNewMatch: boolean;
+  onNewMatch: () => void;
 }) {
   return (
     <div className="card mt-4 space-y-3 p-4">
@@ -1053,6 +1087,16 @@ function Settings({
               </button>
             ))}
           </div>
+        </Row>
+      )}
+
+      {/* Reset the running match — kept here (not in the action row) so it can't
+          be fumbled mid-set, but still reachable while a set is in play. */}
+      {playMode === "hotseat" && canNewMatch && (
+        <Row label={t.matchSet}>
+          <button className="btn" onClick={onNewMatch}>
+            {t.newMatch}
+          </button>
         </Row>
       )}
 
