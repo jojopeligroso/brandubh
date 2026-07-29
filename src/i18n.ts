@@ -54,9 +54,17 @@ export interface Translations {
   kingIcon: string;
   defenderIcon: string;
   colourTheme: string;
+  pieceColours: string;
+  defenders: string;
+  themeDefault: string;
   design: string;
   done: string;
   close: string;
+  // Settings sections
+  settings: string;
+  sectionGame: string;
+  sectionMatch: string;
+  sectionAppearance: string;
 
   // Move navigation
   prevMove: string;
@@ -235,9 +243,16 @@ const en: Translations = {
   kingIcon: "King icon",
   defenderIcon: "Defender icon",
   colourTheme: "Colour theme",
+  pieceColours: "Piece colours",
+  defenders: "Defenders",
+  themeDefault: "Theme default",
   design: "Design your board",
   done: "Done",
   close: "Close",
+  settings: "Settings",
+  sectionGame: "Game",
+  sectionMatch: "Match",
+  sectionAppearance: "Appearance",
 
   prevMove: "Previous move",
   nextMove: "Next move",
@@ -430,9 +445,16 @@ const es: Translations = {
   kingIcon: "Icono del rey",
   defenderIcon: "Icono del defensor",
   colourTheme: "Tema de color",
+  pieceColours: "Colores de las piezas",
+  defenders: "Defensores",
+  themeDefault: "Color del tema",
   design: "Diseña tu tablero",
   done: "Listo",
   close: "Cerrar",
+  settings: "Ajustes",
+  sectionGame: "Juego",
+  sectionMatch: "Encuentro",
+  sectionAppearance: "Apariencia",
 
   prevMove: "Jugada anterior",
   nextMove: "Jugada siguiente",
@@ -630,9 +652,16 @@ const ga: Translations = {
   kingIcon: "Deilbhín rí",
   defenderIcon: "Deilbhín cosantóra",
   colourTheme: "Téama datha",
+  pieceColours: "Dathanna na bhfear",
+  defenders: "Cosantóirí",
+  themeDefault: "Dath an téama",
   design: "Dear do chlár",
   done: "Déanta",
   close: "Dún",
+  settings: "Socruithe",
+  sectionGame: "Cluiche",
+  sectionMatch: "Comórtas",
+  sectionAppearance: "Cuma",
 
   prevMove: "An bogadh roimhe seo",
   nextMove: "An chéad bhogadh eile",

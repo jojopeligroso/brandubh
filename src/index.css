@@ -574,12 +574,12 @@ body {
   position: absolute;
   z-index: 3;
   font-family: var(--font-display, inherit);
-  font-size: clamp(0.5rem, 1.6vw, 0.78rem);
+  font-size: clamp(0.56rem, 1.75vw, 0.86rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--motif-ink) 78%, transparent);
-  text-shadow: 0 1px 1px color-mix(in srgb, var(--color-parchment) 45%, transparent);
+  color: color-mix(in srgb, var(--motif-ink) 92%, transparent);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--color-parchment) 60%, transparent);
   pointer-events: none;
   user-select: none;
 }
@@ -828,6 +828,32 @@ body {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+/* Custom piece-colour picker: a round well showing the chosen stone colour,
+   with the native colour input laid over it and hidden. */
+.color-swatch {
+  position: relative;
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--color-parchment) 30%, transparent);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  overflow: hidden;
+}
+.color-swatch input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
 .theme-swatch {
   position: relative;
   display: inline-flex;
