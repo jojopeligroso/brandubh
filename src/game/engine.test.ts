@@ -291,21 +291,23 @@ describe("captures", () => {
 
 describe("kingIsCaptured", () => {
   it("is captured by two attackers on opposite sides (off-throne)", () => {
-    // King at (2,3) — off the throne — flanked by attackers at (1,3) and (3,3)
+    // King at (2,1) — well away from the throne (3,3) — flanked by attackers at
+    // (1,1) and (3,1). Away from the throne the king is a soldier: a two-sided
+    // custodial capture applies.
     const b = board([
       ".......",
-      "...a...",
-      "...k...",
-      "...a...",
+      ".a.....",
+      ".k.....",
+      ".a.....",
       ".......",
       ".......",
       ".......",
     ]);
-    // Attacker at (3,3) just moved there — active capture
-    expect(kingIsCaptured(b, wtf, { row: 3, col: 3 })).toBe(true);
-    expect(kingIsCaptured(b, walker, { row: 3, col: 3 })).toBe(true);
+    // Attacker at (3,1) just moved there — active capture
+    expect(kingIsCaptured(b, wtf, { row: 3, col: 1 })).toBe(true);
+    expect(kingIsCaptured(b, walker, { row: 3, col: 1 })).toBe(true);
     // Either flanking attacker counts
-    expect(kingIsCaptured(b, wtf, { row: 1, col: 3 })).toBe(true);
+    expect(kingIsCaptured(b, wtf, { row: 1, col: 1 })).toBe(true);
   });
 
   it("is NOT captured when attacker move is not adjacent to king (passive)", () => {
@@ -447,11 +449,11 @@ describe("kingIsCaptured", () => {
     expect(kingIsCaptured(b, wtf, { row: 4, col: 0 })).toBe(false);
   });
 
-  it("empty throne IS hostile to king when throneHostileToKing is true (custom rule)", () => {
-    // King at (2,3) adjacent to empty throne. With throneHostileToKing=true,
-    // single attacker at (1,3) + throne (3,3) form an opposite pair → captured.
-    const customRules = { ...wtf, throneHostileToKing: true };
-    const b = board([
+  it("empty throne is the king's fourth wall (surround), never a custodial half", () => {
+    // King at (2,3) adjacent to the empty throne (3,3). Per WTF/Copenhagen the throne
+    // is hostile to the king ONLY as the fourth side of a full surround — a single
+    // attacker plus the throne is NOT a capture.
+    const oneAttacker = board([
       ".......",
       "...a...",
       "...k...",
@@ -460,8 +462,20 @@ describe("kingIsCaptured", () => {
       ".......",
       ".......",
     ]);
-    expect(kingIsCaptured(b, customRules, { row: 1, col: 3 })).toBe(true); // attacker + hostile throne
-    expect(kingIsCaptured(b, wtf, { row: 1, col: 3 })).toBe(false); // throne NOT hostile by default
+    expect(kingIsCaptured(oneAttacker, wtf, { row: 1, col: 3 })).toBe(false); // attacker + throne ≠ capture
+
+    // But when the other three sides are all attackers, the empty throne completes
+    // the surround → captured. (The attacker just moved to (2,4).)
+    const surround = board([
+      ".......",
+      "...a...",
+      "..aka..",
+      ".......",
+      ".......",
+      ".......",
+      ".......",
+    ]);
+    expect(kingIsCaptured(surround, wtf, { row: 2, col: 4 })).toBe(true); // 3 attackers + hostile throne
   });
 
   it("returns true when king is absent from the board", () => {
@@ -568,20 +582,38 @@ describe("applyMove — game status", () => {
     expect(r.status).toBe("defenders_win_escape");
   });
 
-  it("attackers_win_capture when king is captured", () => {
-    // King at (3,2), attacker at (3,1); attacker moves to (3,3) completing the sandwich
+  it("attackers_win_capture when king is captured (off-throne custodial)", () => {
+    // King at (2,5) off the throne; attacker at (1,5); attacker at (4,5) slides up to
+    // (3,5), completing an opposite-sides sandwich.
     const b = board([
       ".......",
+      ".....a.",
+      ".....k.",
+      ".......",
+      ".....a.",
       ".......",
       ".......",
-      ".ak..a.",
+    ]);
+    const s = state(b, "attackers");
+    const r = applyMove(s, mv(4, 5, 3, 5), wtf);
+    expect(r.status).toBe("attackers_win_capture");
+  });
+
+  it("attackers_win_capture when the king next to the throne is surrounded (WTF)", () => {
+    // King at (2,3), throne at (3,3) below it; attackers on the other three sides once
+    // the last raider slides in — the empty throne is the fourth wall. This is the
+    // capture the engine previously missed (a king walled against its own throne).
+    const b = board([
+      ".......",
+      "...a...",
+      "..ak.a.",
+      ".......",
       ".......",
       ".......",
       ".......",
     ]);
     const s = state(b, "attackers");
-    // Attacker at (3,5) moves to (3,3): king at (3,2) between (3,1) and (3,3)
-    const r = applyMove(s, mv(3, 5, 3, 3), wtf);
+    const r = applyMove(s, mv(2, 5, 2, 4), wtf); // raider slides to (2,4), the last open side
     expect(r.status).toBe("attackers_win_capture");
   });
 

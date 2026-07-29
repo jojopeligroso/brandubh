@@ -93,16 +93,21 @@ export const VARIANTS: Record<string, RuleSet> = {
     name: "Brandubh · World Tafl Federation",
     blurb:
       "Official WTF tournament rules (aagenielsen.dk / branan). The empty throne is hostile to " +
-      "soldiers but never to the king. King on the throne needs all four sides surrounded. " +
-      "Encirclement wins. Repetition is a loss for the defending side.",
+      "soldiers, and to the king as the fourth wall when he stands next to it. King on OR next to " +
+      "the throne is captured only by being surrounded on all four sides (the empty throne counting " +
+      "as one). Encirclement wins. Repetition is a loss for the defending side.",
     armedKing: true,
     throneHostileToSoldiers: true,
-    throneHostileToKing: false,
+    // The empty throne helps capture the king, but only in the four-sided surround
+    // (with strongKingAdjacentToThrone) — never as one half of an ordinary custodial
+    // pair. See kingIsCaptured: the "needs all four" branch is the only place a king
+    // flank consults throneHostileToKing.
+    throneHostileToKing: true,
     kingMayReoccupyThrone: true,
     soldiersPassThroughThrone: true,
     cornersHostile: true,
     strongKingOnThrone: true,
-    strongKingAdjacentToThrone: false,
+    strongKingAdjacentToThrone: true,
     encirclementWin: true,
     repetitionResult: "loss_for_defenders",
   },
@@ -114,12 +119,12 @@ export const DEFAULT_VARIANT = "wtf";
 export const CUSTOM_RULE_DEFAULTS: Omit<RuleSet, "id" | "name" | "blurb"> = {
   armedKing: true,
   throneHostileToSoldiers: true,
-  throneHostileToKing: false,
+  throneHostileToKing: true,
   kingMayReoccupyThrone: true,
   soldiersPassThroughThrone: true,
   cornersHostile: true,
   strongKingOnThrone: true,
-  strongKingAdjacentToThrone: false,
+  strongKingAdjacentToThrone: true,
   encirclementWin: true,
   repetitionResult: "loss_for_defenders",
 };
