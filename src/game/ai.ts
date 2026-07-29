@@ -191,6 +191,14 @@ function kingCornerMoves(b: Board, kr: number, kc: number): number {
 //
 // The escape value returned by the caller is just below a literal terminal escape,
 // so the search still prefers an *immediate* escape (a faster win) when it has one.
+//
+// Measured neutral in symmetric self-play (24-24 at depth 3, 16-16 at depth 5):
+// quiescence already chases king escapes and the deep search resolves these ≤3-ply
+// patterns unaided, so two equal engines gain nothing on average. Kept ON anyway
+// because they are *free* (throughput unchanged, 69k nodes/s both ways) and give a
+// horizon-correctness guarantee self-play can't show — the AI treats a two-lane
+// fork as lost even when its horizon is one ply short, which is what a human trying
+// to set one up would exploit.
 const RECOGNIZED_WIN = WIN - 2;
 
 /** Attacker to move, but the king already has ≥2 clear straight lanes to distinct
