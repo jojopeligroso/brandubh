@@ -1,5 +1,22 @@
 # Brandubh — Open Tasks
 
+## ▶ Roadmap (start here)
+
+The remaining work is planned as sized, shippable **sessions** in
+[`docs/ROADMAP.md`](docs/ROADMAP.md), with design docs for the two big features.
+Ordered by value ÷ effort:
+
+1. **Game resumability** *(M)* — a refresh never loses a game in progress.
+2. **Play either side** *(S–M)* — choose raiders or king from the overlay.
+3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
+4. **Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.
+5. **Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.
+6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
+7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
+
+Session-sizing rule and per-session tasks live in the roadmap. The items below are
+the raw backlog those sessions draw from.
+
 ## Half-built
 
 - [ ] **Irish (ga) locale** — Full translation exists in `i18n.ts` but hidden from UI via `VISIBLE_LANGS`. Unhide when ready.
