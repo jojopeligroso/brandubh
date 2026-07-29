@@ -623,6 +623,29 @@ export function pickMove(
   return { move: chosen, score: bestScore, depth: reached, nodes: ctx.nodes };
 }
 
+// ── Opening book (solver-fed) ─────────────────────────────────────────────────
+// The integration point for the offline solver (scripts/solve.ts): a map from a
+// position's board hash to the move to play there. It is intentionally EMPTY —
+// only *proven* (game-theoretically optimal, dtm-minimal) moves belong here, and
+// the full Brandubh opening is not solved (see docs/solving.md). When the solver
+// proves a line, its moves drop straight in and `ollamh` plays them instantly and
+// perfectly, skipping the slow search. Keyed by `hashBoard(board, turn)`; a book
+// move is always re-validated against the live legal moves before it is trusted.
+export const OPENING_BOOK: Record<string, Move> = {};
+
+function bookMove(state: GameState, rules: RuleSet): Move | null {
+  const hit = OPENING_BOOK[hashBoard(state.board, state.turn)];
+  if (!hit) return null;
+  const legal = allMoves(state.board, state.turn, rules).some(
+    (m) =>
+      m.from.row === hit.from.row &&
+      m.from.col === hit.from.col &&
+      m.to.row === hit.to.row &&
+      m.to.col === hit.to.col,
+  );
+  return legal ? hit : null;
+}
+
 // ── Difficulty ladder ─────────────────────────────────────────────────────────
 // easy/medium are fixed-depth (instant on any board); hard is time-budgeted and
 // deepens as far as the clock allows. Budgets are intentionally conservative and
@@ -676,6 +699,12 @@ export function chooseMoveDetailed(
   const { limits, config, blunder } = DIFFICULTY[difficulty];
   if (blunder > 0 && rng() < blunder)
     return { move: moves[Math.floor(rng() * moves.length)], depth: 0, nodes: 0, elapsedMs: 0 };
+
+  // ollamh plays proven book moves instantly (depth -1 flags "from book").
+  if (difficulty === "ollamh") {
+    const booked = bookMove(state, rules);
+    if (booked) return { move: booked, depth: -1, nodes: 0, elapsedMs: 0 };
+  }
 
   const t0 = defaultNow();
   const r = pickMove(state, rules, limits, config, rng);

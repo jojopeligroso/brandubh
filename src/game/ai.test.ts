@@ -218,6 +218,28 @@ describe("depth floor: slow devices still search deep enough", () => {
   });
 });
 
+describe("opening book: ollamh plays proven book moves instantly", () => {
+  it("plays a booked move without searching, and only for ollamh", async () => {
+    const { OPENING_BOOK, chooseMoveDetailed } = await import("./ai");
+    const { hashBoard } = await import("./engine");
+    const s = initialState();
+    const legal = allMoves(s.board, s.turn, wtf);
+    const pick = legal[3]; // any legal move
+    const key = hashBoard(s.board, s.turn);
+    OPENING_BOOK[key] = pick;
+    try {
+      const booked = chooseMoveDetailed(s, "ollamh", wtf);
+      expect(booked.depth).toBe(-1); // flagged as "from book"
+      expect(booked.move).toEqual(pick);
+      // hard ignores the book and actually searches.
+      const searched = chooseMoveDetailed(s, "hard", wtf);
+      expect(searched.depth).toBeGreaterThanOrEqual(1);
+    } finally {
+      delete OPENING_BOOK[key];
+    }
+  });
+});
+
 describe("performance guard", () => {
   it("keeps the opening depth-4 search within a sane node budget", () => {
     resetTT();

@@ -1393,7 +1393,8 @@ function Settings({
             <div className="seg">
               {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard], ["ollamh", t.ollamh]] as [Difficulty, string][]).map(([d, label]) => (
                 <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
-                  {label}
+                  {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
+                  {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
                 </button>
               )))}
             </div>
@@ -1967,7 +1968,8 @@ function ModeOverlay({
                     onChoose("defenders");
                   }}
                 >
-                  {label}
+                  {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
+                  {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
                 </button>
               ))}
             </div>
