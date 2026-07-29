@@ -7,7 +7,7 @@ The remaining work is planned as sized, shippable **sessions** in
 Ordered by value ÷ effort:
 
 1. ~~**Game resumability** *(M)* — a refresh never loses a game in progress.~~ **Shipped** → [`docs/design/game-persistence.md`](docs/design/game-persistence.md).
-2. **Play either side** *(S–M)* — choose raiders or king from the overlay.
+2. ~~**Play either side** *(S–M)* — choose raiders or king from the overlay.~~ **Shipped** → `src/game/sides.ts`.
 3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
 4. **Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.
 5. **Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.
@@ -73,7 +73,7 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 ## Minor UX
 
-- [ ] **"Play vs AI" overlay always picks defenders** — `App.tsx:457-459` hardcodes `onChoose("defenders")`. No way to choose attacker side from the overlay.
+- [x] **"Play vs AI" overlay always picks defenders** — fixed: the overlay now steps side → difficulty, and every derived side comes from `game/sides.ts`.
 - [ ] **Custom Rule Editor doesn't reset game** — Toggling rules mid-game creates inconsistent state. Variant dropdown resets correctly (`changeVariant()`) but custom rule toggles don't call `newGame()`.
 
 ## Docs
