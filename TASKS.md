@@ -15,10 +15,13 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   ~500 ms budget briefly blocks the UI. A worker keeps it fully offline (Vite
   bundles the worker into `dist/`) while freeing the main thread. Would let the
   hard budget grow without janking the board.
-- [ ] **Evaluation tuning** — the search rewrite deliberately left `evaluate()`
-  untouched so self-play could attribute gains to search alone. Next: mobility,
-  defender-shield structure, and blocker-aware king distance — A/B each change
-  through `scripts/aibench.ts` self-play before keeping it.
+- [x] **Evaluation tuning** — investigated via `scripts/evaltune.ts` (weighted
+  `evaluate()` + self-play gauntlet). Outcome: **keep the default weights.** No
+  candidate term beat the baseline at the depths the game plays — mobility only
+  helped at depth 2 (even by depth 3) and cost ~2× per node, shield/liberties
+  were worse, blocker-aware king distance was neutral. The search rewrite already
+  captures what those heuristics proxied for. The terms remain as opt-in knobs
+  for per-variant retuning (see below).
 - [ ] **Opening book** — ties into the replay/import task below; would remove the
   weak, samey opening play.
 - [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is

@@ -58,7 +58,14 @@ export interface EvalWeights {
   blockerAwareKingDist: boolean;
 }
 
-/** The original hand-tuned heuristic, exactly. The self-play baseline. */
+/**
+ * The shipping weights for Brandubh. These are the original hand-tuned heuristic,
+ * kept after an A/B gauntlet (scripts/evaltune.ts) found no candidate term beat it
+ * at the depths the game actually plays: shield/liberties were worse (redundant
+ * with the king-safety terms), mobility helped only at depth 2 (gone by depth 3)
+ * and cost ~2× per node, and blocker-aware king distance was neutral. The extra
+ * terms remain as opt-in knobs for retuning on differently-balanced variants.
+ */
 export const DEFAULT_WEIGHTS: EvalWeights = {
   material: 40,
   kingCorner: 25,

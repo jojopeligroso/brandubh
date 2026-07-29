@@ -2,7 +2,13 @@
  *
  * Each candidate weight-set plays FULL-search games against the DEFAULT_WEIGHTS
  * baseline, at a fixed depth (so results isolate eval quality, not speed), on
- * both sides, over seeded games. Deterministic. */
+ * both sides, over seeded games. Deterministic.
+ *
+ * Findings for Brandubh (WTF): no candidate beat the baseline at real depths.
+ * mobility won at depth 2 (11-5) but was even by depth 3 and costs ~2x per node;
+ * shield and liberties were worse; blocker-aware king distance was neutral. So
+ * DEFAULT_WEIGHTS ships as-is. Re-run this when adding a variant (e.g. Tablut) —
+ * the balance there may favour different terms. */
 import { DEFAULT_WEIGHTS, FULL_CONFIG, pickMove, resetTT, type EvalWeights } from "../src/game/ai";
 import { applyMove, initialState, isGameOver, winnerOf } from "../src/game/engine";
 import type { GameState, Side } from "../src/game/types";
