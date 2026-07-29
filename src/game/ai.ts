@@ -24,6 +24,9 @@ const DECISIVE = WIN - 1000;
  *  floor can never hang even on a pathological position. Far above any real
  *  floored search on the boards this game plays. */
 const MIN_DEPTH_SAFETY_MS = 8000;
+/** Move-ordering index at which late-move reductions begin (the first few moves —
+ *  TT move, captures, killers — are searched at full depth). */
+const LMR_MIN_INDEX = 4;
 
 /** Centre of the board, derived so ordering works for any size (7×7, 9×9 Tablut…). */
 const CENTER = (BOARD_SIZE - 1) / 2;
@@ -57,6 +60,12 @@ export interface EvalWeights {
   /** Per (attacker legal moves − defender legal moves). 0 ⇒ skip (it costs a
    *  full move-gen for both sides, so only pay it when it earns its keep). */
   mobility: number;
+  /** Per empty square the king can reach through open orthogonal paths (its
+   *  confinement region, by flood fill). Subtracted, so a boxed-in king favours
+   *  the attackers — a gradient toward the WTF encirclement win that the crude
+   *  corner-distance and adjacency terms miss. Capped so an open board saturates
+   *  rather than swamping material. 0 ⇒ skip the flood fill. */
+  kingRegion: number;
   /** Use the blocker-aware king→corner distance (1/2/3 real king-moves) instead
    *  of the crude aligned?1:2 estimate that ignores pieces in the lane. */
   blockerAwareKingDist: boolean;
@@ -78,8 +87,35 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   liberties: 0,
   shield: 0,
   mobility: 0,
+  kingRegion: 0,
   blockerAwareKingDist: false,
 };
+
+/** Cap on the king's flood-filled confinement region, so a wide-open board
+ *  saturates the term instead of letting sheer space dominate material. */
+const KING_REGION_CAP = 12;
+
+/** Number of empty squares the king can reach via open orthogonal paths (walls =
+ *  any piece), capped. A small region means the king is boxed in. */
+function kingRegionSize(b: Board, kr: number, kc: number): number {
+  const seen = new Set<number>([kr * BOARD_SIZE + kc]);
+  const stack: Array<[number, number]> = [[kr, kc]];
+  let count = 0;
+  while (stack.length && count < KING_REGION_CAP) {
+    const [r, c] = stack.pop()!;
+    for (const [dr, dc] of DIRS) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc) || b[nr][nc] !== null) continue;
+      const id = nr * BOARD_SIZE + nc;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      count++;
+      stack.push([nr, nc]);
+    }
+  }
+  return count;
+}
 
 function clearPathToCorner(b: Board, kr: number, kc: number): number {
   // Count corners the king could slide to *right now* with an unobstructed
@@ -196,6 +232,9 @@ export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rul
     score += hug * w.hug;
     score -= shield * w.shield;
     score -= liberties * w.liberties;
+
+    // Confinement: a king with little reachable space is being encircled.
+    if (w.kingRegion !== 0) score -= kingRegionSize(b, k.row, k.col) * w.kingRegion;
   }
 
   if (w.mobility !== 0 && rules) {
@@ -267,6 +306,11 @@ export interface SearchConfig {
   useQuiescence: boolean;
   /** Max extra plies the quiescence search may extend. */
   maxQuiescencePly: number;
+  /** Late-move reductions: search late, quiet, well-ordered moves shallower first
+   *  and only re-search at full depth if one beats the current best. Buys depth on
+   *  the lines that matter. Captures, king moves and early (promising) moves are
+   *  never reduced, so tactics are unaffected. */
+  useLMR: boolean;
 }
 
 export const FULL_CONFIG: SearchConfig = {
@@ -275,6 +319,7 @@ export const FULL_CONFIG: SearchConfig = {
   useKillers: true,
   useQuiescence: true,
   maxQuiescencePly: 6,
+  useLMR: true,
 };
 
 /** The original engine's behaviour — a fixed-depth searcher with legacy ordering
@@ -285,6 +330,7 @@ export const LEGACY_CONFIG: SearchConfig = {
   useKillers: false,
   useQuiescence: false,
   maxQuiescencePly: 0,
+  useLMR: false,
 };
 
 export interface SearchLimits {
@@ -485,9 +531,28 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
 
   let best = maximizing ? -Infinity : Infinity;
   let bestMove: Move | null = null;
+  let i = 0;
   for (const m of moves) {
     const child = applyMove(state, m, ctx.rules);
-    const v = search(child, depth - 1, ply + 1, alpha, beta, ctx);
+    // Late-move reduction: search late, quiet, non-terminal moves a ply (or two)
+    // shallower; if the shallow result would improve the bound, re-search full depth.
+    // Never reduce captures, king moves, or an early (well-ordered) move — tactics
+    // stay exact because those are exactly what move ordering surfaces first.
+    let d2 = depth - 1;
+    if (
+      ctx.cfg.useLMR &&
+      depth >= 3 &&
+      i >= LMR_MIN_INDEX &&
+      !isGameOver(child.status) &&
+      state.board[m.from.row][m.from.col] !== "king" &&
+      previewCaptureCount(state.board, m.from, m.to, state.board[m.from.row][m.from.col], state.turn, ctx.rules) === 0
+    ) {
+      d2 = Math.max(1, depth - 2 - (i >= LMR_MIN_INDEX + 6 ? 1 : 0));
+    }
+    let v = search(child, d2, ply + 1, alpha, beta, ctx);
+    if (d2 < depth - 1 && (maximizing ? v > alpha : v < beta))
+      v = search(child, depth - 1, ply + 1, alpha, beta, ctx); // promising ⇒ verify at full depth
+    i++;
     if (maximizing) {
       if (v > best) {
         best = v;
