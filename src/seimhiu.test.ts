@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toSeanchlo } from "./seimhiu";
+import { toSeanchlo, toSeanchloTable } from "./seimhiu";
 
 describe("toSeanchlo — séimhiú overdots", () => {
   it("dots every lenitable consonant + h", () => {
@@ -53,5 +53,26 @@ describe("toSeanchlo — leaves non-lenition h alone", () => {
   it("is idempotent on its own output", () => {
     const once = toSeanchlo("chaith an mhór");
     expect(toSeanchlo(once)).toBe(once);
+  });
+});
+
+describe("toSeanchloTable — deep conversion of a translations table", () => {
+  it("converts every string, including nested Record fields", () => {
+    const table = {
+      subtitle: "Hnefatafl Gaelach",
+      matchSet: "Sraith",
+      variantNames: { walker: "Brandubh · Walker" },
+    };
+    expect(toSeanchloTable(table)).toEqual({
+      subtitle: "Hnefatafl Gaelaċ",
+      matchSet: "Sraiṫ",
+      variantNames: { walker: "Branduḃ · Walker" },
+    });
+  });
+
+  it("does not mutate the input", () => {
+    const table = { a: "chaith" };
+    toSeanchloTable(table);
+    expect(table.a).toBe("chaith");
   });
 });

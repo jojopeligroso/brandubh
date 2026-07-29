@@ -19,3 +19,19 @@ A gallery of the full set is saved at `docs/design/icons.html`.
 
 The traces were produced from the supplied artwork with an automatic raster→vector
 tracer; the shapes are faithful reproductions of those public-domain symbols.
+
+## Fonts
+
+The display face for headings and board coordinates is **Gadelica Cursiva**, a
+traditional cló Gaelach (Irish typeface) — the cursive *cló scríobh* hand —
+© Séamas Ó Brógáin, 2007. It is bundled verbatim at
+`src/fonts/Gadelica-Cursiva.otf` and used unmodified under the author's own
+distribution terms: free to use and redistribute, not modified or renamed, not
+sold, with authorship credited. Full terms in `src/fonts/Gadelica-LICENCE.txt`.
+
+Irish text shown in this face uses traditional overdot orthography — séimhiú
+marked with the ponc séimhithe (`bh → ḃ`, `ch → ċ`, … `th → ṫ`) rather than a
+following "h" — applied by `src/seimhiu.ts`.
+
+Body text and move notation continue to use the platform's native
+sans-serif and monospace fonts (no bundled files).

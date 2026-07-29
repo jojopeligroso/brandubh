@@ -36,3 +36,20 @@ export function toSeanchlo(text: string): string {
     // Séimhiú: lenitable consonant + h → overdotted consonant (drop the h).
     .replace(/([bcdfgmpstBCDFGMPST])[hH]/g, (m, c: string) => OVERDOT[c] ?? m);
 }
+
+/**
+ * Deep-convert every string in a translations table (or any nested object of
+ * strings) to traditional overdot orthography. Used to render the Irish (`ga`)
+ * locale in the cló Gaelach face. Preserves object shape; non-strings untouched.
+ */
+export function toSeanchloTable<T>(table: T): T {
+  if (typeof table === "string") return toSeanchlo(table) as unknown as T;
+  if (table && typeof table === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(table)) {
+      out[key] = toSeanchloTable(value);
+    }
+    return out as T;
+  }
+  return table;
+}

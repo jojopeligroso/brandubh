@@ -1,0 +1,27 @@
+Gadelica — a cló Gaelach (traditional Irish typeface)
+© Séamas Ó Brógáin, 2007  <sob@iol.ie>
+
+This directory bundles "Gadelica Cursiva" (Gadelica-Cursiva.otf), used verbatim
+and unmodified as the display face for Irish/Gaelic text in this project.
+
+Distribution terms (from the font's own "Nóta", Feabhra 2007), translated:
+
+  This font is distributed free of charge; it may be used without restriction
+  and may be redistributed further. Copyright remains with its creator, and it
+  is distributed on condition that you accept the following: that you will not
+  alter the font in any way nor rename it; that you will not seek any payment
+  for it; and that you will not present it as your own work or anyone else's
+  other than its creator.
+
+Accordingly the font here is the author's original .otf, byte-for-byte
+unmodified (no subsetting, no format conversion, no renaming), and it is not
+sold. Séamas Ó Brógáin is credited as its author.
+
+Original Irish (Dáileadh):
+  Tá an cló seo á dháileadh saor in aisce, ceadaítear é a úsáid gan bhac, agus
+  ceadaítear é a dháileadh a thuilleadh. Fanann an cóipcheart, áfach, leis an té
+  a chruthaigh é, agus dáiltear é ar choinníoll go nglacfaidh tú leis na
+  coinníollacha seo a leanas: nach ndéanfaidh tú an cló a athrú ar bhealach ar
+  bith ná a athainmniú; nach dtabharfaidh tú iarracht ar íocaíocht ar bith a
+  fháil air; agus nach dtairgfidh tú é i leith is gur d'obair féin nó obair aon
+  duine eile é seachas an té a chruthaigh é.
