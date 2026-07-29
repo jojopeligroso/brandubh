@@ -41,11 +41,14 @@ Design + Lichess comparison: [`docs/design/game-persistence.md`](./design/game-p
 - [x] Invalidate on corrupt / old-schema / stale (>14 days) data, on an unknown variant, on a move list that will not replay legally, and on "New match" / "New game".
 - [x] Round-trip unit tests (`persist.test.ts`, 23 tests) plus a driven-browser refresh mid-game: board, move log and clock banks identical after Resume.
 
-### Session 2 — Play either side *(S–M)*
+### Session 2 — Play either side *(S–M)* — **shipped**
 **Goal:** choose to play the **raiders (attackers)** or the **king (defenders)** from the overlay.
-- [ ] Overlay side picker (attackers / defenders / hotseat); `App.tsx` currently hardcodes `onChoose("defenders")`.
-- [ ] Verify `aiSide`/`topSide`/board orientation already follow `humanSide` (they do); wire the choice through.
-- [ ] Side already persists (done in Session 0). Test both sides drive the AI correctly.
+- [x] Overlay side picker: *Play vs AI* now steps **side → difficulty** before the board appears, and the last side played is pre-selected. Over the board stays a top-level choice, as before.
+- [x] Sides all derive from the play mode in one place, [`src/game/sides.ts`](../src/game/sides.ts) — `humanSideOf` / `aiSideOf` / `clockPlacement`. `App.tsx` no longer hardcodes `onChoose("defenders")`; the picked side is what starts the game.
+- [x] Board **orientation** needs nothing: the opening is D4-symmetric (two raiders at the head of each arm, king centred), so there is no near/far half to flip. Only `controllable` changes. Recorded in `sides.ts`.
+- [x] Clock placement follows the human: they sit at the bottom whichever side they took; over the board the raiders keep the top (they move first).
+- [x] Side persists (Session 0) and rides in the resumable game (Session 1) for **both** sides — `sides.test.ts` round-trips each.
+- [x] `sides.test.ts` (13 tests): both sides drive the AI to legal moves by pieces it owns, and the computer opens when the human takes the king (the raiders always move first).
 
 ### Session 3 — Export / import games (PGN-style) *(L — see design doc)*
 **Goal:** save a game to a file and load one back, Lichess-style.

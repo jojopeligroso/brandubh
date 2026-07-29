@@ -248,6 +248,11 @@ export interface Translations {
   // Variant display
   variantNames: Record<string, string>;
   variantBlurbs: Record<string, string>;
+
+  // Side picker (opening overlay)
+  chooseSide: string;
+  sideKingHint: string;
+  sideRaidersHint: string;
 }
 
 const en: Translations = {
@@ -496,6 +501,10 @@ const en: Translations = {
       "Official WTF tournament rules (aagenielsen.dk). The empty throne is hostile to soldiers but never to the king. King on the throne needs all four sides surrounded. Encirclement wins. Repetition is a loss for the defending side.",
     custom: "Your custom ruleset.",
   },
+
+  chooseSide: "Which side will you play?",
+  sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
+  sideRaidersHint: "Eight raiders · capture the king · you move first",
 };
 
 const es: Translations = {
@@ -754,6 +763,11 @@ const es: Translations = {
       "Reglas oficiales del torneo FMT (aagenielsen.dk). El trono vac\u00edo es hostil para los soldados pero nunca para el rey. El rey en el trono necesita los cuatro lados rodeados. El cerco gana. La repetici\u00f3n es una derrota para el bando defensor.",
     custom: "Tu conjunto de reglas personalizado.",
   },
+
+  chooseSide: "¿Con qué bando jugarás?",
+  sideKingHint:
+    "El rey y cuatro guerreros · alcanza una esquina · los asaltantes mueven primero",
+  sideRaidersHint: "Ocho asaltantes · captura al rey · mueves primero",
 };
 
 const ga: Translations = {
@@ -1014,6 +1028,11 @@ const ga: Translations = {
       "Rialacha oifigi\u00faila com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don thaobh cosanta.",
     custom: "Do shraith rialacha f\u00e9in.",
   },
+
+  chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
+  sideKingHint:
+    "An r\u00ed agus ceathrar laoch \u00b7 sroich c\u00fainne \u00b7 bogann na foghlaithe ar dt\u00fas",
+  sideRaidersHint: "Ochtar foghlaithe \u00b7 gabh an r\u00ed \u00b7 bogann t\u00fa ar dt\u00fas",
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };

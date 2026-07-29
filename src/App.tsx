@@ -108,6 +108,7 @@ import {
   defenderEmblemById,
   loadDefenderEmblem,
 } from "./defenderEmblems";
+import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
 // Difficulty, variant and side survive a page refresh (a reload otherwise silently
@@ -124,8 +125,6 @@ function loadSetting<T extends string>(key: string, valid: readonly T[], fallbac
     return fallback; // localStorage unavailable (private mode, etc.)
   }
 }
-
-const opposite = (s: Side): Side => (s === "attackers" ? "defenders" : "attackers");
 
 function sideLabel(s: Side, t: Translations): string {
   return s === "attackers" ? t.raiders : t.kingsSide;
@@ -309,8 +308,10 @@ export default function App() {
       setKingEmblem(DEFAULT_KING_EMBLEM);
     }
   }, [rules.armedKing, kingEmblem]);
-  const humanSide: Side | null = playMode === "hotseat" ? null : playMode;
-  const aiSide: Side | null = humanSide ? opposite(humanSide) : null;
+  // Which side the player took (raiders or king) and which one is left for the
+  // computer. Both derive from the play mode — see game/sides.ts.
+  const humanSide: Side | null = humanSideOf(playMode);
+  const aiSide: Side | null = aiSideOf(playMode);
 
   const tip = states.length - 1;
   const atTip = cursor === tip;
@@ -777,9 +778,9 @@ export default function App() {
   const showNewMatch = matchHasProgress && !midSet;
 
   // Clock placement, Lichess-style: the away side rides above the board, the
-  // near side below it. Vs the computer the human sits on the bottom.
-  const topSide: Side = humanSide ? aiSide! : "attackers";
-  const bottomSide: Side = humanSide ?? "defenders";
+  // near side below it. Vs the computer the human sits on the bottom, whichever
+  // side they took.
+  const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
   const showPause = clock.enabled && clock.started && atTip && !gameOver;
   const renderClock = (side: Side) => (
     <GameClock
@@ -979,6 +980,7 @@ export default function App() {
           t={t}
           difficulty={difficulty}
           onDifficulty={setDifficulty}
+          side={humanSide ?? "defenders"}
           onShowDemo={() => setShowDemo(true)}
           resume={pendingResume}
           onResume={resumeSavedGame}
@@ -2103,6 +2105,7 @@ function ModeOverlay({
   t,
   difficulty,
   onDifficulty,
+  side,
   onShowDemo,
   resume,
   onResume,
@@ -2112,6 +2115,8 @@ function ModeOverlay({
   t: Translations;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
+  /** The side played last time, offered as the default. */
+  side: Side;
   onShowDemo: () => void;
   /** A game found in storage, offered before anything else. */
   resume: RestoredGame | null;
@@ -2119,10 +2124,14 @@ function ModeOverlay({
   onDiscardResume: () => void;
   onChoose: (m: PlayMode) => void;
 }) {
-  // Two-step overlay: pick opponent (AI or a friend), then — for the AI — pick
-  // the difficulty before the board appears. A saved game, if there is one,
-  // gets asked about first: resume it, or drop it and set a new game up.
-  const [pickingDifficulty, setPickingDifficulty] = useState(false);
+  // Three-step overlay: pick opponent (AI or a friend), then — for the AI —
+  // which side to play, then how strong the computer should be, before the board
+  // appears. A saved game, if there is one, gets asked about first: resume it, or
+  // drop it and set a new game up.
+  const [step, setStep] = useState<"mode" | "side" | "difficulty">("mode");
+  // Held here until a difficulty is picked, since that's the step that starts
+  // the game (and starting it resets the board, so it must happen once).
+  const [chosenSide, setChosenSide] = useState<Side>(side);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
@@ -2147,7 +2156,38 @@ function ModeOverlay({
               </button>
             </div>
           </>
-        ) : pickingDifficulty ? (
+        ) : step === "side" ? (
+          <>
+            <p className="text-sm text-parchment-dim">{t.chooseSide}</p>
+            <div className="flex flex-col gap-3">
+              {(
+                [
+                  ["defenders", t.kingsSide, t.sideKingHint],
+                  ["attackers", t.raiders, t.sideRaidersHint],
+                ] as [Side, string, string][]
+              ).map(([s, label, hint]) => (
+                <button
+                  key={s}
+                  className={`btn py-3 text-base ${chosenSide === s ? "btn-primary" : ""}`}
+                  onClick={() => {
+                    setChosenSide(s);
+                    setStep("difficulty");
+                  }}
+                >
+                  {label}
+                  {/* Inherit the button's ink so the hint reads on gold too. */}
+                  <span className="block text-xs font-normal opacity-70">{hint}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              className="text-xs text-parchment-dim underline"
+              onClick={() => setStep("mode")}
+            >
+              {t.back}
+            </button>
+          </>
+        ) : step === "difficulty" ? (
           <>
             <p className="text-sm text-parchment-dim">{t.chooseDifficulty}</p>
             <div className="flex flex-col gap-3">
@@ -2164,7 +2204,7 @@ function ModeOverlay({
                   className={`btn py-3 text-base ${difficulty === d ? "btn-primary" : ""}`}
                   onClick={() => {
                     onDifficulty(d);
-                    onChoose("defenders");
+                    onChoose(chosenSide);
                   }}
                 >
                   {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
@@ -2174,7 +2214,7 @@ function ModeOverlay({
             </div>
             <button
               className="text-xs text-parchment-dim underline"
-              onClick={() => setPickingDifficulty(false)}
+              onClick={() => setStep("side")}
             >
               {t.back}
             </button>
@@ -2185,7 +2225,7 @@ function ModeOverlay({
             <div className="flex flex-col gap-3">
               <button
                 className="btn btn-primary py-3 text-base"
-                onClick={() => setPickingDifficulty(true)}
+                onClick={() => setStep("side")}
               >
                 {t.playVsAi}
               </button>
