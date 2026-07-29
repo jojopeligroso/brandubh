@@ -54,9 +54,17 @@ export interface Translations {
   kingIcon: string;
   defenderIcon: string;
   colourTheme: string;
+  pieceColours: string;
+  defenders: string;
+  themeDefault: string;
   design: string;
   done: string;
   close: string;
+  // Settings sections
+  settings: string;
+  sectionGame: string;
+  sectionMatch: string;
+  sectionAppearance: string;
 
   // Move navigation
   prevMove: string;
@@ -120,6 +128,10 @@ export interface Translations {
   newSet: string;
   nextSet: string;
   newMatch: string;
+  newMatchTitle: string;
+  newMatchBody: string;
+  newGameTitle: string;
+  newGameBody: string;
   setLength: string;
   matchScore: string;
   setsWord: string;
@@ -139,6 +151,7 @@ export interface Translations {
   playVsAi: string;
   otbOverlay: string;
   withFriend: string;
+  chooseDifficulty: string;
 
   // Rewind
   continueFromMove: string;
@@ -233,9 +246,16 @@ const en: Translations = {
   kingIcon: "King icon",
   defenderIcon: "Defender icon",
   colourTheme: "Colour theme",
+  pieceColours: "Piece colours",
+  defenders: "Defenders",
+  themeDefault: "Theme default",
   design: "Design your board",
   done: "Done",
   close: "Close",
+  settings: "Settings",
+  sectionGame: "Game",
+  sectionMatch: "Match",
+  sectionAppearance: "Appearance",
 
   prevMove: "Previous move",
   nextMove: "Next move",
@@ -295,6 +315,10 @@ const en: Translations = {
   newSet: "New set",
   nextSet: "Next set",
   newMatch: "New match",
+  newMatchTitle: "Start a new match?",
+  newMatchBody: "This clears the current score and starts the match over.",
+  newGameTitle: "Start a new game?",
+  newGameBody: "This ends the game in progress and clears the board.",
   setLength: "Set length",
   matchScore: "Match",
   setsWord: "sets",
@@ -312,6 +336,7 @@ const en: Translations = {
   playVsAi: "Play vs AI",
   otbOverlay: "Over the board",
   withFriend: "with a friend in person",
+  chooseDifficulty: "Choose difficulty",
 
   continueFromMove: "Continue from move",
   movesWillBeLost: "All subsequent moves will be lost.",
@@ -426,9 +451,16 @@ const es: Translations = {
   kingIcon: "Icono del rey",
   defenderIcon: "Icono del defensor",
   colourTheme: "Tema de color",
+  pieceColours: "Colores de las piezas",
+  defenders: "Defensores",
+  themeDefault: "Color del tema",
   design: "Diseña tu tablero",
   done: "Listo",
   close: "Cerrar",
+  settings: "Ajustes",
+  sectionGame: "Juego",
+  sectionMatch: "Encuentro",
+  sectionAppearance: "Apariencia",
 
   prevMove: "Jugada anterior",
   nextMove: "Jugada siguiente",
@@ -488,6 +520,10 @@ const es: Translations = {
   newSet: "Nueva serie",
   nextSet: "Siguiente serie",
   newMatch: "Nuevo encuentro",
+  newMatchTitle: "¿Empezar un nuevo encuentro?",
+  newMatchBody: "Esto borra la puntuación actual y reinicia el encuentro.",
+  newGameTitle: "¿Empezar un nuevo juego?",
+  newGameBody: "Esto termina el juego en curso y limpia el tablero.",
   setLength: "Partidas por serie",
   matchScore: "Encuentro",
   setsWord: "series",
@@ -505,6 +541,7 @@ const es: Translations = {
   playVsAi: "Contra la IA",
   otbOverlay: "Frente al tablero",
   withFriend: "con un amigo en persona",
+  chooseDifficulty: "Elige la dificultad",
 
   continueFromMove: "\u00bfContinuar desde el movimiento",
   movesWillBeLost:
@@ -624,9 +661,16 @@ const ga: Translations = {
   kingIcon: "Deilbhín rí",
   defenderIcon: "Deilbhín cosantóra",
   colourTheme: "Téama datha",
+  pieceColours: "Dathanna na bhfear",
+  defenders: "Cosantóirí",
+  themeDefault: "Dath an téama",
   design: "Dear do chlár",
   done: "Déanta",
   close: "Dún",
+  settings: "Socruithe",
+  sectionGame: "Cluiche",
+  sectionMatch: "Comórtas",
+  sectionAppearance: "Cuma",
 
   prevMove: "An bogadh roimhe seo",
   nextMove: "An chéad bhogadh eile",
@@ -686,6 +730,10 @@ const ga: Translations = {
   newSet: "Sraith nua",
   nextSet: "An chéad sraith eile",
   newMatch: "Comórtas nua",
+  newMatchTitle: "Comórtas nua a thosú?",
+  newMatchBody: "Glanann sé seo an scór reatha agus tosaíonn an comórtas as an nua.",
+  newGameTitle: "Cluiche nua a thosú?",
+  newGameBody: "Cuireann sé seo deireadh leis an gcluiche reatha agus glanann an clár.",
   setLength: "Cluichí sa sraith",
   matchScore: "Comórtas",
   setsWord: "sraith",
@@ -703,6 +751,7 @@ const ga: Translations = {
   playVsAi: "In aghaidh an r\u00edomhaire",
   otbOverlay: "Os comhair a ch\u00e9ile",
   withFriend: "le cara i bpearsa",
+  chooseDifficulty: "Roghnaigh an deacracht",
 
   continueFromMove: "Lean ar aghaidh \u00f3 bhogadh",
   movesWillBeLost: "Caillfear gach bogadh ina dhiaidh seo.",
