@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from "./components/Board";
 import RulesModal from "./components/RulesModal";
-import { chooseMove, type Difficulty } from "./game/ai";
+import { type Difficulty } from "./game/ai";
+import { useAiWorker } from "./game/useAiWorker";
 import {
   allMoves,
   applyMove,
@@ -187,6 +188,7 @@ export default function App() {
     : null;
 
   const aiTimer = useRef<number | null>(null);
+  const { requestMove, cancel: cancelAi } = useAiWorker();
   // Guards the set recorder so a finished game is counted exactly once, even as
   // the cursor is moved back and forth over the terminal position.
   const recorded = useRef(false);
@@ -208,22 +210,34 @@ export default function App() {
   );
 
   // ── AI turn (only while live at the tip, never while browsing) ───────────────
+  // The search runs in a Web Worker (see useAiWorker), so even a long `hard`
+  // think never freezes the board. A minimum "thinking" delay keeps fast moves
+  // (easy/medium) from snapping instantly, preserving the pacing of play.
+  const AI_MIN_THINK_MS = 350;
   useEffect(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     if (!atTip || gameOver || aiSide === null || game.turn !== aiSide) {
       setThinking(false);
+      cancelAi();
       return;
     }
     setThinking(true);
-    aiTimer.current = window.setTimeout(() => {
-      const move = chooseMove(game, difficulty, rules);
-      setThinking(false);
-      if (move) commitMove(move);
-    }, 420);
+    let cancelled = false;
+    const start = performance.now();
+    requestMove(game, difficulty, rules).then((move) => {
+      if (cancelled) return;
+      const wait = Math.max(0, AI_MIN_THINK_MS - (performance.now() - start));
+      aiTimer.current = window.setTimeout(() => {
+        if (cancelled) return;
+        setThinking(false);
+        if (move) commitMove(move);
+      }, wait);
+    });
     return () => {
+      cancelled = true;
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
     };
-  }, [game, atTip, aiSide, difficulty, rules, gameOver, commitMove]);
+  }, [game, atTip, aiSide, difficulty, rules, gameOver, commitMove, requestMove, cancelAi]);
 
   // ── Human interaction ───────────────────────────────────────────────────────
   const interactive =
