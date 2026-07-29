@@ -542,13 +542,6 @@ export default function App() {
   const setComplete = otbSet !== null && standing(otbSet).complete;
   const midSet =
     otbSet !== null && otbSet.results.length > 0 && !setComplete;
-  const primaryLabel = setComplete
-    ? t.nextSet
-    : midSet
-      ? t.nextGame
-      : otbMatch
-        ? t.newMatch
-        : t.newGame;
   // Starting a new match wipes the running score, so route it through a
   // confirmation whenever there's actually progress to lose. Anything with
   // nothing to discard (a fresh board, solo "New game") falls straight through.
@@ -563,11 +556,32 @@ export default function App() {
     else resetGame();
   }, [matchHasProgress, soloGameInProgress, resetGame]);
 
-  const primaryAction = setComplete ? nextSet : midSet ? nextGame : requestNewMatch;
-  // The standalone "New match" button is a shortcut for discarding a match in
-  // progress. Hide it while a set is live over the board — the primary button
-  // is "Next game" there and this sits right beside it, easy to fumble — so a
-  // mid-set reset goes through Settings instead. Between sets it stays handy.
+  // Contextual primary button:
+  //   • set decided        → "Next set" (bank it, continue the series)
+  //   • a game just ended   → "Next game" (sides swap)
+  //   • a game in progress  → "New game" (over the board: restart this game,
+  //                           keeping the set score; vs the computer: a fresh
+  //                           board, guarded so a stray tap can't wipe it)
+  let primaryLabel: string;
+  let primaryAction: () => void;
+  if (otbMatch) {
+    if (setComplete) {
+      primaryLabel = t.nextSet;
+      primaryAction = nextSet;
+    } else if (gameOver) {
+      primaryLabel = t.nextGame;
+      primaryAction = nextGame;
+    } else {
+      primaryLabel = t.newGame;
+      primaryAction = nextGame;
+    }
+  } else {
+    primaryLabel = t.newGame;
+    primaryAction = requestNewMatch;
+  }
+  // The standalone "New match" button wipes the running series. Hide it while a
+  // set is live over the board — the primary sits right beside it, easy to
+  // fumble — so a mid-set reset goes through Settings. Between sets it stays.
   const showNewMatch = matchHasProgress && !midSet;
 
   // Clock placement, Lichess-style: the away side rides above the board, the
