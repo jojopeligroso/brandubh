@@ -199,6 +199,21 @@ export interface Translations {
   encirclementWinRule: string;
   playButton: string;
 
+  // "Show me how" animated demo
+  demoCta: string;
+  demoTitle: string;
+  demoGoalLabel: string;
+  demoGoal: string;
+  demoGoalByVariant: Record<string, string>;
+  demoGoalHint: string;
+  demoCapturesTitle: string;
+  demoCapturesHint: string;
+  demoCapHorizontal: string;
+  demoCapVertical: string;
+  demoCapCorner: string;
+  demoCapThrone: string;
+  demoThroneKing: string;
+
   // Variant display
   variantNames: Record<string, string>;
   variantBlurbs: Record<string, string>;
@@ -389,6 +404,24 @@ const en: Translations = {
   encirclementWinRule:
     "if they completely encircle the King\u2019s side with an unbroken ring \u2014 without using the board edge.",
   playButton: "Play",
+
+  demoCta: "Show me how",
+  demoTitle: "How to play",
+  demoGoalLabel: "The goal",
+  demoGoal: "Get the King to the corner.",
+  demoGoalByVariant: {
+    walker: "Get the King to the corner.",
+    wtf: "Get the King to the corner.",
+  },
+  demoGoalHint: "You play the King\u2019s side. Reach any of the four corners to win.",
+  demoCapturesTitle: "Capturing",
+  demoCapturesHint:
+    "Trap an enemy piece between two of yours \u2014 you must be the one to move into the trap.",
+  demoCapHorizontal: "Caught between two raiders, side to side.",
+  demoCapVertical: "\u2026or top to bottom.",
+  demoCapCorner: "A corner counts as a raider too.",
+  demoCapThrone: "An empty throne counts as a raider too.",
+  demoThroneKing: "The throne cannot hurt the King, but the corners can.",
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
@@ -599,6 +632,24 @@ const es: Translations = {
   encirclementWinRule:
     "si rodean completamente al bando del Rey con un anillo ininterrumpido \u2014 sin usar el borde del tablero.",
   playButton: "Jugar",
+
+  demoCta: "Mu\u00e9strame c\u00f3mo",
+  demoTitle: "C\u00f3mo jugar",
+  demoGoalLabel: "El objetivo",
+  demoGoal: "Lleva al Rey a la esquina.",
+  demoGoalByVariant: {
+    walker: "Lleva al Rey a la esquina.",
+    wtf: "Lleva al Rey a la esquina.",
+  },
+  demoGoalHint: "Juegas con el bando del Rey. Llega a cualquiera de las cuatro esquinas para ganar.",
+  demoCapturesTitle: "Capturas",
+  demoCapturesHint:
+    "Atrapa una pieza enemiga entre dos de las tuyas \u2014 t\u00fa debes ser quien entra en la trampa.",
+  demoCapHorizontal: "Atrapada entre dos asaltantes, de lado a lado.",
+  demoCapVertical: "\u2026o de arriba abajo.",
+  demoCapCorner: "Una esquina cuenta como un asaltante m\u00e1s.",
+  demoCapThrone: "El trono vac\u00edo cuenta como un asaltante m\u00e1s.",
+  demoThroneKing: "El trono no puede da\u00f1ar al Rey, pero las esquinas s\u00ed.",
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
@@ -811,6 +862,24 @@ const ga: Translations = {
   encirclementWinRule:
     "m\u00e1 thimpealla\u00edonn siad taobh an R\u00ed go hioml\u00e1n le fainne gan bhriseadh \u2014 gan teorainn an chlair a \u00fasaid.",
   playButton: "Imir",
+
+  demoCta: "Taispe\u00e1in dom conas",
+  demoTitle: "Conas imirt",
+  demoGoalLabel: "An sprioc",
+  demoGoal: "Faigh an R\u00ed go dt\u00ed an c\u00fainne.",
+  demoGoalByVariant: {
+    walker: "Faigh an R\u00ed go dt\u00ed an c\u00fainne.",
+    wtf: "Faigh an R\u00ed go dt\u00ed an c\u00fainne.",
+  },
+  demoGoalHint: "Imr\u00edonn t\u00fa taobh an R\u00ed. Sroich aon cheann de na ceithre ch\u00fainne chun an bua a fh\u00e1il.",
+  demoCapturesTitle: "Gabh\u00e1il",
+  demoCapturesHint:
+    "S\u00e1innigh p\u00edosa namhad idir dh\u00e1 cheann de do chuidse \u2014 caithfidh tusa bogadh isteach sa s\u00e1inn.",
+  demoCapHorizontal: "S\u00e1innithe idir dh\u00e1 fhoghla\u00ed, \u00f3 thaobh go taobh.",
+  demoCapVertical: "\u2026n\u00f3 \u00f3 bhun go barr.",
+  demoCapCorner: "\u00c1ir\u00edtear c\u00fainne mar fhoghla\u00ed freisin.",
+  demoCapThrone: "\u00c1ir\u00edtear r\u00edchathaoir fholamh mar fhoghla\u00ed freisin.",
+  demoThroneKing: "N\u00ed f\u00e9idir leis an r\u00edchathaoir dochar a dh\u00e9anamh don R\u00ed, ach is f\u00e9idir leis na c\u00fainn\u00ed.",
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",

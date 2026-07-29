@@ -3,7 +3,7 @@
 ## Half-built
 
 - [ ] **Irish (ga) locale** — Full translation exists in `i18n.ts` but hidden from UI via `VISIBLE_LANGS`. Unhide when ready.
-- [ ] **`.piece.captured` / `.piece.threat` CSS** — Styled in `index.css:269-275` but never applied in components. Either wire up or remove dead CSS.
+- [ ] **`.piece.threat` CSS** — Styled in `index.css` but never applied in components. Either wire up or remove dead CSS. (`.piece.captured` is now used by the "Show me how" demo in `HowToDemo.tsx`.)
 
 ## AI engine — next levers
 

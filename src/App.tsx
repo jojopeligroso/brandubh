@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from "./components/Board";
 import RulesModal from "./components/RulesModal";
+import HowToDemo from "./components/HowToDemo";
 import { type Difficulty } from "./game/ai";
 import { useAiWorker } from "./game/useAiWorker";
 import {
@@ -156,6 +157,7 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [showModeOverlay, setShowModeOverlay] = useState(true);
+  const [showDemo, setShowDemo] = useState(false);
   const [showTakeback, setShowTakeback] = useState(false);
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
   const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
@@ -570,10 +572,23 @@ export default function App() {
           t={t}
           difficulty={difficulty}
           onDifficulty={setDifficulty}
+          onShowDemo={() => setShowDemo(true)}
           onChoose={(m) => {
             changeMode(m);
             setShowModeOverlay(false);
           }}
+        />
+      )}
+
+      {showDemo && (
+        <HowToDemo
+          t={t}
+          rules={rules}
+          attackerEmblem={emblemById(attackerEmblem)}
+          kingEmblem={kingEmblemById(kingEmblem)}
+          defenderEmblem={defenderEmblemById(defenderEmblem)}
+          cornerEmblem={cornerEmblemById(cornerEmblem)}
+          onClose={() => setShowDemo(false)}
         />
       )}
 
@@ -1478,11 +1493,13 @@ function ModeOverlay({
   t,
   difficulty,
   onDifficulty,
+  onShowDemo,
   onChoose,
 }: {
   t: Translations;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
+  onShowDemo: () => void;
   onChoose: (m: PlayMode) => void;
 }) {
   // Two-step overlay: pick opponent (AI or a friend), then — for the AI — pick
@@ -1542,6 +1559,16 @@ function ModeOverlay({
                 <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
               </button>
             </div>
+            <button
+              type="button"
+              onClick={onShowDemo}
+              className="mt-1 inline-flex items-center justify-center gap-1.5 text-sm text-parchment-dim underline decoration-dotted underline-offset-4 transition hover:text-parchment"
+            >
+              <span className="text-gold" aria-hidden>
+                ⓘ
+              </span>
+              {t.demoCta}
+            </button>
           </>
         )}
       </div>
