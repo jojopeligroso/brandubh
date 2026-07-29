@@ -24,6 +24,9 @@ const DECISIVE = WIN - 1000;
  *  floor can never hang even on a pathological position. Far above any real
  *  floored search on the boards this game plays. */
 const MIN_DEPTH_SAFETY_MS = 8000;
+/** Move-ordering index at which late-move reductions begin (the first few moves —
+ *  TT move, captures, killers — are searched at full depth). */
+const LMR_MIN_INDEX = 4;
 
 /** Centre of the board, derived so ordering works for any size (7×7, 9×9 Tablut…). */
 const CENTER = (BOARD_SIZE - 1) / 2;
@@ -57,17 +60,29 @@ export interface EvalWeights {
   /** Per (attacker legal moves − defender legal moves). 0 ⇒ skip (it costs a
    *  full move-gen for both sides, so only pay it when it earns its keep). */
   mobility: number;
+  /** Per empty square the king can reach through open orthogonal paths (its
+   *  confinement region, by flood fill). Subtracted, so a boxed-in king favours
+   *  the attackers — a gradient toward the WTF encirclement win that the crude
+   *  corner-distance and adjacency terms miss. Capped so an open board saturates
+   *  rather than swamping material. 0 ⇒ skip the flood fill. */
+  kingRegion: number;
   /** Use the blocker-aware king→corner distance (1/2/3 real king-moves) instead
    *  of the crude aligned?1:2 estimate that ignores pieces in the lane. */
   blockerAwareKingDist: boolean;
+  /** Consult the exact endgame recognizers (two-lane fork, guarded corner race) at
+   *  leaf nodes: they return a *proven* defender win where a heuristic would only
+   *  guess, sharpening the search's horizon. Sound (validated against the exhaustive
+   *  solver) — never claims a win that isn't forced. */
+  endgameRecognizers: boolean;
 }
 
 /**
- * The shipping weights for Brandubh. These are the original hand-tuned heuristic,
- * kept after an A/B gauntlet (scripts/evaltune.ts) found no candidate term beat it
- * at the depths the game actually plays: shield/liberties were worse (redundant
+ * The shipping weights for Brandubh, set by A/B gauntlet (scripts/evaltune.ts).
+ * The original hand-tuned terms held up: shield/liberties were worse (redundant
  * with the king-safety terms), mobility helped only at depth 2 (gone by depth 3)
- * and cost ~2× per node, and blocker-aware king distance was neutral. The extra
+ * and cost ~2× per node, and blocker-aware king distance was neutral. The one term
+ * that *did* earn its keep is `kingRegion` (king confinement): at depth 4 it beat
+ * the baseline 31–9 at weight 6 (24–16 at weight 8), so it ships at 6. The unused
  * terms remain as opt-in knobs for retuning on differently-balanced variants.
  */
 export const DEFAULT_WEIGHTS: EvalWeights = {
@@ -78,8 +93,36 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   liberties: 0,
   shield: 0,
   mobility: 0,
+  kingRegion: 6,
   blockerAwareKingDist: false,
+  endgameRecognizers: true,
 };
+
+/** Cap on the king's flood-filled confinement region, so a wide-open board
+ *  saturates the term instead of letting sheer space dominate material. */
+const KING_REGION_CAP = 12;
+
+/** Number of empty squares the king can reach via open orthogonal paths (walls =
+ *  any piece), capped. A small region means the king is boxed in. */
+function kingRegionSize(b: Board, kr: number, kc: number): number {
+  const seen = new Set<number>([kr * BOARD_SIZE + kc]);
+  const stack: Array<[number, number]> = [[kr, kc]];
+  let count = 0;
+  while (stack.length && count < KING_REGION_CAP) {
+    const [r, c] = stack.pop()!;
+    for (const [dr, dc] of DIRS) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc) || b[nr][nc] !== null) continue;
+      const id = nr * BOARD_SIZE + nc;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      count++;
+      stack.push([nr, nc]);
+    }
+  }
+  return count;
+}
 
 function clearPathToCorner(b: Board, kr: number, kc: number): number {
   // Count corners the king could slide to *right now* with an unobstructed
@@ -140,6 +183,85 @@ function kingCornerMoves(b: Board, kr: number, kc: number): number {
   return best;
 }
 
+// ── Exact endgame recognizers (proven defender wins) ──────────────────────────
+// These return a *proof*, not a heuristic: they only ever report a forced defender
+// win, and only when the win is genuinely forced. Each is a shallow, fully-verified
+// lookahead (2–3 plies) gated behind a cheap precondition so it stays cheap in the
+// common case. Validated exhaustively against the sound solver (solver.test-style).
+//
+// The escape value returned by the caller is just below a literal terminal escape,
+// so the search still prefers an *immediate* escape (a faster win) when it has one.
+//
+// Measured neutral in symmetric self-play (24-24 at depth 3, 16-16 at depth 5):
+// quiescence already chases king escapes and the deep search resolves these ≤3-ply
+// patterns unaided, so two equal engines gain nothing on average. Kept ON anyway
+// because they are *free* (throughput unchanged, 69k nodes/s both ways) and give a
+// horizon-correctness guarantee self-play can't show — the AI treats a two-lane
+// fork as lost even when its horizon is one ply short, which is what a human trying
+// to set one up would exploit.
+const RECOGNIZED_WIN = WIN - 2;
+
+/** Attacker to move, but the king already has ≥2 clear straight lanes to distinct
+ *  corners. A single attacker move can block at most one lane and cannot occupy two
+ *  squares, so unless some attacker move captures the king outright, the defender
+ *  escapes through a still-open lane next move. Verified move-by-move (no assumption
+ *  is trusted): every attacker reply must leave the king a clear lane and must not
+ *  end the game in the attackers' favour. Cheap precondition (≥2 lanes) makes the
+ *  per-reply loop rare. */
+function forkWinAttackerToMove(state: GameState, rules: RuleSet): boolean {
+  const b = state.board;
+  const k = findKing(b);
+  if (!k || clearPathToCorner(b, k.row, k.col) < 2) return false;
+  for (const m of allMoves(b, "attackers", rules)) {
+    const child = applyMove(state, m, rules);
+    if (isGameOver(child.status)) {
+      if (winnerOf(child.status) !== "defenders") return false; // a saving/winning attacker reply
+      continue;
+    }
+    const kk = findKing(child.board);
+    if (!kk || clearPathToCorner(child.board, kk.row, kk.col) < 1) return false; // escape sealed
+  }
+  return true; // every reply leaves an escape ⇒ defender wins next move
+}
+
+/** Is `state` a proven defender win via immediate escape, a two-lane fork, or the
+ *  king stepping into such a fork (a guarded corner race)? Sound subset — a false
+ *  result just means "not proven", never a missed loss. Exported for validation
+ *  against the exhaustive solver. */
+export function forcedDefenderWin(state: GameState, rules: RuleSet): boolean {
+  const b = state.board;
+  const k = findKing(b);
+  if (!k) return false;
+
+  // Cheap escape-zone gate: a ≤3-ply forced escape needs the king on or one step
+  // from an edge (an immediate lane or a two-lane fork square both lie on rows/cols
+  // 0-1 or 5-6). Deep-centre kings bail here in O(1); a rarer centre-king race is
+  // left to the main search to find. Keeps the recognizer near-free at most leaves.
+  const near = (x: number) => x <= 1 || x >= BOARD_SIZE - 2;
+  if (!near(k.row) && !near(k.col)) return false;
+
+  if (state.turn === "attackers") return forkWinAttackerToMove(state, rules);
+
+  // Defender to move: escape now if a lane is already open …
+  if (clearPathToCorner(b, k.row, k.col) >= 1) return true;
+  // … else the guarded corner race: the king is close enough to step onto a square
+  // from which it forks two corners the attacker can't both stop. Gate on real
+  // king-distance ≤2 so central positions don't pay for the king-move loop.
+  if (kingCornerMoves(b, k.row, k.col) > 2) return false;
+  for (const m of allMoves(b, "defenders", rules)) {
+    if (b[m.from.row][m.from.col] !== "king") continue; // the race is about the king
+    // A two-lane fork square is always on an edge (only rows/cols 0 and 6 hold
+    // corners), so only king moves that land on an edge can create one. Skipping
+    // interior destinations keeps this loop to a handful of squares.
+    const onEdge = m.to.row === 0 || m.to.row === BOARD_SIZE - 1 || m.to.col === 0 || m.to.col === BOARD_SIZE - 1;
+    if (!onEdge) continue;
+    const child = applyMove(state, m, rules);
+    if (winnerOf(child.status) === "defenders") return true; // stepped straight out
+    if (!isGameOver(child.status) && forkWinAttackerToMove(child, rules)) return true; // stepped into a fork
+  }
+  return false;
+}
+
 export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rules?: RuleSet): number {
   if (isGameOver(state.status)) {
     const winner = winnerOf(state.status);
@@ -147,6 +269,9 @@ export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rul
     if (winner === "defenders") return -WIN;
     return 0; // draw
   }
+
+  // Exact endgame recognizers: a proven forced escape is worth (−)a decisive score.
+  if (w.endgameRecognizers && rules && forcedDefenderWin(state, rules)) return -RECOGNIZED_WIN;
 
   const b = state.board;
   let attackers = 0;
@@ -196,6 +321,9 @@ export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rul
     score += hug * w.hug;
     score -= shield * w.shield;
     score -= liberties * w.liberties;
+
+    // Confinement: a king with little reachable space is being encircled.
+    if (w.kingRegion !== 0) score -= kingRegionSize(b, k.row, k.col) * w.kingRegion;
   }
 
   if (w.mobility !== 0 && rules) {
@@ -267,6 +395,15 @@ export interface SearchConfig {
   useQuiescence: boolean;
   /** Max extra plies the quiescence search may extend. */
   maxQuiescencePly: number;
+  /** Late-move reductions: search late, quiet, well-ordered moves shallower first
+   *  and only re-search at full depth if one beats the current best. Buys depth on
+   *  the lines that matter. Captures, king moves and early (promising) moves are
+   *  never reduced, so tactics are unaffected. */
+  useLMR: boolean;
+  /** Principal-variation search: after the first move, scout each move with a
+   *  null window and only re-search in full when the scout beats the bound. Same
+   *  values as plain alpha–beta, fewer nodes when move ordering is good. */
+  usePVS: boolean;
 }
 
 export const FULL_CONFIG: SearchConfig = {
@@ -275,6 +412,14 @@ export const FULL_CONFIG: SearchConfig = {
   useKillers: true,
   useQuiescence: true,
   maxQuiescencePly: 6,
+  useLMR: true,
+  // PVS ships OFF: measured neutral for Brandubh (±1% nodes, identical scores at
+  // depths 5-7) because smart ordering + the TT + LMR already tighten the search
+  // windows, leaving nothing for null-window scouting to save — the re-searches
+  // cost as much as they save. Kept as a knob for wider-branching variants (Tablut)
+  // where ordering dominates less. Aspiration windows were skipped for the same
+  // reason: the root already searches the PV move full-window and the rest narrow.
+  usePVS: false,
 };
 
 /** The original engine's behaviour — a fixed-depth searcher with legacy ordering
@@ -285,6 +430,8 @@ export const LEGACY_CONFIG: SearchConfig = {
   useKillers: false,
   useQuiescence: false,
   maxQuiescencePly: 0,
+  useLMR: false,
+  usePVS: false,
 };
 
 export interface SearchLimits {
@@ -485,9 +632,40 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
 
   let best = maximizing ? -Infinity : Infinity;
   let bestMove: Move | null = null;
+  let i = 0;
   for (const m of moves) {
     const child = applyMove(state, m, ctx.rules);
-    const v = search(child, depth - 1, ply + 1, alpha, beta, ctx);
+    // Late-move reduction: search late, quiet, non-terminal moves a ply (or two)
+    // shallower; if the shallow result would improve the bound, re-search full depth.
+    // Never reduce captures, king moves, or an early (well-ordered) move — tactics
+    // stay exact because those are exactly what move ordering surfaces first.
+    let d2 = depth - 1;
+    if (
+      ctx.cfg.useLMR &&
+      depth >= 3 &&
+      i >= LMR_MIN_INDEX &&
+      !isGameOver(child.status) &&
+      state.board[m.from.row][m.from.col] !== "king" &&
+      previewCaptureCount(state.board, m.from, m.to, state.board[m.from.row][m.from.col], state.turn, ctx.rules) === 0
+    ) {
+      d2 = Math.max(1, depth - 2 - (i >= LMR_MIN_INDEX + 6 ? 1 : 0));
+    }
+    let v: number;
+    if (!ctx.cfg.usePVS || i === 0) {
+      // First move (the PV candidate) — or PVS off — gets a full window.
+      v = search(child, d2, ply + 1, alpha, beta, ctx);
+      if (d2 < depth - 1 && (maximizing ? v > alpha : v < beta))
+        v = search(child, depth - 1, ply + 1, alpha, beta, ctx); // LMR promise ⇒ verify full depth
+    } else if (maximizing) {
+      // Scout with a null window at (possibly LMR-reduced) depth; re-search in full
+      // only if it beats alpha. Same value as alpha–beta, far fewer nodes.
+      v = search(child, d2, ply + 1, alpha, alpha + 1, ctx);
+      if (v > alpha) v = search(child, depth - 1, ply + 1, alpha, beta, ctx);
+    } else {
+      v = search(child, d2, ply + 1, beta - 1, beta, ctx);
+      if (v < beta) v = search(child, depth - 1, ply + 1, alpha, beta, ctx);
+    }
+    i++;
     if (maximizing) {
       if (v > best) {
         best = v;
@@ -513,6 +691,65 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
     ttStore(key, depth, best, flag, bestMove);
   }
   return best;
+}
+
+// ── D4 board symmetry (root-move folding) ─────────────────────────────────────
+// The board, throne and corners are symmetric under the 8 dihedral transforms of
+// the square. At a *symmetric* position (its whole stabiliser subgroup is > 1 — the
+// opening has all 8), symmetric root moves are game-identical, so we search only one
+// representative per orbit. The opening's 40 legal first moves collapse to 5, buying
+// roughly a ply. Symmetry breaks within a move or two, so this is opening-focused and
+// costs only a handful of board serialisations at the root (never per interior node).
+const N = BOARD_SIZE;
+const SYM: Array<(r: number, c: number) => [number, number]> = [
+  (r, c) => [r, c],
+  (r, c) => [c, N - 1 - r],
+  (r, c) => [N - 1 - r, N - 1 - c],
+  (r, c) => [N - 1 - c, r],
+  (r, c) => [r, N - 1 - c],
+  (r, c) => [N - 1 - r, c],
+  (r, c) => [c, r],
+  (r, c) => [N - 1 - c, N - 1 - r],
+];
+
+function serializeUnder(board: Board, t: (r: number, c: number) => [number, number]): string {
+  const out = new Array<string>(N * N).fill(".");
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++) {
+      const p = board[r][c];
+      if (p === null) continue;
+      const [nr, nc] = t(r, c);
+      out[nr * N + nc] = p === "attacker" ? "a" : p === "defender" ? "d" : "k";
+    }
+  return out.join("");
+}
+
+/** The transforms under which the position (board only — turn is symmetric too) is
+ *  unchanged: its stabiliser subgroup. Length 1 ⇒ no usable symmetry. */
+function stabilizer(board: Board): Array<(r: number, c: number) => [number, number]> {
+  const id = serializeUnder(board, SYM[0]);
+  return SYM.filter((t) => serializeUnder(board, t) === id);
+}
+
+/** Collapse root moves into one representative per orbit under `group`. */
+function foldRootMoves(moves: Move[], group: Array<(r: number, c: number) => [number, number]>): Move[] {
+  if (group.length <= 1) return moves;
+  const seen = new Set<string>();
+  const reps: Move[] = [];
+  for (const m of moves) {
+    let canon: string | null = null;
+    for (const t of group) {
+      const [fr, fc] = t(m.from.row, m.from.col);
+      const [tr, tc] = t(m.to.row, m.to.col);
+      const s = `${fr},${fc},${tr},${tc}`;
+      if (canon === null || s < canon) canon = s;
+    }
+    if (!seen.has(canon!)) {
+      seen.add(canon!);
+      reps.push(m);
+    }
+  }
+  return reps;
 }
 
 // ── Root: iterative deepening, tie-collection for a little randomness ──────────
@@ -566,8 +803,13 @@ export function pickMove(
   const maximizing = state.turn === "attackers";
   const rootKey = config.useTT ? hashBoard(state.board, state.turn) : "";
 
-  let bestMove: Move = rootMoves[0];
-  let bestTies: Move[] = [rootMoves[0]];
+  // Fold symmetric first moves at symmetric positions (opening: 40 → 5). Sound: a
+  // move and its D4 image have identical value, so searching one representative per
+  // orbit loses nothing and deepens the iteration.
+  const foldedRoots = foldRootMoves(rootMoves, stabilizer(state.board));
+
+  let bestMove: Move = foldedRoots[0];
+  let bestTies: Move[] = [foldedRoots[0]];
   let bestScore = maximizing ? -Infinity : Infinity;
   let reached = 0;
   let prevIterMs = 0;
@@ -578,7 +820,7 @@ export function pickMove(
     const iterStart = now();
     try {
       const ttMove = config.useTT ? (TT.get(rootKey)?.move ?? null) : null;
-      const ordered = orderMoves(state, allMoves(state.board, state.turn, rules), ttMove, 0, ctx);
+      const ordered = orderMoves(state, foldedRoots, ttMove, 0, ctx);
       // Share the best-so-far bound across root moves so strictly-worse moves get
       // pruned (fail-low), while any move that ties or beats the best still returns
       // its exact score — so the set of equal-best moves stays exact and we can
@@ -657,18 +899,19 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
   // medium: fixed depth 3 with the full machinery — already stronger than the old
   // hard (depth 3, no quiescence/ordering/TT), and effectively instant (~50ms).
   medium: { limits: { maxDepth: 3 }, config: FULL_CONFIG, blunder: 0 },
-  // hard: time-budgeted iterative deepening, run off the main thread in a Web
-  // Worker so the budget never freezes the UI. `minDepth` guarantees a 4-ply floor
-  // even on slow phones — enough to foresee (and block) the king's two-move dash to
-  // a corner, which a shallower search grabs material instead of preventing. Past
-  // the floor, the 3s budget + predictive stopping deepen as far as the device
-  // allows; quiescence extends tactical lines further still.
+  // hard: time-budgeted iterative deepening in a Web Worker so the budget never
+  // freezes the UI. `minDepth` guarantees a 4-ply floor even on slow phones. Root
+  // D4-folding + late-move reductions make the search ~6× leaner than before, so the
+  // opening now reaches this depth-6 cap in well under a second on desktop (a phone
+  // uses more of the 3s budget); the floor still catches the worst-case slow device.
+  // Quiescence extends tactical lines further still.
   hard: { limits: { maxDepth: 6, deadlineMs: 3000, minDepth: 4 }, config: FULL_CONFIG, blunder: 0 },
-  // ollamh ("master sage"): the strongest tier. A depth-5 floor plus an 8s budget
-  // pushes it to depth 6+ where the clock allows; a perfect-play opening book (when
-  // present) skips the slowest, most-analysed early moves and plays them optimally.
-  // Named for the highest rank of Gaelic filí. Slower to move by design.
-  ollamh: { limits: { maxDepth: 10, deadlineMs: 8000, minDepth: 5 }, config: FULL_CONFIG, blunder: 0 },
+  // ollamh ("master sage"): the strongest tier. A depth-5 floor plus an 8s budget,
+  // with folding + LMR, reaches depth ~8–9 in the opening where the clock allows —
+  // deep enough to see the king's corner races several moves out. A perfect-play
+  // opening book (when present) skips the slowest early moves and plays them
+  // optimally. Named for the highest rank of Gaelic filí. Slower to move by design.
+  ollamh: { limits: { maxDepth: 12, deadlineMs: 8000, minDepth: 5 }, config: FULL_CONFIG, blunder: 0 },
 };
 
 /** A chosen move plus what the search actually did to find it — surfaced to the

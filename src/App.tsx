@@ -97,6 +97,22 @@ import {
 
 type PlayMode = "attackers" | "defenders" | "hotseat";
 
+// ── Match-setup persistence ───────────────────────────────────────────────────
+// Difficulty, variant and side survive a page refresh (a reload otherwise silently
+// reset difficulty to "medium", which reads as the AI suddenly playing weaker).
+// Mirrors the clock/emblem/theme persistence already in the app.
+const DIFFICULTY_KEY = "brandubh.difficulty";
+const VARIANT_KEY = "brandubh.variant";
+const PLAYMODE_KEY = "brandubh.playMode";
+function loadSetting<T extends string>(key: string, valid: readonly T[], fallback: T): T {
+  try {
+    const v = localStorage.getItem(key);
+    return v && (valid as readonly string[]).includes(v) ? (v as T) : fallback;
+  } catch {
+    return fallback; // localStorage unavailable (private mode, etc.)
+  }
+}
+
 const opposite = (s: Side): Side => (s === "attackers" ? "defenders" : "attackers");
 
 function sideLabel(s: Side, t: Translations): string {
@@ -169,12 +185,28 @@ export default function App() {
     }
   }, [defenderEmblem]);
 
-  const [variantId, setVariantId] = useState(DEFAULT_VARIANT);
+  const [variantId, setVariantId] = useState(() =>
+    loadSetting(VARIANT_KEY, [...Object.keys(VARIANTS), "custom"], DEFAULT_VARIANT),
+  );
   const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
     CUSTOM_RULE_DEFAULTS,
   );
-  const [playMode, setPlayMode] = useState<PlayMode>("defenders");
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [playMode, setPlayMode] = useState<PlayMode>(() =>
+    loadSetting(PLAYMODE_KEY, ["attackers", "defenders", "hotseat"], "defenders"),
+  );
+  const [difficulty, setDifficulty] = useState<Difficulty>(() =>
+    loadSetting(DIFFICULTY_KEY, ["easy", "medium", "hard", "ollamh"], "medium"),
+  );
+  // Remember the match setup across refreshes.
+  useEffect(() => {
+    try {
+      localStorage.setItem(DIFFICULTY_KEY, difficulty);
+      localStorage.setItem(VARIANT_KEY, variantId);
+      localStorage.setItem(PLAYMODE_KEY, playMode);
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [difficulty, variantId, playMode]);
 
   // ── Game clock (chess clock) ────────────────────────────────────────────────
   // A bank of thinking time plus a Fischer increment per move, à la Lichess.

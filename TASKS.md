@@ -1,5 +1,22 @@
 # Brandubh — Open Tasks
 
+## ▶ Roadmap (start here)
+
+The remaining work is planned as sized, shippable **sessions** in
+[`docs/ROADMAP.md`](docs/ROADMAP.md), with design docs for the two big features.
+Ordered by value ÷ effort:
+
+1. **Game resumability** *(M)* — a refresh never loses a game in progress.
+2. **Play either side** *(S–M)* — choose raiders or king from the overlay.
+3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
+4. **Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.
+5. **Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.
+6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
+7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
+
+Session-sizing rule and per-session tasks live in the roadmap. The items below are
+the raw backlog those sessions draw from.
+
 ## Half-built
 
 - [ ] **Irish (ga) locale** — Full translation exists in `i18n.ts` but hidden from UI via `VISIBLE_LANGS`. Unhide when ready.
@@ -29,15 +46,11 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   weak, samey opening play.
 - [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is
   added, revisit the `hard` time budget and eval weights for the larger board.
-- [ ] **Board-symmetry (D4) root-move folding** — the opening is invariant under
-  all 8 dihedral symmetries, so its 40 legal first moves collapse to just 5
-  distinct moves (e.g. `d7-c7`, `d1-e1`, `g4-g5`, `a4-a3` are one move in four
-  costumes). Search only one representative per orbit *at symmetric positions*
-  (cheap: per-turn, not per-node) for ~1 extra opening ply. Efficiency only, not
-  strength — equivalent moves already score identically — and the payoff is
-  opening-concentrated (symmetry breaks within a move or two). Skip TT-key
-  canonicalisation: ~8× per-node hashing cost for negligible midgame gain. The
-  symmetry group generalises to any square board, so it carries to Tablut.
+- [x] **Board-symmetry (D4) root-move folding** — done (`ai.ts`: `stabilizer` /
+  `foldRootMoves`). The opening's 40 first moves fold to 5 at symmetric positions,
+  buying ~1 ply and cutting opening nodes ~2×. Applied per-turn at the root only;
+  TT-key canonicalisation deliberately skipped (per-node hashing cost for little
+  midgame gain). Generalises to any square board (carries to Tablut).
 
 ## Not implemented (documented as future)
 
