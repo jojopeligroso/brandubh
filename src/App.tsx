@@ -26,6 +26,7 @@ import {
 } from "./game/matchSet";
 import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
 import { type Lang, type Translations, translations } from "./i18n";
+import { toSeanchloTable } from "./seimhiu";
 import {
   applyPieceColors,
   applyTheme,
@@ -77,7 +78,14 @@ function sideLabel(s: Side, t: Translations): string {
 
 export default function App() {
   const [lang, setLang] = useState<Lang>("en");
-  const t = translations[lang];
+  // Irish is rendered in traditional cló Gaelach orthography: séimhiú marked
+  // with the overdot (ponc séimhithe) rather than a following "h". Other
+  // locales pass through unchanged. Memoised so the table converts once per
+  // language change, not every render.
+  const t = useMemo(
+    () => (lang === "ga" ? toSeanchloTable(translations.ga) : translations[lang]),
+    [lang],
+  );
 
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
   useEffect(() => {
@@ -703,7 +711,9 @@ function Header({
     <header className="flex items-center justify-between gap-2">
       <div>
         <h1 className="font-display text-3xl leading-none text-parchment">
-          Brand<span className="text-gold">ubh</span>
+          {/* Cló Gaelach wordmark: the séimhiú on "-ubh" is shown with the
+              overdot (ponc séimhithe), so "Brandubh" reads "Branduḃ". */}
+          Brand<span className="text-gold">uḃ</span>
         </h1>
         <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
           {t.subtitle}
