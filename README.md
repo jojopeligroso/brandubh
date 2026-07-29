@@ -12,7 +12,7 @@ built-in AI, with two historical rule variants and a custom rule editor.
 - 👑 Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
 - 🌐 Localised in English and Spanish
 - ⏱️ Optional Lichess-style chess clock (**off by default** — no timer) — a time bank plus per-move Fischer increment (**3+2** when enabled), bullet → rapid presets and a custom control, with flag-on-time
-- 🧘 **Zen mode** — a decluttered over-the-board layout showing just the board, whose turn it is, the clock and the move log; every other panel (scoreboard, captured tray, controls, takeback, resign, …) is opt-in from settings
+- 🧘 **Configurable board** — the board, turn, clock and move log are always on; every other panel (scoreboard, captured tray, move nav, controls, rules, takeback, resign, settings) is individually toggleable from settings, with a one-tap **Zen** preset that hides all extras for a calm over-the-board layout and **Show all** to bring them back
 - 📱 Mobile-first, no backend, works offline — pure static SPA
 - 🎨 Carved-wood board, crown / shield / axe piece emblems, move log, undo
 

@@ -96,17 +96,17 @@ export interface Translations {
   catBlitz: string;
   catRapid: string;
 
-  // Zen mode
-  zenMode: string;
-  zenHint: string;
-  zenShowExtras: string;
-  on: string;
-  off: string;
+  // Board display (what is shown)
+  displayTitle: string;
+  displayHint: string;
+  zenPresetLabel: string;
+  showAllLabel: string;
   zenElScoreboard: string;
   zenElCaptured: string;
   zenElNav: string;
   zenElControls: string;
   zenElRules: string;
+  zenElSettings: string;
 
   // Custom rules
   customRulesTitle: string;
@@ -300,16 +300,17 @@ const en: Translations = {
   catBlitz: "Blitz",
   catRapid: "Rapid",
 
-  zenMode: "Zen mode",
-  zenHint: "A calm, decluttered board — just the pieces, the turn, the clock and the move log. Choose any extras to keep.",
-  zenShowExtras: "Also show",
-  on: "On",
-  off: "Off",
+  displayTitle: "Show on board",
+  displayHint:
+    "Choose which panels appear. Zen hides every extra for a calm, over-the-board board; Show all brings them back.",
+  zenPresetLabel: "Zen",
+  showAllLabel: "Show all",
   zenElScoreboard: "Match scoreboard",
   zenElCaptured: "Captured pieces",
   zenElNav: "Move navigation",
   zenElControls: "Game controls",
   zenElRules: "Rules button",
+  zenElSettings: "Settings panels",
 
   customRulesTitle: "Custom rules",
   ruleArmedKing: "Armed king",
@@ -519,16 +520,17 @@ const es: Translations = {
   catBlitz: "Rel\u00e1mpago",
   catRapid: "R\u00e1pido",
 
-  zenMode: "Modo zen",
-  zenHint: "Un tablero sereno y despejado \u2014 solo las piezas, el turno, el reloj y el registro de jugadas. Elige los extras que quieras mantener.",
-  zenShowExtras: "Mostrar tambi\u00e9n",
-  on: "Activado",
-  off: "Apagado",
+  displayTitle: "Mostrar en el tablero",
+  displayHint:
+    "Elige qu\u00e9 paneles aparecen. Zen oculta todos los extras para un tablero sereno; Mostrar todo los restaura.",
+  zenPresetLabel: "Zen",
+  showAllLabel: "Mostrar todo",
   zenElScoreboard: "Marcador de la serie",
   zenElCaptured: "Piezas capturadas",
   zenElNav: "Navegaci\u00f3n de jugadas",
   zenElControls: "Controles del juego",
   zenElRules: "Bot\u00f3n de reglas",
+  zenElSettings: "Paneles de ajustes",
 
   customRulesTitle: "Reglas personalizadas",
   ruleArmedKing: "Rey armado",
@@ -743,16 +745,17 @@ const ga: Translations = {
   catBlitz: "Splanc",
   catRapid: "Tapa",
 
-  zenMode: "Mód zen",
-  zenHint: "Clár ciúin, néata — na píosaí, an seal, an clog agus an loga bogtha amháin. Roghnaigh aon bhreiseán le coinneáil.",
-  zenShowExtras: "Taispeáin freisin",
-  on: "Air",
-  off: "As",
+  displayTitle: "Taispeáin ar an gclár",
+  displayHint:
+    "Roghnaigh na painéil a thaispeántar. Folaíonn Zen gach breiseán le haghaidh cláir chiúin; taispeánann Taispeáin gach rud arís iad.",
+  zenPresetLabel: "Zen",
+  showAllLabel: "Taispeáin gach rud",
   zenElScoreboard: "Scórchlár na sraithe",
   zenElCaptured: "Píosaí gafa",
   zenElNav: "Nascleanúint bogtha",
   zenElControls: "Rialuithe an chluiche",
   zenElRules: "Cnaipe rialacha",
+  zenElSettings: "Painéil socruithe",
 
   customRulesTitle: "Rialacha saincheaptha",
   ruleArmedKing: "Rí armtha",

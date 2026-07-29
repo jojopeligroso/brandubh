@@ -1,22 +1,28 @@
-// ── Zen mode (decluttered board) ─────────────────────────────────────────────
+// ── Board display config (what is shown) ─────────────────────────────────────
 //
-// Zen mode strips the screen back to the essentials — the board, whose turn it
-// is, the clock (if one is running) and the move log — for a calm,
-// over-the-board feel. Every other panel (match scoreboard, captured tray, move
-// navigator, game controls, rules button, takeback, resign) is opt-in: hidden by
-// default in zen, each revealed individually from settings.
+// The board itself, whose turn it is, the clock (when running) and the move log
+// are the essentials — always on screen. Every other panel is optional and
+// individually toggleable from settings: the match scoreboard, captured tray,
+// move navigator, game controls, rules button, takeback, resign, and the inline
+// settings panels themselves.
+//
+// "Zen" is simply the preset that hides every optional panel for a calm,
+// over-the-board board; "Show all" brings them back. The settings panels can be
+// hidden too, so the same controls always live in the always-reachable gear ⚙
+// modal as well.
 
-export type ZenElementId =
+export type BoardElementId =
   | "scoreboard"
   | "captured"
   | "nav"
   | "controls"
   | "rules"
   | "takeback"
-  | "resign";
+  | "resign"
+  | "settings";
 
-/** The optional panels, in the order they appear in the settings picker. */
-export const ZEN_ELEMENTS: ZenElementId[] = [
+/** Optional panels, in the order they appear in the settings picker. */
+export const BOARD_ELEMENTS: BoardElementId[] = [
   "scoreboard",
   "captured",
   "nav",
@@ -24,61 +30,65 @@ export const ZEN_ELEMENTS: ZenElementId[] = [
   "rules",
   "takeback",
   "resign",
+  "settings",
 ];
 
-export interface ZenConfig {
-  /** Whether zen mode is active. */
-  enabled: boolean;
-  /** Which optional panels stay visible while zen is active. */
-  show: Record<ZenElementId, boolean>;
+export type DisplayShow = Record<BoardElementId, boolean>;
+
+export interface DisplayConfig {
+  show: DisplayShow;
 }
 
-export const ZEN_ENABLED_KEY = "brandubh.zen.enabled";
-export const ZEN_SHOW_KEY = "brandubh.zen.show";
+export const DISPLAY_SHOW_KEY = "brandubh.display.show";
 
-const allHidden = (): Record<ZenElementId, boolean> =>
-  ZEN_ELEMENTS.reduce(
-    (acc, id) => {
-      acc[id] = false;
-      return acc;
-    },
-    {} as Record<ZenElementId, boolean>,
-  );
+const fill = (value: boolean): DisplayShow =>
+  BOARD_ELEMENTS.reduce((acc, id) => {
+    acc[id] = value;
+    return acc;
+  }, {} as DisplayShow);
 
-export const defaultZenConfig = (): ZenConfig => ({ enabled: false, show: allHidden() });
+/** Everything visible — the default. */
+export const showAllPreset = (): DisplayShow => fill(true);
+/** The zen preset — every optional panel hidden. */
+export const zenPreset = (): DisplayShow => fill(false);
 
-/** Parse a stored `show` map, keeping only known boolean flags. Pure + robust. */
-export function parseZenShow(raw: string | null): Record<ZenElementId, boolean> {
-  const show = allHidden();
+export const defaultDisplay = (): DisplayConfig => ({ show: showAllPreset() });
+
+/** True when nothing optional is shown (the zen preset is in effect). */
+export const isZen = (show: DisplayShow): boolean => BOARD_ELEMENTS.every((id) => !show[id]);
+/** True when every optional panel is shown. */
+export const isAllShown = (show: DisplayShow): boolean =>
+  BOARD_ELEMENTS.every((id) => show[id]);
+
+/** Parse a stored show map. Unknown keys are dropped; missing ones default to
+ *  visible, so a new panel added in a later version shows by default. */
+export function parseDisplayShow(raw: string | null): DisplayShow {
+  const show = showAllPreset();
   if (!raw) return show;
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     if (parsed && typeof parsed === "object") {
-      for (const id of ZEN_ELEMENTS) {
+      for (const id of BOARD_ELEMENTS) {
         if (typeof parsed[id] === "boolean") show[id] = parsed[id] as boolean;
       }
     }
   } catch {
-    /* malformed — fall back to all hidden */
+    /* malformed — fall back to all shown */
   }
   return show;
 }
 
-export function loadZenConfig(): ZenConfig {
-  const cfg = defaultZenConfig();
+export function loadDisplay(): DisplayConfig {
   try {
-    cfg.enabled = localStorage.getItem(ZEN_ENABLED_KEY) === "1";
-    cfg.show = parseZenShow(localStorage.getItem(ZEN_SHOW_KEY));
+    return { show: parseDisplayShow(localStorage.getItem(DISPLAY_SHOW_KEY)) };
   } catch {
-    /* localStorage unavailable */
+    return defaultDisplay();
   }
-  return cfg;
 }
 
-export function saveZenConfig(cfg: ZenConfig): void {
+export function saveDisplay(cfg: DisplayConfig): void {
   try {
-    localStorage.setItem(ZEN_ENABLED_KEY, cfg.enabled ? "1" : "0");
-    localStorage.setItem(ZEN_SHOW_KEY, JSON.stringify(cfg.show));
+    localStorage.setItem(DISPLAY_SHOW_KEY, JSON.stringify(cfg.show));
   } catch {
     /* ignore persistence failures */
   }
