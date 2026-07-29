@@ -515,6 +515,65 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
   return best;
 }
 
+// ── D4 board symmetry (root-move folding) ─────────────────────────────────────
+// The board, throne and corners are symmetric under the 8 dihedral transforms of
+// the square. At a *symmetric* position (its whole stabiliser subgroup is > 1 — the
+// opening has all 8), symmetric root moves are game-identical, so we search only one
+// representative per orbit. The opening's 40 legal first moves collapse to 5, buying
+// roughly a ply. Symmetry breaks within a move or two, so this is opening-focused and
+// costs only a handful of board serialisations at the root (never per interior node).
+const N = BOARD_SIZE;
+const SYM: Array<(r: number, c: number) => [number, number]> = [
+  (r, c) => [r, c],
+  (r, c) => [c, N - 1 - r],
+  (r, c) => [N - 1 - r, N - 1 - c],
+  (r, c) => [N - 1 - c, r],
+  (r, c) => [r, N - 1 - c],
+  (r, c) => [N - 1 - r, c],
+  (r, c) => [c, r],
+  (r, c) => [N - 1 - c, N - 1 - r],
+];
+
+function serializeUnder(board: Board, t: (r: number, c: number) => [number, number]): string {
+  const out = new Array<string>(N * N).fill(".");
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++) {
+      const p = board[r][c];
+      if (p === null) continue;
+      const [nr, nc] = t(r, c);
+      out[nr * N + nc] = p === "attacker" ? "a" : p === "defender" ? "d" : "k";
+    }
+  return out.join("");
+}
+
+/** The transforms under which the position (board only — turn is symmetric too) is
+ *  unchanged: its stabiliser subgroup. Length 1 ⇒ no usable symmetry. */
+function stabilizer(board: Board): Array<(r: number, c: number) => [number, number]> {
+  const id = serializeUnder(board, SYM[0]);
+  return SYM.filter((t) => serializeUnder(board, t) === id);
+}
+
+/** Collapse root moves into one representative per orbit under `group`. */
+function foldRootMoves(moves: Move[], group: Array<(r: number, c: number) => [number, number]>): Move[] {
+  if (group.length <= 1) return moves;
+  const seen = new Set<string>();
+  const reps: Move[] = [];
+  for (const m of moves) {
+    let canon: string | null = null;
+    for (const t of group) {
+      const [fr, fc] = t(m.from.row, m.from.col);
+      const [tr, tc] = t(m.to.row, m.to.col);
+      const s = `${fr},${fc},${tr},${tc}`;
+      if (canon === null || s < canon) canon = s;
+    }
+    if (!seen.has(canon!)) {
+      seen.add(canon!);
+      reps.push(m);
+    }
+  }
+  return reps;
+}
+
 // ── Root: iterative deepening, tie-collection for a little randomness ──────────
 export interface SearchResult {
   move: Move | null;
@@ -566,8 +625,13 @@ export function pickMove(
   const maximizing = state.turn === "attackers";
   const rootKey = config.useTT ? hashBoard(state.board, state.turn) : "";
 
-  let bestMove: Move = rootMoves[0];
-  let bestTies: Move[] = [rootMoves[0]];
+  // Fold symmetric first moves at symmetric positions (opening: 40 → 5). Sound: a
+  // move and its D4 image have identical value, so searching one representative per
+  // orbit loses nothing and deepens the iteration.
+  const foldedRoots = foldRootMoves(rootMoves, stabilizer(state.board));
+
+  let bestMove: Move = foldedRoots[0];
+  let bestTies: Move[] = [foldedRoots[0]];
   let bestScore = maximizing ? -Infinity : Infinity;
   let reached = 0;
   let prevIterMs = 0;
@@ -578,7 +642,7 @@ export function pickMove(
     const iterStart = now();
     try {
       const ttMove = config.useTT ? (TT.get(rootKey)?.move ?? null) : null;
-      const ordered = orderMoves(state, allMoves(state.board, state.turn, rules), ttMove, 0, ctx);
+      const ordered = orderMoves(state, foldedRoots, ttMove, 0, ctx);
       // Share the best-so-far bound across root moves so strictly-worse moves get
       // pruned (fail-low), while any move that ties or beats the best still returns
       // its exact score — so the set of equal-best moves stays exact and we can
