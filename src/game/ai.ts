@@ -22,11 +22,13 @@ export type Difficulty = "easy" | "medium" | "hard";
 // they are deterministic. Hard searches with iterative deepening up to depth 4
 // but bails to the best fully-searched depth once the budget is spent, so a
 // tangled position never freezes the board.
-const MAX_DEPTH: Record<Difficulty, number> = { easy: 1, medium: 3, hard: 4 };
+const MAX_DEPTH: Record<Difficulty, number> = { easy: 1, medium: 3, hard: 6 };
 const BUDGET_MS: Record<Difficulty, number> = {
   easy: Infinity,
   medium: Infinity,
-  hard: 900,
+  // ~5.2s of search; with the UI's short pre-move pause plus a small overrun the
+  // "thinking" spell still lands under six seconds — deliberation, not a hang.
+  hard: 5200,
 };
 
 const WIN = 1_000_000;
@@ -201,6 +203,17 @@ function orderMoves(moves: Move[], side: Side, king: Square | null): Move[] {
     .map((x) => x.m);
 }
 
+// ── Time control ──────────────────────────────────────────────────────────────
+// A hard-difficulty move searches under a wall-clock budget. Rather than thread a
+// deadline through every recursive call, the search reads these module globals
+// (set by chooseMove) and unwinds via a thrown sentinel the instant the budget is
+// spent — so a move never overruns, even mid-branch. Easy/medium run with an
+// infinite deadline, so they never throw and stay fully deterministic.
+const TIMED_OUT = Symbol("search-timeout");
+let searchDeadline = Infinity;
+let searchNow: () => number = Date.now;
+let searchNodes = 0;
+
 // ── Alpha–beta minimax (attacker-positive) ────────────────────────────────────
 function search(
   state: GameState,
@@ -210,6 +223,9 @@ function search(
   rules: RuleSet,
 ): number {
   if (depth === 0 || isGameOver(state.status)) return evaluate(state, rules);
+  // Check the clock every so often (Date.now per node would be wasteful); the
+  // 127-node stride bounds any overrun to a sliver of work past the deadline.
+  if ((++searchNodes & 127) === 0 && searchNow() > searchDeadline) throw TIMED_OUT;
 
   const maximizing = state.turn === "attackers";
   const moves = orderMoves(
@@ -263,50 +279,55 @@ export function chooseMove(
 
   const maximizing = state.turn === "attackers";
   const maxDepth = MAX_DEPTH[difficulty];
-  const deadline = now() + BUDGET_MS[difficulty];
+
+  // Arm the search clock. A finite budget lets the recursion bail out mid-branch
+  // the moment time is up (see `search`); Infinity means "search the full depth".
+  searchDeadline = BUDGET_MS[difficulty] === Infinity ? Infinity : now() + BUDGET_MS[difficulty];
+  searchNow = now;
+  searchNodes = 0;
 
   // Iterative deepening: search depth 1, then 2, … keeping each root move's
   // score to order the next (deeper) pass best-first. That ordering sharpens
   // alpha-beta pruning, and it lets us stop at any completed depth when the
-  // clock runs out while still returning a fully-searched move.
+  // clock runs out while still returning a fully-searched move from the last
+  // depth we finished.
   let best: Move[] = [rootMoves[0]];
   let scored = rootMoves.map((m) => ({ m, s: 0 }));
 
-  for (let depth = 1; depth <= maxDepth; depth++) {
-    const order = scored
-      .slice()
-      .sort((a, b) => (maximizing ? b.s - a.s : a.s - b.s))
-      .map((x) => x.m);
+  try {
+    for (let depth = 1; depth <= maxDepth; depth++) {
+      const order = scored
+        .slice()
+        .sort((a, b) => (maximizing ? b.s - a.s : a.s - b.s))
+        .map((x) => x.m);
 
-    const results: Array<{ m: Move; s: number }> = [];
-    let bestScore = maximizing ? -Infinity : Infinity;
-    const bestMoves: Move[] = [];
-    let aborted = false;
+      const results: Array<{ m: Move; s: number }> = [];
+      let bestScore = maximizing ? -Infinity : Infinity;
+      const bestMoves: Move[] = [];
 
-    for (const m of order) {
-      // Full window at the root so every move gets an exact score — needed to
-      // gather all genuinely-tied best moves and to order the next pass.
-      const score = search(applyMove(state, m, rules), depth - 1, -Infinity, Infinity, rules);
-      results.push({ m, s: score });
-      if (maximizing ? score > bestScore : score < bestScore) {
-        bestScore = score;
-        bestMoves.length = 0;
-        bestMoves.push(m);
-      } else if (score === bestScore) {
-        bestMoves.push(m);
+      for (const m of order) {
+        // Full window at the root so every move gets an exact score — needed to
+        // gather all genuinely-tied best moves and to order the next pass. A
+        // timeout here throws out of the whole (unfinished) depth.
+        const score = search(applyMove(state, m, rules), depth - 1, -Infinity, Infinity, rules);
+        results.push({ m, s: score });
+        if (maximizing ? score > bestScore : score < bestScore) {
+          bestScore = score;
+          bestMoves.length = 0;
+          bestMoves.push(m);
+        } else if (score === bestScore) {
+          bestMoves.push(m);
+        }
       }
-      if (now() > deadline) {
-        aborted = true;
-        break;
-      }
-    }
 
-    // Only adopt a depth we finished; a half-searched depth is misleading.
-    if (!aborted) {
+      // Finished this depth cleanly — adopt it and let the next pass go deeper.
       best = bestMoves;
       scored = results;
+      if (Math.abs(bestScore) >= WIN) break; // forced win/loss found; no deeper search helps
     }
-    if (aborted || Math.abs(bestScore) >= WIN) break; // out of time, or forced result
+  } catch (e) {
+    if (e !== TIMED_OUT) throw e;
+    // Budget spent mid-depth: keep the best move from the last completed depth.
   }
 
   return best[Math.floor(rng() * best.length)] ?? rootMoves[0];
