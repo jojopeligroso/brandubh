@@ -95,6 +95,24 @@ export function recordGame(set: MatchSet, status: GameStatus, moves: number): Ma
   };
 }
 
+/**
+ * Undo the most recent {@link recordGame} — the exact inverse, side assignments
+ * included. Needed because a game lost on time can be resumed: stepping back to
+ * an earlier position puts the clocks back to what that position was first
+ * offered with, so the game is live again and its banked loss must come back out
+ * of the set. An empty set is returned unchanged.
+ */
+export function unrecordLastGame(set: MatchSet): MatchSet {
+  if (set.results.length === 0) return set;
+  return {
+    ...set,
+    results: set.results.slice(0, -1),
+    // recordGame swapped the assignments on the way in; swap them back.
+    attackersPlayer: set.defendersPlayer,
+    defendersPlayer: set.attackersPlayer,
+  };
+}
+
 export interface SetStanding {
   /** Games won by each player. */
   wins: Record<PlayerId, number>;
@@ -182,6 +200,11 @@ export function newMatch(
 /** Record a finished game into the match's current set. */
 export function recordMatchGame(match: Match, status: GameStatus, moves: number): Match {
   return { ...match, set: recordGame(match.set, status, moves) };
+}
+
+/** Take the most recently recorded game back out of the match's current set. */
+export function unrecordLastMatchGame(match: Match): Match {
+  return { ...match, set: unrecordLastGame(match.set) };
 }
 
 /**

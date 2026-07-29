@@ -9,6 +9,8 @@ import {
   recordMatchGame,
   standing,
   startNextSet,
+  unrecordLastGame,
+  unrecordLastMatchGame,
   type Match,
   type MatchSet,
 } from "./matchSet";
@@ -138,6 +140,61 @@ describe("match set", () => {
   it("otherPlayer flips the player id", () => {
     expect(otherPlayer("p1")).toBe("p2");
     expect(otherPlayer("p2")).toBe("p1");
+  });
+});
+
+describe("unrecording a game", () => {
+  // A loss on time is the one result that can be undone: stepping back to an
+  // earlier position restores the clocks it was first offered with, so the game
+  // is live again and its banked result has to come back out of the set.
+  it("is the exact inverse of recording, side assignments included", () => {
+    const before = newSet();
+    const after = unrecordLastGame(recordGame(before, "defenders_win_time", 14));
+    expect(after).toEqual(before);
+  });
+
+  it("leaves earlier games in the set alone", () => {
+    let set = playSet([["defenders_win_escape", 20], ["attackers_win_time", 12]]);
+    set = unrecordLastGame(set);
+    expect(set.results).toHaveLength(1);
+    expect(set.results[0].status).toBe("defenders_win_escape");
+    // Back to the assignments game 2 was played under.
+    expect(set.attackersPlayer).toBe("p2");
+    expect(set.defendersPlayer).toBe("p1");
+    expect(standing(set).complete).toBe(false);
+  });
+
+  it("re-opens a set that the undone game had completed", () => {
+    let set = playSet([["defenders_win_escape", 20], ["defenders_win_escape", 22]]);
+    expect(standing(set).complete).toBe(true);
+    set = unrecordLastGame(set);
+    expect(standing(set).complete).toBe(false);
+    expect(standing(set).winner).toBe(null);
+    expect(standing(set).wins).toEqual({ p1: 0, p2: 1 });
+  });
+
+  it("scores a resumed game once, not twice", () => {
+    // P1 flags on time, then rewinds to an earlier position and plays on to a
+    // win. The set should hold that one win, not the loss as well.
+    let set = newSet();
+    set = recordGame(set, "defenders_win_time", 12); // P1 (raiders) lost on time
+    set = unrecordLastGame(set); // resumed from an earlier position
+    set = recordGame(set, "attackers_win_capture", 26); // P1 goes on to win
+    expect(set.results).toHaveLength(1);
+    expect(standing(set).wins).toEqual({ p1: 1, p2: 0 });
+  });
+
+  it("does nothing to an empty set", () => {
+    const set = newSet();
+    expect(unrecordLastGame(set)).toEqual(set);
+  });
+
+  it("unwinds the match wrapper too", () => {
+    const match = playMatchSet(newMatch(), [["defenders_win_time", 12]]);
+    const undone = unrecordLastMatchGame(match);
+    expect(undone.set.results).toHaveLength(0);
+    expect(undone.set.attackersPlayer).toBe("p1");
+    expect(matchTotals(undone).gameWins).toEqual({ p1: 0, p2: 0 });
   });
 });
 
