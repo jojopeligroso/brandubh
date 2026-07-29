@@ -5,8 +5,10 @@
 **Purpose.** Every historical reference to the Irish board game **brandub / brandubh**
 (and its named relatives **fidchell** and **búanfach / búanbach**) that survives in
 texts **more than 600 years old** (composed on or before ~1426), with the Welsh
-**gwyddbwyll** parallels alongside. Quotes are given verbatim where corroborated,
-each with its text, date, manuscript, translator, and source.
+**gwyddbwyll** parallels alongside, plus (§5) the wider *Táin* frame the game sits in —
+Cú Chulainn's lone defence at the ford, his non-soldier watchman Láeg, and Macha's curse
+on Ulster. Quotes are given verbatim where corroborated, each with its text, date,
+manuscript, translator, and source.
 
 ---
 
@@ -203,7 +205,64 @@ it is fine as "later bardic tradition."
 
 ---
 
-## §5. Ready-to-use pull-quotes (verified enough to publish, framed honestly)
+## §5. The hero at the ford — the Ferdia combat, Láeg the watchman, and Macha's curse
+
+*Broader Táin context, for narrative site copy about the lone defence of Ulster. Same
+confidence rules apply; the original Irish for this section could **not** be opened
+in-environment (egress blocked), so it is flagged 🔶 with edition pointers rather than
+reproduced from memory.*
+
+### 5.1 The episode — *Comrac Fir Diad* ("The Combat of Ferdia")
+- **Text/date:** the climactic single combat of the *Táin Bó Cúailnge*; fullest in the
+  Book of Leinster recension (12th c.), Recension I language 8th–9th c. Within window.
+- **What it is:** Cú Chulainn holds the ford of Muirthemne **alone** against Medb's army
+  and, over three–four days, kills his own foster-brother **Ferdia** — they had trained
+  together under Scáthach — with the *gáe bolga*. By night the two part as friends (shared
+  fire, exchanged healing herbs, horses in one paddock) until the final day, when they
+  camp apart.
+- **Confidence:** ✅ episode corroborated; 🔶 verbatim Irish/English to be quoted from
+  O'Rahilly.
+
+### 5.2 Láeg mac Riangabra — the wakeful non-soldier ("night watchman")
+- Cú Chulainn's **charioteer**, pointedly *not* a warrior: the one wakeful non-combatant at
+  the ford through the nights of the combat. He keeps watch, names each oncoming champion
+  and his weapons, hands the weapons across (floats the *gáe bolga* down the river), tends
+  the wounds, and — on Cú Chulainn's own prior order — **rouses him with taunts** when he
+  flags.
+- The tradition also describes him keeping **"watch and ward of the four airts
+  (directions)"** and as the man who **"won every other game of *fidchell* and *búanbach*
+  from his master"** — the board-game thread and the watchman role meeting in one figure.
+- **Secondary rouser (a different man):** **Súaltam**, Cú Chulainn's mortal father, who
+  rides round Ulster trying to wake the stricken warriors — even his severed head keeps
+  repeating the warning. Not the ford-companion; that is Láeg.
+- **Confidence:** ✅ role corroborated; 🔶 the "four airts / won every game" descriptor
+  needs pinning to a specific edition before it is published.
+- **Source:** "'My only friend is my charioteer': Láeg mac Riangabra in *Táin Bó
+  Cúailnge*" (Univ. of Cambridge repository); en.wikipedia.org/wiki/Láeg.
+
+### 5.3 The spell on Ulster — Macha's curse (*Cess Noínden Ulad*)
+- **Text/date:** *Noínden Ulad* ("The Debility of the Ulstermen"), 9th c. Mss: Book of
+  Leinster, Yellow Book of Lecan, Book of Fermoy. Within window.
+- **What it is:** **Macha**, forced while heavily pregnant to race the king's horses, wins,
+  gives birth, and curses the men who heard her cry to be seized — *in their hour of
+  greatest need, for nine generations* — by the pangs of a woman in childbirth. It is a
+  **labour-pang debility, not a sleep spell.** Cú Chulainn is exempt (not reckoned "of the
+  Ulaid" / his part-divine youth), as are women and children — which is also why a
+  charioteer like Láeg is up while the warriors lie helpless.
+- **Two corrections for copy accuracy:**
+  - **Macha, not the Morrígan** — but Macha is routinely counted among the three
+    war-goddesses (the *Morrígna*: Badb, Macha, and the Morrígan/Nemain), so "the Morrígan
+    cursed Ulster" is a common loose conflation. The *specific* curse is Macha's.
+  - **The Morrígan proper does appear at this ford**, in a different role: she offers Cú
+    Chulainn her love, is refused, and attacks him mid-combat as an **eel, a she-wolf, then
+    a red-eared heifer** (during his fight with **Loch**, not Ferdia); he wounds her in each
+    form and later, unknowing, heals her.
+- **Confidence:** ✅ corroborated; 🔶 original Irish of the curse to be quoted from CELT
+  **G301025** / Hull, *Celtica* 8 (1968) / Meyer, *ZCP* 8 (1912).
+
+---
+
+## §6. Ready-to-use pull-quotes (verified enough to publish, framed honestly)
 
 > **Brandub, thirteen pieces.** *"My famed brandub is in the mountain above Leitir Bhroin,
 > five voiceless men of white silver and eight of red gold."* — *Acallam na Senórach*,
@@ -219,12 +278,18 @@ it is fine as "later bardic tradition."
 > **Wood-sense.** *Fidchell*, glossed in Cormac's Glossary (c. 900) as the game that "needs
 > sense and learning to play it," on a squared board of black and white men.
 
+> **The lone defence** *(paraphrase for narrative copy — not a translation).* By Macha's
+> curse the men of Ulster lie gripped by the pangs of childbirth in their hour of need;
+> only the boy Cú Chulainn — not reckoned among the Ulaid — holds the ford, and beside him
+> his charioteer Láeg, who is no soldier and keeps the watch.
+
 *(Attach a one-line provenance note wherever these appear, e.g. "translations as cited;
-medieval spellings vary.")*
+medieval spellings vary." The last item is a paraphrase and must not be presented as a
+verbatim medieval quotation.)*
 
 ---
 
-## §6. Verify-before-publishing checklist
+## §7. Verify-before-publishing checklist
 
 1. Original **Irish** of the Acallam brandub stanza (Stokes, *Irische Texte* IV.1, 1900 /
    CELT G303000). English + translator already ✅.
@@ -236,13 +301,26 @@ medieval spellings vary.")*
 6. Discard as **modern embellishment** unless a real medieval source turns up: "Cú
    Chulainn plays fidchell in the moving chariot," and the "blood spilled on the board
    between the king and Cú Chulainn" anecdote.
+7. **Láeg's watchman descriptor** — locate the exact edition/§ for "watch and ward of the
+   four airts" and "won every game of *fidchell* and *búanbach* from his master."
+8. **Macha's curse** — original Irish + published translation from CELT **G301025** (Hull,
+   *Celtica* 8, 1968; Meyer, *ZCP* 8, 1912).
+9. **Comrac Fir Diad** — verbatim Irish/English of the nightly-truce passage (shared fire,
+   healing herbs) and the *gáe bolga* climax, from O'Rahilly (DIAS).
 
-## §7. Bibliography / where to confirm (all were 403-blocked in this environment)
+## §8. Bibliography / where to confirm (all were 403-blocked in this environment)
 
 - **Eoin Mac White, "Early Irish Board Games," *Éigse* 5 (1945–47), 25–35** — the
   authoritative compilation (brandub "5 vs 8 / branán / noble squares"; the "Abair riom"
   translation). unicorngarden.com/eigse/ (eigse01–06.htm).
-- **O'Rahilly, *Táin Bó Cúailnge Recension 1*** (DIAS, 1976) — CELT T301035.
+- **O'Rahilly, *Táin Bó Cúailnge Recension 1*** (DIAS, 1976) — CELT T301012/G301012; the
+  *Comrac Fir Diad* and Láeg passages.
+- **O'Rahilly, *Táin Bó Cúailnge from the Book of Leinster*** (DIAS, 1967) — the fuller LL
+  Ferdia lay.
+- **Vernam Hull, "Noínden Ulad: The debility of the Ulidians," *Celtica* 8 (1968)**; Kuno
+  Meyer, "Die Ursache von Noinden Ulad," *ZCP* 8 (1912) — Macha's curse. CELT **G301025**.
+- **"'My only friend is my charioteer': Láeg mac Riangabra in *Táin Bó Cúailnge*"** — Univ.
+  of Cambridge repository (repository.cam.ac.uk).
 - **Standish O'Grady, *Silva Gadelica*** (1892) — Acallam translation.
 - **Whitley Stokes, *Acallamh na Senórach*, *Irische Texte* IV.1** (1900).
 - **"'A Fenian pastime'? Early Irish board games and their identification with chess,"
