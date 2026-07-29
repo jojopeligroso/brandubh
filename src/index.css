@@ -158,8 +158,8 @@
   --cell-dark: rgba(0, 0, 0, 0.12);
   --motif-ink: #191f21;
 
-  --atk: #e67e80;
-  --atk-ink: #3a1414;
+  --atk: #1b1e20;
+  --atk-ink: #d3c6aa;
   --def: #d3c6aa;
   --def-ink: #3d484d;
   --king: #dbbc7f;
@@ -569,6 +569,30 @@ body {
   pointer-events: none;
 }
 
+/* chessboard-style coordinates: files a–g along the bottom, ranks 1–7 up the left */
+.coord {
+  position: absolute;
+  z-index: 3;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(0.56rem, 1.75vw, 0.86rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--motif-ink) 92%, transparent);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--color-parchment) 60%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+.coord-rank {
+  top: 3px;
+  left: 3px;
+}
+.coord-file {
+  right: 4px;
+  bottom: 2px;
+  text-transform: lowercase;
+}
+
 /* legal-move markers */
 .dot {
   position: absolute;
@@ -585,6 +609,15 @@ body {
   background: transparent;
   border: 3px solid color-mix(in srgb, var(--color-blood) 75%, transparent);
   box-shadow: 0 0 12px color-mix(in srgb, var(--color-blood) 50%, transparent);
+}
+.dot.win {
+  width: 82%;
+  height: 82%;
+  background: transparent;
+  border: 3px solid color-mix(in srgb, var(--color-gold) 85%, transparent);
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--color-gold) 60%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--color-gold) 30%, transparent);
 }
 
 /* ── Pieces ────────────────────────────────────────────────────────────────── */
@@ -654,6 +687,40 @@ body {
   width: 74%;
   height: 74%;
   color: var(--king-ink);
+}
+/* Backlight glow on the pieces of the side whose turn it is. A soft, slowly
+   pulsing halo painted behind the stone (negative z-index within the piece's
+   stacking context). Tinted by the always-vivid side accents so it reads even
+   on dark stones (e.g. Everforest's black raiders). */
+.piece.active-turn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  z-index: -1;
+  animation: turnpulse 2.4s ease-in-out infinite;
+}
+.piece.attacker.active-turn::before {
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-blood) 65%, transparent);
+}
+.piece.defender.active-turn::before,
+.piece.king.active-turn::before {
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-gold) 65%, transparent);
+}
+@keyframes turnpulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .piece.active-turn::before {
+    animation: none;
+    opacity: 0.6;
+  }
 }
 .piece.captured {
   animation: capture 260ms ease-in forwards;
@@ -748,12 +815,54 @@ body {
   border-radius: 14px;
 }
 
+/* Backlight glow on the turn indicator, tinted by the side to move so it's
+   clear at a glance whose move it is. */
+.turn-glow {
+  transition: box-shadow 240ms ease;
+}
+.turn-glow-attackers {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-blood) 30%, transparent),
+    0 0 18px -2px color-mix(in srgb, var(--color-blood) 55%, transparent);
+}
+.turn-glow-defenders {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-gold) 30%, transparent),
+    0 0 18px -2px color-mix(in srgb, var(--color-gold) 55%, transparent);
+}
+
 /* ── Theme picker swatches ─────────────────────────────────────────────────── */
 .theme-swatches {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+/* Custom piece-colour picker: a round well showing the chosen stone colour,
+   with the native colour input laid over it and hidden. */
+.color-swatch {
+  position: relative;
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--color-parchment) 30%, transparent);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  overflow: hidden;
+}
+.color-swatch input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
 .theme-swatch {
   position: relative;
   display: inline-flex;
@@ -1080,4 +1189,90 @@ body {
 .corner-emblem svg {
   width: 100%;
   height: 100%;
+}
+
+/* ── How-to-play animated demo ─────────────────────────────────────────────── */
+/* Small self-contained board vignettes that loop a single capture, reusing the
+   real .cell / .piece / .corner / .special styling so they match the board and
+   every theme. `--cols` / `--rows` size the grid; the moving piece is an
+   absolutely-positioned overlay that slides between cells. */
+.demo {
+  display: grid;
+  gap: 0.9rem 0.75rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 480px) {
+  .demo {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.demo-vignette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.demo-caption {
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: var(--color-parchment-dim);
+}
+.demo-caption b {
+  color: var(--color-gold);
+  font-weight: 600;
+}
+
+.demo-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), 1fr);
+  aspect-ratio: var(--cols) / var(--rows);
+  width: 100%;
+  border-radius: 9px;
+  background:
+    radial-gradient(ellipse 22% 26% at 30% 34%, color-mix(in srgb, var(--motif-ink) 12%, transparent), transparent 100%),
+    linear-gradient(150deg, var(--board-c1) 0%, var(--board-c2) 55%, var(--board-c3) 100%);
+  border: 2px solid color-mix(in srgb, var(--board-c3) 62%, #000 38%);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--color-gold) 30%, transparent),
+    inset 0 1px 12px color-mix(in srgb, var(--motif-ink) 45%, transparent),
+    0 6px 16px -10px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+/* Cells inside a demo grid carry the same motifs as the real board. */
+.demo-grid .cell {
+  cursor: default;
+}
+/* The sliding attacker: exactly one cell in size, translated by whole cells. */
+.demo-mover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / var(--cols));
+  height: calc(100% / var(--rows));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(calc(var(--mc) * 100%), calc(var(--mr) * 100%));
+  transition: transform 620ms cubic-bezier(0.35, 0.8, 0.35, 1);
+  z-index: 4;
+  pointer-events: none;
+}
+/* Red custodial-capture ring, reusing the board's capture marker. */
+.demo-grid .dot.capture {
+  z-index: 3;
+}
+
+/* Reduced motion: the loop is frozen on its finished frame, so the captured
+   piece stays visible as a faded ghost under a static red ring instead of
+   animating away. */
+.demo-grid .piece.demo-ghost {
+  opacity: 0.32;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-mover {
+    transition: none;
+  }
 }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from "./components/Board";
 import RulesModal from "./components/RulesModal";
-import { chooseMove, type Difficulty } from "./game/ai";
+import HowToDemo from "./components/HowToDemo";
+import { type Difficulty } from "./game/ai";
+import { useAiWorker } from "./game/useAiWorker";
 import {
   allMoves,
   applyMove,
@@ -51,7 +53,16 @@ import {
   type ZenExtraId,
 } from "./zen";
 import { type Lang, type Translations, translations } from "./i18n";
-import { applyTheme, loadTheme, THEMES, type ThemeId } from "./theme";
+import {
+  applyPieceColors,
+  applyTheme,
+  loadPieceColors,
+  loadTheme,
+  THEMES,
+  type PieceColors,
+  type PieceKey,
+  type ThemeId,
+} from "./theme";
 import {
   ATTACKER_EMBLEMS,
   ATTACKER_EMBLEM_KEY,
@@ -99,6 +110,15 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  // Optional per-side stone colours layered over the theme (null = follow theme).
+  const [pieceColors, setPieceColors] = useState<PieceColors>(loadPieceColors);
+  useEffect(() => {
+    applyPieceColors(pieceColors);
+  }, [pieceColors]);
+  const setPieceColor = useCallback((key: PieceKey, value: string | null) => {
+    setPieceColors((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const [attackerEmblem, setAttackerEmblem] = useState<AttackerEmblemId>(loadAttackerEmblem);
   useEffect(() => {
@@ -200,8 +220,13 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [showModeOverlay, setShowModeOverlay] = useState(true);
+  const [showDemo, setShowDemo] = useState(false);
   const [showTakeback, setShowTakeback] = useState(false);
+  // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
+  const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
   const [showResign, setShowResign] = useState(false);
+  const [showNewMatchConfirm, setShowNewMatchConfirm] = useState(false);
+  const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
 
   const rules: RuleSet =
@@ -242,6 +267,7 @@ export default function App() {
   const clock = useGameClock(timeControl, atTip && !gameOver, onFlag);
 
   const aiTimer = useRef<number | null>(null);
+  const { requestMove, cancel: cancelAi } = useAiWorker();
   // Guards the set recorder so a finished game is counted exactly once, even as
   // the cursor is moved back and forth over the terminal position.
   const recorded = useRef(false);
@@ -263,22 +289,45 @@ export default function App() {
   );
 
   // ── AI turn (only while live at the tip, never while browsing) ───────────────
+  // The search runs in a Web Worker (see useAiWorker), so even a long `hard`
+  // think never freezes the board. A minimum "thinking" delay keeps fast moves
+  // (easy/medium) from snapping instantly, preserving the pacing of play.
+  const AI_MIN_THINK_MS = 350;
   useEffect(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     if (!atTip || gameOver || clock.paused || aiSide === null || game.turn !== aiSide) {
       setThinking(false);
+      cancelAi();
       return;
     }
     setThinking(true);
-    aiTimer.current = window.setTimeout(() => {
-      const move = chooseMove(game, difficulty, rules);
-      setThinking(false);
-      if (move) commitMove(move);
-    }, 420);
+    let cancelled = false;
+    const start = performance.now();
+    requestMove(game, difficulty, rules).then((move) => {
+      if (cancelled) return;
+      const wait = Math.max(0, AI_MIN_THINK_MS - (performance.now() - start));
+      aiTimer.current = window.setTimeout(() => {
+        if (cancelled) return;
+        setThinking(false);
+        if (move) commitMove(move);
+      }, wait);
+    });
     return () => {
+      cancelled = true;
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
     };
-  }, [game, atTip, aiSide, difficulty, rules, gameOver, commitMove, clock.paused]);
+  }, [
+    game,
+    atTip,
+    aiSide,
+    difficulty,
+    rules,
+    gameOver,
+    commitMove,
+    clock.paused,
+    requestMove,
+    cancelAi,
+  ]);
 
   // ── Drive the clock from the move timeline ──────────────────────────────────
   // Each new move at the tip presses the mover's clock (banks their increment
@@ -421,6 +470,19 @@ export default function App() {
     [cursor, states],
   );
 
+  // Over the board, resuming from an earlier move discards every move that
+  // followed — a multi-move takeback — so it needs the opponent's agreement,
+  // routed through the same confirmation screen. Solo play (vs the computer)
+  // has no opponent to ask, so it branches immediately.
+  const requestPlayFromHere = useCallback(
+    (vsComputer: boolean) => {
+      if (isGameOver(states[cursor].status)) return;
+      if (humanSide === null) setPendingBranch({ vsComputer });
+      else playFromHere(vsComputer);
+    },
+    [states, cursor, humanSide, playFromHere],
+  );
+
   const doTakeback = useCallback(() => {
     setShowTakeback(false);
     if (tip < 1) return;
@@ -478,26 +540,35 @@ export default function App() {
   const otbMatch = playMode === "hotseat" ? match : null;
   const otbSet = otbMatch?.set ?? null;
   const setComplete = otbSet !== null && standing(otbSet).complete;
-  let primaryLabel: string;
-  let primaryAction: () => void;
-  if (otbMatch) {
-    if (setComplete) {
-      primaryLabel = t.nextSet;
-      primaryAction = nextSet;
-    } else if (gameOver) {
-      primaryLabel = t.nextGame;
-      primaryAction = nextGame;
-    } else {
-      primaryLabel = t.newGame;
-      primaryAction = nextGame;
-    }
-  } else {
-    primaryLabel = t.newGame;
-    primaryAction = resetGame;
-  }
-  // A new *match* wipes the running series, so it is only offered once a set is
-  // decided — the natural break where you choose to continue or start over.
-  const showNewMatch = otbMatch !== null && setComplete;
+  const midSet =
+    otbSet !== null && otbSet.results.length > 0 && !setComplete;
+  const primaryLabel = setComplete
+    ? t.nextSet
+    : midSet
+      ? t.nextGame
+      : otbMatch
+        ? t.newMatch
+        : t.newGame;
+  // Starting a new match wipes the running score, so route it through a
+  // confirmation whenever there's actually progress to lose. Anything with
+  // nothing to discard (a fresh board, solo "New game") falls straight through.
+  const matchHasProgress =
+    otbMatch !== null && (otbSet!.results.length > 0 || matchTotals(otbMatch).setsCompleted > 0);
+  // A solo game with moves on the board and no result yet is worth guarding too:
+  // a stray "New game" tap shouldn't silently wipe a game in progress.
+  const soloGameInProgress = otbMatch === null && tip >= 1 && !gameOver;
+  const requestNewMatch = useCallback(() => {
+    if (matchHasProgress) setShowNewMatchConfirm(true);
+    else if (soloGameInProgress) setShowNewGameConfirm(true);
+    else resetGame();
+  }, [matchHasProgress, soloGameInProgress, resetGame]);
+
+  const primaryAction = setComplete ? nextSet : midSet ? nextGame : requestNewMatch;
+  // The standalone "New match" button is a shortcut for discarding a match in
+  // progress. Hide it while a set is live over the board — the primary button
+  // is "Next game" there and this sits right beside it, easy to fumble — so a
+  // mid-set reset goes through Settings instead. Between sets it stays handy.
+  const showNewMatch = matchHasProgress && !midSet;
 
   // Clock placement, Lichess-style: the away side rides above the board, the
   // near side below it. Vs the computer the human sits on the bottom.
@@ -597,7 +668,7 @@ export default function App() {
               </button>
             )}
             {progression && showNewMatch && (
-              <button className="btn" onClick={resetGame}>
+              <button className="btn" onClick={requestNewMatch}>
                 {t.newMatch}
               </button>
             )}
@@ -634,8 +705,8 @@ export default function App() {
           viewedTerminal={gameOver}
           showVsAi={showVsAiBranch}
           onLatest={goLatest}
-          onPlay={() => playFromHere(false)}
-          onPlayVsAi={() => playFromHere(true)}
+          onPlay={() => requestPlayFromHere(false)}
+          onPlayVsAi={() => requestPlayFromHere(true)}
         />
       )}
 
@@ -654,6 +725,9 @@ export default function App() {
             onDifficulty={setDifficulty}
             gamesPerSet={gamesPerSet}
             onSetLength={changeSetLength}
+            canNewMatch={matchHasProgress}
+            onNewMatch={requestNewMatch}
+            onShowDesign={() => setShowDesign(true)}
           />
 
           <ClockSettings
@@ -690,10 +764,25 @@ export default function App() {
       {showModeOverlay && (
         <ModeOverlay
           t={t}
+          difficulty={difficulty}
+          onDifficulty={setDifficulty}
+          onShowDemo={() => setShowDemo(true)}
           onChoose={(m) => {
             changeMode(m);
             setShowModeOverlay(false);
           }}
+        />
+      )}
+
+      {showDemo && (
+        <HowToDemo
+          t={t}
+          rules={rules}
+          attackerEmblem={emblemById(attackerEmblem)}
+          kingEmblem={kingEmblemById(kingEmblem)}
+          defenderEmblem={defenderEmblemById(defenderEmblem)}
+          cornerEmblem={cornerEmblemById(cornerEmblem)}
+          onClose={() => setShowDemo(false)}
         />
       )}
 
@@ -709,6 +798,22 @@ export default function App() {
         />
       )}
 
+      {pendingBranch && (
+        <ConfirmDialog
+          t={t}
+          title={t.takebackTitle}
+          body={t.takebackBody}
+          confirmLabel={t.allow}
+          cancelLabel={t.decline}
+          onConfirm={() => {
+            const { vsComputer } = pendingBranch;
+            setPendingBranch(null);
+            playFromHere(vsComputer);
+          }}
+          onCancel={() => setPendingBranch(null)}
+        />
+      )}
+
       {showResign && (
         <ConfirmDialog
           t={t}
@@ -721,11 +826,43 @@ export default function App() {
         />
       )}
 
+      {showNewMatchConfirm && (
+        <ConfirmDialog
+          t={t}
+          title={t.newMatchTitle}
+          body={t.newMatchBody}
+          confirmLabel={t.newMatch}
+          cancelLabel={t.back}
+          onConfirm={() => {
+            setShowNewMatchConfirm(false);
+            resetGame();
+          }}
+          onCancel={() => setShowNewMatchConfirm(false)}
+        />
+      )}
+
+      {showNewGameConfirm && (
+        <ConfirmDialog
+          t={t}
+          title={t.newGameTitle}
+          body={t.newGameBody}
+          confirmLabel={t.newGame}
+          cancelLabel={t.back}
+          onConfirm={() => {
+            setShowNewGameConfirm(false);
+            resetGame();
+          }}
+          onCancel={() => setShowNewGameConfirm(false)}
+        />
+      )}
+
       {showDesign && (
         <DesignModal
           t={t}
           theme={theme}
           onTheme={setTheme}
+          pieceColors={pieceColors}
+          onPieceColor={setPieceColor}
           attackerEmblem={attackerEmblem}
           onAttackerEmblem={setAttackerEmblem}
           kingEmblem={kingEmblem}
@@ -852,8 +989,11 @@ function StatusBar({
     if (aiSide && game.turn === aiSide) tone = "text-parchment-dim";
   }
 
+  const live = !isGameOver(game.status);
+  const turnGlow = live ? ` turn-glow turn-glow-${game.turn}` : "";
+
   return (
-    <div className="card mt-4 flex items-center justify-between px-4 py-2.5">
+    <div className={`card mt-4 flex items-center justify-between px-4 py-2.5${turnGlow}`}>
       <span className={`font-display text-lg ${tone}`}>{text}</span>
       <span className="font-mono text-xs text-parchment-dim">{t.moveLabel} {game.moveCount}</span>
     </div>
@@ -1164,6 +1304,9 @@ function Settings({
   onDifficulty,
   gamesPerSet,
   onSetLength,
+  canNewMatch,
+  onNewMatch,
+  onShowDesign,
 }: {
   t: Translations;
   variantId: string;
@@ -1174,63 +1317,103 @@ function Settings({
   onDifficulty: (d: Difficulty) => void;
   gamesPerSet: number;
   onSetLength: (n: number) => void;
+  canNewMatch: boolean;
+  onNewMatch: () => void;
+  onShowDesign: () => void;
 }) {
   return (
-    <div className="card mt-4 space-y-3 p-4">
-      <Row label={t.playAs}>
-        <div className="seg">
-          {(
-            [
-              ["defenders", t.king],
-              ["attackers", t.raiders],
-              ["hotseat", t.overTheBoard],
-            ] as [PlayMode, string][]
-          ).map(([m, l]) => (
-            <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </Row>
+    <div className="card mt-4 space-y-4 p-4">
+      <h2 className="font-display text-lg text-parchment">{t.settings}</h2>
 
-      {playMode !== "hotseat" && (
-        <Row label={t.aiLevel}>
+      {/* ── Game ── how you play: side, opponent strength, ruleset ── */}
+      <SettingsSection label={t.sectionGame}>
+        <Row label={t.playAs}>
           <div className="seg">
-            {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard]] as [Difficulty, string][]).map(([d, label]) => (
-              <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
-                {label}
-              </button>
-            )))}
-          </div>
-        </Row>
-      )}
-
-      {playMode === "hotseat" && (
-        <Row label={t.setLength}>
-          <div className="seg">
-            {SET_LENGTH_OPTIONS.map((n) => (
-              <button key={n} className={gamesPerSet === n ? "on" : ""} onClick={() => onSetLength(n)}>
-                {n}
+            {(
+              [
+                ["defenders", t.king],
+                ["attackers", t.raiders],
+                ["hotseat", t.overTheBoard],
+              ] as [PlayMode, string][]
+            ).map(([m, l]) => (
+              <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
+                {l}
               </button>
             ))}
           </div>
         </Row>
+
+        {playMode !== "hotseat" && (
+          <Row label={t.aiLevel}>
+            <div className="seg">
+              {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard]] as [Difficulty, string][]).map(([d, label]) => (
+                <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
+                  {label}
+                </button>
+              )))}
+            </div>
+          </Row>
+        )}
+
+        <Row label={t.variant}>
+          <select
+            className="btn"
+            value={variantId}
+            onChange={(e) => onVariant(e.target.value)}
+          >
+            {Object.values(VARIANTS).map((v) => (
+              <option key={v.id} value={v.id}>
+                {t.variantNames[v.id] ?? v.name}
+              </option>
+            ))}
+            <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
+          </select>
+        </Row>
+      </SettingsSection>
+
+      {/* ── Match ── over-the-board series controls (hotseat only) ── */}
+      {playMode === "hotseat" && (
+        <SettingsSection label={t.sectionMatch}>
+          <Row label={t.setLength}>
+            <div className="seg">
+              {SET_LENGTH_OPTIONS.map((n) => (
+                <button key={n} className={gamesPerSet === n ? "on" : ""} onClick={() => onSetLength(n)}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </Row>
+
+          {/* Reset the running match — kept here (not in the action row) so it
+              can't be fumbled mid-set, but still reachable while a set is live. */}
+          {canNewMatch && (
+            <Row label={t.newMatch}>
+              <button className="btn" onClick={onNewMatch}>
+                {t.newMatch}
+              </button>
+            </Row>
+          )}
+        </SettingsSection>
       )}
 
-      <Row label={t.variant}>
-        <select
-          className="btn"
-          value={variantId}
-          onChange={(e) => onVariant(e.target.value)}
-        >
-          {Object.values(VARIANTS).map((v) => (
-            <option key={v.id} value={v.id}>
-              {t.variantNames[v.id] ?? v.name}
-            </option>
-          ))}
-          <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
-        </select>
-      </Row>
+      {/* ── Appearance ── board & piece look (opens the design modal) ── */}
+      <SettingsSection label={t.sectionAppearance}>
+        <button className="btn w-full justify-center" onClick={onShowDesign}>
+          {t.design}
+        </button>
+      </SettingsSection>
+    </div>
+  );
+}
+
+// A labelled group of rows inside the settings card.
+function SettingsSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3 border-t border-parchment/10 pt-3 first-of-type:border-t-0 first-of-type:pt-0">
+      <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+        {label}
+      </span>
+      {children}
     </div>
   );
 }
@@ -1417,6 +1600,8 @@ function DesignModal({
   t,
   theme,
   onTheme,
+  pieceColors,
+  onPieceColor,
   attackerEmblem,
   onAttackerEmblem,
   kingEmblem,
@@ -1434,6 +1619,8 @@ function DesignModal({
   t: Translations;
   theme: ThemeId;
   onTheme: (id: ThemeId) => void;
+  pieceColors: PieceColors;
+  onPieceColor: (key: PieceKey, value: string | null) => void;
   attackerEmblem: AttackerEmblemId;
   onAttackerEmblem: (id: AttackerEmblemId) => void;
   kingEmblem: KingEmblemId;
@@ -1448,6 +1635,38 @@ function DesignModal({
   onToggleZenExtra: (id: ZenExtraId) => void;
   onClose: () => void;
 }) {
+  // The colour a piece has under the current theme, with any custom override
+  // stripped — this seeds the picker when a side is still "follow theme". Read
+  // straight from the applied CSS so it always tracks index.css, then restore
+  // the live overrides so the board itself isn't disturbed.
+  const [themeStones, setThemeStones] = useState<Record<PieceKey, string>>({
+    atk: "#888888",
+    def: "#888888",
+    king: "#888888",
+  });
+  useEffect(() => {
+    const root = document.documentElement;
+    const keys: PieceKey[] = ["atk", "def", "king"];
+    const saved = keys.map((k) => [k, root.style.getPropertyValue(`--${k}`)] as const);
+    keys.forEach((k) => root.style.removeProperty(`--${k}`));
+    const cs = getComputedStyle(root);
+    const next = {} as Record<PieceKey, string>;
+    keys.forEach((k) => {
+      const v = cs.getPropertyValue(`--${k}`).trim();
+      next[k] = /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#888888";
+    });
+    saved.forEach(([k, v]) => {
+      if (v) root.style.setProperty(`--${k}`, v);
+    });
+    setThemeStones(next);
+  }, [theme]);
+
+  const stoneRows: { key: PieceKey; label: string }[] = [
+    { key: "atk", label: t.raiders },
+    { key: "def", label: t.defenders },
+    { key: "king", label: t.king },
+  ];
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
@@ -1492,6 +1711,39 @@ function DesignModal({
                 {m.name}
               </button>
             ))}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <span className="text-sm font-semibold text-parchment-dim">{t.pieceColours}</span>
+          <div className="mt-2 space-y-2">
+            {stoneRows.map(({ key, label }) => {
+              const custom = pieceColors[key];
+              const value = custom ?? themeStones[key];
+              return (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-parchment">{label}</span>
+                  <div className="flex items-center gap-2">
+                    <label className="color-swatch" style={{ background: value }}>
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(e) => onPieceColor(key, e.target.value)}
+                        aria-label={label}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="btn text-xs"
+                      onClick={() => onPieceColor(key, null)}
+                      disabled={!custom}
+                    >
+                      {t.themeDefault}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -1628,29 +1880,88 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function ModeOverlay({ t, onChoose }: { t: Translations; onChoose: (m: PlayMode) => void }) {
+function ModeOverlay({
+  t,
+  difficulty,
+  onDifficulty,
+  onShowDemo,
+  onChoose,
+}: {
+  t: Translations;
+  difficulty: Difficulty;
+  onDifficulty: (d: Difficulty) => void;
+  onShowDemo: () => void;
+  onChoose: (m: PlayMode) => void;
+}) {
+  // Two-step overlay: pick opponent (AI or a friend), then — for the AI — pick
+  // the difficulty before the board appears.
+  const [pickingDifficulty, setPickingDifficulty] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
         <h2 className="font-display text-2xl text-parchment">
           Brand<span className="text-gold">ubh</span>
         </h2>
-        <p className="text-sm text-parchment-dim">{t.chooseGame}</p>
-        <div className="flex flex-col gap-3">
-          <button
-            className="btn btn-primary py-3 text-base"
-            onClick={() => onChoose("defenders")}
-          >
-            {t.playVsAi}
-          </button>
-          <button
-            className="btn py-3 text-base"
-            onClick={() => onChoose("hotseat")}
-          >
-            {t.otbOverlay}
-            <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
-          </button>
-        </div>
+        {pickingDifficulty ? (
+          <>
+            <p className="text-sm text-parchment-dim">{t.chooseDifficulty}</p>
+            <div className="flex flex-col gap-3">
+              {(
+                [
+                  ["easy", t.easy],
+                  ["medium", t.medium],
+                  ["hard", t.hard],
+                ] as [Difficulty, string][]
+              ).map(([d, label]) => (
+                <button
+                  key={d}
+                  className={`btn py-3 text-base ${difficulty === d ? "btn-primary" : ""}`}
+                  onClick={() => {
+                    onDifficulty(d);
+                    onChoose("defenders");
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              className="text-xs text-parchment-dim underline"
+              onClick={() => setPickingDifficulty(false)}
+            >
+              {t.back}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-parchment-dim">{t.chooseGame}</p>
+            <div className="flex flex-col gap-3">
+              <button
+                className="btn btn-primary py-3 text-base"
+                onClick={() => setPickingDifficulty(true)}
+              >
+                {t.playVsAi}
+              </button>
+              <button
+                className="btn py-3 text-base"
+                onClick={() => onChoose("hotseat")}
+              >
+                {t.otbOverlay}
+                <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onShowDemo}
+              className="mt-1 inline-flex items-center justify-center gap-1.5 text-sm text-parchment-dim underline decoration-dotted underline-offset-4 transition hover:text-parchment"
+            >
+              <span className="text-gold" aria-hidden>
+                ⓘ
+              </span>
+              {t.demoCta}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import type { KingEmblemDef } from "../kingEmblems";
 import type { DefenderEmblemDef } from "../defenderEmblems";
 
 // ── Piece emblems (Celtic / Gaelic inspired) ─────────────────────────────────
-function Emblem({
+export function Emblem({
   piece,
   attackerEmblem,
   kingEmblem,
@@ -131,6 +131,9 @@ export default function Board({
     return s === turn && (controllable === null || controllable === turn);
   };
 
+  // Chessboard-style coordinates: files a–g across, ranks 1–7 up the side.
+  const FILES = "abcdefg";
+
   return (
     <div className="board" role="grid" aria-label="Brandubh board">
       {Array.from({ length: BOARD_SIZE }, (_, r) =>
@@ -145,6 +148,8 @@ export default function Board({
           const lastFrom = lastMove && lastMove.from.row === r && lastMove.from.col === c;
           const dark = (r + c) % 2 === 1;
           const pickable = canPick({ row: r, col: c }) || isLegal;
+          const fileLabel = r === BOARD_SIZE - 1 ? FILES[c] : null;
+          const rankLabel = c === 0 ? String(BOARD_SIZE - r) : null;
 
           return (
             <div
@@ -163,6 +168,16 @@ export default function Board({
                 .join(" ")}
               onClick={() => interactive && onSquareClick({ row: r, col: c })}
             >
+              {rankLabel && (
+                <span className="coord coord-rank" aria-hidden>
+                  {rankLabel}
+                </span>
+              )}
+              {fileLabel && (
+                <span className="coord coord-file" aria-hidden>
+                  {fileLabel}
+                </span>
+              )}
               {isCorner(r, c) && !piece && (
                 <span className="corner-emblem" aria-hidden>
                   <svg viewBox={cornerEmblem.viewBox} fill="currentColor" fillRule="evenodd">
@@ -171,7 +186,10 @@ export default function Board({
                 </span>
               )}
               {piece && (
-                <div className={`piece ${piece}`} title={piece}>
+                <div
+                  className={`piece ${piece}${sideOf(piece) === turn ? " active-turn" : ""}`}
+                  title={piece}
+                >
                   <Emblem
                     piece={piece}
                     attackerEmblem={attackerEmblem}

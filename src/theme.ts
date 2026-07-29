@@ -25,7 +25,7 @@ export interface ThemeMeta {
 
 // Softer, earthier themes lead; the more saturated ones follow.
 export const THEMES: ThemeMeta[] = [
-  { id: "everforest", name: "Everforest", chips: ["#3d484d", "#dbbc7f", "#a7c080", "#e67e80"] },
+  { id: "everforest", name: "Everforest", chips: ["#3d484d", "#dbbc7f", "#a7c080", "#1b1e20"] },
   { id: "carved-wood", name: "Carved Wood", chips: ["#a9793f", "#e0a83a", "#e6b849", "#b23a48"] },
   { id: "rose-pine", name: "Rosé Pine", chips: ["#232135", "#f6c177", "#c4a7e7", "#eb6f92"] },
   { id: "kanagawa", name: "Kanagawa", chips: ["#2a2a37", "#e6c384", "#98bb6c", "#c34043"] },
@@ -68,6 +68,72 @@ export function loadTheme(): ThemeId {
     /* localStorage unavailable (private mode, etc.) */
   }
   return pickDefaultTheme();
+}
+
+// ── Custom piece colours ─────────────────────────────────────────────────────
+// Optional per-side overrides for the stone colours. A `null` means "follow the
+// current theme"; a hex value overrides it. The pieces read `--atk` / `--def` /
+// `--king` (and matching `-ink` for the emblem on top), which each theme sets in
+// index.css — an inline value on the document root wins over the theme.
+
+export type PieceKey = "atk" | "def" | "king";
+
+export interface PieceColors {
+  atk: string | null;
+  def: string | null;
+  king: string | null;
+}
+
+export const EMPTY_PIECE_COLORS: PieceColors = { atk: null, def: null, king: null };
+
+export const PIECE_COLORS_KEY = "brandubh.pieceColors";
+
+function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+export function loadPieceColors(): PieceColors {
+  try {
+    const raw = localStorage.getItem(PIECE_COLORS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<PieceColors>;
+      return {
+        atk: isHexColor(parsed?.atk) ? parsed.atk : null,
+        def: isHexColor(parsed?.def) ? parsed.def : null,
+        king: isHexColor(parsed?.king) ? parsed.king : null,
+      };
+    }
+  } catch {
+    /* localStorage unavailable or malformed */
+  }
+  return { ...EMPTY_PIECE_COLORS };
+}
+
+// Pick a dark or light emblem ink so the mark stays legible on any chosen stone.
+function readableInk(hex: string): string {
+  const channel = (i: number) => parseInt(hex.slice(i, i + 2), 16) / 255;
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const luminance = 0.2126 * lin(channel(1)) + 0.7152 * lin(channel(3)) + 0.0722 * lin(channel(5));
+  return luminance > 0.5 ? "#1b1b22" : "#f4f1e8";
+}
+
+export function applyPieceColors(colors: PieceColors): void {
+  const root = document.documentElement;
+  (Object.keys(EMPTY_PIECE_COLORS) as PieceKey[]).forEach((key) => {
+    const value = colors[key];
+    if (value) {
+      root.style.setProperty(`--${key}`, value);
+      root.style.setProperty(`--${key}-ink`, readableInk(value));
+    } else {
+      root.style.removeProperty(`--${key}`);
+      root.style.removeProperty(`--${key}-ink`);
+    }
+  });
+  try {
+    localStorage.setItem(PIECE_COLORS_KEY, JSON.stringify(colors));
+  } catch {
+    /* ignore persistence failures */
+  }
 }
 
 export function applyTheme(theme: ThemeId): void {
