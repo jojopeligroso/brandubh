@@ -88,6 +88,34 @@ export interface Translations {
   attackersWinResign: string;
   defendersWinResign: string;
 
+  // Game clock
+  clock: string;
+  clockOff: string;
+  timeControlLabel: string;
+  customTimeControl: string;
+  minutesLabel: string;
+  incrementLabel: string;
+  pause: string;
+  resume: string;
+  flagLabel: string;
+  attackersWinTime: string;
+  defendersWinTime: string;
+  catBullet: string;
+  catBlitz: string;
+  catRapid: string;
+
+  // Zen mode
+  zenMode: string;
+  zenHint: string;
+  zenShowExtras: string;
+  on: string;
+  off: string;
+  zenElScoreboard: string;
+  zenElCaptured: string;
+  zenElNav: string;
+  zenElRules: string;
+  zenElSettings: string;
+
   // Custom rules
   customRulesTitle: string;
   ruleArmedKing: string;
@@ -291,6 +319,33 @@ const en: Translations = {
   resignBody: "You concede the game to your opponent.",
   attackersWinResign: "Raiders win — The King’s side resigned.",
   defendersWinResign: "King’s side win — The Raiders resigned.",
+
+  clock: "Clock",
+  clockOff: "Off",
+  timeControlLabel: "Time control",
+  customTimeControl: "Custom",
+  minutesLabel: "Minutes",
+  incrementLabel: "Increment (s)",
+  pause: "Pause",
+  resume: "Resume",
+  flagLabel: "Flag",
+  attackersWinTime: "Raiders win — The King’s side ran out of time.",
+  defendersWinTime: "King’s side win — The Raiders ran out of time.",
+  catBullet: "Bullet",
+  catBlitz: "Blitz",
+  catRapid: "Rapid",
+
+  zenMode: "Zen mode",
+  zenHint:
+    "A calm, over-the-board board — just the pieces, whose turn it is, the clock and the move log. Game controls appear only when a game ends.",
+  zenShowExtras: "Also show in Zen",
+  on: "On",
+  off: "Off",
+  zenElScoreboard: "Match scoreboard",
+  zenElCaptured: "Captured pieces",
+  zenElNav: "Move navigation",
+  zenElRules: "Rules button",
+  zenElSettings: "Settings panels",
 
   customRulesTitle: "Custom rules",
   ruleArmedKing: "Armed king",
@@ -514,6 +569,33 @@ const es: Translations = {
   resignBody: "Concedes la partida a tu oponente.",
   attackersWinResign: "Los Asaltantes ganan \u2014 El bando del Rey se rindi\u00f3.",
   defendersWinResign: "El Bando del Rey gana \u2014 Los Asaltantes se rindieron.",
+
+  clock: "Reloj",
+  clockOff: "Apagado",
+  timeControlLabel: "Control de tiempo",
+  customTimeControl: "Personalizado",
+  minutesLabel: "Minutos",
+  incrementLabel: "Incremento (s)",
+  pause: "Pausar",
+  resume: "Reanudar",
+  flagLabel: "Sin tiempo",
+  attackersWinTime: "Los Asaltantes ganan \u2014 El bando del Rey se qued\u00f3 sin tiempo.",
+  defendersWinTime: "El Bando del Rey gana \u2014 Los Asaltantes se quedaron sin tiempo.",
+  catBullet: "Bala",
+  catBlitz: "Rel\u00e1mpago",
+  catRapid: "R\u00e1pido",
+
+  zenMode: "Modo zen",
+  zenHint:
+    "Un tablero sereno \u2014 solo las piezas, el turno, el reloj y el registro de jugadas. Los controles aparecen solo cuando termina una partida.",
+  zenShowExtras: "Mostrar tambi\u00e9n en Zen",
+  on: "Activado",
+  off: "Apagado",
+  zenElScoreboard: "Marcador de la serie",
+  zenElCaptured: "Piezas capturadas",
+  zenElNav: "Navegaci\u00f3n de jugadas",
+  zenElRules: "Bot\u00f3n de reglas",
+  zenElSettings: "Paneles de ajustes",
 
   customRulesTitle: "Reglas personalizadas",
   ruleArmedKing: "Rey armado",
@@ -742,6 +824,33 @@ const ga: Translations = {
   resignBody: "Géilleann tú an cluiche do do chéile comhraic.",
   attackersWinResign: "Foghlaithe a bhuaigh — Ghéill taobh an Rí.",
   defendersWinResign: "Taobh an Rí a bhuaigh — Ghéill na Foghlaithe.",
+
+  clock: "Clog",
+  clockOff: "Múchta",
+  timeControlLabel: "Rialú ama",
+  customTimeControl: "Saincheaptha",
+  minutesLabel: "Nóiméid",
+  incrementLabel: "Incrimint (s)",
+  pause: "Sos",
+  resume: "Lean ar aghaidh",
+  flagLabel: "Ama caite",
+  attackersWinTime: "Foghlaithe a bhuaigh — Rith taobh an Rí as am.",
+  defendersWinTime: "Taobh an Rí a bhuaigh — Rith na Foghlaithe as am.",
+  catBullet: "Piléar",
+  catBlitz: "Splanc",
+  catRapid: "Tapa",
+
+  zenMode: "Mód zen",
+  zenHint:
+    "Clár ciúin — na píosaí, an seal, an clog agus an loga bogtha amháin. Ní thagann na rialuithe ach nuair a chríochnaíonn cluiche.",
+  zenShowExtras: "Taispeáin freisin sa mhód Zen",
+  on: "Air",
+  off: "As",
+  zenElScoreboard: "Scórchlár na sraithe",
+  zenElCaptured: "Píosaí gafa",
+  zenElNav: "Nascleanúint bogtha",
+  zenElRules: "Cnaipe rialacha",
+  zenElSettings: "Painéil socruithe",
 
   customRulesTitle: "Rialacha saincheaptha",
   ruleArmedKing: "Rí armtha",

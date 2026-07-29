@@ -32,8 +32,10 @@ export type GameStatus =
   | "attackers_win_no_moves"
   | "attackers_win_repetition"
   | "attackers_win_resign"
+  | "attackers_win_time"
   | "defenders_win_no_moves"
   | "defenders_win_resign"
+  | "defenders_win_time"
   | "draw_repetition";
 
 export interface GameState {

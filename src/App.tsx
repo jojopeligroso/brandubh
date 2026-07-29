@@ -25,6 +25,33 @@ import {
   type PlayerId,
 } from "./game/matchSet";
 import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
+import GameClock from "./components/GameClock";
+import { useGameClock } from "./useGameClock";
+import {
+  CLOCK_CONTROL_KEY,
+  CLOCK_CUSTOM_INCREMENT_KEY,
+  CLOCK_CUSTOM_MINUTES_KEY,
+  CLOCK_ENABLED_KEY,
+  CUSTOM_MAX_INCREMENT,
+  CUSTOM_MAX_MINUTES,
+  CUSTOM_MIN_MINUTES,
+  CUSTOM_TIME_CONTROL_ID,
+  TIME_PRESETS,
+  type TimeCategory,
+  describeTimeControl,
+  loadClockEnabled,
+  loadControlId,
+  loadCustomIncrement,
+  loadCustomMinutes,
+  resolveTimeControl,
+} from "./game/clock";
+import {
+  ZEN_EXTRAS,
+  loadZenConfig,
+  saveZenConfig,
+  type ZenConfig,
+  type ZenExtraId,
+} from "./zen";
 import { type Lang, type Translations, translations } from "./i18n";
 import { toSeanchloTable } from "./seimhiu";
 import {
@@ -144,6 +171,42 @@ export default function App() {
   const [playMode, setPlayMode] = useState<PlayMode>("defenders");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
+  // ── Game clock (chess clock) ────────────────────────────────────────────────
+  // A bank of thinking time plus a Fischer increment per move, à la Lichess.
+  // Off by default (no timer); when enabled, defaults to 3+2.
+  const [clockEnabled, setClockEnabled] = useState<boolean>(loadClockEnabled);
+  const [controlId, setControlId] = useState<string>(loadControlId);
+  const [customMinutes, setCustomMinutes] = useState<number>(loadCustomMinutes);
+  const [customIncrement, setCustomIncrement] = useState<number>(loadCustomIncrement);
+  useEffect(() => {
+    try {
+      localStorage.setItem(CLOCK_ENABLED_KEY, clockEnabled ? "1" : "0");
+      localStorage.setItem(CLOCK_CONTROL_KEY, controlId);
+      localStorage.setItem(CLOCK_CUSTOM_MINUTES_KEY, String(customMinutes));
+      localStorage.setItem(CLOCK_CUSTOM_INCREMENT_KEY, String(customIncrement));
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [clockEnabled, controlId, customMinutes, customIncrement]);
+  const timeControl = useMemo(
+    () => resolveTimeControl(clockEnabled, controlId, customMinutes, customIncrement),
+    [clockEnabled, controlId, customMinutes, customIncrement],
+  );
+
+  // ── Zen mode (calm, over-the-board board) ───────────────────────────────────
+  // Off by default. When on, only the essentials show — board, turn, clock,
+  // move log — plus any opted-in extras. Game-flow controls are contextual and
+  // handled separately, so they are never part of this config.
+  const [zen, setZen] = useState<ZenConfig>(loadZenConfig);
+  useEffect(() => {
+    saveZenConfig(zen);
+  }, [zen]);
+  // An optional extra shows when Zen is off, or when it has been opted in.
+  const showExtra = (id: ZenExtraId): boolean => !zen.enabled || zen.extras[id];
+  const setZenEnabled = (enabled: boolean) => setZen((z) => ({ ...z, enabled }));
+  const toggleZenExtra = (id: ZenExtraId) =>
+    setZen((z) => ({ ...z, extras: { ...z.extras, [id]: !z.extras[id] } }));
+
   // ── Over-the-board "match" scoring ──────────────────────────────────────────
   // A match is a running series of sets; each set is a group of games in which
   // the players swap sides. Only meaningful in hotseat play; null otherwise.
@@ -197,6 +260,20 @@ export default function App() {
     ? game.history[game.history.length - 1].move
     : null;
 
+  // A flag (bank hits zero) is a loss on time for that side. Only ever fires
+  // while live at the tip, so it always applies to the current position.
+  const onFlag = useCallback((loser: Side) => {
+    setStates((prev) => {
+      if (isGameOver(prev[prev.length - 1].status)) return prev;
+      const status: GameState["status"] =
+        loser === "attackers" ? "defenders_win_time" : "attackers_win_time";
+      const copy = [...prev];
+      copy[copy.length - 1] = { ...copy[copy.length - 1], status };
+      return copy;
+    });
+  }, []);
+  const clock = useGameClock(timeControl, atTip && !gameOver, onFlag);
+
   const aiTimer = useRef<number | null>(null);
   const { requestMove, cancel: cancelAi } = useAiWorker();
   // Guards the set recorder so a finished game is counted exactly once, even as
@@ -226,7 +303,7 @@ export default function App() {
   const AI_MIN_THINK_MS = 350;
   useEffect(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
-    if (!atTip || gameOver || aiSide === null || game.turn !== aiSide) {
+    if (!atTip || gameOver || clock.paused || aiSide === null || game.turn !== aiSide) {
       setThinking(false);
       cancelAi();
       return;
@@ -247,11 +324,46 @@ export default function App() {
       cancelled = true;
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
     };
-  }, [game, atTip, aiSide, difficulty, rules, gameOver, commitMove, requestMove, cancelAi]);
+  }, [
+    game,
+    atTip,
+    aiSide,
+    difficulty,
+    rules,
+    gameOver,
+    commitMove,
+    clock.paused,
+    requestMove,
+    cancelAi,
+  ]);
+
+  // ── Drive the clock from the move timeline ──────────────────────────────────
+  // Each new move at the tip presses the mover's clock (banks their increment
+  // and hands the running clock to the opponent). Stepping back — a takeback or
+  // branch — re-points the clock at whichever side is now to move.
+  const prevTipRef = useRef(tip);
+  useEffect(() => {
+    const prev = prevTipRef.current;
+    prevTipRef.current = tip;
+    if (!clock.enabled) return;
+    if (tip === prev + 1 && atTip && !gameOver) {
+      // After a move, `game.turn` is the side *now* to move, so the mover was
+      // the opposite side.
+      clock.press(opposite(game.turn));
+    } else if (tip < prev && atTip && !gameOver) {
+      clock.handTo(game.turn);
+    }
+    // Only react to timeline length changes, not cursor scrubbing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tip]);
 
   // ── Human interaction ───────────────────────────────────────────────────────
   const interactive =
-    atTip && !gameOver && !thinking && (humanSide === null || game.turn === humanSide);
+    atTip &&
+    !gameOver &&
+    !thinking &&
+    !clock.paused &&
+    (humanSide === null || game.turn === humanSide);
 
   const legalTargets = useMemo(() => {
     if (!selected) return new Set<number>();
@@ -298,13 +410,15 @@ export default function App() {
   const resetBoard = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     recorded.current = false;
+    prevTipRef.current = 0;
     setStates([initialState()]);
     setCursor(0);
     setSelected(null);
     setFadingCaptures([]);
     setThinking(false);
     setShowTakeback(false);
-  }, []);
+    clock.reset();
+  }, [clock.reset]);
 
   // Fresh board and, in hotseat play, a brand-new match (score reset to zero).
   const resetGame = useCallback(() => {
@@ -426,21 +540,16 @@ export default function App() {
 
   const showVsAiBranch = playMode === "hotseat" || gameOver;
 
-  // In hotseat the primary button drives the match: "Next game" between games,
-  // "Next set" once a set is decided (continuing the count), and "New match" to
-  // wipe the score. Everywhere else it stays "New game".
+  // In hotseat the primary button drives the match:
+  //   • set decided        → "Next set" (bank it and continue the series)
+  //   • a game just ended   → "Next game" (sides swap)
+  //   • a game in progress  → "New game" (restart this game, keep the score)
+  // Vs the computer it is simply "New game".
   const otbMatch = playMode === "hotseat" ? match : null;
   const otbSet = otbMatch?.set ?? null;
   const setComplete = otbSet !== null && standing(otbSet).complete;
   const midSet =
     otbSet !== null && otbSet.results.length > 0 && !setComplete;
-  const primaryLabel = setComplete
-    ? t.nextSet
-    : midSet
-      ? t.nextGame
-      : otbMatch
-        ? t.newMatch
-        : t.newGame;
   // Starting a new match wipes the running score, so route it through a
   // confirmation whenever there's actually progress to lose. Anything with
   // nothing to discard (a fresh board, solo "New game") falls straight through.
@@ -455,12 +564,51 @@ export default function App() {
     else resetGame();
   }, [matchHasProgress, soloGameInProgress, resetGame]);
 
-  const primaryAction = setComplete ? nextSet : midSet ? nextGame : requestNewMatch;
-  // The standalone "New match" button is a shortcut for discarding a match in
-  // progress. Hide it while a set is live over the board — the primary button
-  // is "Next game" there and this sits right beside it, easy to fumble — so a
-  // mid-set reset goes through Settings instead. Between sets it stays handy.
+  // Contextual primary button:
+  //   • set decided        → "Next set" (bank it, continue the series)
+  //   • a game just ended   → "Next game" (sides swap)
+  //   • a game in progress  → "New game" (over the board: restart this game,
+  //                           keeping the set score; vs the computer: a fresh
+  //                           board, guarded so a stray tap can't wipe it)
+  let primaryLabel: string;
+  let primaryAction: () => void;
+  if (otbMatch) {
+    if (setComplete) {
+      primaryLabel = t.nextSet;
+      primaryAction = nextSet;
+    } else if (gameOver) {
+      primaryLabel = t.nextGame;
+      primaryAction = nextGame;
+    } else {
+      primaryLabel = t.newGame;
+      primaryAction = nextGame;
+    }
+  } else {
+    primaryLabel = t.newGame;
+    primaryAction = requestNewMatch;
+  }
+  // The standalone "New match" button wipes the running series. Hide it while a
+  // set is live over the board — the primary sits right beside it, easy to
+  // fumble — so a mid-set reset goes through Settings. Between sets it stays.
   const showNewMatch = matchHasProgress && !midSet;
+
+  // Clock placement, Lichess-style: the away side rides above the board, the
+  // near side below it. Vs the computer the human sits on the bottom.
+  const topSide: Side = humanSide ? aiSide! : "attackers";
+  const bottomSide: Side = humanSide ?? "defenders";
+  const showPause = clock.enabled && clock.started && atTip && !gameOver;
+  const renderClock = (side: Side) => (
+    <GameClock
+      name={sideLabel(side, t)}
+      side={side}
+      ms={clock.remaining[side]}
+      active={clock.active === side}
+      running={clock.running}
+      flagged={clock.flagged === side}
+      increment={timeControl?.incrementSeconds ?? 0}
+      flagLabel={t.flagLabel}
+    />
+  );
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
@@ -474,7 +622,7 @@ export default function App() {
 
       <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
-      {otbMatch && (
+      {otbMatch && showExtra("scoreboard") && (
         <SetScoreboard
           t={t}
           match={otbMatch}
@@ -484,6 +632,8 @@ export default function App() {
           liveMoves={game.moveCount}
         />
       )}
+
+      {clock.enabled && <div className="mt-3">{renderClock(topSide)}</div>}
 
       <div className="mt-3">
         <Board
@@ -503,42 +653,72 @@ export default function App() {
         />
       </div>
 
-      <CapturedTray t={t} game={game} />
+      {clock.enabled && <div className="mt-3">{renderClock(bottomSide)}</div>}
 
-      <MoveNav
-        t={t}
-        cursor={cursor}
-        tip={tip}
-        onPrev={goPrev}
-        onNext={goNext}
-        onLatest={goLatest}
-      />
+      {showExtra("captured") && <CapturedTray t={t} game={game} />}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn btn-primary" onClick={primaryAction}>
-          {primaryLabel}
-        </button>
-        {showNewMatch && (
-          <button className="btn" onClick={requestNewMatch}>
-            {t.newMatch}
-          </button>
-        )}
-        <button className="btn" onClick={() => setShowRules(true)}>
-          {t.rules}
-        </button>
-        {humanSide === null && atTip && !gameOver && tip >= 1 && (
-          <button className="btn" onClick={() => setShowTakeback(true)}>
-            {t.proposeTakeback}
-          </button>
-        )}
-        {atTip && !gameOver && (
-          <button className="btn" onClick={() => setShowResign(true)}>
-            {t.resign}
-          </button>
-        )}
-      </div>
+      {showExtra("nav") && (
+        <MoveNav
+          t={t}
+          cursor={cursor}
+          tip={tip}
+          onPrev={goPrev}
+          onNext={goNext}
+          onLatest={goLatest}
+        />
+      )}
 
-      {(reviewing || gameOver) && (
+      {(() => {
+        // Game-flow controls are contextual. Outside Zen they show as usual; in
+        // Zen they surface only when a game ends — a minimal "Next game" /
+        // "Next set" prompt — never as a persistent button mid-play. The action
+        // buttons (rules / takeback / resign / pause) are opt-in Zen extras.
+        const progression = !zen.enabled || gameOver;
+        const showRulesBtn = showExtra("rules");
+        const showTakebackBtn =
+          showExtra("takeback") && humanSide === null && atTip && !gameOver && tip >= 1;
+        const showResignBtn = showExtra("resign") && atTip && !gameOver;
+        const showPauseBtn = showExtra("pause") && showPause;
+        const anyControls =
+          progression || showRulesBtn || showTakebackBtn || showResignBtn || showPauseBtn;
+        if (!anyControls) return null;
+        return (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {progression && (
+              <button className="btn btn-primary" onClick={primaryAction}>
+                {primaryLabel}
+              </button>
+            )}
+            {progression && showNewMatch && (
+              <button className="btn" onClick={requestNewMatch}>
+                {t.newMatch}
+              </button>
+            )}
+            {showRulesBtn && (
+              <button className="btn" onClick={() => setShowRules(true)}>
+                {t.rules}
+              </button>
+            )}
+            {showTakebackBtn && (
+              <button className="btn" onClick={() => setShowTakeback(true)}>
+                {t.proposeTakeback}
+              </button>
+            )}
+            {showResignBtn && (
+              <button className="btn" onClick={() => setShowResign(true)}>
+                {t.resign}
+              </button>
+            )}
+            {showPauseBtn && (
+              <button className="btn" onClick={clock.togglePause} aria-pressed={clock.paused}>
+                {clock.paused ? t.resume : t.pause}
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      {(reviewing || gameOver) && showExtra("nav") && (
         <ReviewBar
           t={t}
           reviewing={reviewing}
@@ -552,23 +732,51 @@ export default function App() {
         />
       )}
 
-      <Settings
-        t={t}
-        variantId={variantId}
-        onVariant={changeVariant}
-        playMode={playMode}
-        onMode={changeMode}
-        difficulty={difficulty}
-        onDifficulty={setDifficulty}
-        gamesPerSet={gamesPerSet}
-        onSetLength={changeSetLength}
-        canNewMatch={matchHasProgress}
-        onNewMatch={requestNewMatch}
-        onShowDesign={() => setShowDesign(true)}
-      />
+      {/* The settings panels can themselves be hidden in Zen. When they are, the
+          same Zen controls remain in the always-reachable gear ⚙ modal, so you
+          are never locked out. */}
+      {showExtra("settings") && (
+        <>
+          <Settings
+            t={t}
+            variantId={variantId}
+            onVariant={changeVariant}
+            playMode={playMode}
+            onMode={changeMode}
+            difficulty={difficulty}
+            onDifficulty={setDifficulty}
+            gamesPerSet={gamesPerSet}
+            onSetLength={changeSetLength}
+            canNewMatch={matchHasProgress}
+            onNewMatch={requestNewMatch}
+            onShowDesign={() => setShowDesign(true)}
+          />
 
-      {variantId === "custom" && (
-        <CustomRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
+          <ClockSettings
+            t={t}
+            enabled={clockEnabled}
+            onEnabled={setClockEnabled}
+            controlId={controlId}
+            onControl={setControlId}
+            customMinutes={customMinutes}
+            onCustomMinutes={setCustomMinutes}
+            customIncrement={customIncrement}
+            onCustomIncrement={setCustomIncrement}
+          />
+
+          <div className="card mt-4 p-4">
+            <ZenSettings
+              t={t}
+              zen={zen}
+              onEnabled={setZenEnabled}
+              onToggleExtra={toggleZenExtra}
+            />
+          </div>
+
+          {variantId === "custom" && (
+            <CustomRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
+          )}
+        </>
       )}
 
       <MoveLog t={t} game={states[tip]} activeIndex={cursor - 1} onMoveClick={(i) => setCursor(i + 1)} />
@@ -686,6 +894,9 @@ export default function App() {
           onDefenderEmblem={setDefenderEmblem}
           cornerEmblem={cornerEmblem}
           onCornerEmblem={setCornerEmblem}
+          zen={zen}
+          onZenEnabled={setZenEnabled}
+          onToggleZenExtra={toggleZenExtra}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -783,6 +994,8 @@ function StatusBar({
       else if (game.status === "attackers_win_no_moves") text = t.attackersWinNoMoves;
       else if (game.status === "attackers_win_resign") text = t.attackersWinResign;
       else if (game.status === "defenders_win_resign") text = t.defendersWinResign;
+      else if (game.status === "attackers_win_time") text = t.attackersWinTime;
+      else if (game.status === "defenders_win_time") text = t.defendersWinTime;
       else text = t.defendersWinNoMoves;
       tone = w === "defenders" ? "text-gold" : "text-blood";
     }
@@ -1229,6 +1442,183 @@ function SettingsSection({ label, children }: { label: string; children: React.R
   );
 }
 
+// ── Clock settings (time-control picker) ─────────────────────────────────────
+function ClockSettings({
+  t,
+  enabled,
+  onEnabled,
+  controlId,
+  onControl,
+  customMinutes,
+  onCustomMinutes,
+  customIncrement,
+  onCustomIncrement,
+}: {
+  t: Translations;
+  enabled: boolean;
+  onEnabled: (v: boolean) => void;
+  controlId: string;
+  onControl: (id: string) => void;
+  customMinutes: number;
+  onCustomMinutes: (n: number) => void;
+  customIncrement: number;
+  onCustomIncrement: (n: number) => void;
+}) {
+  const categories: { key: TimeCategory; label: string }[] = [
+    { key: "bullet", label: t.catBullet },
+    { key: "blitz", label: t.catBlitz },
+    { key: "rapid", label: t.catRapid },
+  ];
+  const custom = controlId === CUSTOM_TIME_CONTROL_ID;
+  const summary = describeTimeControl({
+    initialSeconds: Math.round(customMinutes * 60),
+    incrementSeconds: Math.round(customIncrement),
+  });
+
+  return (
+    <div className="card mt-4 space-y-3 p-4">
+      <Row label={t.clock}>
+        <div className="seg">
+          <button className={!enabled ? "on" : ""} onClick={() => onEnabled(false)}>
+            {t.clockOff}
+          </button>
+          <button className={enabled ? "on" : ""} onClick={() => onEnabled(true)}>
+            {t.timeControlLabel}
+          </button>
+        </div>
+      </Row>
+
+      {enabled && (
+        <>
+          <div className="tc-groups">
+            {categories.map((c) => (
+              <div key={c.key} className="tc-row">
+                <span className="tc-cat">{c.label}</span>
+                {TIME_PRESETS.filter((p) => p.category === c.key).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`tc-chip ${controlId === p.id ? "on" : ""}`}
+                    onClick={() => onControl(p.id)}
+                  >
+                    {p.id}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <div className="tc-row">
+              <span className="tc-cat" />
+              <button
+                type="button"
+                className={`tc-chip ${custom ? "on" : ""}`}
+                onClick={() => onControl(CUSTOM_TIME_CONTROL_ID)}
+              >
+                {custom ? `${t.customTimeControl} · ${summary}` : t.customTimeControl}
+              </button>
+            </div>
+          </div>
+
+          {custom && (
+            <div className="tc-custom">
+              <label className="tc-field">
+                <span>
+                  {t.minutesLabel}: <b>{customMinutes}</b>
+                </span>
+                <input
+                  type="range"
+                  min={CUSTOM_MIN_MINUTES}
+                  max={CUSTOM_MAX_MINUTES}
+                  step={0.25}
+                  value={customMinutes}
+                  onChange={(e) => onCustomMinutes(Number(e.target.value))}
+                />
+              </label>
+              <label className="tc-field">
+                <span>
+                  {t.incrementLabel}: <b>{customIncrement}</b>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={CUSTOM_MAX_INCREMENT}
+                  step={1}
+                  value={customIncrement}
+                  onChange={(e) => onCustomIncrement(Number(e.target.value))}
+                />
+              </label>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Zen mode settings — toggle + opt-in extras ────────────────────────────────
+// Used both inline (in the settings stack) and in the gear ⚙ modal, so it stays
+// reachable even when Zen has hidden the inline settings panels.
+function ZenSettings({
+  t,
+  zen,
+  onEnabled,
+  onToggleExtra,
+}: {
+  t: Translations;
+  zen: ZenConfig;
+  onEnabled: (v: boolean) => void;
+  onToggleExtra: (id: ZenExtraId) => void;
+}) {
+  const labels: Record<ZenExtraId, string> = {
+    scoreboard: t.zenElScoreboard,
+    captured: t.zenElCaptured,
+    nav: t.zenElNav,
+    rules: t.zenElRules,
+    takeback: t.proposeTakeback,
+    resign: t.resign,
+    pause: t.pause,
+    settings: t.zenElSettings,
+  };
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold text-parchment-dim">{t.zenMode}</span>
+        <div className="seg">
+          <button className={!zen.enabled ? "on" : ""} onClick={() => onEnabled(false)}>
+            {t.off}
+          </button>
+          <button className={zen.enabled ? "on" : ""} onClick={() => onEnabled(true)}>
+            {t.on}
+          </button>
+        </div>
+      </div>
+      <p className="mt-1.5 text-xs text-parchment-dim">{t.zenHint}</p>
+      {zen.enabled && (
+        <div className="mt-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+            {t.zenShowExtras}
+          </span>
+          <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {ZEN_EXTRAS.map((id) => (
+              <li key={id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={`zen-${id}`}
+                  checked={zen.extras[id]}
+                  onChange={() => onToggleExtra(id)}
+                  className="h-4 w-4 shrink-0 accent-gold"
+                />
+                <label htmlFor={`zen-${id}`} className="cursor-pointer text-sm text-parchment">
+                  {labels[id]}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // "Design your board" — theme + piece/corner icon customisation (gear menu).
 function DesignModal({
   t,
@@ -1245,6 +1635,9 @@ function DesignModal({
   onDefenderEmblem,
   cornerEmblem,
   onCornerEmblem,
+  zen,
+  onZenEnabled,
+  onToggleZenExtra,
   onClose,
 }: {
   t: Translations;
@@ -1261,6 +1654,9 @@ function DesignModal({
   onDefenderEmblem: (id: DefenderEmblemId) => void;
   cornerEmblem: CornerEmblemId;
   onCornerEmblem: (id: CornerEmblemId) => void;
+  zen: ZenConfig;
+  onZenEnabled: (v: boolean) => void;
+  onToggleZenExtra: (id: ZenExtraId) => void;
   onClose: () => void;
 }) {
   // The colour a piece has under the current theme, with any custom override
@@ -1310,6 +1706,15 @@ function DesignModal({
             ✕
           </button>
         </div>
+
+        <section className="mt-5">
+          <ZenSettings
+            t={t}
+            zen={zen}
+            onEnabled={onZenEnabled}
+            onToggleExtra={onToggleZenExtra}
+          />
+        </section>
 
         <section className="mt-5">
           <span className="text-sm font-semibold text-parchment-dim">{t.colourTheme}</span>
