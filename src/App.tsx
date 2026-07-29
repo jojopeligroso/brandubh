@@ -24,7 +24,16 @@ import {
 } from "./game/matchSet";
 import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
 import { type Lang, type Translations, translations } from "./i18n";
-import { applyTheme, loadTheme, THEMES, type ThemeId } from "./theme";
+import {
+  applyPieceColors,
+  applyTheme,
+  loadPieceColors,
+  loadTheme,
+  THEMES,
+  type PieceColors,
+  type PieceKey,
+  type ThemeId,
+} from "./theme";
 import {
   ATTACKER_EMBLEMS,
   ATTACKER_EMBLEM_KEY,
@@ -72,6 +81,15 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  // Optional per-side stone colours layered over the theme (null = follow theme).
+  const [pieceColors, setPieceColors] = useState<PieceColors>(loadPieceColors);
+  useEffect(() => {
+    applyPieceColors(pieceColors);
+  }, [pieceColors]);
+  const setPieceColor = useCallback((key: PieceKey, value: string | null) => {
+    setPieceColors((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const [attackerEmblem, setAttackerEmblem] = useState<AttackerEmblemId>(loadAttackerEmblem);
   useEffect(() => {
@@ -141,6 +159,7 @@ export default function App() {
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
   const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
   const [showResign, setShowResign] = useState(false);
+  const [showNewMatchConfirm, setShowNewMatchConfirm] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
 
   const rules: RuleSet =
@@ -397,10 +416,22 @@ export default function App() {
       : otbMatch
         ? t.newMatch
         : t.newGame;
-  const primaryAction = setComplete ? nextSet : midSet ? nextGame : resetGame;
-  // Offer a full reset whenever a match has any progress to discard.
-  const showNewMatch =
+  // Starting a new match wipes the running score, so route it through a
+  // confirmation whenever there's actually progress to lose. Anything with
+  // nothing to discard (a fresh board, solo "New game") falls straight through.
+  const matchHasProgress =
     otbMatch !== null && (otbSet!.results.length > 0 || matchTotals(otbMatch).setsCompleted > 0);
+  const requestNewMatch = useCallback(() => {
+    if (matchHasProgress) setShowNewMatchConfirm(true);
+    else resetGame();
+  }, [matchHasProgress, resetGame]);
+
+  const primaryAction = setComplete ? nextSet : midSet ? nextGame : requestNewMatch;
+  // The standalone "New match" button is a shortcut for discarding a match in
+  // progress. Hide it while a set is live over the board — the primary button
+  // is "Next game" there and this sits right beside it, easy to fumble — so a
+  // mid-set reset goes through Settings instead. Between sets it stays handy.
+  const showNewMatch = matchHasProgress && !midSet;
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
@@ -459,7 +490,7 @@ export default function App() {
           {primaryLabel}
         </button>
         {showNewMatch && (
-          <button className="btn" onClick={resetGame}>
+          <button className="btn" onClick={requestNewMatch}>
             {t.newMatch}
           </button>
         )}
@@ -502,6 +533,9 @@ export default function App() {
         onDifficulty={setDifficulty}
         gamesPerSet={gamesPerSet}
         onSetLength={changeSetLength}
+        canNewMatch={matchHasProgress}
+        onNewMatch={requestNewMatch}
+        onShowDesign={() => setShowDesign(true)}
       />
 
       {variantId === "custom" && (
@@ -562,11 +596,28 @@ export default function App() {
         />
       )}
 
+      {showNewMatchConfirm && (
+        <ConfirmDialog
+          t={t}
+          title={t.newMatchTitle}
+          body={t.newMatchBody}
+          confirmLabel={t.newMatch}
+          cancelLabel={t.back}
+          onConfirm={() => {
+            setShowNewMatchConfirm(false);
+            resetGame();
+          }}
+          onCancel={() => setShowNewMatchConfirm(false)}
+        />
+      )}
+
       {showDesign && (
         <DesignModal
           t={t}
           theme={theme}
           onTheme={setTheme}
+          pieceColors={pieceColors}
+          onPieceColor={setPieceColor}
           attackerEmblem={attackerEmblem}
           onAttackerEmblem={setAttackerEmblem}
           kingEmblem={kingEmblem}
@@ -1003,6 +1054,9 @@ function Settings({
   onDifficulty,
   gamesPerSet,
   onSetLength,
+  canNewMatch,
+  onNewMatch,
+  onShowDesign,
 }: {
   t: Translations;
   variantId: string;
@@ -1013,63 +1067,103 @@ function Settings({
   onDifficulty: (d: Difficulty) => void;
   gamesPerSet: number;
   onSetLength: (n: number) => void;
+  canNewMatch: boolean;
+  onNewMatch: () => void;
+  onShowDesign: () => void;
 }) {
   return (
-    <div className="card mt-4 space-y-3 p-4">
-      <Row label={t.playAs}>
-        <div className="seg">
-          {(
-            [
-              ["defenders", t.king],
-              ["attackers", t.raiders],
-              ["hotseat", t.overTheBoard],
-            ] as [PlayMode, string][]
-          ).map(([m, l]) => (
-            <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </Row>
+    <div className="card mt-4 space-y-4 p-4">
+      <h2 className="font-display text-lg text-parchment">{t.settings}</h2>
 
-      {playMode !== "hotseat" && (
-        <Row label={t.aiLevel}>
+      {/* ── Game ── how you play: side, opponent strength, ruleset ── */}
+      <SettingsSection label={t.sectionGame}>
+        <Row label={t.playAs}>
           <div className="seg">
-            {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard]] as [Difficulty, string][]).map(([d, label]) => (
-              <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
-                {label}
-              </button>
-            )))}
-          </div>
-        </Row>
-      )}
-
-      {playMode === "hotseat" && (
-        <Row label={t.setLength}>
-          <div className="seg">
-            {SET_LENGTH_OPTIONS.map((n) => (
-              <button key={n} className={gamesPerSet === n ? "on" : ""} onClick={() => onSetLength(n)}>
-                {n}
+            {(
+              [
+                ["defenders", t.king],
+                ["attackers", t.raiders],
+                ["hotseat", t.overTheBoard],
+              ] as [PlayMode, string][]
+            ).map(([m, l]) => (
+              <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
+                {l}
               </button>
             ))}
           </div>
         </Row>
+
+        {playMode !== "hotseat" && (
+          <Row label={t.aiLevel}>
+            <div className="seg">
+              {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard]] as [Difficulty, string][]).map(([d, label]) => (
+                <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
+                  {label}
+                </button>
+              )))}
+            </div>
+          </Row>
+        )}
+
+        <Row label={t.variant}>
+          <select
+            className="btn"
+            value={variantId}
+            onChange={(e) => onVariant(e.target.value)}
+          >
+            {Object.values(VARIANTS).map((v) => (
+              <option key={v.id} value={v.id}>
+                {t.variantNames[v.id] ?? v.name}
+              </option>
+            ))}
+            <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
+          </select>
+        </Row>
+      </SettingsSection>
+
+      {/* ── Match ── over-the-board series controls (hotseat only) ── */}
+      {playMode === "hotseat" && (
+        <SettingsSection label={t.sectionMatch}>
+          <Row label={t.setLength}>
+            <div className="seg">
+              {SET_LENGTH_OPTIONS.map((n) => (
+                <button key={n} className={gamesPerSet === n ? "on" : ""} onClick={() => onSetLength(n)}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </Row>
+
+          {/* Reset the running match — kept here (not in the action row) so it
+              can't be fumbled mid-set, but still reachable while a set is live. */}
+          {canNewMatch && (
+            <Row label={t.newMatch}>
+              <button className="btn" onClick={onNewMatch}>
+                {t.newMatch}
+              </button>
+            </Row>
+          )}
+        </SettingsSection>
       )}
 
-      <Row label={t.variant}>
-        <select
-          className="btn"
-          value={variantId}
-          onChange={(e) => onVariant(e.target.value)}
-        >
-          {Object.values(VARIANTS).map((v) => (
-            <option key={v.id} value={v.id}>
-              {t.variantNames[v.id] ?? v.name}
-            </option>
-          ))}
-          <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
-        </select>
-      </Row>
+      {/* ── Appearance ── board & piece look (opens the design modal) ── */}
+      <SettingsSection label={t.sectionAppearance}>
+        <button className="btn w-full justify-center" onClick={onShowDesign}>
+          {t.design}
+        </button>
+      </SettingsSection>
+    </div>
+  );
+}
+
+// A labelled group of rows inside the settings card.
+function SettingsSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3 border-t border-parchment/10 pt-3 first-of-type:border-t-0 first-of-type:pt-0">
+      <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+        {label}
+      </span>
+      {children}
     </div>
   );
 }
@@ -1079,6 +1173,8 @@ function DesignModal({
   t,
   theme,
   onTheme,
+  pieceColors,
+  onPieceColor,
   attackerEmblem,
   onAttackerEmblem,
   kingEmblem,
@@ -1093,6 +1189,8 @@ function DesignModal({
   t: Translations;
   theme: ThemeId;
   onTheme: (id: ThemeId) => void;
+  pieceColors: PieceColors;
+  onPieceColor: (key: PieceKey, value: string | null) => void;
   attackerEmblem: AttackerEmblemId;
   onAttackerEmblem: (id: AttackerEmblemId) => void;
   kingEmblem: KingEmblemId;
@@ -1104,6 +1202,38 @@ function DesignModal({
   onCornerEmblem: (id: CornerEmblemId) => void;
   onClose: () => void;
 }) {
+  // The colour a piece has under the current theme, with any custom override
+  // stripped — this seeds the picker when a side is still "follow theme". Read
+  // straight from the applied CSS so it always tracks index.css, then restore
+  // the live overrides so the board itself isn't disturbed.
+  const [themeStones, setThemeStones] = useState<Record<PieceKey, string>>({
+    atk: "#888888",
+    def: "#888888",
+    king: "#888888",
+  });
+  useEffect(() => {
+    const root = document.documentElement;
+    const keys: PieceKey[] = ["atk", "def", "king"];
+    const saved = keys.map((k) => [k, root.style.getPropertyValue(`--${k}`)] as const);
+    keys.forEach((k) => root.style.removeProperty(`--${k}`));
+    const cs = getComputedStyle(root);
+    const next = {} as Record<PieceKey, string>;
+    keys.forEach((k) => {
+      const v = cs.getPropertyValue(`--${k}`).trim();
+      next[k] = /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#888888";
+    });
+    saved.forEach(([k, v]) => {
+      if (v) root.style.setProperty(`--${k}`, v);
+    });
+    setThemeStones(next);
+  }, [theme]);
+
+  const stoneRows: { key: PieceKey; label: string }[] = [
+    { key: "atk", label: t.raiders },
+    { key: "def", label: t.defenders },
+    { key: "king", label: t.king },
+  ];
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
@@ -1139,6 +1269,39 @@ function DesignModal({
                 {m.name}
               </button>
             ))}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <span className="text-sm font-semibold text-parchment-dim">{t.pieceColours}</span>
+          <div className="mt-2 space-y-2">
+            {stoneRows.map(({ key, label }) => {
+              const custom = pieceColors[key];
+              const value = custom ?? themeStones[key];
+              return (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-parchment">{label}</span>
+                  <div className="flex items-center gap-2">
+                    <label className="color-swatch" style={{ background: value }}>
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(e) => onPieceColor(key, e.target.value)}
+                        aria-label={label}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="btn text-xs"
+                      onClick={() => onPieceColor(key, null)}
+                      disabled={!custom}
+                    >
+                      {t.themeDefault}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
