@@ -37,6 +37,7 @@ import { DIFFICULTIES, type Difficulty } from "./ai";
 import { allMoves, applyMove, initialState, isGameOver } from "./engine";
 import type { GameState, GameStatus, Move, PlayMode, Side } from "./types";
 import type { Match, PlayerId } from "./matchSet";
+import type { ClockBanks } from "./clockLine";
 import {
   CUSTOM_RULE_DEFAULTS,
   VARIANTS,
@@ -69,6 +70,18 @@ export interface SavedClock {
   active: Side | null;
   started: boolean;
   flagged: Side | null;
+  /**
+   * The banks each position was reached with, index-aligned with the plies (see
+   * game/clockLine). This is what makes a rewind restore the time a move was
+   * first presented with, so it has to survive a reload along with the moves —
+   * the same reason Lichess persists a per-ply clock history rather than
+   * recomputing time from the move list.
+   *
+   * Empty for a save written before the line existed; those rewind to a full
+   * bank, which is generous but never blocks play. Old saves stay resumable
+   * rather than being discarded over a field they could not have written.
+   */
+  line: ClockBanks[];
 }
 
 /** The full save payload. */
@@ -184,12 +197,36 @@ const isSide = (v: unknown): v is Side => v === "attackers" || v === "defenders"
 const isSavedMove = (v: unknown): v is SavedMove =>
   Array.isArray(v) && v.length === 4 && v.every((n) => Number.isInteger(n) && n >= 0 && n < 16);
 
-function parseClock(v: unknown): SavedClock | null {
+const parseBanks = (v: unknown): ClockBanks | null => {
   if (!isObject(v)) return null;
-  const remaining = v.remaining;
-  if (!isObject(remaining)) return null;
-  const { attackers, defenders } = remaining;
-  if (typeof attackers !== "number" || typeof defenders !== "number") return null;
+  const { attackers, defenders } = v;
+  if (typeof attackers !== "number" || !Number.isFinite(attackers) || attackers < 0) return null;
+  if (typeof defenders !== "number" || !Number.isFinite(defenders) || defenders < 0) return null;
+  return { attackers, defenders };
+};
+
+/**
+ * The per-ply clock line, dropped wholesale if any entry is malformed — a partly
+ * trusted line would hand out full banks at the plies it failed to read, which is
+ * exactly the free time the line exists to prevent. `maxPlies` bounds it to the
+ * move list so a bloated save cannot grow the array without bound.
+ */
+function parseClockLine(v: unknown, maxPlies: number): ClockBanks[] {
+  if (!Array.isArray(v)) return [];
+  if (v.length > maxPlies + 1) return [];
+  const line: ClockBanks[] = [];
+  for (const entry of v) {
+    const banks = parseBanks(entry);
+    if (!banks) return [];
+    line.push(banks);
+  }
+  return line;
+}
+
+function parseClock(v: unknown, maxPlies: number): SavedClock | null {
+  if (!isObject(v)) return null;
+  const remaining = parseBanks(v.remaining);
+  if (!remaining) return null;
   if (typeof v.initialSeconds !== "number" || typeof v.incrementSeconds !== "number") return null;
   const active = v.active === null || isSide(v.active) ? (v.active as Side | null) : undefined;
   const flagged = v.flagged === null || isSide(v.flagged) ? (v.flagged as Side | null) : undefined;
@@ -197,10 +234,11 @@ function parseClock(v: unknown): SavedClock | null {
   return {
     initialSeconds: v.initialSeconds,
     incrementSeconds: v.incrementSeconds,
-    remaining: { attackers, defenders },
+    remaining,
     active,
     started: v.started === true,
     flagged,
+    line: parseClockLine(v.line, maxPlies),
   };
 }
 
@@ -267,7 +305,7 @@ export function parseSavedGame(raw: string | null, now: number = Date.now()): Sa
     status: data.status as GameStatus,
     cursor: data.cursor as number,
     recorded: data.recorded === true,
-    clock: data.clock == null ? null : parseClock(data.clock),
+    clock: data.clock == null ? null : parseClock(data.clock, (data.moves as SavedMove[]).length),
     match: data.match == null ? null : parseMatch(data.match),
     gamesPerSet: data.gamesPerSet,
     names,
