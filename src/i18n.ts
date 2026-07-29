@@ -130,6 +130,8 @@ export interface Translations {
   newMatch: string;
   newMatchTitle: string;
   newMatchBody: string;
+  newGameTitle: string;
+  newGameBody: string;
   setLength: string;
   matchScore: string;
   setsWord: string;
@@ -149,6 +151,7 @@ export interface Translations {
   playVsAi: string;
   otbOverlay: string;
   withFriend: string;
+  chooseDifficulty: string;
 
   // Rewind
   continueFromMove: string;
@@ -314,6 +317,8 @@ const en: Translations = {
   newMatch: "New match",
   newMatchTitle: "Start a new match?",
   newMatchBody: "This clears the current score and starts the match over.",
+  newGameTitle: "Start a new game?",
+  newGameBody: "This ends the game in progress and clears the board.",
   setLength: "Set length",
   matchScore: "Match",
   setsWord: "sets",
@@ -331,6 +336,7 @@ const en: Translations = {
   playVsAi: "Play vs AI",
   otbOverlay: "Over the board",
   withFriend: "with a friend in person",
+  chooseDifficulty: "Choose difficulty",
 
   continueFromMove: "Continue from move",
   movesWillBeLost: "All subsequent moves will be lost.",
@@ -516,6 +522,8 @@ const es: Translations = {
   newMatch: "Nuevo encuentro",
   newMatchTitle: "¿Empezar un nuevo encuentro?",
   newMatchBody: "Esto borra la puntuación actual y reinicia el encuentro.",
+  newGameTitle: "¿Empezar un nuevo juego?",
+  newGameBody: "Esto termina el juego en curso y limpia el tablero.",
   setLength: "Partidas por serie",
   matchScore: "Encuentro",
   setsWord: "series",
@@ -533,6 +541,7 @@ const es: Translations = {
   playVsAi: "Contra la IA",
   otbOverlay: "Frente al tablero",
   withFriend: "con un amigo en persona",
+  chooseDifficulty: "Elige la dificultad",
 
   continueFromMove: "\u00bfContinuar desde el movimiento",
   movesWillBeLost:
@@ -723,6 +732,8 @@ const ga: Translations = {
   newMatch: "Comórtas nua",
   newMatchTitle: "Comórtas nua a thosú?",
   newMatchBody: "Glanann sé seo an scór reatha agus tosaíonn an comórtas as an nua.",
+  newGameTitle: "Cluiche nua a thosú?",
+  newGameBody: "Cuireann sé seo deireadh leis an gcluiche reatha agus glanann an clár.",
   setLength: "Cluichí sa sraith",
   matchScore: "Comórtas",
   setsWord: "sraith",
@@ -740,6 +751,7 @@ const ga: Translations = {
   playVsAi: "In aghaidh an r\u00edomhaire",
   otbOverlay: "Os comhair a ch\u00e9ile",
   withFriend: "le cara i bpearsa",
+  chooseDifficulty: "Roghnaigh an deacracht",
 
   continueFromMove: "Lean ar aghaidh \u00f3 bhogadh",
   movesWillBeLost: "Caillfear gach bogadh ina dhiaidh seo.",

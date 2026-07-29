@@ -160,6 +160,7 @@ export default function App() {
   const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
   const [showResign, setShowResign] = useState(false);
   const [showNewMatchConfirm, setShowNewMatchConfirm] = useState(false);
+  const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
 
   const rules: RuleSet =
@@ -421,10 +422,14 @@ export default function App() {
   // nothing to discard (a fresh board, solo "New game") falls straight through.
   const matchHasProgress =
     otbMatch !== null && (otbSet!.results.length > 0 || matchTotals(otbMatch).setsCompleted > 0);
+  // A solo game with moves on the board and no result yet is worth guarding too:
+  // a stray "New game" tap shouldn't silently wipe a game in progress.
+  const soloGameInProgress = otbMatch === null && tip >= 1 && !gameOver;
   const requestNewMatch = useCallback(() => {
     if (matchHasProgress) setShowNewMatchConfirm(true);
+    else if (soloGameInProgress) setShowNewGameConfirm(true);
     else resetGame();
-  }, [matchHasProgress, resetGame]);
+  }, [matchHasProgress, soloGameInProgress, resetGame]);
 
   const primaryAction = setComplete ? nextSet : midSet ? nextGame : requestNewMatch;
   // The standalone "New match" button is a shortcut for discarding a match in
@@ -549,6 +554,8 @@ export default function App() {
       {showModeOverlay && (
         <ModeOverlay
           t={t}
+          difficulty={difficulty}
+          onDifficulty={setDifficulty}
           onChoose={(m) => {
             changeMode(m);
             setShowModeOverlay(false);
@@ -608,6 +615,21 @@ export default function App() {
             resetGame();
           }}
           onCancel={() => setShowNewMatchConfirm(false)}
+        />
+      )}
+
+      {showNewGameConfirm && (
+        <ConfirmDialog
+          t={t}
+          title={t.newGameTitle}
+          body={t.newGameBody}
+          confirmLabel={t.newGame}
+          cancelLabel={t.back}
+          onConfirm={() => {
+            setShowNewGameConfirm(false);
+            resetGame();
+          }}
+          onCancel={() => setShowNewGameConfirm(false)}
         />
       )}
 
@@ -1438,29 +1460,76 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function ModeOverlay({ t, onChoose }: { t: Translations; onChoose: (m: PlayMode) => void }) {
+function ModeOverlay({
+  t,
+  difficulty,
+  onDifficulty,
+  onChoose,
+}: {
+  t: Translations;
+  difficulty: Difficulty;
+  onDifficulty: (d: Difficulty) => void;
+  onChoose: (m: PlayMode) => void;
+}) {
+  // Two-step overlay: pick opponent (AI or a friend), then — for the AI — pick
+  // the difficulty before the board appears.
+  const [pickingDifficulty, setPickingDifficulty] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
         <h2 className="font-display text-2xl text-parchment">
           Brand<span className="text-gold">ubh</span>
         </h2>
-        <p className="text-sm text-parchment-dim">{t.chooseGame}</p>
-        <div className="flex flex-col gap-3">
-          <button
-            className="btn btn-primary py-3 text-base"
-            onClick={() => onChoose("defenders")}
-          >
-            {t.playVsAi}
-          </button>
-          <button
-            className="btn py-3 text-base"
-            onClick={() => onChoose("hotseat")}
-          >
-            {t.otbOverlay}
-            <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
-          </button>
-        </div>
+        {pickingDifficulty ? (
+          <>
+            <p className="text-sm text-parchment-dim">{t.chooseDifficulty}</p>
+            <div className="flex flex-col gap-3">
+              {(
+                [
+                  ["easy", t.easy],
+                  ["medium", t.medium],
+                  ["hard", t.hard],
+                ] as [Difficulty, string][]
+              ).map(([d, label]) => (
+                <button
+                  key={d}
+                  className={`btn py-3 text-base ${difficulty === d ? "btn-primary" : ""}`}
+                  onClick={() => {
+                    onDifficulty(d);
+                    onChoose("defenders");
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              className="text-xs text-parchment-dim underline"
+              onClick={() => setPickingDifficulty(false)}
+            >
+              {t.back}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-parchment-dim">{t.chooseGame}</p>
+            <div className="flex flex-col gap-3">
+              <button
+                className="btn btn-primary py-3 text-base"
+                onClick={() => setPickingDifficulty(true)}
+              >
+                {t.playVsAi}
+              </button>
+              <button
+                className="btn py-3 text-base"
+                onClick={() => onChoose("hotseat")}
+              >
+                {t.otbOverlay}
+                <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
