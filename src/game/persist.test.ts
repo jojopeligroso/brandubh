@@ -115,9 +115,103 @@ describe("serialize → restore round trip", () => {
       active: "attackers" as const,
       started: true,
       flagged: null,
+      line: [
+        { attackers: 180_000, defenders: 180_000 },
+        { attackers: 174_800, defenders: 180_000 },
+      ],
     };
     const restored = roundTrip(snapshotInput({ clock }));
     expect(restored!.clock).toEqual(clock);
+  });
+
+  // The per-ply line is what lets a rewind hand back the time a move was first
+  // presented with, so a reload has to keep it (see game/clockLine).
+  it("keeps the per-position clock line across a reload", () => {
+    const line = [
+      { attackers: 180_000, defenders: 180_000 },
+      { attackers: 172_000, defenders: 180_000 },
+      { attackers: 172_000, defenders: 3_500 }, // the defenders are nearly out
+    ];
+    const restored = roundTrip(
+      snapshotInput({
+        states: playTimeline(2),
+        cursor: 2,
+        clock: {
+          initialSeconds: 180,
+          incrementSeconds: 2,
+          remaining: { attackers: 172_000, defenders: 0 }, // ...and then they flagged
+          active: "defenders" as const,
+          started: true,
+          flagged: "defenders" as const,
+          line,
+        },
+      }),
+    );
+    // The live bank is spent, but the line still holds what ply 2 was offered
+    // with — so rewinding to it after a reload is still playable.
+    expect(restored!.clock!.remaining.defenders).toBe(0);
+    expect(restored!.clock!.line).toEqual(line);
+  });
+
+  it("drops a malformed clock line rather than trusting part of it", () => {
+    const bad = roundTrip(
+      snapshotInput({
+        clock: {
+          initialSeconds: 180,
+          incrementSeconds: 2,
+          remaining: { attackers: 10_000, defenders: 10_000 },
+          active: "attackers" as const,
+          started: true,
+          flagged: null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          line: [{ attackers: 180_000, defenders: 180_000 }, { attackers: "soon" }] as any,
+        },
+      }),
+    );
+    expect(bad!.clock!.line).toEqual([]);
+  });
+
+  it("refuses a clock line longer than the move list", () => {
+    const restored = roundTrip(
+      snapshotInput({
+        states: playTimeline(1),
+        cursor: 1,
+        clock: {
+          initialSeconds: 180,
+          incrementSeconds: 2,
+          remaining: { attackers: 10_000, defenders: 10_000 },
+          active: "defenders" as const,
+          started: true,
+          flagged: null,
+          // One move played → at most two plies; five entries is not this game.
+          line: Array.from({ length: 5 }, () => ({ attackers: 180_000, defenders: 180_000 })),
+        },
+      }),
+    );
+    expect(restored!.clock!.line).toEqual([]);
+  });
+
+  it("treats a save written before the line existed as simply having none", () => {
+    const saved = snapshotGame(
+      snapshotInput({
+        clock: {
+          initialSeconds: 180,
+          incrementSeconds: 2,
+          remaining: { attackers: 90_000, defenders: 90_000 },
+          active: "attackers" as const,
+          started: true,
+          flagged: null,
+          line: [],
+        },
+      }),
+    );
+    // Exactly what an older payload looks like: no `line` key at all.
+    const legacy = JSON.parse(serializeGame(saved));
+    delete legacy.clock.line;
+    const parsed = parseSavedGame(JSON.stringify(legacy));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.clock!.line).toEqual([]);
+    expect(parsed!.clock!.remaining).toEqual({ attackers: 90_000, defenders: 90_000 });
   });
 
   it("restores the match score, names and set length", () => {

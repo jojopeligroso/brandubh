@@ -13,7 +13,7 @@ import {
   sideOf,
   winnerOf,
 } from "./game/engine";
-import type { GameState, Move, PlayMode, Side, Square } from "./game/types";
+import type { GameState, GameStatus, Move, PlayMode, Side, Square } from "./game/types";
 import {
   clearSavedGame,
   hasMatchProgress,
@@ -30,6 +30,7 @@ import {
   SET_LENGTH_OPTIONS,
   standing,
   startNextSet,
+  unrecordLastMatchGame,
   type Match,
   type PlayerId,
 } from "./game/matchSet";
@@ -60,6 +61,14 @@ import {
   loadCustomMinutes,
   resolveTimeControl,
 } from "./game/clock";
+import {
+  banksAt,
+  initialClockLine,
+  isTimeLoss,
+  recordArrival,
+  truncateTo,
+  type ClockLine,
+} from "./game/clockLine";
 import {
   ZEN_EXTRAS,
   loadZenConfig,
@@ -126,6 +135,13 @@ function loadSetting<T extends string>(key: string, valid: readonly T[], fallbac
     return fallback; // localStorage unavailable (private mode, etc.)
   }
 }
+
+// A position can be played on from unless the *board* has settled the game. A
+// loss on time is the exception: it was the clock that ran out, not the
+// position, so it can be resumed — with the times that position was first
+// offered with, which is exactly what a player who stepped away needs.
+const resumable = (status: GameStatus): boolean => !isGameOver(status) || isTimeLoss(status);
+
 
 function sideLabel(s: Side, t: Translations): string {
   return s === "attackers" ? t.raiders : t.kingsSide;
@@ -239,6 +255,15 @@ export default function App() {
     () => resolveTimeControl(clockEnabled, controlId, customMinutes, customIncrement),
     [clockEnabled, controlId, customMinutes, customIncrement],
   );
+  // The clocks each position was first offered with, index-aligned with the move
+  // timeline below. Rewinding the board rewinds these too, so a position always
+  // resumes with the time it had when it was first put in front of the player.
+  const [clockLine, setClockLine] = useState<ClockLine>(() => initialClockLine(timeControl));
+  // A new bank/increment re-arms the live clock (see useGameClock); the recorded
+  // line starts over with it rather than keeping times from the old control.
+  useEffect(() => {
+    setClockLine(initialClockLine(timeControl));
+  }, [timeControl]);
 
   // ── Zen mode (calm, over-the-board board) ───────────────────────────────────
   // Off by default. When on, only the essentials show — board, turn, clock,
@@ -409,23 +434,45 @@ export default function App() {
 
   // ── Drive the clock from the move timeline ──────────────────────────────────
   // Each new move at the tip presses the mover's clock (banks their increment
-  // and hands the running clock to the opponent). Stepping back — a takeback or
-  // branch — re-points the clock at whichever side is now to move.
+  // and hands the running clock to the opponent). The banks that result are the
+  // arrival time of the position just reached, so they go into the clock line;
+  // going back to that position later replays exactly them.
   const prevTipRef = useRef(tip);
   useEffect(() => {
     const prev = prevTipRef.current;
     prevTipRef.current = tip;
     if (!clock.enabled) return;
-    if (tip === prev + 1 && atTip && !gameOver) {
-      // After a move, `game.turn` is the side *now* to move, so the mover was
-      // the opposite side.
-      clock.press(opposite(game.turn));
-    } else if (tip < prev && atTip && !gameOver) {
-      clock.handTo(game.turn);
-    }
+    if (tip !== prev + 1) return; // stepping back is handled by rewindTo
+    // After a move, the position's `turn` is the side *now* to move, so the
+    // mover was the opposite side.
+    const banks = clock.press(opposite(states[tip].turn));
+    setClockLine((line) => recordArrival(line, tip, banks));
     // Only react to timeline length changes, not cursor scrubbing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tip]);
+
+  // ── Returning the live game to an earlier position ──────────────────────────
+  // Takebacks and "play from here" both land here. The timeline is cut back to
+  // `ply`, and both clocks are put back to the times that position was first
+  // offered with — which lifts a flag that fell after it, so a game the player
+  // walked away from can be picked up again rather than being stuck lost on
+  // time. A loss on time *at* `ply` is a clock result, not a board one, so
+  // resuming the position clears it too.
+  const rewindTo = useCallback(
+    (ply: number) => {
+      setStates((prev) => {
+        const next = prev.slice(0, ply + 1);
+        if (isTimeLoss(next[ply].status)) next[ply] = { ...next[ply], status: "playing" };
+        return next;
+      });
+      setClockLine((line) => truncateTo(line, ply));
+      prevTipRef.current = ply; // this is a rewind, not a move
+      if (clock.enabled) {
+        clock.resumeAt(banksAt(clockLine, ply, timeControl), states[ply].turn, ply > 0);
+      }
+    },
+    [clock, clockLine, states, timeControl],
+  );
 
   // ── Human interaction ───────────────────────────────────────────────────────
   const interactive =
@@ -490,8 +537,9 @@ export default function App() {
     setFadingCaptures([]);
     setThinking(false);
     setShowTakeback(false);
+    setClockLine(initialClockLine(timeControl));
     clock.reset();
-  }, [clock.reset]);
+  }, [clock.reset, timeControl]);
 
   // Fresh board and, in hotseat play, a brand-new match (score reset to zero).
   // Starting over is also the moment a saved game stops being worth keeping.
@@ -555,6 +603,10 @@ export default function App() {
       r.clock.incrementSeconds === timeControl.incrementSeconds
     ) {
       clock.restore(r.clock);
+      // A saved line comes back as it was; a save written before the line
+      // existed starts a fresh one, so its earlier positions rewind to a full
+      // bank rather than blocking play.
+      setClockLine(r.clock.line.length ? r.clock.line : initialClockLine(timeControl));
     }
     setPendingResume(null);
     setShowModeOverlay(false);
@@ -605,6 +657,9 @@ export default function App() {
               active: c.active,
               started: c.started,
               flagged: c.flagged,
+              // The per-position times ride along with the banks: without them
+              // a reload would forget what each move was first offered with.
+              line: clockLine,
             }
           : null,
         match,
@@ -665,11 +720,15 @@ export default function App() {
   // Branch the game at the currently-viewed position and resume play.
   const playFromHere = useCallback(
     (vsComputer: boolean) => {
-      if (isGameOver(states[cursor].status)) return; // nothing to play from a finished position
+      if (!resumable(states[cursor].status)) return; // nothing to play from a finished position
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
+      // A game already banked into the set is coming back to life (only a loss
+      // on time can be), so take its result back out — otherwise the resumed
+      // game would be scored twice.
+      if (recorded.current) setMatch((m) => (m ? unrecordLastMatchGame(m) : m));
       recorded.current = false; // this branch becomes a fresh live game
       const sideToMove = states[cursor].turn;
-      setStates((prev) => prev.slice(0, cursor + 1));
+      rewindTo(cursor);
       setSelected(null);
       setFadingCaptures([]);
       setThinking(false);
@@ -678,7 +737,7 @@ export default function App() {
         setPlayMode(sideToMove);
       }
     },
-    [cursor, states],
+    [cursor, states, rewindTo],
   );
 
   // Over the board, resuming from an earlier move discards every move that
@@ -687,7 +746,7 @@ export default function App() {
   // has no opponent to ask, so it branches immediately.
   const requestPlayFromHere = useCallback(
     (vsComputer: boolean) => {
-      if (isGameOver(states[cursor].status)) return;
+      if (!resumable(states[cursor].status)) return;
       if (humanSide === null) setPendingBranch({ vsComputer });
       else playFromHere(vsComputer);
     },
@@ -698,12 +757,12 @@ export default function App() {
     setShowTakeback(false);
     if (tip < 1) return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
-    setStates((prev) => prev.slice(0, -1));
+    rewindTo(tip - 1);
     setCursor(tip - 1);
     setSelected(null);
     setFadingCaptures([]);
     setThinking(false);
-  }, [tip]);
+  }, [tip, rewindTo]);
 
   const resign = useCallback(() => {
     setShowResign(false);
@@ -800,14 +859,18 @@ export default function App() {
   // side they took.
   const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
   const showPause = clock.enabled && clock.started && atTip && !gameOver;
+  // Browsing the game shows each position's own clocks — the times it was first
+  // offered with — rather than the live banks, so what you see while reviewing
+  // is what you get if you resume from there.
+  const viewedBanks = reviewing ? banksAt(clockLine, cursor, timeControl) : clock.remaining;
   const renderClock = (side: Side) => (
     <GameClock
       name={sideLabel(side, t)}
       side={side}
-      ms={clock.remaining[side]}
-      active={clock.active === side}
+      ms={viewedBanks[side]}
+      active={reviewing ? game.turn === side : clock.active === side}
       running={clock.running}
-      flagged={clock.flagged === side}
+      flagged={!reviewing && clock.flagged === side}
       increment={timeControl?.incrementSeconds ?? 0}
       flagLabel={t.flagLabel}
     />
@@ -927,7 +990,7 @@ export default function App() {
           reviewing={reviewing}
           moveNumber={cursor}
           totalMoves={tip}
-          viewedTerminal={gameOver}
+          viewedTerminal={!resumable(game.status)}
           showVsAi={showVsAiBranch}
           onLatest={goLatest}
           onPlay={() => requestPlayFromHere(false)}
