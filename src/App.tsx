@@ -1311,13 +1311,9 @@ function Header({
   onShowRules: () => void;
   onShowDesign: () => void;
 }) {
-  // Two blocks that share a row where there is room and stack where there is
-  // not. The controls never split or overflow — each language revealed makes the
-  // switcher wider, and on a narrow phone the whole group simply drops to its own
-  // line rather than squeezing the wordmark's subtitle into three.
   return (
-    <header className="flex flex-wrap items-center justify-end gap-2">
-      <div className="mr-auto shrink-0">
+    <header className="flex items-center justify-between gap-2">
+      <div>
         <h1 className="gaelic text-3xl leading-none text-parchment">
           {/* Gaelic word → cló face + overdot orthography (see gaelic.ts):
               "Brandubh" renders "Branduḃ". */}
@@ -1327,12 +1323,10 @@ function Header({
           {t.subtitle}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex items-center gap-2">
         {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line change
-            there rather than a hand-edit here. Compact, because the switcher
-            grows by a button each time a locale is revealed and the header is
-            the tightest row in the app. */}
-        <div className="seg seg-compact">
+            there rather than a hand-edit here. */}
+        <div className="seg">
           {VISIBLE_LANGS.map((l) => (
             <button
               key={l.code}

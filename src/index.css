@@ -760,6 +760,7 @@ body {
   outline: 2px solid color-mix(in srgb, var(--color-blood) 85%, transparent);
   outline-offset: 1px;
 }
+
 @keyframes place {
   from {
     transform: scale(0.5);
@@ -833,14 +834,6 @@ body {
 .seg button.on {
   background: var(--color-gold);
   color: var(--on-accent);
-}
-/* A tighter segmented control, for the header's language switcher. Three
-   two-letter codes at the full size push "How to play" into overflow on a
-   360px phone; at this size they sit beside it with room to spare. */
-.seg-compact button {
-  padding: 0.3rem 0.45rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
 }
 
 .card {

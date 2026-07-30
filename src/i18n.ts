@@ -1,17 +1,31 @@
 export type Lang = "en" | "es" | "ga";
 
 /**
- * Languages shown in the UI toggle, in order. This is the single list the
- * header renders from — a language is live exactly when it appears here.
+ * Languages shown in the UI toggle, in order. This is the single list the header
+ * renders from — a language is live exactly when it appears here, and nowhere
+ * else. (It used to be exported and never imported, with the header hardcoding
+ * its own buttons; that is what made "unhide a locale" a two-place edit.)
  *
- * Irish is set in the cló Gaelach with overdot orthography (see gaelic.ts), so
- * its own label is written the same way: "GA" → "GA" is unchanged, but the flag
- * on the document root swaps the face for the whole UI once it is selected.
+ * **Irish (`ga`) is deliberately not listed.** The full table exists in this
+ * file and renders correctly — the cló Gaelach face and the overdot orthography
+ * are exercised by the tests, and a Gaelic locale flags the document so display
+ * text picks up the face (see gaelic.ts). What it has not had is a proper
+ * translation review, so the whole Irish *interface* surface stays out of the
+ * user's reach until it does. This is not about the machinery.
+ *
+ * Individual Gaelic words in the otherwise-English UI — the Branduḃ wordmark,
+ * the Ollaṁ difficulty — are names, not translated interface, and stay as they
+ * are.
+ *
+ * Revealing `ga` is a one-line change here, but it is not free: a third button
+ * overflows the header at 360–390px and squeezes the subtitle onto three lines
+ * at 430–520px, because the container is capped at `max-w-md` below the `sm`
+ * breakpoint. The header fix that goes with it is on record in the history of
+ * this branch.
  */
 export const VISIBLE_LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "es", label: "ES" },
-  { code: "ga", label: "GA" },
 ];
 
 export interface Translations {
