@@ -22,6 +22,14 @@ const flag = (name: string, def: number): number => {
 };
 const GAMES = flag("games", 24);
 const DEPTH = flag("depth", 5);
+// Asymmetric probe: the symmetric fixed-depth gauntlet saturates (every game a
+// defender win, book or no book — it can rule out a regression but not detect a
+// gain), so optionally give the book side a shallower search than its opponent
+// and measure whether the book claws games back for the weaker side.
+const BOOK_DEPTH = flag("bookdepth", DEPTH);
+const PLAIN_DEPTH = flag("plaindepth", DEPTH);
+const NO_BOOK = argv.includes("--nobook"); // baseline: same depths, book off
+const SEED_BASE = flag("seedbase", 100); // shard a big gauntlet across processes
 
 /** Deterministic PRNG (mulberry32), as in aibench. */
 function mulberry32(seed: number): () => number {
@@ -48,8 +56,8 @@ function bookPick(s: GameState, rng: () => number): Move | null {
 }
 
 // ── (a) Opening latency: booked vs live ollamh search ─────────────────────────
-console.log("── Opening latency: book vs ollamh live search ──");
-{
+if (!argv.includes("--gauntlet-only")) {
+  console.log("── Opening latency: book vs ollamh live search ──");
   // The opening (ollamh as attackers) and a ply-1 reply (ollamh as defenders).
   const positions: Array<[string, GameState]> = [["opening (attackers)", initialState()]];
   const s1 = applyMove(initialState(), allMoves(initialState().board, "attackers", rules)[7], rules);
@@ -70,8 +78,8 @@ console.log("── Opening latency: book vs ollamh live search ──");
 }
 
 // ── (b) Opening variety over the booked plies ─────────────────────────────────
-console.log("\n── Opening variety (first 4 plies, both sides ollamh) ──");
-{
+if (!argv.includes("--gauntlet-only")) {
+  console.log("\n── Opening variety (first 4 plies, both sides ollamh) ──");
   const sequences = new Set<string>();
   const firsts = new Set<string>();
   const SEEDS = 24;
@@ -113,7 +121,9 @@ console.log("\n── Opening variety (first 4 plies, both sides ollamh) ──"
 
 // ── (c) Strength gauntlet: with book vs without, fixed depth ──────────────────
 if (!argv.includes("--skip-gauntlet")) {
-  console.log(`\n── Gauntlet: book vs no-book at fixed depth ${DEPTH}, ${GAMES} games ──`);
+  console.log(
+    `\n── Gauntlet: book(depth ${BOOK_DEPTH}${NO_BOOK ? ", book OFF" : ""}) vs plain(depth ${PLAIN_DEPTH}), ${GAMES} games ──`,
+  );
   const playGame = (bookSide: Side, seed: number): Side | "draw" | null => {
     const rngA = mulberry32(seed * 2 + 1);
     const rngD = mulberry32(seed * 2 + 2);
@@ -121,10 +131,11 @@ if (!argv.includes("--skip-gauntlet")) {
     let plies = 0;
     while (!isGameOver(s.status) && plies < 200) {
       const rng = s.turn === "attackers" ? rngA : rngD;
-      let move: Move | null = s.turn === bookSide ? bookPick(s, rng) : null;
+      const isBookSide = s.turn === bookSide;
+      let move: Move | null = isBookSide && !NO_BOOK ? bookPick(s, rng) : null;
       if (!move) {
         resetTT();
-        move = pickMove(s, rules, { maxDepth: DEPTH }, FULL_CONFIG, rng).move;
+        move = pickMove(s, rules, { maxDepth: isBookSide ? BOOK_DEPTH : PLAIN_DEPTH }, FULL_CONFIG, rng).move;
       }
       if (!move) break;
       s = applyMove(s, move, rules);
@@ -136,15 +147,23 @@ if (!argv.includes("--skip-gauntlet")) {
   let bookWins = 0;
   let plainWins = 0;
   let other = 0;
+  const byColor = { attackers: [0, 0], defenders: [0, 0] }; // [bookWins, plainWins] with book on that colour
   const t0 = performance.now();
   for (let i = 0; i < GAMES; i++) {
     const bookSide: Side = i % 2 === 0 ? "attackers" : "defenders";
-    const w = playGame(bookSide, 100 + (i >> 1));
-    if (w === bookSide) bookWins++;
-    else if (w === "attackers" || w === "defenders") plainWins++;
-    else other++;
+    const w = playGame(bookSide, SEED_BASE + (i >> 1));
+    if (w === bookSide) {
+      bookWins++;
+      byColor[bookSide][0]++;
+    } else if (w === "attackers" || w === "defenders") {
+      plainWins++;
+      byColor[bookSide][1]++;
+    } else other++;
     console.log(`  game ${i + 1}/${GAMES}: book as ${bookSide} → ${w ?? "unfinished"} (${((performance.now() - t0) / 1000).toFixed(0)}s)`);
   }
-  console.log(`\n  book ${bookWins} — no-book ${plainWins} — draw/none ${other}  (of ${GAMES})`);
+  console.log(`\n  book ${bookWins} — no-book ${plainWins} — draw/none ${other}  (of ${GAMES}, seeds ${SEED_BASE}+)`);
+  console.log(
+    `  by colour: book-as-attackers ${byColor.attackers[0]}-${byColor.attackers[1]}, book-as-defenders ${byColor.defenders[0]}-${byColor.defenders[1]}`,
+  );
   console.log("  ship bar: book wins ≥ no-book wins (never ship a measured regression).");
 }
