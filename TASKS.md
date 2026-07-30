@@ -27,8 +27,8 @@ custom-rule editor.
 
 ## Half-built
 
-- [x] **Irish (ga) locale** — Unhidden. Added `ga` to `VISIBLE_LANGS` and made the header language toggle render from that list (it was hard-coded to EN/ES). Cló rendering verified in a driven browser.
-- [x] **`.piece.threat` CSS** — Removed as dead code; it was styled in `index.css` but never applied in any component. (`.piece.captured` is still used by the "Show me how" demo in `HowToDemo.tsx`.)
+- [ ] **Irish (ga) locale** — **Re-hidden** (decision reversed): the `ga` strings are unreviewed machine drafts and stay out of `VISIBLE_LANGS` until a human Irish speaker signs the copy off — see `CLAUDE.md`. The translations remain in `src/i18n.ts` (TypeScript keeps them complete); the remaining work is the human review, not code.
+- [x] **`.piece.threat` CSS** — Removed as dead code; it was styled in `index.css` but never applied in any component. (`.piece.captured` is still used by the "Show me how" demo, now in `ObjectivesContent.tsx`.)
 
 ## AI engine — next levers
 
