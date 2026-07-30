@@ -840,10 +840,29 @@ export default function App() {
     });
   }, [gameOver, atTip, humanSide, game.turn]);
 
+  // ── Changing the rules ──────────────────────────────────────────────────────
+  // A ruleset change cannot be applied to a game already in progress: the board
+  // stands in a position the new rules may never have allowed, and the moves
+  // that produced it may have taken pieces the new rules would have left alone.
+  // So a rule change is a new game — `resetGame` clears the board, restarts the
+  // match, *and* drops the save.
+  //
+  // Dropping the save is not housekeeping, it is the half that makes storage
+  // agree with the UI. The autosave writes the current move list alongside the
+  // current ruleset, and `restoreGame` replays that list under those rules
+  // (game/persist.ts); leaving the two paired after a rule change would hand a
+  // reload a move list to reinterpret under rules it was never played under.
+  //
+  // Both entry points go through here — picking a different variant, and
+  // toggling a flag in the custom-rule editor. They are the same event.
   const changeVariant = (id: string) => {
     setVariantId(id);
-    resetBoard();
-    setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
+    resetGame();
+  };
+
+  const changeCustomRules = (next: CustomRuleSet) => {
+    setCustomRules(next);
+    resetGame();
   };
 
   const changeMode = (m: PlayMode) => {
@@ -1110,7 +1129,7 @@ export default function App() {
 
           {variantId === "custom" && (
             <div className="card mt-4 p-4">
-              <CustomRuleControls t={t} rules={customRules} onChange={setCustomRules} />
+              <CustomRuleControls t={t} rules={customRules} onChange={changeCustomRules} />
             </div>
           )}
         </>
@@ -1259,7 +1278,7 @@ export default function App() {
           onToggleZenExtra={toggleZenExtra}
           clockControls={clockControls}
           customRules={variantId === "custom" ? customRules : null}
-          onCustomRules={setCustomRules}
+          onCustomRules={changeCustomRules}
           gameFile={{
             state: states[tip],
             rules,

@@ -241,13 +241,28 @@ describe("the move rows", () => {
     expect(fromRecords(shuffled, saved.cursor).moves).toEqual(saved.moves);
   });
 
-  it("record capture counts when the caller supplies them", () => {
+  it("take capture counts off the saved move itself", () => {
     const saved = saveOf();
-    const counts = saved.moves.map((_, i) => (i === 2 ? 2 : 0));
-    const { moves } = toRecords(saved, counts);
-    expect(moves.map((m) => m.captures)).toEqual(counts);
-    // …and are absent-but-harmless when it does not (they are derived).
-    expect(toRecords(saved).moves.every((m) => m.captures === 0)).toBe(true);
+    const own = saved.moves.map((m) => m[4]);
+    expect(own.every((c) => c !== undefined)).toBe(true);
+    expect(toRecords(saved).moves.map((m) => m.captures)).toEqual(own);
+    // The save's own count is authoritative — a caller cannot talk the row out
+    // of what the move list recorded.
+    const bogus = saved.moves.map(() => 3);
+    expect(toRecords(saved, bogus).moves.map((m) => m.captures)).toEqual(own);
+  });
+
+  it("fall back to the caller's counts for a save written before they existed", () => {
+    const saved = saveOf();
+    // A pre-count save: from/to only, exactly as the old schema wrote them.
+    const old: SavedGame = {
+      ...saved,
+      moves: saved.moves.map(([a, b, c, d]) => [a, b, c, d] as [number, number, number, number]),
+    };
+    const counts = old.moves.map((_, i) => (i === 2 ? 2 : 0));
+    expect(toRecords(old, counts).moves.map((m) => m.captures)).toEqual(counts);
+    // …and are absent-but-harmless when neither is available (they are derived).
+    expect(toRecords(old).moves.every((m) => m.captures === 0)).toBe(true);
   });
 });
 
