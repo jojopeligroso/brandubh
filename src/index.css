@@ -1341,6 +1341,24 @@ body {
   animation: victory-halo 2600ms ease-in-out 480ms infinite;
   box-shadow: 0 0 34px color-mix(in srgb, var(--victory-tint) 55%, transparent);
 }
+/* ── Tutorial refusal curtain ────────────────────────────────────────────────
+   Reuses the victory card's blood tint and entrance, with a struck-through
+   mark in place of the winner's stone. Tutorials only. */
+.mistake-mark {
+  margin-inline: auto;
+  width: 3.5rem;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--color-blood);
+  border: 1px solid color-mix(in srgb, var(--color-blood) 55%, transparent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--color-blood) 40%, transparent);
+}
+
 @keyframes victory-in {
   from {
     opacity: 0;

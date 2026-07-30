@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Board from "./Board";
+import TutorialMistakeOverlay from "./TutorialMistakeOverlay";
 import type { Emblems } from "./ObjectivesContent";
 import type { Translations } from "../i18n";
 import { applyMove, isGameOver, movesFrom, sideOf } from "../game/engine";
 import type { GameState, Move, Square } from "../game/types";
 import {
+  explainMistake,
   isAcceptedMove,
   rulesForScenario,
   stateFor,
+  type TutorialMistake,
   type TutorialScenario,
 } from "../game/tutorials";
 import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
@@ -39,6 +42,7 @@ export default function TutorialPlayer({
   const [game, setGame] = useState<GameState>(() => stateFor(scenario));
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("playing");
+  const [mistake, setMistake] = useState<TutorialMistake | null>(null);
   const [selected, setSelected] = useState<Square | null>(null);
   const [fadingCaptures, setFadingCaptures] = useState<Square[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -55,6 +59,7 @@ export default function TutorialPlayer({
     setGame(stateFor(scenario));
     setStepIndex(0);
     setPhase("playing");
+    setMistake(null);
     setSelected(null);
     setFadingCaptures([]);
     setShowHint(false);
@@ -75,6 +80,9 @@ export default function TutorialPlayer({
   const handleMove = (move: Move) => {
     setSelected(null);
     if (!isAcceptedMove(scenario, stepIndex, game, move, rules)) {
+      // The move is refused, not played: the board stays as it was so the
+      // learner reads the same position again behind the explanation.
+      setMistake(explainMistake(scenario, stepIndex, game, move, rules));
       setPhase("wrong");
       return;
     }
@@ -173,21 +181,9 @@ export default function TutorialPlayer({
               )}
             </div>
           </div>
-        ) : phase === "wrong" ? (
-          <div className="space-y-3 text-center">
-            <p className="text-sm text-blood">{t.tutorialWrongMove}</p>
-            <div className="flex justify-center gap-2">
-              <button className="btn btn-primary" onClick={() => setPhase("playing")}>
-                {t.tutorialTryAgain}
-              </button>
-              {!showHint && (
-                <button className="btn" onClick={() => setShowHint(true)}>
-                  {t.tutorialShowHint}
-                </button>
-              )}
-            </div>
-          </div>
         ) : (
+          // A refused move is answered by the full-screen curtain below, not
+          // here — the controls stay put so the board does not jump under it.
           <div className="flex items-center justify-between gap-3">
             <button className="btn" onClick={reset}>
               {t.tutorialReset}
@@ -203,6 +199,21 @@ export default function TutorialPlayer({
           <p className="mt-2 text-sm italic text-parchment-dim">{t.tutorialHints[scenario.id]}</p>
         )}
       </div>
+
+      {phase === "wrong" && mistake && (
+        <TutorialMistakeOverlay
+          t={t}
+          mistake={mistake}
+          goal={t.tutorialGoals[scenario.id]}
+          hint={t.tutorialHints[scenario.id]}
+          showingHint={showHint}
+          onTryAgain={() => {
+            setMistake(null);
+            setPhase("playing");
+          }}
+          onShowHint={() => setShowHint(true)}
+        />
+      )}
     </div>
   );
 }
