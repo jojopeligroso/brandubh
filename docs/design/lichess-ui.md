@@ -145,7 +145,13 @@ overlay; `useAnalysisWorker` runs the search.
   with the board under it. It is absolutely positioned (so the 7×7 grid
   auto-placement is untouched) and `aria-hidden` (so the accessible grid is
   still 49 gridcells).
-- **Opt-in twice over**: a Zen extra (`eval`) decides whether the toggle button
+- **Post-game only — availability is not a preference.** The eval does not
+  exist while a game is unfinished, whatever the toggle says. The test is the
+  *live* game's result, so analysing a finished game keeps the eval down a
+  variation (which truncates the timeline and would otherwise revoke it), while
+  analysis mode entered on an unfinished game gets nothing — that path was a way
+  to ask the engine mid-game and then play on. `evalAvailable` in `evalBar.ts`.
+- **Opt-in twice over** (once available): a Zen extra (`eval`) decides whether the toggle button
   exists; a persisted preference holds whether the bar is on. Off means the
   search is *cancelled*, not merely hidden.
 

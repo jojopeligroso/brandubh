@@ -5,6 +5,7 @@ import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
+import { evalAvailable } from "./evalBar";
 import { useAiWorker } from "./game/useAiWorker";
 import { useAnalysisWorker } from "./game/useAnalysisWorker";
 import EvalBar from "./components/EvalBar";
@@ -681,7 +682,21 @@ export default function App() {
   const { requestAnalysis, cancel: cancelAnalysis } = useAnalysisWorker();
   const [evalInfo, setEvalInfo] = useState<{ score: number; move: Move | null } | null>(null);
   const [evalPending, setEvalPending] = useState(false);
-  const showEval = evalOn && showExtra("eval");
+
+  // The eval is a POST-GAME tool and nothing else — see `evalAvailable`. While a
+  // game is still being played, showing it would be an engine telling a player
+  // what to do, so it is not offered, not togglable, and not searched for.
+  //
+  // The result consulted is the *live* game's, which is why analysis mode is
+  // read through the snapshot: exploring a line truncates the timeline and
+  // makes the tip unfinished again, but the real game behind it is still over.
+  // Analysis entered on an unfinished game gets nothing — that path would
+  // otherwise be a way to ask the engine mid-game and then play on.
+  const liveTipStatus = analysis
+    ? (liveGameRef.current?.states[liveGameRef.current.states.length - 1].status ?? tipStatus)
+    : tipStatus;
+  const canShowEval = evalAvailable({ liveGameOver: isGameOver(liveTipStatus) });
+  const showEval = canShowEval && evalOn && showExtra("eval");
   useEffect(() => {
     if (!showEval) {
       // Switched off (or hidden by Zen): stop searching and drop the readout, so
@@ -1545,7 +1560,7 @@ export default function App() {
         t={t}
         showFlip={showExtra("flip")}
         showAnalysis={showExtra("analysis")}
-        showEvalToggle={showExtra("eval")}
+        showEvalToggle={canShowEval && showExtra("eval")}
         flippedH={flippedH}
         onFlipH={() => setFlippedH((f) => !f)}
         flippedV={flippedV}

@@ -4,6 +4,7 @@ import {
   EVAL_SCALE,
   POINTS_PER_PIECE,
   decisiveWinner,
+  evalAvailable,
   evalBarFill,
   formatEvalScore,
   scoreForBottom,
@@ -40,6 +41,35 @@ describe("decisive scores", () => {
     expect(decisiveWinner(-(DECISIVE - 1))).toBeNull();
     expect(decisiveWinner(0)).toBeNull();
     expect(decisiveWinner(5000)).toBeNull();
+  });
+});
+
+describe("availability — a post-game tool only", () => {
+  it("is unavailable while the game is still being played", () => {
+    // The whole point: an eval bar and a best-move arrow beside a live game is
+    // an engine telling a player what to do.
+    expect(evalAvailable({ liveGameOver: false })).toBe(false);
+  });
+
+  it("becomes available once the game has concluded", () => {
+    expect(evalAvailable({ liveGameOver: true })).toBe(true);
+  });
+
+  it("keys on the live game's result, not the position on screen", () => {
+    // Two cases this covers, and they pull in opposite directions:
+    //
+    //  - reviewing an unfinished game shows early positions that are not
+    //    themselves terminal, and must still get nothing;
+    //  - analysing a finished game truncates the timeline, so the tip is an
+    //    unfinished position again — but the real game is over and analysing
+    //    it is the supported use, so the eval stays.
+    //
+    // Both fall out of the caller passing the LIVE result, which is what these
+    // two assertions pin.
+    const reviewingAnUnfinishedGame = { liveGameOver: false };
+    const analysingAVariationOffAFinishedGame = { liveGameOver: true };
+    expect(evalAvailable(reviewingAnUnfinishedGame)).toBe(false);
+    expect(evalAvailable(analysingAVariationOffAFinishedGame)).toBe(true);
   });
 });
 

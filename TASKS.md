@@ -89,4 +89,4 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 ## Docs
 
-- [x] **Update screenshot** — `docs/screenshot.png` is regenerated from the production build with `npm run screenshot` (driven by `scripts/screenshot.mjs`). It shows the current *Brandubh · World Tafl Federation* variant name, the **EN / ES** switcher (Irish is held back — see `CLAUDE.md`), and the eval bar beside the board (Session 7a). Refresh it whenever the board view changes.
+- [x] **Update screenshot** — `docs/screenshot.png` is regenerated from the production build with `npm run screenshot` (driven by `scripts/screenshot.mjs`). It shows the current *Brandubh · World Tafl Federation* variant name and the **EN / ES** switcher (Irish is held back — see `CLAUDE.md`). It does **not** show the eval bar, and should not: the shot is a game in progress, and the eval is a post-game tool (Session 7a). The script pins `brandubh.theme` before first paint, because `pickDefaultTheme()` is a 66/34 coin flip and the image would otherwise change palette at random on every regeneration. Refresh it whenever the board view changes.

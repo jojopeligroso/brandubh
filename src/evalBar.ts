@@ -33,6 +33,32 @@ import { DECISIVE, DEFAULT_WEIGHTS } from "./game/ai";
 import type { Side } from "./game/types";
 
 /**
+ * Whether the engine eval may be shown at all.
+ *
+ * **It is a post-game tool, and only a post-game tool.** An eval bar and a
+ * best-move arrow beside a game you are still playing is an engine telling you
+ * what to do — against the computer that is cheating, and over the board it is
+ * cheating in front of a witness. So availability is not a preference: the
+ * feature does not exist until the game it describes has finished.
+ *
+ * The test is the **live** game's result, not the position on screen, and the
+ * distinction matters twice:
+ *
+ *  - Stepping back through a game still in progress shows finished-looking
+ *    early positions. Those are still part of an unfinished game — no eval.
+ *  - Exploring a line in analysis mode (7b) *truncates* the timeline, so the
+ *    tip becomes an unfinished position again. But the real game is finished
+ *    and safely snapshotted; analysing it is precisely the use case. So the
+ *    caller passes the concluded state of the snapshot while analysing, and
+ *    the eval stays available down the whole variation.
+ *
+ * Analysis mode entered on an *unfinished* game therefore still gets nothing,
+ * which is the hole this closes: it would otherwise have been a way to consult
+ * the engine mid-game and then leave analysis and play on.
+ */
+export const evalAvailable = (o: { liveGameOver: boolean }): boolean => o.liveGameOver;
+
+/**
  * How steeply the fill responds to the score, in engine points.
  *
  * A logistic curve rather than a clamp, so the bar keeps saying something at
