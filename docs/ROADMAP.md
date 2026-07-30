@@ -63,11 +63,12 @@ knowledge of any file format. Session 1's `restoreGame` now sits on it too, so
 a save and a pasted game are validated by the same code — one trust boundary,
 two encodings, neither coupled to the other.
 
-### Session 4 — Attacker endgame recognizer *(M)*
-**Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture / forced encirclement) — helps the side you're pressure-testing.
-- [ ] `forcedAttackerWin(state, rules)` returning `+RECOGNIZED_WIN`; escape-zone-style gate for zero throughput cost.
-- [ ] Cross-validate against the solver + an independent AND-OR oracle (as `recognizers.test.ts` does).
-- [ ] Confirm throughput-neutral; gauntlet for strength/neutrality; document honestly.
+### Session 4 — Attacker endgame recognizer *(M)* — **shipped (as a default-off knob)**
+**Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture) — helps the side you're pressure-testing.
+- [x] `forcedAttackerWin(state, rules)` returning `+RECOGNIZED_WIN` — attacker on move with a capture in hand, or defender on move but *netted* (every reply losing the king). `src/game/ai.ts`.
+- [x] Cross-validated against an independent AND-OR oracle over random self-play in both variants — the exact mirror of `recognizers.test.ts`. `src/game/attackerRecognizer.test.ts` (6 tests): fixtures + a soundness sweep that fires and agrees at depth 4 on every hit.
+- [x] **Throughput measured, and it is *not* free** — the finding that shaped the outcome. A capture, unlike an escape, is not pure geometry: the active-capture rule needs the *moving* attacker beside the king, so proving one needs move generation, not a `clearPathToCorner`-style O(1) test. A naïve ≤3-ply version measured ~150× slower per leaf; trimmed hard (O(1) pressure gate, bounded defender loop, capture check limited to king-adjacent landings) it still measured **~7% fewer nodes/s** in an isolated A/B (defender-recognizer baseline vs +attacker) on an endgame-heavy sample. A fixed-depth gauntlet showed **no win-rate change** (strength-neutral, like the defender twin).
+- [x] **Decision (per the sizing rule below): neutral + not-free ⇒ shipped behind its own `attackerRecognizer` weight flag, default OFF** — a per-variant / analysis knob, exactly as PVS ships off. The default engine path is byte-for-byte unchanged, so there is **no throughput regression**. Kept rather than dropped because it is a proven, cross-validated tool the analysis UI (Session 7) and pressure-testing can switch on deliberately. The roadmap's original "escape-zone-style gate for zero throughput cost" assumed a symmetry with escapes that does not hold; documented honestly in `ai.ts`.
 
 ### Session 5 — Correctness & discoverability polish *(S — batch)* — **shipped**
 **Goal:** fix known bugs and make features findable.
@@ -77,6 +78,7 @@ two encodings, neither coupled to the other.
 - [ ] **Unhide Irish (`ga`) locale** — *held back deliberately.* The table is complete and renders correctly (cló Gaelach face, overdot orthography, `bḟ` eclipsis preserved), and a dozen strings were corrected while reading the whole UI in it — but the Irish **interface** stays out of reach until it has had a proper translation review. Individual Gaelic words in the English UI are names, not translated interface, and stay: the Branduḃ wordmark, the Ollaṁ difficulty. Every table is tested whether offered or not, so it cannot rot while it waits. Revealing it is a one-line change in `i18n.ts`, plus the header fix it needs: a third button overflows the header at 360–390px and squeezes the subtitle onto three lines at 430–520px, because the container is capped at `max-w-md` below the `sm` breakpoint. That fix — a `.seg-compact` switcher and a header that wraps as a whole rather than squeezing — is on record in this branch's history.
 - [x] Deleted the dead `.piece.threat` CSS (styled since the first commit, applied by nothing). Not wired up: deciding what counts as "under threat" and whether it can be turned off is a gameplay-assist feature and a difficulty change, not a tidying pass — and the board already marks what is actually about to happen with `.dot.capture`. `docs/screenshot.png` refreshed; it still showed "Copenhagen Brandubh" and "Pass & play".
 - [x] Verified in a driven browser against the production build, one pass per item: 14 assertions for the clock in Zen, 14 for the rule-toggle reset and save invalidation, 12 for the header wiring with Irish held back. Tests 250 (was 235).
+- [x] Reconciled with the Session 5 that landed on `main` in parallel (`4997f48`). Its App.tsx changes are a subset of these, so they merged to this side; its `scripts/screenshot.mjs` (`npm run screenshot`) is the better tool and is kept, and `docs/screenshot.png` is regenerated with it. The one real disagreement was Irish: that commit revealed it, and this one holds it back.
 
 ### Session 6 — Opening book (Ollamh) *(M–L)*
 **Goal:** Ollamh opens instantly, varied, and strong.

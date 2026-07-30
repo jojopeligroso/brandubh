@@ -756,6 +756,7 @@ body {
 .piece.captured {
   animation: capture 260ms ease-in forwards;
 }
+
 @keyframes place {
   from {
     transform: scale(0.5);
