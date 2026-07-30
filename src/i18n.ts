@@ -1,9 +1,17 @@
 export type Lang = "en" | "es" | "ga";
 
-/** Languages shown in the UI toggle. Irish is available but hidden for now. */
+/**
+ * Languages shown in the UI toggle, in order. This is the single list the
+ * header renders from — a language is live exactly when it appears here.
+ *
+ * Irish is set in the cló Gaelach with overdot orthography (see gaelic.ts), so
+ * its own label is written the same way: "GA" → "GA" is unchanged, but the flag
+ * on the document root swaps the face for the whole UI once it is selected.
+ */
 export const VISIBLE_LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "es", label: "ES" },
+  { code: "ga", label: "GA" },
 ];
 
 export interface Translations {
@@ -885,7 +893,7 @@ const ga: Translations = {
   playAs: "Imir mar",
   king: "R\u00ed",
   overTheBoard: "Os comhair a ch\u00e9ile",
-  aiLevel: "Leibh\u00e9al RI",
+  aiLevel: "Deacracht",
   easy: "\u00c9asca",
   medium: "Me\u00e1nach",
   hard: "Deacair",
@@ -947,7 +955,7 @@ const ga: Translations = {
   zenHint:
     "Clár ciúin — na píosaí, an seal, an clog agus an loga bogtha amháin. Ní thagann na rialuithe ach nuair a chríochnaíonn cluiche.",
   zenShowExtras: "Taispeáin freisin sa mhód Zen",
-  on: "Air",
+  on: "Ar si\u00fal",
   off: "As",
   zenElScoreboard: "Scórchlár na sraithe",
   zenElCaptured: "Píosaí gafa",
@@ -961,7 +969,7 @@ const ga: Translations = {
   ruleThroneHostileSoldiers: "Ríchathaoir naimhdeach do shaighdiúirí",
   ruleThroneHostileSoldiersHint: "cabhraíonn an ríchathaoir fholamh le saighdiúirí a ghabháil",
   ruleThroneHostileKing: "Ríchathaoir naimhdeach don rí",
-  ruleThroneHostileKingHint: "cuntar an ríchathaoir fholamh in aghaidh an rí",
+  ruleThroneHostileKingHint: "áirítear an ríchathaoir fholamh mar bhalla in aghaidh an rí",
   ruleKingReoccupyThrone: "Féadann an rí filleadh ar an ríchathaoir",
   ruleKingReoccupyThroneHint: "is féidir leis an rí filleadh ar an ríchathaoir",
   ruleSoldiersPassThrone: "Saighdiúirí thar an ríchathaoir",
@@ -988,7 +996,7 @@ const ga: Translations = {
   raidersCounter: "Foghlaithe",
   movesWord: "bogadh",
   drawShort: "Cothrom",
-  bestWin: "is fear",
+  bestWin: "is fearr",
   nextGame: "An chéad chluiche eile",
   newSet: "Sraith nua",
   nextSet: "An chéad sraith eile",
@@ -1028,20 +1036,20 @@ const ga: Translations = {
     'Is \u00e9 Brandubh (\u201cfiach dubh\u201d) an leagan Gaelach 7\u00d77 de hnefatafl \u2014 cluiche cogaidh Lochlannach-Gaelach neamhshim\u00e9adrach. ',
   rulesIntroNot: "N\u00ed",
   rulesIntroDifferent:
-    " ficheall shim\u00e9adrach \u00e9: t\u00e1 ruda\u00ed \u00e9ags\u00fala uaidh ag an d\u00e1 thaobh.",
+    " ficheall shim\u00e9adrach \u00e9: t\u00e1 ruda\u00ed \u00e9ags\u00fala ag teast\u00e1il \u00f3n d\u00e1 thaobh.",
   sectionArmies: "Na sluaite",
   theKing: "An R\u00ed",
-  kingSitsOn: "ina shu\u00ed ar an r\u00edchathaoir l\u00e1r le",
+  kingSitsOn: "ina shu\u00ed ar an r\u00edchathaoir sa l\u00e1r le",
   fourDefenders: "4 chosant\u00f3ir",
   outnumbered: "T\u00e1 a thaobh faoi mh\u00edbhunt\u00e1iste uimhreach.",
-  eightAttackers: "8 bhfoghlaithe",
+  eightAttackers: "8 bhfoghla\u00ed",
   attackersRing:
     "(creachad\u00f3ir\u00ed) timpeall na n-imeall. Bogann siad ar dt\u00fas.",
   sectionMovement: "Gluaiseacht",
   movementRook:
     "Bogann gach p\u00edosa mar chaiseal: aon l\u00edon cearn\u00f3g folamh suas, s\u00edos n\u00f3 trasna.",
   movementNoJumps:
-    "N\u00ed l\u00e9imeann aon ph\u00edosa. N\u00ed chead\u00e1\u00edtear bogadh trasn\u00e1nach.",
+    "N\u00ed l\u00e9imeann aon ph\u00edosa. N\u00ed cheada\u00edtear bogadh trasn\u00e1nach.",
   movementThroneOnly: "N\u00ed f\u00e9idir ach leis an R\u00ed fanacht ar an",
   throne: "r\u00edchathaoir",
   orA: "(l\u00e1r) n\u00f3",
@@ -1050,14 +1058,14 @@ const ga: Translations = {
     ". F\u00e9adann saighdi\u00fair\u00ed dul thar an r\u00edchathaoir fholamh ach n\u00ed f\u00e9idir leo stopadh uirthi.",
   sectionCapturing: "Gabh\u00e1il",
   captureTrap1:
-    "Cuir saighdi\u00fair namhad i ngaiste idir dh\u00e1 ph\u00edosa de do chuid f\u00e9in (n\u00f3 do ph\u00edosa agus cearn\u00f3g naimhdeach) ar l\u00edne \u2014 bainfear \u00e9. N\u00ed ghab\u00e1iltear t\u00fa ach tr\u00ed bhogadh ",
+    "Cuir saighdi\u00fair namhad i ngaiste idir dh\u00e1 ph\u00edosa de do chuid f\u00e9in (n\u00f3 do ph\u00edosa agus cearn\u00f3g naimhdeach) ar l\u00edne \u2014 bainfear \u00e9. N\u00ed ghabhtar th\u00fa ach tr\u00ed bhogadh ",
   captureInto: "isteach",
   captureTrap2:
     " sa ghaiste; t\u00e1 s\u00e9 s\u00e1bh\u00e1ilte bogadh idir dh\u00e1 namhaid.",
   captureHostile:
     "Is cearn\u00f3ga naimhdeacha iad na c\u00fainn\u00ed agus an r\u00edchathaoir fholamh a chabhra\u00edonn le gabh\u00e1il.",
   captureMultiple:
-    "Is f\u00e9idir roinnt p\u00edosa\u00ed a ghab\u00e1il le bogadh amh\u00e1in.",
+    "Is f\u00e9idir roinnt p\u00edosa\u00ed a ghabh\u00e1il le bogadh amh\u00e1in.",
   weaponlessPrefix: "Sa leagan seo t\u00e1 an R\u00ed ",
   weaponless: "gan arm",
   weaponlessSuffix:
@@ -1067,14 +1075,14 @@ const ga: Translations = {
   defendersWinRule: "m\u00e1 shroicheann an R\u00ed aon",
   attackersWinLabel: "Foghlaithe a bhuann",
   attackersWinRule:
-    "m\u00e1 ghabhann siad an R\u00ed \u2014 \u00e1 thimpeall\u00fa ar dh\u00e1 thaobh os comhair a ch\u00e9ile san oscailt, n\u00f3 ar na ceithre thaobh nuair at\u00e1 s\u00e9 ina shu\u00ed ar an r\u00edchathaoir n\u00f3 in aice l\u00e9i.",
+    "m\u00e1 ghabhann siad an R\u00ed \u2014 \u00e1 thimpeall\u00fa ar dh\u00e1 thaobh os comhair a ch\u00e9ile amuigh ar an gcl\u00e1r, n\u00f3 ar na ceithre thaobh nuair at\u00e1 s\u00e9 ina shu\u00ed ar an r\u00edchathaoir n\u00f3 in aice l\u00e9i.",
   noMoveLoses: "Cailleann imreoir gan bogadh dl\u00edthi\u00fail.",
   repetitionDraw:
     "Is cluiche cothrom \u00e9 su\u00edomh a thagann tr\u00ed huaire.",
   repetitionLossDefenders:
     "Is caillteanas \u00e9 su\u00edomh a thagann tr\u00ed huaire do thaobh an R\u00ed.",
   encirclementWinRule:
-    "m\u00e1 thimpealla\u00edonn siad taobh an R\u00ed go hioml\u00e1n le fainne gan bhriseadh \u2014 gan teorainn an chlair a \u00fasaid.",
+    "m\u00e1 thimpealla\u00edonn siad taobh an R\u00ed go hioml\u00e1n le f\u00e1inne gan bhriseadh \u2014 gan teorainn an chl\u00e1ir a \u00fas\u00e1id.",
   playButton: "Imir",
 
   demoCta: "Taispe\u00e1in dom conas",
@@ -1098,23 +1106,23 @@ const ga: Translations = {
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Cumann Domhanda Tafl",
-    custom: "Saincheap\u00faithe",
+    custom: "Saincheaptha",
   },
   variantBlurbs: {
     walker:
-      "At\u00f3g\u00e1il le Damian Walker (Cyningstan, 2011), bunaithe ar alt MacWhite 1946. N\u00ed cearn\u00f3g naimhdeach \u00ed an r\u00edchathaoir. Gan riail r\u00ed l\u00e1idir \u2014 gabhtar an r\u00ed ag d\u00e1 ph\u00edosa in \u00e1it ar bith ar an gclara\u00ed. Is cluiche cothrom an athr\u00e1.",
+      "At\u00f3g\u00e1il le Damian Walker (Cyningstan, 2011), bunaithe ar alt MacWhite 1946. N\u00ed cearn\u00f3g naimhdeach \u00ed an r\u00edchathaoir. Gan riail r\u00ed l\u00e1idir \u2014 gabhtar an r\u00ed ag d\u00e1 ph\u00edosa in \u00e1it ar bith ar an gcl\u00e1r. Is cluiche cothrom an athr\u00e1.",
     wtf:
-      "Rialacha oifigi\u00faila com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don thaobh cosanta.",
+      "Rialacha oifigi\u00fala com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don taobh cosanta.",
     custom: "Do shraith rialacha f\u00e9in.",
   },
-  gameFileTitle: "Easport\u00e1il / iomp\u00f3rt\u00e1il cluiche",
-  exportLabel: "Easport\u00e1il an cluiche seo",
+  gameFileTitle: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il cluiche",
+  exportLabel: "Easp\u00f3rt\u00e1il an cluiche seo",
   exportDownload: "\u00cdosl\u00f3d\u00e1il",
   exportCopy: "C\u00f3ipe\u00e1il",
   exportCopied: "C\u00f3ipe\u00e1ilte",
   exportCopyFailed: "Theip ar an gc\u00f3ipe\u00e1il",
   exportHint: "Comhad t\u00e9acs .tafl: ceannt\u00e1sc clibeanna agus liosta na mbeart, ar n\u00f3s PGN fichille.",
-  exportNothingYet: "D\u00e9an beart ar dt\u00fas \u2014 n\u00edl aon rud le heasport\u00e1il go f\u00f3ill.",
+  exportNothingYet: "D\u00e9an beart ar dt\u00fas \u2014 n\u00edl aon rud le heasp\u00f3rt\u00e1il go f\u00f3ill.",
   importLabel: "Iomp\u00f3rt\u00e1il cluiche",
   importPlaceholder: "Greamaigh cluiche isteach anseo\u2026",
   importLoad: "Luchtaigh cluiche",
@@ -1132,7 +1140,7 @@ const ga: Translations = {
   importErrMovesAfterEnd: "leanann liosta na mbeart ar aghaidh tar \u00e9is dheireadh an chluiche.",
   importErrCaptureMismatch: "n\u00ed r\u00e9it\u00edonn na gabh\u00e1lacha leis an sraith rialacha seo.",
   importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
-  zenElGameFile: "Easport\u00e1il / iomp\u00f3rt\u00e1il",
+  zenElGameFile: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:

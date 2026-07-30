@@ -79,7 +79,7 @@ import {
   type ZenConfig,
   type ZenExtraId,
 } from "./zen";
-import { type Lang, type Translations, translations } from "./i18n";
+import { VISIBLE_LANGS, type Lang, type Translations, translations } from "./i18n";
 import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
 import {
   applyPieceColors,
@@ -1324,13 +1324,20 @@ function Header({
         </p>
       </div>
       <div className="flex items-center gap-2">
+        {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line change
+            there rather than a hand-edit here. */}
         <div className="seg">
-          <button className={lang === "en" ? "on" : ""} onClick={() => onLang("en")}>
-            EN
-          </button>
-          <button className={lang === "es" ? "on" : ""} onClick={() => onLang("es")}>
-            ES
-          </button>
+          {VISIBLE_LANGS.map((l) => (
+            <button
+              key={l.code}
+              className={lang === l.code ? "on" : ""}
+              onClick={() => onLang(l.code)}
+              aria-pressed={lang === l.code}
+              lang={l.code}
+            >
+              {l.label}
+            </button>
+          ))}
         </div>
         <button className="btn" onClick={onShowRules}>
           {t.howToPlay}
