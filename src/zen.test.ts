@@ -8,6 +8,15 @@ describe("zen config", () => {
     for (const id of ZEN_EXTRAS) expect(cfg.extras[id]).toBe(false);
   });
 
+  it("treats the engine eval as an opt-in extra, so Zen hides it by default", () => {
+    // The eval bar + best-move arrow tell you who is winning before you have
+    // worked it out, which is the opposite of what Zen is for. The blanket
+    // default above already proves it starts hidden; this pins that it is in
+    // the list at all, and so is reachable from the settings picker.
+    expect(ZEN_EXTRAS).toContain("eval");
+    expect(defaultZenConfig().extras.eval).toBe(false);
+  });
+
   it("does not treat game-flow controls as an extra", () => {
     // Progression (New game / Next set / New match) is contextual, never a
     // toggle, so it must not appear in the opt-in extras list.
