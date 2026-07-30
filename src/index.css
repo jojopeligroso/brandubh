@@ -991,6 +991,46 @@ body {
   box-shadow: 0 0 6px color-mix(in srgb, var(--color-moss) 70%, transparent);
 }
 
+/* ── Board tools — flip + analysis ───────────────────────────────────────────
+   Both states are drawn from the theme's own tokens, so they follow light and
+   dark with everything else. */
+.iconbtn.on {
+  color: var(--color-gold);
+  border-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 14%, transparent);
+}
+.flip-icon {
+  transition: transform 180ms ease;
+}
+.flip-icon.is-flipped {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .flip-icon {
+    transition: none;
+  }
+}
+.analysis-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+.pill.pill-analysis {
+  min-width: 0;
+  color: var(--color-night);
+  border-color: transparent;
+  background: var(--color-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.analysis-hint {
+  font-size: 0.75rem;
+  color: var(--color-parchment-dim);
+}
+
 /* ── Emblem (raider icon) picker ───────────────────────────────────────────── */
 .emblem-swatches {
   display: grid;

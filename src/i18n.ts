@@ -330,6 +330,12 @@ export interface Translations {
   importErrUnreadableFile: string;
   zenElGameFile: string;
 
+  // Board tools — flip + analysis (Session 7b)
+  flipBoard: string;
+  analysisMode: string;
+  analysisExit: string;
+  analysisHint: string;
+
   // Side picker (opening overlay)
   chooseSide: string;
   sideKingHint: string;
@@ -654,6 +660,11 @@ const en: Translations = {
   importErrCaptureMismatch: "the captures do not match this ruleset.",
   importErrUnreadableFile: "that file could not be read.",
   zenElGameFile: "Export / import",
+
+  flipBoard: "Flip board",
+  analysisMode: "Analysis",
+  analysisExit: "Leave analysis",
+  analysisHint: "Move both sides freely \u00b7 the computer and the clock are paused \u00b7 nothing is saved",
 
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
@@ -1040,6 +1051,11 @@ const es: Translations = {
   importErrCaptureMismatch: "las capturas no cuadran con este reglamento.",
   importErrUnreadableFile: "no se pudo leer ese archivo.",
   zenElGameFile: "Exportar / importar",
+
+  flipBoard: "Girar el tablero",
+  analysisMode: "An\u00e1lisis",
+  analysisExit: "Salir del an\u00e1lisis",
+  analysisHint: "Mueve los dos bandos libremente \u00b7 la m\u00e1quina y el reloj est\u00e1n en pausa \u00b7 no se guarda nada",
 
   chooseSide: "¿Con qué bando jugarás?",
   sideKingHint:
@@ -1431,6 +1447,13 @@ const ga: Translations = {
   importErrCaptureMismatch: "n\u00ed r\u00e9it\u00edonn na gabh\u00e1lacha leis an sraith rialacha seo.",
   importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
   zenElGameFile: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il",
+
+  // DRAFT (Session 7b) \u2014 unreviewed, like the rest of this table. Present so
+  // the locale stays complete while it waits for review; `ga` is not offered.
+  flipBoard: "Iompaigh an cl\u00e1r",
+  analysisMode: "Anail\u00eds",
+  analysisExit: "F\u00e1g an anail\u00eds",
+  analysisHint: "Bog an d\u00e1 thaobh gan bhac \u00b7 t\u00e1 an r\u00edomhaire agus an clog ar sos \u00b7 n\u00ed sh\u00e1bh\u00e1iltear faic",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:
