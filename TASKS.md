@@ -12,7 +12,7 @@ Ordered by value ÷ effort:
 4. ~~**Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.~~ **Shipped** as a cross-validated, default-off knob (`attackerRecognizer`): a capture needs move-gen where an escape is O(1) geometry, so it is neutral-but-not-free — off by default, no throughput regression. See `docs/ROADMAP.md` Session 4.
 5. ~~**Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.~~ **Shipped**.
 6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
-7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
+7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md). Sliced 7a–7d; **7b shipped**. Per-slice briefs in [`docs/prompts/`](docs/prompts/README.md); 7a (eval bar + best-move arrow) is unbuilt and unbriefed.
 
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
 the raw backlog those sessions draw from.

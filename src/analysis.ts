@@ -12,34 +12,12 @@
 // that never gets tested.
 //
 // Analysis is *view + scratch* state. It never changes the ruleset, the play
-// mode or the side you control in the live game, and — see `enter`/`restore`
-// below — it hands the live timeline back untouched when you leave.
+// mode or the side you control in the live game. Since Session 7c its moves go
+// into a move tree of their own (`game/moveTree.ts`) rather than into the live
+// timeline, so the live game is not merely restored on exit — it is never
+// written to in the first place.
 
-import type { ClockLine } from "./game/clockLine";
-import type { GameState, Side } from "./game/types";
-
-/**
- * The live game, put aside while analysis borrows the timeline.
- *
- * Analysis moves are committed into the same `states` array live play uses —
- * that is what makes the board, the move log and the review controls work in
- * analysis without a second copy of all of them — so entering takes a snapshot
- * and leaving puts it back. The autosave is *also* held off while analysing
- * (see {@link autosaveAllowed}); the two together are belt and braces, because
- * the page-hide autosave can fire at any moment and would otherwise write an
- * exploratory line over the real game.
- */
-export interface AnalysisSnapshot {
-  states: GameState[];
-  cursor: number;
-  clockLine: ClockLine;
-}
-
-export const snapshotFor = (
-  states: GameState[],
-  cursor: number,
-  clockLine: ClockLine,
-): AnalysisSnapshot => ({ states, cursor, clockLine });
+import type { Side } from "./game/types";
 
 /**
  * Whether the computer may take its turn.
@@ -69,7 +47,9 @@ export function aiMayReply(o: {
  * `offeringResume` is the existing rule — while the opening overlay is still
  * offering to restore a saved game, an empty board must not overwrite it.
  * Analysis adds the mirror of it: a scratch line must not overwrite the game it
- * was branched from.
+ * was branched from. This one still matters after 7c, because what the autosave
+ * reads (`states`/`cursor` in App) is the *derived* line — in analysis that is a
+ * variation, not the game.
  */
 export function autosaveAllowed(o: { analysis: boolean; offeringResume: boolean }): boolean {
   return !o.analysis && !o.offeringResume;
@@ -103,18 +83,3 @@ export function boardIsInteractive(o: {
   if (o.analysis) return true;
   return o.atTip && !o.paused && (o.humanSide === null || o.turn === o.humanSide);
 }
-
-/**
- * The ply a move is appended to.
- *
- * Live play only ever moves at the tip, so this is the tip. Analysis may move
- * from a position the cursor has been stepped back to, and when it does it
- * keeps today's behaviour: the future is TRUNCATED, exactly as "play from here"
- * truncates it. The timeline stays a single line.
- *
- * Real variations — a move *tree* with siblings you can navigate between — are
- * Session 7c, not this one. Nothing here should be read as a placeholder for
- * them; it is the existing linear timeline, reused honestly.
- */
-export const commitBasePly = (analysis: boolean, cursor: number, tip: number): number =>
-  analysis ? cursor : tip;

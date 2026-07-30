@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  aiMayReply,
-  autosaveAllowed,
-  boardIsInteractive,
-  commitBasePly,
-  controllableIn,
-  snapshotFor,
-} from "./analysis";
-import { initialState } from "./game/engine";
-import { initialClockLine } from "./game/clockLine";
+import { aiMayReply, autosaveAllowed, boardIsInteractive, controllableIn } from "./analysis";
 import type { Side } from "./game/types";
 
 // The live-play baseline every test below varies one field of: the computer
@@ -55,7 +46,8 @@ describe("analysis guards the autosave", () => {
   });
 
   it("never writes while analysing — a scratch line must not overwrite the game", () => {
-    // Belt and braces with the enter/exit snapshot: the page-hide autosave can
+    // What the autosave reads is the *derived* line, which in analysis is a
+    // variation from the tree rather than the game; the page-hide autosave can
     // fire at any moment, so the mode itself has to close the door.
     expect(autosaveAllowed({ analysis: true, offeringResume: false })).toBe(false);
   });
@@ -115,35 +107,5 @@ describe("analysis opens the board up", () => {
   it("still refuses a finished position and a search in flight", () => {
     expect(boardIsInteractive({ ...BASE, analysis: true, gameOver: true })).toBe(false);
     expect(boardIsInteractive({ ...BASE, analysis: true, thinking: true })).toBe(false);
-  });
-});
-
-describe("where an explored move is appended", () => {
-  it("appends to the tip in live play, whatever the cursor says", () => {
-    expect(commitBasePly(false, 2, 7)).toBe(7);
-  });
-
-  it("branches from the viewed position in analysis, truncating the future", () => {
-    // Today's single-line behaviour, kept deliberately: variation *trees* are
-    // Session 7c. A move from ply 2 of a 7-ply line rewrites plies 3+.
-    expect(commitBasePly(true, 2, 7)).toBe(2);
-  });
-
-  it("is the same thing at the tip — live play's cursor is always the tip", () => {
-    expect(commitBasePly(true, 7, 7)).toBe(commitBasePly(false, 7, 7));
-  });
-});
-
-describe("the live game is put aside, not copied over", () => {
-  it("holds the timeline, the cursor and the clock line together", () => {
-    // The clock line's per-ply banks are index-aligned to the timeline, so a
-    // snapshot that kept one without the other would hand back another line's
-    // times on the next rewind.
-    const states = [initialState()];
-    const line = initialClockLine({ initialSeconds: 180, incrementSeconds: 2 });
-    const snap = snapshotFor(states, 0, line);
-    expect(snap.states).toBe(states);
-    expect(snap.cursor).toBe(0);
-    expect(snap.clockLine).toBe(line);
   });
 });

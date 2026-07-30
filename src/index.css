@@ -1440,7 +1440,8 @@ body {
 
 /* The bar's two ends are the two chairs: the fill grows from the bottom, which
    belongs to the near player, and it carries that player's piece colour. The
-   near/far pair swaps with a flipped board, exactly as the clocks do — the
+   near/far pair swaps with a north–south-flipped board, exactly as the
+   clocks do (the east–west mirror leaves both alone) — the
    caller sets `.near-attackers` from the same `bottomClockSide` the bottom
    clock uses. See the orientation note in src/evalBar.ts. */
 .evalbar {
@@ -1556,4 +1557,183 @@ body {
   .evalbar.is-pending .evalbar-score {
     transition: none;
   }
+}
+/* ── Move tree — variations (Session 7c) ─────────────────────────────────────
+   Lichess-style: the mainline reads as one run of moves, each variation
+   indented under the move it departs from. Every colour is a theme token, so
+   light and dark follow the rest of the app. */
+.movetree {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+.movetree-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem;
+}
+.movetree-variation {
+  border-inline-start: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+  padding-inline-start: 0.4rem;
+  opacity: 0.9;
+}
+.movetree-bracket {
+  color: var(--color-parchment-dim);
+  margin-inline-end: 0.1rem;
+}
+.movetree-move {
+  border: 0;
+  background: none;
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+  cursor: pointer;
+  color: var(--color-parchment-dim);
+  font: inherit;
+  transition: background-color 120ms ease;
+}
+.movetree-move:hover {
+  background: color-mix(in srgb, var(--color-parchment) 10%, transparent);
+}
+.movetree-move.is-attacker {
+  color: color-mix(in srgb, var(--color-blood) 90%, var(--color-parchment));
+}
+.movetree-move.is-defender {
+  color: color-mix(in srgb, var(--color-gold) 90%, var(--color-parchment));
+}
+.movetree-move.is-onpath {
+  background: color-mix(in srgb, var(--color-parchment) 8%, transparent);
+}
+.movetree-move.is-current {
+  background: color-mix(in srgb, var(--color-gold) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-gold) 60%, transparent);
+}
+.movetree-ply {
+  color: color-mix(in srgb, var(--color-parchment) 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .movetree-move {
+    transition: none;
+  }
+}
+
+/* A compact button, for panel-local actions that must not compete with the
+   game-flow controls. */
+.btn.btn-sm {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+/* ── Annotations (Session 7d) ────────────────────────────────────────────────
+   The glyph carries the meaning — ?! / ? / ?? is notation everyone reading a
+   game already knows — and colour is a second channel on top of it, never the
+   only one. */
+.mark {
+  margin-inline-start: 0.15rem;
+  font-weight: 700;
+}
+.mark-inaccuracy {
+  color: var(--color-gold);
+}
+.mark-mistake {
+  color: color-mix(in srgb, var(--color-blood) 70%, var(--color-gold));
+}
+.mark-blunder {
+  color: var(--color-blood);
+}
+.annotate-bar {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  overflow: hidden;
+}
+.annotate-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-gold);
+  transition: width 160ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .annotate-bar > span {
+    transition: none;
+  }
+}
+
+
+/* ── Eval bar + best-move arrow (Session 7a) ─────────────────────────────────
+   Both are views of one search result. The bar flips with the board (its top is
+   whichever side is drawn up there), and the arrow takes its geometry from the
+   orientation seam, so neither can disagree with the pieces underneath. */
+.bestmove-arrow {
+  position: absolute;
+  inset: var(--board-pad);
+  pointer-events: none;
+  overflow: visible;
+  color: var(--color-moss);
+  opacity: 0.75;
+}
+.bestmove-arrow line {
+  stroke: currentColor;
+}
+.bestmove-arrow polygon {
+  fill: currentColor;
+}
+
+.evalbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 1.6rem;
+  flex: 0 0 auto;
+}
+.evalbar-track {
+  position: relative;
+  flex: 1 1 auto;
+  width: 0.6rem;
+  min-height: 6rem;
+  border-radius: 999px;
+  overflow: hidden;
+  /* The whole track is the side drawn at the bottom; the fill is the top side. */
+  background: color-mix(in srgb, var(--color-parchment) 22%, var(--color-night));
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+}
+.evalbar-fill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  transition: height 220ms ease;
+}
+.evalbar-attackers {
+  background: var(--color-blood);
+}
+.evalbar-defenders {
+  background: var(--color-gold);
+}
+.evalbar-mid {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-night) 65%, transparent);
+}
+.evalbar-text {
+  font-size: 0.65rem;
+  color: var(--color-parchment-dim);
+  font-variant-numeric: tabular-nums;
+}
+.evalbar.is-pending .evalbar-text {
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .evalbar-fill {
+    transition: none;
+  }
+}
+
+/* Position setup (Session 7e) — a rejection has to read as a rejection. */
+.position-error {
+  color: var(--color-blood);
 }

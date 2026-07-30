@@ -107,8 +107,51 @@ two encodings, neither coupled to the other.
   - Moving from a rewound position in analysis **truncates**, exactly as "play from here" always has. Variation trees are 7c and nothing here pretends otherwise (`commitBasePly`, `analysis.ts`).
   - Both toggles are opt-in Zen extras (`flip`, `analysis`); labels in `en` + `es`, with `ga` drafts marked as such — the Irish interface stays held back.
   - Verified: 383 tests (was 346; +37 across `orientation.test.ts` and `analysis.test.ts`), `npm run build` clean, and 53 driven-browser assertions against the production build over three runs — flip geometry and labels, clock swap, a flipped click moving the right piece, no AI reply in analysis, both sides pickable, the save untouched during and restored after, the AI resuming afterwards, truncation from a rewound cursor, and Zen hiding both.
-- [ ] **7c — Move-tree panel (variations, navigation).** Open. Anchors: `commitBasePly` in `src/analysis.ts` is where the truncation decision is taken today; `states[]` + `cursor` in `App.tsx` is the linear timeline it would replace.
-- [ ] **7d — Post-game annotations.** Open; needs export/replay (already shipped, Session 3).
+- [x] **7c — Move-tree panel (variations, navigation) — shipped.** A second idea from the same position is now a **sibling** rather than a replacement. `src/game/moveTree.ts` is a pure, React-free tree (nodes keyed by never-reused ids, first child = mainline) with `addMove` / `promote` / `remove` / `treeLines`; 26 unit tests cover it, including the two things that decide whether a tree stays usable — replaying a move already tried **navigates to the existing branch instead of duplicating it**, and `promote` walks the whole path to the root rather than only reordering one parent, which would leave the button looking broken.
+  - **Trees are analysis-only, and that is the design, not a shortcut.** A game has one history: the save and the export encode one move list, and a takeback is *supposed* to destroy moves. Live play stays a single line, and `rewindTo` / `doTakeback` / `playFromHere` / `resign` are now explicitly closed to analysis so the two can never cross.
+  - **Nothing in the UI had to learn about trees.** `App.tsx` derives the board's `states`/`cursor` from the line between the tree's root and the selected node, so the board, move log, captured tray and review controls work inside a variation unchanged — they still see a list of positions and an index. Step-back means "select the parent node", which is exactly why stepping back and playing something else now branches instead of overwriting.
+  - **Variations are session-only** and the panel says so out loud. Analysis has never written to storage (7b), so this needed no save-format or `FORMAT_VERSION` bump and carries none of that risk; annotations are re-derivable and variations are cheap to replay by hand.
+  - 7c **retired `commitBasePly` and the 7b enter/exit snapshot**: analysis no longer borrows the live timeline, so there is nothing to put back. The autosave guard stays and still matters — what the autosave reads is the *derived* line, which in analysis is a variation.
+  - Verified: 405 tests (was 383), clean build, and 24 driven-browser assertions — the sibling actually surviving, no duplicate on replay, click-to-jump, promote, delete, the live save untouched throughout, and live "play from here" still truncating as it always did.
+- [x] **7d — Post-game annotations — shipped.** Re-searches the displayed line and marks where the game swung, as `?!` / `?` / `??` in the move log plus a per-side tally. `src/game/annotate.ts` holds the judgement (pure, 26 tests); `App.tsx` holds only the walk, because it drives the worker.
+  - **The bands are measured, not borrowed.** Centipawn thresholds do not transfer — this engine is not pawn-scaled, and one capture on a 7×7 board can be a fifth of the material. `scripts/annotate-calibrate.ts` sampled 40 seeded self-play games at depth 3 (850 plies, 327 of them losing ground, a quarter of moves random so there would be real errors to size): p50 30, p75 76, p90 110, p95 180. The bands land on that distribution *and* on the evaluation's own anchors — inaccuracy 40 (≈p60, a piece), mistake 80 (≈p80), blunder 120 (≈p91, `escapeLane`, an open road to a corner). The pass searches at the same depth 3 the bands were measured at, because scores from another depth are not comparable to them.
+  - **Two suppressions matter as much as the bands.** A position best play has already decided is never marked — otherwise the tail of every finished game is a wall of `??`, which is how an annotation feature stops being read — and a forced move is never a mistake, because there was no decision to get wrong. The one case that still marks at full severity is walking from a live position *into* a forced loss: that is the move that threw it.
+  - **The sign convention is the whole trap** and is handled in exactly one place (`lossFor`). Scores are attacker-positive, so the same drop means opposite things depending on who moved; a classifier that forgets it marks every good defender move as a blunder. Tested symmetrically, both sides.
+  - One search per *position*, not two per move — the value after ply k is the value before ply k+1 — so an n-move game costs n+1 searches, about two seconds at this depth. Progress is shown and can be stopped; stopping lets the search in flight finish rather than terminating the worker, whose pending promise would never settle.
+  - Offered wherever the AI does not want the single worker: a finished game, analysis, or over-the-board play. Marks are stored against the exact line they were computed for, so stepping into a variation hides them instead of showing another line's verdicts.
+  - **Nothing is persisted.** Annotations are derived data and re-derivable in seconds, so no save or `FORMAT_VERSION` bump — and none of that risk. The AI's move selection is untouched: `chooseMoveDetailed` now reports the `score` the search already had, and the search path is otherwise byte-identical, so there is no strength change to gauntlet.
+  - Verified: 431 tests (was 405), clean build, and 39 driven-browser assertions over three runs — including that the glyphs drawn beside the moves total exactly what the summary claims.
+
+**Session 7 is now shipped except 7a** (eval bar + best-move arrow), which has never been built and has no brief. The orientation seam it needs is already in place and tested (`src/orientation.ts`).
+- [x] **7e — Position setup (FEN-equivalent) — shipped.** Not in the original slicing; added to close out the design doc's last unbuilt target feature. `src/game/position.ts` encodes a board plus the side to move as one FEN-shaped line (27 tests) — the deliberate complement of the *game* file, which can only carry a move list replayed from the opening.
+  - **It never becomes the live game.** A pasted position arrives as the root of an analysis tree — `moveTree.ts` already rooted at any `GameState`, so 7c had built this without knowing it — and lives in component state, where the tutorial set-plays keep their hand-built boards. The replay-from-opening invariant holds with no guard of its own, because analysis has never written to storage.
+  - **Game export is blocked while one is loaded, with the reason shown.** That is the one place the invariant could genuinely leak: exporting a tree rooted on a pasted board would write a move list that replays from the opening into a completely different game.
+  - Validation refuses anything unplayable and quotes the rank back — bad rank count or width, unknown symbol, missing side to move, no king or two kings, and a soldier on a corner or the throne. A board wrong in two ways leads with the missing king: a fact about the whole position outranks a fact about one square.
+  - Verified: 479 tests (was 452), clean build, 30 driven-browser assertions over three runs, including that export is blocked for a pasted root and *not* for analysis seeded from the live game.
+
+**Session 7 is complete** — 7a, 7b, 7c, 7d and 7e all shipped, and every target
+feature in the design doc with them. It did not run in the order it was written,
+and two sessions overlapped: 7b shipped first, because its brief's claimed
+dependency on 7a turned out to be fiction and its two features stood alone; 7c,
+7d and 7e followed on that branch; and **7a was built independently, in parallel,
+on its own branch** (PR #23) while that work was in flight.
+
+The overlap cost less than it might have, and the reason is worth keeping. 7b had
+paid its debt to 7a as a *seam* rather than a consumer — `src/orientation.ts`,
+unit-tested before it had any caller — and 7a, written by a session that had
+never seen the branch it was racing, picked that seam up unchanged and got an
+orientation-aware arrow for free. A contract written down and tested is what let
+two independent implementations meet without either knowing about the other.
+
+It also cost something real: a second, duplicate 7a was written on this branch
+and thrown away at merge time, because main's had already shipped. That is the
+price of not checking the remote before starting a slice, and it is the same
+lesson the prompts README already records for premises — check the repo, not the
+brief.
+
+Session briefs now live in [`docs/prompts/`](prompts/README.md), one per slice, so a
+session can be started cold without the anchors and invariants being retyped from
+memory.
 
 ---
 

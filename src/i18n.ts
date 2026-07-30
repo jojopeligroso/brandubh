@@ -346,6 +346,35 @@ export interface Translations {
   analysisExit: string;
   analysisHint: string;
 
+  // Move tree — variations (Session 7c)
+  moveTree: string;
+  moveTreeEmpty: string;
+  moveTreeNotSaved: string;
+  promoteVariation: string;
+  deleteVariation: string;
+
+  // Post-game annotations (Session 7d)
+  annotateTitle: string;
+  annotateRun: string;
+  annotateAgain: string;
+  annotateStop: string;
+  annotateProgress: string;
+  annotateHint: string;
+  mark_inaccuracy: string;
+  mark_mistake: string;
+  mark_blunder: string;
+
+  // Position setup (Session 7e)
+  positionTitle: string;
+  positionHint: string;
+  positionCurrent: string;
+  positionPaste: string;
+  positionLoad: string;
+  positionRejected: string;
+  positionRank: string;
+  positionLoaded: string;
+  positionExportBlocked: string;
+
   // Side picker (opening overlay)
   chooseSide: string;
   sideKingHint: string;
@@ -684,6 +713,34 @@ const en: Translations = {
   analysisMode: "Analysis",
   analysisExit: "Leave analysis",
   analysisHint: "Move both sides freely \u00b7 the computer and the clock are paused \u00b7 nothing is saved",
+
+  moveTree: "Variations",
+  moveTreeEmpty: "Play a move to start a line. Going back and playing something else keeps both.",
+  moveTreeNotSaved: "Variations live for this session only \u2014 they are not saved with the game.",
+  promoteVariation: "Promote to main line",
+  deleteVariation: "Delete variation",
+
+  annotateTitle: "Game review",
+  annotateRun: "Analyse game",
+  annotateAgain: "Analyse again",
+  annotateStop: "Stop",
+  annotateProgress: "Analysing move",
+  annotateHint: "Re-searches every position and marks where the game swung.",
+  mark_inaccuracy: "inaccuracies",
+  mark_mistake: "mistakes",
+  mark_blunder: "blunders",
+
+  positionTitle: "Set up a position",
+  positionHint:
+    "One line per board: seven ranks top-first, A raider \u00b7 D defender \u00b7 K king \u00b7 a digit for empty squares, then the side to move (a or d). A pasted position opens in analysis and is never saved over your game.",
+  positionCurrent: "This position",
+  positionPaste: "Paste a position",
+  positionLoad: "Analyse this position",
+  positionRejected: "That position could not be read \u2014",
+  positionRank: "rank",
+  positionLoaded: "Analysing a pasted position",
+  positionExportBlocked:
+    "Export is off while you analyse a pasted position \u2014 a game file records moves from the opening, which this position has none of.",
 
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
@@ -1084,6 +1141,34 @@ const es: Translations = {
   analysisMode: "An\u00e1lisis",
   analysisExit: "Salir del an\u00e1lisis",
   analysisHint: "Mueve los dos bandos libremente \u00b7 la m\u00e1quina y el reloj est\u00e1n en pausa \u00b7 no se guarda nada",
+
+  moveTree: "Variantes",
+  moveTreeEmpty: "Haz una jugada para empezar una l\u00ednea. Si retrocedes y juegas otra cosa, se guardan las dos.",
+  moveTreeNotSaved: "Las variantes solo duran esta sesi\u00f3n \u2014 no se guardan con la partida.",
+  promoteVariation: "Convertir en l\u00ednea principal",
+  deleteVariation: "Borrar la variante",
+
+  annotateTitle: "Revisi\u00f3n de la partida",
+  annotateRun: "Analizar la partida",
+  annotateAgain: "Analizar otra vez",
+  annotateStop: "Detener",
+  annotateProgress: "Analizando la jugada",
+  annotateHint: "Vuelve a calcular cada posici\u00f3n y marca d\u00f3nde cambi\u00f3 la partida.",
+  mark_inaccuracy: "imprecisiones",
+  mark_mistake: "errores",
+  mark_blunder: "errores graves",
+
+  positionTitle: "Componer una posici\u00f3n",
+  positionHint:
+    "Una l\u00ednea por tablero: siete filas empezando por arriba, A asaltante \u00b7 D defensor \u00b7 K rey \u00b7 un d\u00edgito por casillas vac\u00edas, y luego el bando que mueve (a o d). Una posici\u00f3n pegada se abre en an\u00e1lisis y nunca se guarda sobre tu partida.",
+  positionCurrent: "Esta posici\u00f3n",
+  positionPaste: "Pega una posici\u00f3n",
+  positionLoad: "Analizar esta posici\u00f3n",
+  positionRejected: "No se pudo leer esa posici\u00f3n \u2014",
+  positionRank: "fila",
+  positionLoaded: "Analizando una posici\u00f3n pegada",
+  positionExportBlocked:
+    "La exportaci\u00f3n est\u00e1 desactivada mientras analizas una posici\u00f3n pegada: un archivo de partida guarda jugadas desde la apertura, y esta posici\u00f3n no tiene ninguna.",
 
   chooseSide: "¿Con qué bando jugarás?",
   sideKingHint:
@@ -1492,6 +1577,37 @@ const ga: Translations = {
   analysisMode: "Anail\u00eds",
   analysisExit: "F\u00e1g an anail\u00eds",
   analysisHint: "Bog an d\u00e1 thaobh gan bhac \u00b7 t\u00e1 an r\u00edomhaire agus an clog ar sos \u00b7 n\u00ed sh\u00e1bh\u00e1iltear faic",
+
+  // DRAFT (Session 7c) — unreviewed, like the rest of this table.
+  moveTree: "Malairt\u00ed",
+  moveTreeEmpty: "Imir beart chun l\u00edne a thos\u00fa. M\u00e1 th\u00e9ann t\u00fa siar agus imirt rud eile, coime\u00e1dtar an dá cheann.",
+  moveTreeNotSaved: "N\u00ed mhaireann na malairt\u00ed ach don seisi\u00fan seo \u2014 n\u00ed sh\u00e1bh\u00e1iltear leis an gcluiche iad.",
+  promoteVariation: "D\u00e9an an phr\u00edomhl\u00edne de",
+  deleteVariation: "Scrios an mhalairt",
+
+  // DRAFT (Session 7d) — unreviewed, like the rest of this table.
+  annotateTitle: "Athbhreithni\u00fa ar an gcluiche",
+  annotateRun: "D\u00e9an anail\u00eds ar an gcluiche",
+  annotateAgain: "D\u00e9an anail\u00eds ar\u00eds",
+  annotateStop: "Stad",
+  annotateProgress: "Ag d\u00e9anamh anail\u00edse ar bheart",
+  annotateHint: "Cuardaítear gach su\u00edomh ar\u00eds agus marc\u00e1iltear na h\u00e1iteanna ar iompaigh an cluiche.",
+  mark_inaccuracy: "m\u00edchruinneas",
+  mark_mistake: "botúin",
+  mark_blunder: "botúin mh\u00f3ra",
+
+  // DRAFT (Session 7e) — unreviewed, like the rest of this table.
+  positionTitle: "Cum su\u00edomh",
+  positionHint:
+    "L\u00edne amh\u00e1in in aghaidh an chl\u00e1ir: seacht r\u00e9im\u00edr \u00f3 bharr, A foghlaí \u00b7 D cosant\u00f3ir \u00b7 K r\u00ed \u00b7 digit do ch\u00e9imeanna folmha, ansin an taobh a bhogann (a n\u00f3 d). Osclaítear su\u00edomh greamaithe san anail\u00eds agus n\u00ed sh\u00e1bh\u00e1iltear thar do chluiche \u00e9 riamh.",
+  positionCurrent: "An su\u00edomh seo",
+  positionPaste: "Greamaigh su\u00edomh",
+  positionLoad: "D\u00e9an anail\u00eds ar an su\u00edomh seo",
+  positionRejected: "N\u00edorbh fh\u00e9idir an su\u00edomh sin a l\u00e9amh \u2014",
+  positionRank: "r\u00e9im\u00edr",
+  positionLoaded: "Ag d\u00e9anamh anail\u00edse ar shu\u00edomh greamaithe",
+  positionExportBlocked:
+    "T\u00e1 an easp\u00f3rt\u00e1il m\u00fachta agus t\u00fa ag anail\u00edsiú su\u00edomh greamaithe \u2014 taifead\u00e1nn comhad cluiche bearta \u00f3n oscailt, agus n\u00edl aon cheann acu sin ag an su\u00edomh seo.",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:
