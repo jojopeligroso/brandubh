@@ -133,8 +133,10 @@ import {
 import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
 import { BOARD_FLIP_KEY } from "./orientation";
 import MoveTreePanel from "./components/MoveTreePanel";
+import PositionPanel from "./components/PositionPanel";
 import {
   addMove as treeAddMove,
+  createTree,
   fromLine,
   lineTo,
   parentOf,
@@ -439,6 +441,10 @@ export default function App() {
   // docs/design/lichess-ui.md, where that decision is written down.
   const [tree, setTree] = useState<MoveTree | null>(null);
   const [nodeId, setNodeId] = useState(0);
+  // True when the tree was rooted on a *pasted position* rather than seeded from
+  // the live game (Session 7e). Such a tree has no path back to the opening, so
+  // its move list cannot be exported — see `positionRooted` at the export panel.
+  const [pastedRoot, setPastedRoot] = useState(false);
 
   // ── Resumable game ──────────────────────────────────────────────────────────
   // A game in progress is written to localStorage as it is played (see
@@ -748,6 +754,7 @@ export default function App() {
     cancelAi();
     const seeded = fromLine(liveStates);
     setTree(seeded);
+    setPastedRoot(false);
     // Open on the position the player was looking at, not at the root.
     setNodeId(lineTo(seeded, tipOfLine(seeded, seeded.rootId))[liveCursor] ?? seeded.rootId);
     setAnalysis(true);
@@ -762,6 +769,7 @@ export default function App() {
     cancelAi();
     setAnalysis(false);
     setTree(null);
+    setPastedRoot(false);
     setThinking(false);
     setSelected(null);
     setFadingCaptures([]);
@@ -779,12 +787,38 @@ export default function App() {
     else enterAnalysis();
   }, [analysis, enterAnalysis, exitAnalysis]);
 
+  // ── Analysing a pasted position (Session 7e) ────────────────────────────────
+  // The tree already roots at any GameState, so a pasted position needs nothing
+  // new from it: `createTree(position)` and analysis works exactly as it does on
+  // the live game. The position lives only here, in component state — the same
+  // place the tutorial set-plays keep their hand-built boards — so the
+  // replay-from-opening invariant (CLAUDE.md) holds without a guard: analysis
+  // has never written to storage.
+  const loadPosition = useCallback(
+    (position: GameState) => {
+      if (aiTimer.current) window.clearTimeout(aiTimer.current);
+      cancelAi();
+      const seeded = createTree(position);
+      setTree(seeded);
+      setNodeId(seeded.rootId);
+      setPastedRoot(true);
+      setAnalysis(true);
+      setThinking(false);
+      setSelected(null);
+      setFadingCaptures([]);
+      setShowTakeback(false);
+      setShowVictory(false);
+    },
+    [cancelAi],
+  );
+
   // Leaving analysis for the paths that install a whole new game of their own
   // (new game, import, resume): the tree describes a game that is being
   // replaced, so it is discarded rather than carried across.
   const dropAnalysis = useCallback(() => {
     setAnalysis(false);
     setTree(null);
+    setPastedRoot(false);
   }, []);
 
   // ── Moving around the tree ──────────────────────────────────────────────────
@@ -1492,6 +1526,7 @@ export default function App() {
         flipped={flipped}
         onFlip={() => setFlipped((f) => !f)}
         analysis={analysis}
+        pastedRoot={pastedRoot}
         onToggleAnalysis={toggleAnalysis}
         evalOn={evalOn}
         onToggleEval={() => setEvalOn((v) => !v)}
@@ -1651,17 +1686,31 @@ export default function App() {
         />
       )}
 
-      {/* Export/import the whole mainline — always the tip, never the position
-          currently under review (see docs/design/game-import-export.md). */}
-      {showExtra("gamefile") && (
-        <GameFilePanel
-          t={t}
-          state={states[tip]}
-          rules={rules}
-          meta={exportMeta}
-          onImport={loadImportedGame}
-        />
+      {showExtra("position") && (
+        <PositionPanel t={t} state={game} onLoad={loadPosition} />
       )}
+
+      {/* Export/import the whole mainline — always the tip, never the position
+          currently under review (see docs/design/game-import-export.md).
+
+          A pasted position (7e) is the one case this must refuse. The file
+          format records a move list replayed from `initialState()`; a tree
+          rooted on a pasted board has no path back to the opening, so exporting
+          its moves would write a file that replays into a completely different
+          game. The panel is replaced by the reason rather than silently
+          vanishing. */}
+      {showExtra("gamefile") &&
+        (pastedRoot ? (
+          <p className="card mt-4 p-4 text-xs text-parchment-dim">{t.positionExportBlocked}</p>
+        ) : (
+          <GameFilePanel
+            t={t}
+            state={states[tip]}
+            rules={rules}
+            meta={exportMeta}
+            onImport={loadImportedGame}
+          />
+        ))}
 
       {aiSide !== null && lastAiInfo && (
         <p className="mt-1 text-center font-mono text-[11px] text-parchment-dim/70 tabular-nums">
@@ -2204,6 +2253,7 @@ function BoardTools({
   flipped,
   onFlip,
   analysis,
+  pastedRoot,
   onToggleAnalysis,
   evalOn,
   onToggleEval,
@@ -2215,6 +2265,8 @@ function BoardTools({
   flipped: boolean;
   onFlip: () => void;
   analysis: boolean;
+  /** The analysed position was pasted in, not reached from the live game. */
+  pastedRoot: boolean;
   onToggleAnalysis: () => void;
   evalOn: boolean;
   onToggleEval: () => void;
@@ -2258,7 +2310,7 @@ function BoardTools({
       {showAnalysis && analysis && (
         <div className="analysis-banner" role="status">
           <span className="pill pill-analysis">{t.analysisMode}</span>
-          <span className="analysis-hint">{t.analysisHint}</span>
+          <span className="analysis-hint">{pastedRoot ? t.positionLoaded : t.analysisHint}</span>
         </div>
       )}
     </div>
@@ -2681,6 +2733,7 @@ function ZenSettings({
     eval: t.zenElEval,
     tree: t.moveTree,
     annotate: t.annotateTitle,
+    position: t.positionTitle,
   };
   return (
     <div>

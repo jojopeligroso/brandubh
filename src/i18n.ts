@@ -362,6 +362,17 @@ export interface Translations {
   mark_mistake: string;
   mark_blunder: string;
 
+  // Position setup (Session 7e)
+  positionTitle: string;
+  positionHint: string;
+  positionCurrent: string;
+  positionPaste: string;
+  positionLoad: string;
+  positionRejected: string;
+  positionRank: string;
+  positionLoaded: string;
+  positionExportBlocked: string;
+
   // Side picker (opening overlay)
   chooseSide: string;
   sideKingHint: string;
@@ -714,6 +725,18 @@ const en: Translations = {
   mark_inaccuracy: "inaccuracies",
   mark_mistake: "mistakes",
   mark_blunder: "blunders",
+
+  positionTitle: "Set up a position",
+  positionHint:
+    "One line per board: seven ranks top-first, A raider \u00b7 D defender \u00b7 K king \u00b7 a digit for empty squares, then the side to move (a or d). A pasted position opens in analysis and is never saved over your game.",
+  positionCurrent: "This position",
+  positionPaste: "Paste a position",
+  positionLoad: "Analyse this position",
+  positionRejected: "That position could not be read \u2014",
+  positionRank: "rank",
+  positionLoaded: "Analysing a pasted position",
+  positionExportBlocked:
+    "Export is off while you analyse a pasted position \u2014 a game file records moves from the opening, which this position has none of.",
 
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
@@ -1128,6 +1151,18 @@ const es: Translations = {
   mark_inaccuracy: "imprecisiones",
   mark_mistake: "errores",
   mark_blunder: "errores graves",
+
+  positionTitle: "Componer una posici\u00f3n",
+  positionHint:
+    "Una l\u00ednea por tablero: siete filas empezando por arriba, A asaltante \u00b7 D defensor \u00b7 K rey \u00b7 un d\u00edgito por casillas vac\u00edas, y luego el bando que mueve (a o d). Una posici\u00f3n pegada se abre en an\u00e1lisis y nunca se guarda sobre tu partida.",
+  positionCurrent: "Esta posici\u00f3n",
+  positionPaste: "Pega una posici\u00f3n",
+  positionLoad: "Analizar esta posici\u00f3n",
+  positionRejected: "No se pudo leer esa posici\u00f3n \u2014",
+  positionRank: "fila",
+  positionLoaded: "Analizando una posici\u00f3n pegada",
+  positionExportBlocked:
+    "La exportaci\u00f3n est\u00e1 desactivada mientras analizas una posici\u00f3n pegada: un archivo de partida guarda jugadas desde la apertura, y esta posici\u00f3n no tiene ninguna.",
 
   chooseSide: "¿Con qué bando jugarás?",
   sideKingHint:
@@ -1552,6 +1587,19 @@ const ga: Translations = {
   mark_inaccuracy: "m\u00edchruinneas",
   mark_mistake: "botúin",
   mark_blunder: "botúin mh\u00f3ra",
+
+  // DRAFT (Session 7e) — unreviewed, like the rest of this table.
+  positionTitle: "Cum su\u00edomh",
+  positionHint:
+    "L\u00edne amh\u00e1in in aghaidh an chl\u00e1ir: seacht r\u00e9im\u00edr \u00f3 bharr, A foghlaí \u00b7 D cosant\u00f3ir \u00b7 K r\u00ed \u00b7 digit do ch\u00e9imeanna folmha, ansin an taobh a bhogann (a n\u00f3 d). Osclaítear su\u00edomh greamaithe san anail\u00eds agus n\u00ed sh\u00e1bh\u00e1iltear thar do chluiche \u00e9 riamh.",
+  positionCurrent: "An su\u00edomh seo",
+  positionPaste: "Greamaigh su\u00edomh",
+  positionLoad: "D\u00e9an anail\u00eds ar an su\u00edomh seo",
+  positionRejected: "N\u00edorbh fh\u00e9idir an su\u00edomh sin a l\u00e9amh \u2014",
+  positionRank: "r\u00e9im\u00edr",
+  positionLoaded: "Ag d\u00e9anamh anail\u00edse ar shu\u00edomh greamaithe",
+  positionExportBlocked:
+    "T\u00e1 an easp\u00f3rt\u00e1il m\u00fachta agus t\u00fa ag anail\u00edsiú su\u00edomh greamaithe \u2014 taifead\u00e1nn comhad cluiche bearta \u00f3n oscailt, agus n\u00edl aon cheann acu sin ag an su\u00edomh seo.",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:

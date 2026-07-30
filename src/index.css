@@ -1659,3 +1659,80 @@ body {
     transition: none;
   }
 }
+
+
+/* ── Eval bar + best-move arrow (Session 7a) ─────────────────────────────────
+   Both are views of one search result. The bar flips with the board (its top is
+   whichever side is drawn up there), and the arrow takes its geometry from the
+   orientation seam, so neither can disagree with the pieces underneath. */
+.bestmove-arrow {
+  position: absolute;
+  inset: var(--board-pad);
+  pointer-events: none;
+  overflow: visible;
+  color: var(--color-moss);
+  opacity: 0.75;
+}
+.bestmove-arrow line {
+  stroke: currentColor;
+}
+.bestmove-arrow polygon {
+  fill: currentColor;
+}
+
+.evalbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 1.6rem;
+  flex: 0 0 auto;
+}
+.evalbar-track {
+  position: relative;
+  flex: 1 1 auto;
+  width: 0.6rem;
+  min-height: 6rem;
+  border-radius: 999px;
+  overflow: hidden;
+  /* The whole track is the side drawn at the bottom; the fill is the top side. */
+  background: color-mix(in srgb, var(--color-parchment) 22%, var(--color-night));
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+}
+.evalbar-fill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  transition: height 220ms ease;
+}
+.evalbar-attackers {
+  background: var(--color-blood);
+}
+.evalbar-defenders {
+  background: var(--color-gold);
+}
+.evalbar-mid {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-night) 65%, transparent);
+}
+.evalbar-text {
+  font-size: 0.65rem;
+  color: var(--color-parchment-dim);
+  font-variant-numeric: tabular-nums;
+}
+.evalbar.is-pending .evalbar-text {
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .evalbar-fill {
+    transition: none;
+  }
+}
+
+/* Position setup (Session 7e) — a rejection has to read as a rejection. */
+.position-error {
+  color: var(--color-blood);
+}

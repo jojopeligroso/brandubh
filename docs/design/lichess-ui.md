@@ -20,7 +20,7 @@ suggested slicing so each slice is its own shippable session.
 3. **Best-move / hint arrow** — draw the engine's suggested move on the board.
 4. **Board flip** — view from either side regardless of who you play.
 5. **Position setup / FEN-equivalent** — paste a position to analyze (ties to the
-   import/export format in the sibling design doc).
+   import/export format in the sibling design doc). **Shipped (7e).**
 6. **Blunder/inaccuracy annotations** — after a game, re-search each move and mark
    large eval swings (needs the export/replay plumbing first).
 
@@ -36,9 +36,20 @@ suggested slicing so each slice is its own shippable session.
 - 7b — Board flip + analysis "free move" toggle. **Shipped** — see below.
 - 7c — Move-tree panel (variations, navigation). **Shipped** — brief: [`docs/prompts/7c-move-tree.md`](../prompts/7c-move-tree.md).
 - 7d — Post-game annotations (needs export/replay). **Shipped** — brief: [`docs/prompts/7d-annotations.md`](../prompts/7d-annotations.md).
+- 7e — Position setup (FEN-equivalent). **Shipped.** Not in the original slicing;
+  added to close out target feature 5.
 
 The ordering above is about *size*, not dependency. 7b shipped before 7a because
 its two features stand on their own; what 7a needed from it is described next.
+**All shipped**, but not in this order and not all on one branch. 7b came first —
+its brief claimed a dependency on 7a that did not exist — followed by 7c, 7d and
+7e. **7a was built in parallel on a separate branch** and merged before the rest.
+
+The two never coordinated, and did not need to: 7b had left the seam 7a would
+need (`src/orientation.ts`) tested before it had a caller, and 7a picked it up
+unchanged. That is the argument for writing a contract down rather than promising
+one. The cost of the overlap was a duplicate 7a, written on the other branch and
+discarded at merge.
 
 ## 7b — what shipped, and what 7a should build on
 
@@ -222,6 +233,64 @@ Added by 7a — what a move tree will have to carry with it:
   cancels by terminating, so a tree that wants to evaluate several sibling
   variations at once needs a request queue or a small worker pool — not a second
   copy of the hook. That is the first thing to change if 7c wants breadth.
+### Decisions taken in 7a
+
+- **The arrow goes through the orientation seam and nowhere else.**
+  `arrowGeometry` calls `viewArrow` and never touches `row`/`col`. That is what
+  makes it rotate with a flipped board for free — and it is checked in the
+  browser, not just asserted: after a flip the tip still lands inside the same
+  *named* square, cross-checked against that cell's own bounding rect.
+- **The bar flips with the board**, its top belonging to whichever side is drawn
+  up there — the same rule the clocks follow. Otherwise it reads the position
+  for the wrong chair.
+- **A logistic squash, not a linear fill.** `BAR_K` = 120 (`escapeLane`), so one
+  piece reads ~58% — a real but recoverable edge — instead of a linear bar
+  saturating on the first capture. A forced result pins it.
+- **Hidden while you play the computer.** Asking the engine you are competing
+  against for its move is the answer sheet, not analysis. Shown in analysis, on
+  a finished game, and over the board, where both players share one screen.
+- **Its own worker.** `requestMove` kills a busy worker to start a new search, so
+  sharing one with the AI or 7d's pass would let either strand the other's
+  pending promise.
+- **Read-only.** The overlay is `pointer-events: none` and `aria-hidden`; the
+  suggestion is announced in a text line rather than only drawn.
+
+## 7e — what shipped
+
+`src/game/position.ts` is a one-line FEN-shaped encoding of a board plus the side
+to move: seven ranks top-first, `A` raider / `D` defender / `K` king, a digit for
+empty squares, then `a` or `d`. `encodePosition` / `parsePosition`, 27 tests.
+
+It is the deliberate complement of `gameFile.ts`: that format carries a *game*
+(a move list replayed from the opening), this one carries a *position*, which is
+exactly what a move list cannot express.
+
+### Decisions taken in 7e
+
+- **A pasted position never becomes the live game.** It arrives as the *root of
+  an analysis tree* — `moveTree.ts` already roots at any `GameState`, so 7c had
+  built this without knowing it — and lives in component state, exactly where the
+  tutorial set-plays keep their hand-built boards. The replay-from-opening
+  invariant (`CLAUDE.md`) therefore holds with no guard of its own, because
+  analysis has never written to storage.
+- **Game export is blocked while a pasted position is loaded**, and says why.
+  This is the one place the invariant could actually leak: the file format
+  records a move list replayed from `initialState()`, so exporting a tree rooted
+  on a pasted board would write a file that replays into a *different game*. The
+  panel is replaced by the reason rather than silently disappearing.
+- **Validation refuses anything unplayable**, with the rank quoted back: not
+  seven ranks, a rank that does not total seven, an unknown symbol, a missing
+  side to move, no king or two kings, and a soldier standing on a corner or the
+  throne — a position no sequence of legal moves could have reached. When a board
+  is wrong in two ways at once the missing king is reported first: a fact about
+  the whole position outranks a fact about one square.
+- **No invented history.** A pasted position has `history: []` and `moveCount: 0`
+  because that is the literal truth. Repetition counting starts fresh from it,
+  which is the honest behaviour — the moves that led there are not known.
+
+## What is left
+
+Every target feature in the list above is now shipped. Session 7 is closed.
 
 ## Non-goals
 Online play, accounts, server-side analysis, opening explorer database. Everything

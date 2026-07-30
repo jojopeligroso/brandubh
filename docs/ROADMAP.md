@@ -123,10 +123,35 @@ two encodings, neither coupled to the other.
   - Verified: 431 tests (was 405), clean build, and 39 driven-browser assertions over three runs — including that the glyphs drawn beside the moves total exactly what the summary claims.
 
 **Session 7 is now shipped except 7a** (eval bar + best-move arrow), which has never been built and has no brief. The orientation seam it needs is already in place and tested (`src/orientation.ts`).
+- [x] **7e — Position setup (FEN-equivalent) — shipped.** Not in the original slicing; added to close out the design doc's last unbuilt target feature. `src/game/position.ts` encodes a board plus the side to move as one FEN-shaped line (27 tests) — the deliberate complement of the *game* file, which can only carry a move list replayed from the opening.
+  - **It never becomes the live game.** A pasted position arrives as the root of an analysis tree — `moveTree.ts` already rooted at any `GameState`, so 7c had built this without knowing it — and lives in component state, where the tutorial set-plays keep their hand-built boards. The replay-from-opening invariant holds with no guard of its own, because analysis has never written to storage.
+  - **Game export is blocked while one is loaded, with the reason shown.** That is the one place the invariant could genuinely leak: exporting a tree rooted on a pasted board would write a move list that replays from the opening into a completely different game.
+  - Validation refuses anything unplayable and quotes the rank back — bad rank count or width, unknown symbol, missing side to move, no king or two kings, and a soldier on a corner or the throne. A board wrong in two ways leads with the missing king: a fact about the whole position outranks a fact about one square.
+  - Verified: 479 tests (was 452), clean build, 30 driven-browser assertions over three runs, including that export is blocked for a pasted root and *not* for analysis seeded from the live game.
+
+**Session 7 is complete** — 7a, 7b, 7c, 7d and 7e all shipped, and every target
+feature in the design doc with them. It did not run in the order it was written,
+and two sessions overlapped: 7b shipped first, because its brief's claimed
+dependency on 7a turned out to be fiction and its two features stood alone; 7c,
+7d and 7e followed on that branch; and **7a was built independently, in parallel,
+on its own branch** (PR #23) while that work was in flight.
+
+The overlap cost less than it might have, and the reason is worth keeping. 7b had
+paid its debt to 7a as a *seam* rather than a consumer — `src/orientation.ts`,
+unit-tested before it had any caller — and 7a, written by a session that had
+never seen the branch it was racing, picked that seam up unchanged and got an
+orientation-aware arrow for free. A contract written down and tested is what let
+two independent implementations meet without either knowing about the other.
+
+It also cost something real: a second, duplicate 7a was written on this branch
+and thrown away at merge time, because main's had already shipped. That is the
+price of not checking the remote before starting a slice, and it is the same
+lesson the prompts README already records for premises — check the repo, not the
+brief.
 
 Session briefs now live in [`docs/prompts/`](prompts/README.md), one per slice, so a
 session can be started cold without the anchors and invariants being retyped from
-memory. 7a is the only slice with no brief and no code.
+memory.
 
 ---
 
