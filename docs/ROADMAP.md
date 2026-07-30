@@ -63,11 +63,12 @@ knowledge of any file format. Session 1's `restoreGame` now sits on it too, so
 a save and a pasted game are validated by the same code — one trust boundary,
 two encodings, neither coupled to the other.
 
-### Session 4 — Attacker endgame recognizer *(M)*
-**Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture / forced encirclement) — helps the side you're pressure-testing.
-- [ ] `forcedAttackerWin(state, rules)` returning `+RECOGNIZED_WIN`; escape-zone-style gate for zero throughput cost.
-- [ ] Cross-validate against the solver + an independent AND-OR oracle (as `recognizers.test.ts` does).
-- [ ] Confirm throughput-neutral; gauntlet for strength/neutrality; document honestly.
+### Session 4 — Attacker endgame recognizer *(M)* — **shipped (as a default-off knob)**
+**Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture) — helps the side you're pressure-testing.
+- [x] `forcedAttackerWin(state, rules)` returning `+RECOGNIZED_WIN` — attacker on move with a capture in hand, or defender on move but *netted* (every reply losing the king). `src/game/ai.ts`.
+- [x] Cross-validated against an independent AND-OR oracle over random self-play in both variants — the exact mirror of `recognizers.test.ts`. `src/game/attackerRecognizer.test.ts` (6 tests): fixtures + a soundness sweep that fires and agrees at depth 4 on every hit.
+- [x] **Throughput measured, and it is *not* free** — the finding that shaped the outcome. A capture, unlike an escape, is not pure geometry: the active-capture rule needs the *moving* attacker beside the king, so proving one needs move generation, not a `clearPathToCorner`-style O(1) test. A naïve ≤3-ply version measured ~150× slower per leaf; trimmed hard (O(1) pressure gate, bounded defender loop, capture check limited to king-adjacent landings) it still measured **~7% fewer nodes/s** in an isolated A/B (defender-recognizer baseline vs +attacker) on an endgame-heavy sample. A fixed-depth gauntlet showed **no win-rate change** (strength-neutral, like the defender twin).
+- [x] **Decision (per the sizing rule below): neutral + not-free ⇒ shipped behind its own `attackerRecognizer` weight flag, default OFF** — a per-variant / analysis knob, exactly as PVS ships off. The default engine path is byte-for-byte unchanged, so there is **no throughput regression**. Kept rather than dropped because it is a proven, cross-validated tool the analysis UI (Session 7) and pressure-testing can switch on deliberately. The roadmap's original "escape-zone-style gate for zero throughput cost" assumed a symmetry with escapes that does not hold; documented honestly in `ai.ts`.
 
 ### Session 5 — Correctness & discoverability polish *(S — batch)* — **shipped**
 **Goal:** fix known bugs and make features findable.
