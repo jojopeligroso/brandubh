@@ -703,7 +703,7 @@ const en: Translations = {
     "double-take":
       "A soldier may slide across the empty throne. Land where both traps close at once.",
     "kings-blade":
-      "The King is armed: he can close a trap like any soldier. Ride him along the rank.",
+      "The King is armed: he can close a trap like any soldier. One step off his throne does it.",
     "road-to-corner": "One corner road is barred. The other rank is clear — run it to the end.",
     "royal-fork":
       "From the top rank the King eyes both corners. No single raider can shut both doors.",
@@ -1080,7 +1080,7 @@ const es: Translations = {
     "double-take":
       "Un soldado puede deslizarse sobre el trono vacío. Cae donde ambas trampas se cierren a la vez.",
     "kings-blade":
-      "El Rey está armado: puede cerrar una trampa como cualquier soldado. Llévalo por la fila.",
+      "El Rey está armado: puede cerrar una trampa como cualquier soldado. Un paso desde el trono basta.",
     "road-to-corner": "Un camino está cortado. La otra fila está libre: recórrela hasta el final.",
     "royal-fork":
       "Desde la fila superior el Rey mira ambas esquinas. Ningún asaltante puede cerrar las dos puertas.",
@@ -1461,7 +1461,7 @@ const ga: Translations = {
     "double-take":
       "F\u00e9adann saighdi\u00fair sleamhn\u00fa thar an r\u00edchathaoir fholamh. Tuirling san \u00e1it a nd\u00fanann an d\u00e1 ghaiste in \u00e9ineacht.",
     "kings-blade":
-      "T\u00e1 an R\u00ed armtha: f\u00e9adann s\u00e9 gaiste a dh\u00fanadh mar aon saighdi\u00fair. Tabhair leat \u00e9 feadh na sraithe.",
+      "T\u00e1 an R\u00ed armtha: f\u00e9adann s\u00e9 gaiste a dh\u00fanadh mar aon saighdi\u00fair. Is leor c\u00e9im amh\u00e1in \u00f3n r\u00edchathaoir.",
     "road-to-corner":
       "T\u00e1 b\u00f3thar amh\u00e1in d\u00fanta. T\u00e1 an tsraith eile saor \u2014 rith go dt\u00ed a deireadh \u00ed.",
     "royal-fork":

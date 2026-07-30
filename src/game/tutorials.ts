@@ -105,73 +105,83 @@ const escapeInOne = (s: GameState): boolean =>
   );
 
 export const TUTORIALS: TutorialScenario[] = [
+  // Every non-terminal drill below is engine-checked for soundness in
+  // tutorials.test.ts: after the taught move the opponent has no forced win
+  // within two of their moves, and the taught move never passes up an
+  // immediate win of the learner's own — so each capture is genuinely the
+  // right idea in the position, not a blunder dressed up as a lesson.
+
   // ── Captures ────────────────────────────────────────────────────────────────
   {
-    // The basic custodial capture: close the pincer on a lone defender.
+    // The basic custodial capture: the raiders' ring presses the cross and a
+    // guard on c3 has strayed one square too far, with a raider at his back.
     id: "pincer",
     side: "attackers",
     rulesId: "wtf",
     rows: [
-      ".......",
+      "...a...",
       "..a....",
-      ".....k.",
-      ".......",
-      "..d....",
+      "...d.a.",
+      "...kd..",
+      "..d..a.",
       "..a....",
-      ".......",
+      "...a...",
     ],
     steps: [{ solution: [mv("c6", "c4")] }],
     goal: (s) => s.captured.defenders === 1,
     foils: [mv("c6", "e6"), mv("c2", "b2")],
   },
   {
-    // A hostile corner is a second raider: crush the guard against it.
+    // A hostile corner is a second raider: the guard posted at b7 to watch
+    // the corner is exactly what the corner helps capture.
     id: "corner-anvil",
     side: "attackers",
     rulesId: "wtf",
     rows: [
-      ".d.....",
+      ".d.a...",
       ".......",
-      ".......",
-      ".......",
+      "...d.a.",
+      "aa.kd..",
       "..a....",
-      ".....k.",
-      ".......",
+      "....a..",
+      "....a..",
     ],
     steps: [{ solution: [mv("c3", "c7")] }],
     goal: (s) => s.captured.defenders === 1,
     foils: [mv("c3", "c5"), mv("c3", "a3")],
   },
   {
-    // The empty throne is hostile to soldiers: pin the guard against it.
+    // The king has left his throne — and the empty throne turns hostile:
+    // the guard at c4 beside it can be pinned flat against it.
     id: "throne-anvil",
     side: "attackers",
     rulesId: "wtf",
     rows: [
-      ".......",
-      ".....k.",
-      ".......",
-      "..d....",
-      ".......",
-      ".......",
+      ".....a.",
       ".a.....",
+      "...k.a.",
+      "a.d.d..",
+      ".......",
+      ".......",
+      ".a..a..",
     ],
     steps: [{ solution: [mv("b1", "b4")] }],
     goal: (s) => s.captured.defenders === 1,
-    foils: [mv("b1", "b3"), mv("b1", "f1")],
+    foils: [mv("b1", "b3"), mv("b1", "d1")],
   },
   {
-    // One slide across the empty throne takes two raiders at a stroke.
+    // One slide across the empty throne takes two raiders at a stroke — the
+    // f-file raiders have pressed too deep between the king's guards.
     id: "double-take",
     side: "defenders",
     rulesId: "wtf",
     rows: [
-      ".......",
-      ".....d.",
-      ".k...a.",
+      "...a...",
+      "a....d.",
+      "...k.a.",
       ".d.....",
       ".....a.",
-      ".....d.",
+      "a....d.",
       "...a...",
     ],
     steps: [{ solution: [mv("b4", "f4")] }],
@@ -179,22 +189,23 @@ export const TUTORIALS: TutorialScenario[] = [
     foils: [mv("b4", "b2"), mv("f6", "e6")],
   },
   {
-    // The armed king fights too: he can be the closing jaw of a pincer.
+    // The armed king fights too: one step off his throne closes the trap on
+    // the raider pressing his flank guard.
     id: "kings-blade",
     side: "defenders",
     rulesId: "wtf",
     rows: [
+      "...a...",
       ".......",
-      "....d..",
-      "....a..",
-      ".k.....",
-      ".......",
-      ".......",
+      "...d...",
+      ".a.k.ad",
       "..a....",
+      ".......",
+      "....a..",
     ],
-    steps: [{ solution: [mv("b4", "e4")] }],
+    steps: [{ solution: [mv("d4", "e4")] }],
     goal: (s) => s.captured.attackers === 1,
-    foils: [mv("b4", "b7"), mv("e6", "d6")],
+    foils: [mv("d4", "d3"), mv("g4", "g5")],
   },
   // ── Escape and defence ──────────────────────────────────────────────────────
   {
@@ -250,7 +261,7 @@ export const TUTORIALS: TutorialScenario[] = [
       ".......",
       ".....a.",
       ".......",
-      ".....d.",
+      "....ad.",
       ".......",
     ],
     // Predicate step: any move that leaves the king with no escape-in-one.
@@ -279,13 +290,14 @@ export const TUTORIALS: TutorialScenario[] = [
     foils: [mv("e6", "e3"), mv("c2", "c1")],
   },
   {
-    // On his throne the king is strong: all four sides must be taken.
+    // On his throne the king is strong: all four sides must be taken. His
+    // last guard watches from g6, too far away to help.
     id: "wall-of-four",
     side: "attackers",
     rulesId: "wtf",
     rows: [
       ".......",
-      ".......",
+      "......d",
       "...a...",
       "..ak..a",
       "...a...",
@@ -297,13 +309,14 @@ export const TUTORIALS: TutorialScenario[] = [
     foils: [mv("g4", "g5"), mv("g4", "f4")],
   },
   {
-    // Beside the throne, the empty throne itself is the fourth wall.
+    // Beside the throne, the empty throne itself is the fourth wall. The
+    // last guard at b6 is a file too far to interpose.
     id: "fourth-wall",
     side: "attackers",
     rulesId: "wtf",
     rows: [
       ".....a.",
-      ".......",
+      ".d.....",
       "....a..",
       "....k..",
       "....a..",

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { allMoves, applyMove, isCorner, isThrone, movesFrom, sideOf } from "./engine";
-import type { GameState, Move } from "./types";
+import { allMoves, applyMove, isCorner, isThrone, movesFrom, sideOf, winnerOf } from "./engine";
+import { isGameOver } from "./engine";
+import type { RuleSet } from "./variants";
+import type { GameState, Move, Side } from "./types";
 import {
   TUTORIALS,
   isAcceptedMove,
@@ -158,6 +160,79 @@ describe("scenario-specific outcomes", () => {
       expect(escapes, `king escapes after ${JSON.stringify(reply)}`).toBe(true);
     }
   });
+});
+
+// ── Soundness: the taught move must make sense in a real game ────────────────
+// A capture drill is worthless if the opponent wins anyway ("no value in
+// capturing a defender if the king is about to escape"), or if the learner is
+// passing up an immediate win of their own. These checks prove neither is the
+// case, with a 3-ply search over the real engine.
+
+/** Can `side`, to move in `s`, force a win within two of their own moves —
+ *  win at once, or make a move after which EVERY opposing reply leaves them a
+ *  win-in-one? */
+function forcedWinWithin2(s: GameState, side: Side, rules: RuleSet): boolean {
+  const winsFor = (status: GameState["status"]): boolean => winnerOf(status) === side;
+  const winInOne = (st: GameState): boolean =>
+    allMoves(st.board, side, rules).some((m) => winsFor(applyMove(st, m, rules).status));
+  for (const m1 of allMoves(s.board, side, rules)) {
+    const s1 = applyMove(s, m1, rules);
+    if (winsFor(s1.status)) return true;
+    if (isGameOver(s1.status)) continue;
+    const replies = allMoves(s1.board, s1.turn, rules);
+    let forced = replies.length > 0;
+    for (const r of replies) {
+      const s2 = applyMove(s1, r, rules);
+      if (isGameOver(s2.status)) {
+        if (!winsFor(s2.status)) {
+          forced = false;
+          break;
+        }
+        continue;
+      }
+      if (!winInOne(s2)) {
+        forced = false;
+        break;
+      }
+    }
+    if (forced) return true;
+  }
+  return false;
+}
+
+describe("capture drills are sound positions, not dressed-up blunders", () => {
+  const byId = Object.fromEntries(TUTORIALS.map((s) => [s.id, s]));
+  const opposite = (side: Side): Side => (side === "attackers" ? "defenders" : "attackers");
+
+  // Drills whose solution leaves the game running: the opponent must have no
+  // forced win within two moves afterwards — the capture/block genuinely helps.
+  for (const id of ["pincer", "corner-anvil", "throne-anvil", "double-take", "kings-blade", "bar-the-door"]) {
+    it(`${id}: the opponent has no forced win after the taught move`, () => {
+      const sc = byId[id];
+      const end = playLine(sc);
+      expect(end.status).toBe("playing");
+      expect(
+        forcedWinWithin2(end, opposite(sc.side), rulesForScenario(sc)),
+        `${id}: opponent forces a win within 2 — the taught move is futile`,
+      ).toBe(false);
+    });
+  }
+
+  // The learner must never be passing up an immediate win of their own: if a
+  // one-move win existed, that — not the taught capture — would be the lesson.
+  for (const sc of TUTORIALS) {
+    if (sc.id === "royal-fork") continue; // its step 1 deliberately sets up the win
+    it(`${sc.id}: the taught move is not passing up a faster win`, () => {
+      const rules = rulesForScenario(sc);
+      const start = stateFor(sc);
+      const solutionWins = sc.steps.length === 1 && isGameOver(playLine(sc).status);
+      if (solutionWins) return; // the taught move IS the immediate win
+      const oneMove = allMoves(start.board, sc.side, rules).some(
+        (m) => winnerOf(applyMove(start, m, rules).status) === sc.side,
+      );
+      expect(oneMove, `${sc.id}: a one-move win exists that the drill ignores`).toBe(false);
+    });
+  }
 });
 
 describe("helpers", () => {
