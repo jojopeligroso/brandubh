@@ -332,6 +332,8 @@ export interface Translations {
 
   // Board tools — flip + analysis (Session 7b)
   flipBoard: string;
+  flipBoardH: string;
+  flipBoardV: string;
   /** Engine eval (bar + best-move arrow) — Session 7a. */
   evalLabel: string;
   evalShow: string;
@@ -670,6 +672,8 @@ const en: Translations = {
   zenElGameFile: "Export / import",
 
   flipBoard: "Flip board",
+  flipBoardH: "Flip board left-right",
+  flipBoardV: "Flip board top-bottom",
   evalLabel: "Engine eval",
   evalShow: "Show eval",
   evalHide: "Hide eval",
@@ -1068,6 +1072,8 @@ const es: Translations = {
   zenElGameFile: "Exportar / importar",
 
   flipBoard: "Girar el tablero",
+  flipBoardH: "Girar el tablero izquierda-derecha",
+  flipBoardV: "Girar el tablero arriba-abajo",
   evalLabel: "Evaluaci\u00f3n",
   evalShow: "Mostrar evaluaci\u00f3n",
   evalHide: "Ocultar evaluaci\u00f3n",
@@ -1473,6 +1479,8 @@ const ga: Translations = {
   // DRAFT (Session 7b) \u2014 unreviewed, like the rest of this table. Present so
   // the locale stays complete while it waits for review; `ga` is not offered.
   flipBoard: "Iompaigh an cl\u00e1r",
+  flipBoardH: "Iompaigh an cl\u00e1r \u00f3 chl\u00e9 go deas",
+  flipBoardV: "Iompaigh an cl\u00e1r \u00f3 bharr go bun",
   // DRAFT (unreviewed machine translation) \u2014 `ga` stays out of VISIBLE_LANGS.
   evalLabel: "Luach\u00e1il an innill",
   evalShow: "Taispe\u00e1in an luach\u00e1il",

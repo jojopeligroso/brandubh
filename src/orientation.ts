@@ -1,11 +1,14 @@
 // ── Board orientation (view only) ────────────────────────────────────────────
 //
-// A flipped board is a 180° rotation of the *view*: both axes reverse together,
-// so the square that was bottom-left is drawn top-right. Nothing here touches
-// the game: `game/sides.ts` explains why orientation never followed the side
-// you play (Brandubh's opening is D4-symmetric, so there is no near half and
-// far half to swap), and that stays true — this is a preference about which way
-// up you like to look at the board, not a fact about the position.
+// Two independent mirrors, not one rotation. `flipH` mirrors the board
+// east–west (left/right swap, columns reverse); `flipV` mirrors it north–south
+// (top/bottom swap, rows reverse). Each is a plain single-axis reflection —
+// turning both on at once reproduces the look of a 180° rotation, but either
+// can be used on its own. Nothing here touches the game: `game/sides.ts`
+// explains why orientation never followed the side you play (Brandubh's
+// opening is D4-symmetric, so there is no near half and far half to swap),
+// and that stays true — this is a preference about which way up you like to
+// look at the board, not a fact about the position.
 //
 // Every consumer that draws *on* the board must map through this module rather
 // than reading `row`/`col` straight: the board itself, square highlighting, and
@@ -14,29 +17,30 @@
 
 import { BOARD_SIZE, type Move, type Square } from "./game/types";
 
-export const BOARD_FLIP_KEY = "brandubh.boardFlipped";
+/** East–west flip (mirrors columns; which side is drawn left vs right). */
+export const BOARD_FLIP_H_KEY = "brandubh.boardFlipped";
+/** North–south flip (mirrors rows; which side is drawn top vs bottom). */
+export const BOARD_FLIP_V_KEY = "brandubh.boardFlippedV";
 
 /**
  * Map one axis index between board space and view space.
  *
  * This is an *involution* — applying it twice returns the original index — so
- * the same function serves both directions. `toView` and `fromView` below are
- * therefore identical in implementation and differ only in name; both exist so
- * a call site says which way it means.
+ * the same function serves both directions.
  */
 export const viewIndex = (i: number, flipped: boolean): number =>
   flipped ? BOARD_SIZE - 1 - i : i;
 
 /** Where a board square is drawn. */
-export const toView = (sq: Square, flipped: boolean): Square => ({
-  row: viewIndex(sq.row, flipped),
-  col: viewIndex(sq.col, flipped),
+export const toView = (sq: Square, flipH: boolean, flipV: boolean): Square => ({
+  row: viewIndex(sq.row, flipV),
+  col: viewIndex(sq.col, flipH),
 });
 
 /** Which board square a drawn cell stands for — what a click resolves to. */
-export const fromView = (sq: Square, flipped: boolean): Square => ({
-  row: viewIndex(sq.row, flipped),
-  col: viewIndex(sq.col, flipped),
+export const fromView = (sq: Square, flipH: boolean, flipV: boolean): Square => ({
+  row: viewIndex(sq.row, flipV),
+  col: viewIndex(sq.col, flipH),
 });
 
 /**
@@ -47,17 +51,21 @@ export const fromView = (sq: Square, flipped: boolean): Square => ({
  * takes its endpoints from here is orientation-aware for free, and can never
  * point at a different square than the one the board is showing.
  */
-export function viewCenter(sq: Square, flipped: boolean): { x: number; y: number } {
-  const v = toView(sq, flipped);
+export function viewCenter(sq: Square, flipH: boolean, flipV: boolean): { x: number; y: number } {
+  const v = toView(sq, flipH, flipV);
   return { x: (v.col + 0.5) / BOARD_SIZE, y: (v.row + 0.5) / BOARD_SIZE };
 }
 
 /** Both endpoints of a move in view space, ready to be drawn as an arrow. */
 export function viewArrow(
   move: Move,
-  flipped: boolean,
+  flipH: boolean,
+  flipV: boolean,
 ): { from: { x: number; y: number }; to: { x: number; y: number } } {
-  return { from: viewCenter(move.from, flipped), to: viewCenter(move.to, flipped) };
+  return {
+    from: viewCenter(move.from, flipH, flipV),
+    to: viewCenter(move.to, flipH, flipV),
+  };
 }
 
 // ── Coordinate labels ────────────────────────────────────────────────────────
@@ -79,9 +87,9 @@ export const fileLabel = (col: number): string => FILES[col];
 export const rankLabel = (row: number): string => String(BOARD_SIZE - row);
 
 /** True when this board row is drawn along the bottom edge, so it carries the files. */
-export const isLabelledFileRow = (row: number, flipped: boolean): boolean =>
-  viewIndex(row, flipped) === BOARD_SIZE - 1;
+export const isLabelledFileRow = (row: number, flipV: boolean): boolean =>
+  viewIndex(row, flipV) === BOARD_SIZE - 1;
 
 /** True when this board column is drawn along the left edge, so it carries the ranks. */
-export const isLabelledRankCol = (col: number, flipped: boolean): boolean =>
-  viewIndex(col, flipped) === 0;
+export const isLabelledRankCol = (col: number, flipH: boolean): boolean =>
+  viewIndex(col, flipH) === 0;

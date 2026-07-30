@@ -19,32 +19,53 @@ const ALL: Square[] = Array.from({ length: BOARD_SIZE }, (_, row) =>
 
 describe("orientation — the mapping itself", () => {
   it("is the identity when the board is not flipped", () => {
-    for (const sq of ALL) expect(toView(sq, false)).toEqual(sq);
+    for (const sq of ALL) expect(toView(sq, false, false)).toEqual(sq);
   });
 
-  it("reverses both axes together when flipped — a 180° rotation, not a mirror", () => {
-    // A mirror would reverse one axis and leave the other; that would put the
-    // board's own left/right the wrong way round relative to the ranks.
-    expect(toView({ row: 0, col: 0 }, true)).toEqual({ row: 6, col: 6 });
-    expect(toView({ row: 0, col: 6 }, true)).toEqual({ row: 6, col: 0 });
-    expect(toView({ row: 6, col: 0 }, true)).toEqual({ row: 0, col: 6 });
-    expect(toView({ row: 2, col: 5 }, true)).toEqual({ row: 4, col: 1 });
+  it("flipH mirrors columns only — rows stay put", () => {
+    expect(toView({ row: 0, col: 0 }, true, false)).toEqual({ row: 0, col: 6 });
+    expect(toView({ row: 2, col: 5 }, true, false)).toEqual({ row: 2, col: 1 });
   });
 
-  it("leaves the throne — the centre — exactly where it was", () => {
-    expect(toView({ row: 3, col: 3 }, true)).toEqual({ row: 3, col: 3 });
+  it("flipV mirrors rows only — columns stay put", () => {
+    expect(toView({ row: 0, col: 0 }, false, true)).toEqual({ row: 6, col: 0 });
+    expect(toView({ row: 2, col: 5 }, false, true)).toEqual({ row: 4, col: 5 });
+  });
+
+  it("both together reverse both axes — the old 180° rotation", () => {
+    expect(toView({ row: 0, col: 0 }, true, true)).toEqual({ row: 6, col: 6 });
+    expect(toView({ row: 0, col: 6 }, true, true)).toEqual({ row: 6, col: 0 });
+    expect(toView({ row: 6, col: 0 }, true, true)).toEqual({ row: 0, col: 6 });
+    expect(toView({ row: 2, col: 5 }, true, true)).toEqual({ row: 4, col: 1 });
+  });
+
+  it("leaves the throne — the centre — exactly where it was, any combination", () => {
+    for (const flipH of [false, true]) {
+      for (const flipV of [false, true]) {
+        expect(toView({ row: 3, col: 3 }, flipH, flipV)).toEqual({ row: 3, col: 3 });
+      }
+    }
   });
 
   it("round-trips: a drawn cell resolves back to the square it stands for", () => {
-    for (const flipped of [false, true]) {
-      for (const sq of ALL) expect(fromView(toView(sq, flipped), flipped)).toEqual(sq);
+    for (const flipH of [false, true]) {
+      for (const flipV of [false, true]) {
+        for (const sq of ALL) expect(fromView(toView(sq, flipH, flipV), flipH, flipV)).toEqual(sq);
+      }
     }
   });
 
   it("is a bijection — no two squares are ever drawn in the same cell", () => {
-    for (const flipped of [false, true]) {
-      const drawn = new Set(ALL.map((sq) => `${toView(sq, flipped).row},${toView(sq, flipped).col}`));
-      expect(drawn.size).toBe(BOARD_SIZE * BOARD_SIZE);
+    for (const flipH of [false, true]) {
+      for (const flipV of [false, true]) {
+        const drawn = new Set(
+          ALL.map((sq) => {
+            const v = toView(sq, flipH, flipV);
+            return `${v.row},${v.col}`;
+          }),
+        );
+        expect(drawn.size).toBe(BOARD_SIZE * BOARD_SIZE);
+      }
     }
   });
 
@@ -68,16 +89,17 @@ describe("orientation — coordinate labels stay truthful", () => {
     expect(squareName({ row: 3, col: 3 })).toBe("d4");
   });
 
-  it("puts the files along whichever row is drawn at the bottom", () => {
-    // Unflipped the bottom drawn row is board row 6 (rank 1); flipped it is
-    // board row 0 (rank 7), because the board has turned over.
+  it("puts the files along whichever row is drawn at the bottom — flipV only", () => {
+    // Unflipped the bottom drawn row is board row 6 (rank 1); north-south
+    // flipped it is board row 0 (rank 7). An east-west-only flip never
+    // touches this — it's a row question.
     expect(isLabelledFileRow(6, false)).toBe(true);
     expect(isLabelledFileRow(0, false)).toBe(false);
     expect(isLabelledFileRow(0, true)).toBe(true);
     expect(isLabelledFileRow(6, true)).toBe(false);
   });
 
-  it("puts the ranks up whichever column is drawn at the left", () => {
+  it("puts the ranks up whichever column is drawn at the left — flipH only", () => {
     expect(isLabelledRankCol(0, false)).toBe(true);
     expect(isLabelledRankCol(6, false)).toBe(false);
     expect(isLabelledRankCol(6, true)).toBe(true);
@@ -93,21 +115,25 @@ describe("orientation — coordinate labels stay truthful", () => {
     }
   });
 
-  it("reads the file letters right-to-left and the ranks top-down once flipped", () => {
-    // Viewed from the other chair, the bottom edge runs g…a and the left edge
-    // counts 7 at the bottom up to 1 at the top. Both are still the truth.
-    const bottomRow = ALL.filter((sq) => isLabelledFileRow(sq.row, true) === true);
+  it("reads the file letters right-to-left once east-west flipped", () => {
+    // Mirrored left-right, the bottom edge (still board row 6 — flipH never
+    // touches rows) now runs g…a.
+    const bottomRow = ALL.filter((sq) => isLabelledFileRow(sq.row, false) === true);
     const acrossFlipped = bottomRow
       .slice()
-      .sort((a, b) => toView(a, true).col - toView(b, true).col)
+      .sort((a, b) => toView(a, true, false).col - toView(b, true, false).col)
       .map((sq) => fileLabel(sq.col))
       .join("");
     expect(acrossFlipped).toBe("gfedcba");
+  });
 
-    const leftCol = ALL.filter((sq) => isLabelledRankCol(sq.col, true) === true);
+  it("reads the ranks top-down once north-south flipped", () => {
+    // Mirrored top-bottom, the left edge (still board col 0 — flipV never
+    // touches columns) now counts 7 at the top down to 1 at the bottom.
+    const leftCol = ALL.filter((sq) => isLabelledRankCol(sq.col, false) === true);
     const downFlipped = leftCol
       .slice()
-      .sort((a, b) => toView(a, true).row - toView(b, true).row)
+      .sort((a, b) => toView(a, false, true).row - toView(b, false, true).row)
       .map((sq) => rankLabel(sq.row))
       .join("");
     expect(downFlipped).toBe("1234567");
@@ -127,29 +153,41 @@ describe("orientation — coordinate labels stay truthful", () => {
 
 describe("orientation — overlay geometry (the 7a arrow's endpoints)", () => {
   it("centres a square in its cell", () => {
-    expect(viewCenter({ row: 0, col: 0 }, false)).toEqual({ x: 0.5 / 7, y: 0.5 / 7 });
-    expect(viewCenter({ row: 3, col: 3 }, false)).toEqual({ x: 3.5 / 7, y: 3.5 / 7 });
+    expect(viewCenter({ row: 0, col: 0 }, false, false)).toEqual({ x: 0.5 / 7, y: 0.5 / 7 });
+    expect(viewCenter({ row: 3, col: 3 }, false, false)).toEqual({ x: 3.5 / 7, y: 3.5 / 7 });
   });
 
-  it("keeps the throne's centre fixed under flip", () => {
-    expect(viewCenter({ row: 3, col: 3 }, true)).toEqual(viewCenter({ row: 3, col: 3 }, false));
+  it("keeps the throne's centre fixed under either flip", () => {
+    expect(viewCenter({ row: 3, col: 3 }, true, true)).toEqual(viewCenter({ row: 3, col: 3 }, false, false));
   });
 
-  it("moves an endpoint to the point reflected through the centre when flipped", () => {
-    const a = viewCenter({ row: 0, col: 0 }, false);
-    const b = viewCenter({ row: 0, col: 0 }, true);
+  it("moves an endpoint to the point reflected through the centre when both flipped", () => {
+    const a = viewCenter({ row: 0, col: 0 }, false, false);
+    const b = viewCenter({ row: 0, col: 0 }, true, true);
     expect(b.x).toBeCloseTo(1 - a.x, 12);
     expect(b.y).toBeCloseTo(1 - a.y, 12);
   });
 
-  it("stays inside the board box for every square, either way up", () => {
-    for (const flipped of [false, true]) {
-      for (const sq of ALL) {
-        const { x, y } = viewCenter(sq, flipped);
-        expect(x).toBeGreaterThan(0);
-        expect(x).toBeLessThan(1);
-        expect(y).toBeGreaterThan(0);
-        expect(y).toBeLessThan(1);
+  it("flipH only reflects x, flipV only reflects y", () => {
+    const a = viewCenter({ row: 0, col: 0 }, false, false);
+    const h = viewCenter({ row: 0, col: 0 }, true, false);
+    const v = viewCenter({ row: 0, col: 0 }, false, true);
+    expect(h.x).toBeCloseTo(1 - a.x, 12);
+    expect(h.y).toBeCloseTo(a.y, 12);
+    expect(v.x).toBeCloseTo(a.x, 12);
+    expect(v.y).toBeCloseTo(1 - a.y, 12);
+  });
+
+  it("stays inside the board box for every square, any combination", () => {
+    for (const flipH of [false, true]) {
+      for (const flipV of [false, true]) {
+        for (const sq of ALL) {
+          const { x, y } = viewCenter(sq, flipH, flipV);
+          expect(x).toBeGreaterThan(0);
+          expect(x).toBeLessThan(1);
+          expect(y).toBeGreaterThan(0);
+          expect(y).toBeLessThan(1);
+        }
       }
     }
   });
@@ -159,25 +197,30 @@ describe("orientation — overlay geometry (the 7a arrow's endpoints)", () => {
     // drawing for d2 and d6 — the whole point of routing 7a's overlay through
     // this module rather than through raw row/col.
     const move = { from: { row: 5, col: 3 }, to: { row: 1, col: 3 } };
-    for (const flipped of [false, true]) {
-      const arrow = viewArrow(move, flipped);
-      expect(arrow.from).toEqual(viewCenter(move.from, flipped));
-      expect(arrow.to).toEqual(viewCenter(move.to, flipped));
+    for (const flipH of [false, true]) {
+      for (const flipV of [false, true]) {
+        const arrow = viewArrow(move, flipH, flipV);
+        expect(arrow.from).toEqual(viewCenter(move.from, flipH, flipV));
+        expect(arrow.to).toEqual(viewCenter(move.to, flipH, flipV));
+      }
     }
   });
 
-  it("reverses an arrow's on-screen direction when the board turns over", () => {
+  it("reverses an arrow's on-screen vertical direction when north-south flipped", () => {
     const move = { from: { row: 5, col: 3 }, to: { row: 1, col: 3 } };
-    const up = viewArrow(move, false);
-    const down = viewArrow(move, true);
+    const up = viewArrow(move, false, false);
+    const down = viewArrow(move, false, true);
     expect(up.to.y).toBeLessThan(up.from.y); // points up the screen
     expect(down.to.y).toBeGreaterThan(down.from.y); // and down it, flipped
   });
 
-  it("preserves the arrow's length — a flip rotates, it does not distort", () => {
+  it("preserves the arrow's length under any combination — a flip mirrors, it does not distort", () => {
     const move = { from: { row: 6, col: 0 }, to: { row: 2, col: 5 } };
     const len = (a: ReturnType<typeof viewArrow>) =>
       Math.hypot(a.to.x - a.from.x, a.to.y - a.from.y);
-    expect(len(viewArrow(move, true))).toBeCloseTo(len(viewArrow(move, false)), 12);
+    const base = len(viewArrow(move, false, false));
+    expect(len(viewArrow(move, true, false))).toBeCloseTo(base, 12);
+    expect(len(viewArrow(move, false, true))).toBeCloseTo(base, 12);
+    expect(len(viewArrow(move, true, true))).toBeCloseTo(base, 12);
   });
 });

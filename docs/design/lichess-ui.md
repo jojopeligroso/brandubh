@@ -47,16 +47,20 @@ Anything that draws *on* the board goes through it: the board's own cells, squar
 highlighting, and — when it arrives — the best-move arrow.
 
 ```ts
-viewCenter(sq, flipped)   // → {x, y}, fractions 0–1 of the board box
-viewArrow(move, flipped)  // → {from: {x, y}, to: {x, y}}
+viewCenter(sq, flipH, flipV)   // → {x, y}, fractions 0–1 of the board box
+viewArrow(move, flipH, flipV)  // → {from: {x, y}, to: {x, y}}
 ```
 
-An overlay positioned from those is orientation-aware with no further work and
-cannot disagree with the board underneath it. The contract is unit-tested ahead
-of its first caller (`src/orientation.test.ts`): endpoints reflect through the
-centre when flipped, arrow length is preserved, on-screen direction reverses, and
-the throne stays put. **7a should not read `row`/`col` directly** — that is the
-one way the arrow and the board can drift apart.
+`flipH` and `flipV` are independent single-axis mirrors — east–west (columns)
+and north–south (rows) respectively; turning both on reproduces a 180°
+rotation, but either works alone. An overlay positioned from those is
+orientation-aware with no further work and cannot disagree with the board
+underneath it. The contract is unit-tested ahead of its first caller
+(`src/orientation.test.ts`): endpoints reflect through the centre when both
+flip, each axis reflects independently when only one does, arrow length is
+preserved, on-screen direction reverses, and the throne stays put. **7a should
+not read `row`/`col` directly** — that is the one way the arrow and the board
+can drift apart.
 
 The eval bar has no orientation question of its own to answer *unless* it is
 drawn as a vertical attacker-over-defender bar beside the board, in which case it
@@ -68,14 +72,18 @@ should swap ends with the clocks — see the flip decision below.
   cell back to its square; game logic, `controllable` and the saved game never see
   a flipped board. `game/sides.ts` still holds that orientation does not follow
   the side you play — this is a preference about the picture, nothing more.
-- **The clocks flip with the board.** The whole view turns over or none of it
-  does. The clocks are the two players' chairs; rotating the board while they
-  stayed put would seat the away player's clock beside the near player's pieces.
-  The swap lives in the view — `clockPlacement` is unchanged.
+- **Two independent mirrors, not one rotation.** East–west (`flippedH`, left/right
+  swap) and north–south (`flippedV`, top/bottom swap) are separate toggles with
+  separate buttons; either can be on alone, and both together look like the old
+  180° rotation.
+- **Only the north–south flip moves the clocks.** The clocks are the two players'
+  chairs, seated above/below the board — a top/bottom mirror swaps them, an
+  east–west one doesn't touch which side of the screen is "up". The swap lives
+  in the view, keyed off `flippedV` alone — `clockPlacement` is unchanged.
 - **Coordinates stay truthful.** Labels move to whichever drawn edge is now
-  bottom/left (files `g…a`, ranks `1→7` when flipped) and every cell carries its
-  own square name as an `aria-label`, so assistive tech reads the board rather
-  than the view.
+  bottom/left (files `g…a` when east-west flipped, ranks `1→7` top-down when
+  north-south flipped) and every cell carries its own square name as an
+  `aria-label`, so assistive tech reads the board rather than the view.
 - **Analysis never touches the live save.** The autosave is closed while
   analysing *and* the live timeline — states, cursor, and the index-aligned clock
   line — is snapshotted on enter and restored on exit. Belt and braces, because
@@ -104,7 +112,8 @@ overlay; `useAnalysisWorker` runs the search.
   versa. Separate instances also keep `ai.ts`'s module-global transposition
   table separate, which matters because analysis searches with different
   weights. Measured at peak 2 workers alive simultaneously.
-- **The bar's ends are the two chairs, and it flips with the board** — the
+- **The bar's ends are the two chairs, and it flips with the north–south
+  mirror** — the
   question this doc left open, answered the way the clock decision above
   answers it. The caller passes `bottomClockSide`; a fill above half and a
   positive number both mean *the near player* is ahead. Pinning attackers to

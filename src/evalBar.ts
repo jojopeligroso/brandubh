@@ -23,8 +23,11 @@
 // a fill above 0.5 and a positive number both mean "the near player is ahead",
 // whichever side they took and whichever way up the board is.
 //
-// Under a flip the bar's fill is therefore inverted along with the board. That
-// is the point: the picture stays consistent with the seat you are looking from.
+// Under a north–south flip the bar's fill is therefore inverted along with the
+// board and the clocks. (The east–west mirror leaves it alone, for the same
+// reason it leaves the clocks alone: it does not change which end of the screen
+// is near.) That is the point: the picture stays consistent with the seat you
+// are looking from.
 
 import { DECISIVE, DEFAULT_WEIGHTS } from "./game/ai";
 import type { Side } from "./game/types";

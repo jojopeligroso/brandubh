@@ -6,11 +6,11 @@ import type { Translations } from "../i18n";
  * The vertical eval bar that stands beside the board.
  *
  * `bottomSide` is the side seated at the *bottom* of the screen — the same seat
- * the bottom clock belongs to, already swapped for a flipped board by the
- * caller. Every reading here is from that seat: the fill grows upward when the
- * near player is ahead, and the number beneath carries the same sign. See the
- * orientation note at the top of src/evalBar.ts for why the bar turns over with
- * the board rather than pinning one side to one end.
+ * the bottom clock belongs to, already swapped for a north–south-flipped board
+ * by the caller. Every reading here is from that seat: the fill grows upward
+ * when the near player is ahead, and the number beneath carries the same sign.
+ * See the orientation note at the top of src/evalBar.ts for why the bar turns
+ * over with the board rather than pinning one side to one end.
  *
  * The whole thing is `aria-hidden`; the accessible reading is the text below
  * it, which says the same thing in words rather than in a picture.
