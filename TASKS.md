@@ -8,11 +8,11 @@ Ordered by value ÷ effort:
 
 1. ~~**Game resumability** *(M)* — a refresh never loses a game in progress.~~ **Shipped** → [`docs/design/game-persistence.md`](docs/design/game-persistence.md).
 2. ~~**Play either side** *(S–M)* — choose raiders or king from the overlay.~~ **Shipped** → `src/game/sides.ts`.
-3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
+3. ~~**Export / import games** *(L)* — PGN-style save/load.~~ **Shipped** → [`docs/design/game-import-export.md`](docs/design/game-import-export.md), `src/game/gameFile.ts` + `src/game/replay.ts` + `src/components/GameFilePanel.tsx`.
 4. ~~**Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.~~ **Shipped** as a cross-validated, default-off knob (`attackerRecognizer`): a capture needs move-gen where an escape is O(1) geometry, so it is neutral-but-not-free — off by default, no throughput regression. See `docs/ROADMAP.md` Session 4.
 5. ~~**Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.~~ **Shipped**.
 6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
-7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md). Sliced 7a–7d; **7b shipped**. Per-slice briefs in [`docs/prompts/`](docs/prompts/README.md); 7a (eval bar + best-move arrow) is unbuilt and unbriefed.
+7. ~~**Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree.~~ **Shipped**, all four slices: 7a eval bar + best-move arrow, 7b board flip + analysis free-move mode, 7c move-tree panel, 7d post-game annotations. Position setup (paste a position in) landed alongside them. Per-slice briefs in [`docs/prompts/`](docs/prompts/README.md); design notes in [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
 
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
 the raw backlog those sessions draw from.
@@ -28,6 +28,12 @@ custom-rule editor.
 ## Half-built
 
 - [ ] **Irish (ga) locale** — **Re-hidden** (decision reversed): the `ga` strings are unreviewed machine drafts and stay out of `VISIBLE_LANGS` until a human Irish speaker signs the copy off — see `CLAUDE.md`. The translations remain in `src/i18n.ts` (TypeScript keeps them complete); the remaining work is the human review, not code.
+- [ ] **Compact header for a third language button** — written and then lost. Revealing `ga`
+  needs it: a third button overflows the header at 360–390px and squeezes the subtitle onto
+  three lines at 430–520px. A `.seg-compact` switcher plus a header that wraps as a whole
+  was written on the Session 5 branch (`768f12a`, `aa99dca`) and is **not in `src/` today** —
+  `git log --all -S "seg-compact" -- src/` is where to find it. Blocked behind the Irish
+  translation review above, not worth re-landing before it.
 - [x] **`.piece.threat` CSS** — Removed as dead code; it was styled in `index.css` but never applied in any component. (`.piece.captured` is still used by the "Show me how" demo, now in `ObjectivesContent.tsx`.)
 
 ## AI engine — next levers
@@ -64,7 +70,12 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 - [ ] **Shieldwall capture** — Tournament rule extension. No code, no RuleSet flags.
 - [ ] **Exit-fort win** — King builds an impregnable formation. No code, no RuleSet flags.
-- [ ] **Game replay / opening book** — Import recorded games from aagenielsen.dk. Move notation is compatible but no replay UI or import mechanism exists.
+- [x] **Game replay / import** — done (Session 3), *not* future work: `src/game/gameFile.ts`
+  parses and writes the PGN-style format (aagenielsen.dk-compatible), `src/game/replay.ts`
+  is the shared replay-and-validate boundary, and `src/components/GameFilePanel.tsx` is the
+  UI. Imported games load into the existing step/branch timeline.
+- [ ] **Opening book** — still open (roadmap Session 6). The `OPENING_BOOK` hook in
+  `ai.ts` is wired and deliberately empty; only *proven* moves belong in it.
 - [x] **Game state persistence** — done. The live game (move list, cursor, clock
   banks, match score) is written to the versioned `brandubh.game.v1` key and
   replayed on load; the opening overlay offers **Resume / New**. See
@@ -78,4 +89,4 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 ## Docs
 
-- [x] **Update screenshot** — `docs/screenshot.png` refreshed from the current build (`npm run screenshot`, driven by `scripts/screenshot.mjs`); it now shows the current *Brandubh · WTF* variant name and the GA locale toggle.
+- [x] **Update screenshot** — `docs/screenshot.png` is regenerated from the production build with `npm run screenshot` (driven by `scripts/screenshot.mjs`). It shows the current *Brandubh · World Tafl Federation* variant name, the **EN / ES** switcher (Irish is held back — see `CLAUDE.md`), and the eval bar beside the board (Session 7a). Refresh it whenever the board view changes.
