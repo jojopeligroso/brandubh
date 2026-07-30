@@ -8,7 +8,7 @@ Ordered by value ÷ effort:
 
 1. ~~**Game resumability** *(M)* — a refresh never loses a game in progress.~~ **Shipped** → [`docs/design/game-persistence.md`](docs/design/game-persistence.md).
 2. ~~**Play either side** *(S–M)* — choose raiders or king from the overlay.~~ **Shipped** → `src/game/sides.ts`.
-3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
+3. ~~**Export / import games** *(L)* — PGN-style save/load.~~ **Shipped** → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
 4. **Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.
 5. **Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.
 6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
@@ -50,8 +50,9 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   were worse, blocker-aware king distance was neutral. The search rewrite already
   captures what those heuristics proxied for. The terms remain as opt-in knobs
   for per-variant retuning (see below).
-- [ ] **Opening book** — ties into the replay/import task below; would remove the
-  weak, samey opening play.
+- [ ] **Opening book** — would remove the weak, samey opening play. (The
+  import/export half of the old "replay / opening book" pairing has shipped;
+  this is the remaining half.)
 - [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is
   added, revisit the `hard` time budget and eval weights for the larger board.
 - [x] **Board-symmetry (D4) root-move folding** — done (`ai.ts`: `stabilizer` /
@@ -64,12 +65,19 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 - [ ] **Shieldwall capture** — Tournament rule extension. No code, no RuleSet flags.
 - [ ] **Exit-fort win** — King builds an impregnable formation. No code, no RuleSet flags.
-- [ ] **Game replay / opening book** — Import recorded games from aagenielsen.dk. Move notation is compatible but no replay UI or import mechanism exists.
+- [x] **Game import / export** — done. A PGN-style text format (`[Tag "value"]`
+  header + the app's own move notation) exports by download or clipboard and
+  imports by paste or file upload, loading into the existing replay timeline.
+  The parser is tolerant enough for hand-edited and aagenielsen.dk-style files.
+  See `src/game/gameFile.ts` and [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
+  Still open, and deliberately out of that session's scope: **bulk import**,
+  **scraping aagenielsen.dk**, **URL-param sharing** and **cloud sync**.
 - [x] **Game state persistence** — done. The live game (move list, cursor, clock
   banks, match score) is written to the versioned `brandubh.game.v1` key and
   replayed on load; the opening overlay offers **Resume / New**. See
   `src/game/persist.ts` and [`docs/design/game-persistence.md`](docs/design/game-persistence.md).
-  URL-param sharing is still open, and belongs with the PGN-style import/export work.
+  URL-param sharing is still open; the PGN-style import/export it belongs with
+  has now shipped, so it is a small follow-on rather than a blocked one.
 
 ## Minor UX
 
