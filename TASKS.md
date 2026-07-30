@@ -11,7 +11,7 @@ Ordered by value ÷ effort:
 3. ~~**Export / import games** *(L)* — PGN-style save/load.~~ **Shipped** → [`docs/design/game-import-export.md`](docs/design/game-import-export.md), `src/game/gameFile.ts` + `src/game/replay.ts` + `src/components/GameFilePanel.tsx`.
 4. ~~**Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.~~ **Shipped** as a cross-validated, default-off knob (`attackerRecognizer`): a capture needs move-gen where an escape is O(1) geometry, so it is neutral-but-not-free — off by default, no throughput regression. See `docs/ROADMAP.md` Session 4.
 5. ~~**Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.~~ **Shipped**.
-6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
+6. ~~**Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.~~ **Shipped**: `scripts/genbook.ts` generates a D4-folded book of exact-best moves (plies 0–3, searched at depth 8, margin 0 — a margin-13 "variety" candidate measured a paired-gauntlet regression and was rejected) into the bundled `src/game/openingBook.data.ts`; ollamh plays it instantly, varied via ties + D4 orientations. Honestly labelled *deep-search best-effort* — not proven (see `docs/solving.md`). See `docs/ROADMAP.md` Session 6 for all measurements.
 7. ~~**Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree.~~ **Shipped**, all four slices: 7a eval bar + best-move arrow, 7b board flip + analysis free-move mode, 7c move-tree panel, 7d post-game annotations. Position setup (paste a position in) landed alongside them. Per-slice briefs in [`docs/prompts/`](docs/prompts/README.md); design notes in [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
 
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
@@ -56,8 +56,10 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   were worse, blocker-aware king distance was neutral. The search rewrite already
   captures what those heuristics proxied for. The terms remain as opt-in knobs
   for per-variant retuning (see below).
-- [ ] **Opening book** — ties into the replay/import task below; would remove the
-  weak, samey opening play.
+- [x] **Opening book** — done (roadmap Session 6): deep-search book covering the
+  first two moves of each side, played instantly by ollamh with seeded variety.
+  Not the aagenielsen.dk game-import flavour of book once envisioned below —
+  that remains future work.
 - [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is
   added, revisit the `hard` time budget and eval weights for the larger board.
 - [x] **Board-symmetry (D4) root-move folding** — done (`ai.ts`: `stabilizer` /
@@ -74,8 +76,10 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   parses and writes the PGN-style format (aagenielsen.dk-compatible), `src/game/replay.ts`
   is the shared replay-and-validate boundary, and `src/components/GameFilePanel.tsx` is the
   UI. Imported games load into the existing step/branch timeline.
-- [ ] **Opening book** — still open (roadmap Session 6). The `OPENING_BOOK` hook in
-  `ai.ts` is wired and deliberately empty; only *proven* moves belong in it.
+- [x] **Opening book** — done (roadmap Session 6). `OPENING_BOOK` is populated from the
+  bundled deep-search book (`src/game/openingBook.data.ts`); the original "only proven
+  moves" bar was retired *explicitly* and the book relabelled best-effort — see
+  `docs/solving.md` §5.
 - [x] **Game state persistence** — done. The live game (move list, cursor, clock
   banks, match score) is written to the versioned `brandubh.game.v1` key and
   replayed on load; the opening overlay offers **Resume / New**. See

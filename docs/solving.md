@@ -110,10 +110,21 @@ guessing. That is why it is trustworthy for the parts it *can* decide.
   (high piece count = large tables), so these perfect tables cover *deep* endings
   more than typical play.
 
-These feed a real improvement even without a full solve: proven moves drop into
-`OPENING_BOOK` (in `ai.ts`) and the **Ollamh** tier plays them instantly and
-perfectly. The book is empty today precisely because we refuse to fill it with
-anything unproven.
+These feed a real improvement even without a full solve: proven moves can drop
+into `OPENING_BOOK` (in `ai.ts`) and the **Ollamh** tier plays them instantly.
+
+**Update (roadmap Session 6):** the book is no longer empty — but what filled it
+is *not* a solve, and it is deliberately not labelled as one. The shipped book is
+**deep-search best-effort**: each entry is computed by exactly the search
+Ollamh's live opening pass runs (`scripts/genbook.ts` — same depth, cold table),
+so a booked move is one the engine itself rates equal-best at the board — but
+it carries no game-theoretic guarantee whatsoever. The original "proven moves
+only" bar was retired *explicitly* rather than quietly diluted: the book's
+honest claim is "as strong as the live search, instant, varied", and the
+guarantees that remain hard are legality (every served move is re-validated
+against the live move generator) and scope (served only under the exact ruleset
+it was generated for). If a solver one day proves opening lines, those moves can
+replace the searched ones — and only then may the word "proven" return.
 
 ---
 
@@ -150,7 +161,7 @@ given the game is smaller than already-solved checkers.
 | Weakly solved (opening value known)? | **No** — opening is UNKNOWN. |
 | How close, here? | ~8 × 10⁻⁹ of the space explored; effectively not started. |
 | Solvable in principle? | **Likely yes** — smaller than solved checkers — but needs an optimized engine, ~10²–10³ TB of tablebase storage, and a cluster over weeks–months. |
-| What we shipped instead | A verified sound solver, proven tactical results, an empty-by-integrity opening book, and a much stronger **Ollamh** search tier. |
+| What we shipped instead | A verified sound solver, proven tactical results, a much stronger **Ollamh** search tier — and (Session 6) a deep-search opening book, honestly labelled best-effort, never "proven". |
 
 *Reproduce the numbers:* `npx tsx scripts/solve.ts` and the state-space arithmetic
 in this document's section 2–3.

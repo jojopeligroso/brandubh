@@ -14,6 +14,8 @@ import {
 } from "./engine";
 import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side } from "./types";
 import type { RuleSet } from "./variants";
+import { SYM } from "./d4";
+import { bookRulesMatch, loadOpeningBook } from "./openingBook";
 
 /** The difficulty ladder, in order. Also the whitelist for anything restored
  *  from storage (see persist.ts) or read back out of a settings key. */
@@ -829,17 +831,9 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
 // representative per orbit. The opening's 40 legal first moves collapse to 5, buying
 // roughly a ply. Symmetry breaks within a move or two, so this is opening-focused and
 // costs only a handful of board serialisations at the root (never per interior node).
+// The transform group itself lives in d4.ts, shared with the opening-book
+// loader and the offline book generator so all three agree on the geometry.
 const N = BOARD_SIZE;
-const SYM: Array<(r: number, c: number) => [number, number]> = [
-  (r, c) => [r, c],
-  (r, c) => [c, N - 1 - r],
-  (r, c) => [N - 1 - r, N - 1 - c],
-  (r, c) => [N - 1 - c, r],
-  (r, c) => [r, N - 1 - c],
-  (r, c) => [N - 1 - r, c],
-  (r, c) => [c, r],
-  (r, c) => [N - 1 - c, N - 1 - r],
-];
 
 function serializeUnder(board: Board, t: (r: number, c: number) => [number, number]): string {
   const out = new Array<string>(N * N).fill(".");
@@ -854,14 +848,16 @@ function serializeUnder(board: Board, t: (r: number, c: number) => [number, numb
 }
 
 /** The transforms under which the position (board only — turn is symmetric too) is
- *  unchanged: its stabiliser subgroup. Length 1 ⇒ no usable symmetry. */
-function stabilizer(board: Board): Array<(r: number, c: number) => [number, number]> {
+ *  unchanged: its stabiliser subgroup. Length 1 ⇒ no usable symmetry.
+ *  Exported for the offline book generator (scripts/genbook.ts). */
+export function stabilizer(board: Board): Array<(r: number, c: number) => [number, number]> {
   const id = serializeUnder(board, SYM[0]);
   return SYM.filter((t) => serializeUnder(board, t) === id);
 }
 
-/** Collapse root moves into one representative per orbit under `group`. */
-function foldRootMoves(moves: Move[], group: Array<(r: number, c: number) => [number, number]>): Move[] {
+/** Collapse root moves into one representative per orbit under `group`.
+ *  Exported for the offline book generator (scripts/genbook.ts). */
+export function foldRootMoves(moves: Move[], group: ReadonlyArray<(r: number, c: number) => [number, number]>): Move[] {
   if (group.length <= 1) return moves;
   const seen = new Set<string>();
   const reps: Move[] = [];
@@ -994,27 +990,124 @@ export function pickMove(
   return { move: chosen, score: bestScore, depth: reached, nodes: ctx.nodes };
 }
 
-// ── Opening book (solver-fed) ─────────────────────────────────────────────────
-// The integration point for the offline solver (scripts/solve.ts): a map from a
-// position's board hash to the move to play there. It is intentionally EMPTY —
-// only *proven* (game-theoretically optimal, dtm-minimal) moves belong here, and
-// the full Brandubh opening is not solved (see docs/solving.md). When the solver
-// proves a line, its moves drop straight in and `ollamh` plays them instantly and
-// perfectly, skipping the slow search. Keyed by `hashBoard(board, turn)`; a book
-// move is always re-validated against the live legal moves before it is trusted.
-export const OPENING_BOOK: Record<string, Move> = {};
+// ── Multi-PV root scoring (offline book generation) ───────────────────────────
+export interface RootMoveScore {
+  move: Move;
+  score: number;
+}
 
-function bookMove(state: GameState, rules: RuleSet): Move | null {
-  const hit = OPENING_BOOK[hashBoard(state.board, state.turn)];
-  if (!hit) return null;
-  const legal = allMoves(state.board, state.turn, rules).some(
-    (m) =>
-      m.from.row === hit.from.row &&
-      m.from.col === hit.from.col &&
-      m.to.row === hit.to.row &&
-      m.to.col === hit.to.col,
-  );
-  return legal ? hit : null;
+/**
+ * Exact scores for every root move within `margin` of the best, at a fixed
+ * depth — the multi-PV query the offline book generator (scripts/genbook.ts)
+ * needs to keep best-N moves per position. A tight-window iterative-deepening
+ * pass (identical to pickMove's root loop) finds the best score cheaply; a
+ * second pass at the final depth re-searches each remaining move with the
+ * window widened by `margin`, so near-best moves come back with exact scores
+ * while clearly-worse moves still fail low almost for free. Deterministic (no
+ * deadline). Root moves are D4-folded, so at symmetric positions the result is
+ * one representative per orbit.
+ */
+export function scoreRootMoves(
+  state: GameState,
+  rules: RuleSet,
+  depth: number,
+  margin: number,
+  config: SearchConfig = FULL_CONFIG,
+  weights: EvalWeights = DEFAULT_WEIGHTS,
+): { best: number; within: RootMoveScore[]; nodes: number } {
+  const rootMoves = allMoves(state.board, state.turn, rules);
+  if (rootMoves.length === 0) return { best: evaluate(state, weights, rules), within: [], nodes: 0 };
+
+  TT_GEN++;
+  if (TT.size > TT_MAX) TT.clear();
+
+  const ctx: Ctx = { rules, cfg: config, weights, deadline: Infinity, now: defaultNow, nodes: 0, killers: [] };
+  const maximizing = state.turn === "attackers";
+  const rootKey = config.useTT ? hashBoard(state.board, state.turn) : "";
+  const foldedRoots = foldRootMoves(rootMoves, stabilizer(state.board));
+
+  // Pass 1: tight-window iterative deepening, exactly pickMove's root loop —
+  // finds the best score (and exact ties) while warming the TT and ordering.
+  let best = maximizing ? -Infinity : Infinity;
+  let ties: Move[] = [];
+  let ordered: Move[] = foldedRoots;
+  for (let d = 1; d <= depth; d++) {
+    const ttMove = config.useTT ? (TT.get(rootKey)?.move ?? null) : null;
+    ordered = orderMoves(state, foldedRoots, ttMove, 0, ctx);
+    let localBest = maximizing ? -Infinity : Infinity;
+    let localTies: Move[] = [];
+    for (const m of ordered) {
+      const alpha = maximizing && localBest !== -Infinity ? localBest - 1 : -Infinity;
+      const beta = !maximizing && localBest !== Infinity ? localBest + 1 : Infinity;
+      const v = search(applyMove(state, m, rules), d - 1, 1, alpha, beta, ctx);
+      if (maximizing ? v > localBest : v < localBest) {
+        localBest = v;
+        localTies = [m];
+      } else if (v === localBest) {
+        localTies.push(m);
+      }
+    }
+    best = localBest;
+    ties = localTies;
+    if (config.useTT) ttStore(rootKey, d, localBest, Flag.Exact, localTies[0]);
+    if (Math.abs(localBest) >= DECISIVE) break;
+  }
+
+  // Pass 2: exact scores for the near-best. Ties are already exact, and at
+  // margin 0 they are the whole answer — the extra pass would only re-search
+  // moves through a TT warmed by pass 1's tight windows, and values reproduced
+  // through foreign bound entries can drift (ordinary alpha–beta search
+  // instability). A drifted value that sneaks a strictly-worse move into an
+  // "exact ties" book is precisely the corruption the offline generator must
+  // not ship, so the margin-0 path stops here. For margin > 0, each remaining
+  // move gets a margin-widened window at full depth — fail-soft, so a value
+  // inside the window is exact — and the accept test compares against the
+  // margin itself, never the (integer-widened) window bound: evaluation scores
+  // are fractional, and accepting everything inside the window would admit
+  // moves up to a point worse than the margin promises.
+  const within: RootMoveScore[] = ties.map((m) => ({ move: m, score: best }));
+  if (margin > 0) {
+    for (const m of ordered) {
+      if (ties.some((t) => sameMove(t, m))) continue;
+      const child = applyMove(state, m, rules);
+      if (maximizing) {
+        const v = search(child, depth - 1, 1, best - margin - 1, best, ctx);
+        if (v >= best - margin) within.push({ move: m, score: Math.min(v, best) });
+      } else {
+        const v = search(child, depth - 1, 1, best, best + margin + 1, ctx);
+        if (v <= best + margin) within.push({ move: m, score: Math.max(v, best) });
+      }
+    }
+    within.sort((a, b) => (maximizing ? b.score - a.score : a.score - b.score));
+  }
+  return { best, within, nodes: ctx.nodes };
+}
+
+// ── Opening book (deep-search, offline-generated) ─────────────────────────────
+// A map from a position's `hashBoard(board, turn)` to the strong moves to play
+// there, generated offline by scripts/genbook.ts: a fixed-depth search at
+// exactly the depth ollamh's live opening search measures (deliberately never
+// deeper — a deeper book measurably hurt the shallower follow-up engine; see
+// genbook.ts), keeping the exact-tie best moves per position. These moves are
+// *deep-search best-effort*, NOT proven — the Brandubh opening is not solved
+// (see docs/solving.md), so the book claims "as strong as ollamh searching,
+// instant", never "perfect". What IS guaranteed: a book move is only served
+// when the live ruleset matches the one the book was generated under, and it is
+// re-validated against the live legal moves before it is trusted — so a stale
+// or corrupt book can never produce an illegal move, only a silent fallthrough
+// to the normal search.
+export const OPENING_BOOK: Record<string, Move[]> = loadOpeningBook();
+
+function bookMove(state: GameState, rules: RuleSet, rng: () => number): Move | null {
+  if (!bookRulesMatch(rules)) return null;
+  const hits = OPENING_BOOK[hashBoard(state.board, state.turn)];
+  if (!hits || hits.length === 0) return null;
+  const legal = allMoves(state.board, state.turn, rules);
+  const candidates = hits.filter((h) => legal.some((m) => sameMove(m, h)));
+  if (candidates.length === 0) return null;
+  // Light randomization among the booked moves (all within the generation
+  // margin of best) — this is what varies ollamh's openings game to game.
+  return candidates[Math.floor(rng() * candidates.length)];
 }
 
 // ── Difficulty ladder ─────────────────────────────────────────────────────────
@@ -1037,9 +1130,11 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
   hard: { limits: { maxDepth: 6, deadlineMs: 3000, minDepth: 4 }, config: FULL_CONFIG, blunder: 0 },
   // ollamh ("master sage"): the strongest tier. A depth-5 floor plus an 8s budget,
   // with folding + LMR, reaches depth ~8–9 in the opening where the clock allows —
-  // deep enough to see the king's corner races several moves out. A perfect-play
-  // opening book (when present) skips the slowest early moves and plays them
-  // optimally. Named for the highest rank of Gaelic filí. Slower to move by design.
+  // deep enough to see the king's corner races several moves out. The deep-search
+  // opening book skips the slowest early moves: booked replies were searched
+  // offline at exactly this tier's measured live opening depth, so they arrive
+  // instantly at no measured strength cost (see docs/ROADMAP.md Session 6) —
+  // strong, not proven. Named for the highest rank of Gaelic filí.
   ollamh: { limits: { maxDepth: 12, deadlineMs: 8000, minDepth: 5 }, config: FULL_CONFIG, blunder: 0 },
 };
 
@@ -1091,9 +1186,9 @@ export function chooseMoveDetailed(
       elapsedMs: 0,
     };
 
-  // ollamh plays proven book moves instantly (depth -1 flags "from book").
+  // ollamh plays deep-search book moves instantly (depth -1 flags "from book").
   if (difficulty === "ollamh") {
-    const booked = bookMove(state, rules);
+    const booked = bookMove(state, rules, rng);
     if (booked)
       return {
         move: booked,

@@ -222,7 +222,13 @@ describe("depth floor: slow devices still search deep enough", () => {
   });
 });
 
-describe("opening book: ollamh plays proven book moves instantly", () => {
+describe("opening book: ollamh plays deep-search book moves instantly", () => {
+  // The book is best-effort deep-search, not proven play (see docs/solving.md) —
+  // what these tests pin down is the *safety contract*: only ollamh consults it,
+  // only under the exact ruleset it was generated for, every served move is
+  // re-validated as legal, and the shipped data actually loads and covers the
+  // opening. Strength is checked separately by the gauntlet (scripts/bookbench.ts).
+
   it("plays a booked move without searching, and only for ollamh", async () => {
     const { OPENING_BOOK, chooseMoveDetailed } = await import("./ai");
     const { hashBoard } = await import("./engine");
@@ -230,7 +236,8 @@ describe("opening book: ollamh plays proven book moves instantly", () => {
     const legal = allMoves(s.board, s.turn, wtf);
     const pick = legal[3]; // any legal move
     const key = hashBoard(s.board, s.turn);
-    OPENING_BOOK[key] = pick;
+    const prev = OPENING_BOOK[key];
+    OPENING_BOOK[key] = [pick];
     try {
       const booked = chooseMoveDetailed(s, "ollamh", wtf);
       expect(booked.depth).toBe(-1); // flagged as "from book"
@@ -239,8 +246,97 @@ describe("opening book: ollamh plays proven book moves instantly", () => {
       const searched = chooseMoveDetailed(s, "hard", wtf);
       expect(searched.depth).toBeGreaterThanOrEqual(1);
     } finally {
-      delete OPENING_BOOK[key];
+      if (prev) OPENING_BOOK[key] = prev;
+      else delete OPENING_BOOK[key];
     }
+  });
+
+  it("re-validates book moves: an illegal entry falls through to the search", async () => {
+    const { OPENING_BOOK, chooseMoveDetailed } = await import("./ai");
+    const { hashBoard } = await import("./engine");
+    const s = initialState();
+    const key = hashBoard(s.board, s.turn);
+    const prev = OPENING_BOOK[key];
+    // From an empty square — never legal. A corrupt book must not reach the board.
+    OPENING_BOOK[key] = [{ from: { row: 2, col: 2 }, to: { row: 2, col: 4 } }];
+    try {
+      const r = chooseMoveDetailed(s, "ollamh", wtf, mulberry32(1));
+      expect(r.depth).toBeGreaterThanOrEqual(1); // searched, not booked
+      expect(isLegal(s, r.move!, wtf)).toBe(true);
+    } finally {
+      if (prev) OPENING_BOOK[key] = prev;
+      else delete OPENING_BOOK[key];
+    }
+  });
+
+  it("only serves the ruleset it was generated for (walker misses, wtf hits)", async () => {
+    const { chooseMoveDetailed } = await import("./ai");
+    const { bookRulesMatch } = await import("./openingBook");
+    expect(bookRulesMatch(wtf)).toBe(true);
+    expect(bookRulesMatch(walker)).toBe(false);
+    // Walker's opening position hashes identically, but the flags differ, so
+    // ollamh must search rather than play a move tuned for the wrong rules.
+    const r = chooseMoveDetailed(initialState(), "ollamh", walker, mulberry32(1));
+    expect(r.depth).toBeGreaterThanOrEqual(1);
+  });
+
+  it("ships a non-empty book that covers the whole first two plies", async () => {
+    const { OPENING_BOOK } = await import("./ai");
+    const { hashBoard } = await import("./engine");
+    expect(Object.keys(OPENING_BOOK).length).toBeGreaterThan(100);
+    const s = initialState();
+    // Ply 0: the opening itself is booked (ollamh as attackers opens instantly)…
+    expect(OPENING_BOOK[hashBoard(s.board, s.turn)]?.length).toBeGreaterThan(0);
+    // …and ply 1: EVERY attacker first move leads to a booked defender reply
+    // (ollamh as defenders answers instantly whatever the human opens with).
+    for (const m of allMoves(s.board, s.turn, wtf)) {
+      const child = applyMove(s, m, wtf);
+      expect(OPENING_BOOK[hashBoard(child.board, child.turn)]?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("round-trips: every expanded entry is a legal, deduplicated move", async () => {
+    const { OPENING_BOOK } = await import("./ai");
+    // Independent decoder — deliberately not reusing the loader's plumbing, so a
+    // transform bug in expansion cannot cancel itself out here.
+    const decode = (hash: string): GameState => {
+      const glyph: Record<string, Piece> = { a: "attacker", d: "defender", k: "king" };
+      const b = empty();
+      for (let r = 0; r < 7; r++)
+        for (let c = 0; c < 7; c++) {
+          const g = hash[1 + r * 7 + c];
+          if (g !== ".") b[r][c] = glyph[g];
+        }
+      return stateOf(b, hash[0] === "A" ? "attackers" : "defenders");
+    };
+    for (const [hash, moves] of Object.entries(OPENING_BOOK)) {
+      const s = decode(hash);
+      const seen = new Set<string>();
+      for (const m of moves) {
+        expect(isLegal(s, m, wtf)).toBe(true);
+        const k = `${m.from.row}${m.from.col}${m.to.row}${m.to.col}`;
+        expect(seen.has(k)).toBe(false);
+        seen.add(k);
+      }
+    }
+  });
+
+  it("light randomization: seeded picks vary the opening but stay deterministic", async () => {
+    const { chooseMoveDetailed } = await import("./ai");
+    const s = initialState();
+    const firstMoves = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const r = chooseMoveDetailed(s, "ollamh", wtf, mulberry32(seed));
+      expect(r.depth).toBe(-1);
+      firstMoves.add(`${r.move!.from.row}${r.move!.from.col}${r.move!.to.row}${r.move!.to.col}`);
+    }
+    // The D4-expanded opening entry offers several orientations of the booked
+    // moves, so different seeds must produce different (all-booked) openings…
+    expect(firstMoves.size).toBeGreaterThan(1);
+    // …while the same seed always produces the same move.
+    const a = chooseMoveDetailed(s, "ollamh", wtf, mulberry32(7));
+    const b = chooseMoveDetailed(s, "ollamh", wtf, mulberry32(7));
+    expect(a.move).toEqual(b.move);
   });
 });
 

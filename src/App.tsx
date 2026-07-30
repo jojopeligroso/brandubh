@@ -1777,8 +1777,10 @@ export default function App() {
 
       {aiSide !== null && lastAiInfo && (
         <p className="mt-1 text-center font-mono text-[11px] text-parchment-dim/70 tabular-nums">
-          {lastAiInfo.difficulty} · depth {lastAiInfo.depth} · {lastAiInfo.nodes.toLocaleString()} nodes ·{" "}
-          {Math.round(lastAiInfo.elapsedMs)} ms
+          {lastAiInfo.difficulty} ·{" "}
+          {lastAiInfo.depth === -1
+            ? "opening book"
+            : `depth ${lastAiInfo.depth} · ${lastAiInfo.nodes.toLocaleString()} nodes · ${Math.round(lastAiInfo.elapsedMs)} ms`}
         </p>
       )}
 
