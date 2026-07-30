@@ -73,8 +73,11 @@ describe("rows ↔ save round trip", () => {
     expect(back).toEqual(saved);
   });
 
-  it("survives a clocked game", () => {
+  it("survives a clocked game, per-ply clock line and all", () => {
+    const states = playTimeline(3);
     const saved = saveOf({
+      states,
+      cursor: 3,
       clock: {
         initialSeconds: 180,
         incrementSeconds: 2,
@@ -82,9 +85,58 @@ describe("rows ↔ save round trip", () => {
         active: "attackers",
         started: true,
         flagged: null,
+        line: [
+          { attackers: 180_000, defenders: 180_000 },
+          { attackers: 176_400, defenders: 180_000 },
+          { attackers: 176_400, defenders: 174_100 },
+          { attackers: 171_500, defenders: 174_100 },
+        ],
+      },
+    });
+    const records = toRecords(saved);
+    // Entry 0 is the opening; every later entry rides the ply that reached it.
+    expect(records.game.clockStartAttackers).toBe(180_000);
+    expect(records.moves.map((m) => m.clockAfterAttackers)).toEqual([176_400, 176_400, 171_500]);
+    expect(records.moves.map((m) => m.clockAfterDefenders)).toEqual([180_000, 174_100, 174_100]);
+    expect(fromRecords(records, saved.cursor)).toEqual(saved);
+  });
+
+  it("survives a clocked game with no line (a save from before it existed)", () => {
+    const saved = saveOf({
+      clock: {
+        initialSeconds: 600,
+        incrementSeconds: 0,
+        remaining: { attackers: 600_000, defenders: 600_000 },
+        active: null,
+        started: false,
+        flagged: null,
+        line: [],
+      },
+    });
+    const records = toRecords(saved);
+    expect(records.game.clockStartAttackers).toBeNull();
+    expect(records.moves.every((m) => m.clockAfterAttackers === null)).toBe(true);
+    expect(fromRecords(records, saved.cursor)).toEqual(saved);
+  });
+
+  it("keeps a short clock line short rather than inventing entries", () => {
+    // A line recorded for only the first two positions of a six-ply game.
+    const saved = saveOf({
+      clock: {
+        initialSeconds: 180,
+        incrementSeconds: 2,
+        remaining: { attackers: 170_000, defenders: 180_000 },
+        active: "defenders",
+        started: true,
+        flagged: null,
+        line: [
+          { attackers: 180_000, defenders: 180_000 },
+          { attackers: 170_000, defenders: 180_000 },
+        ],
       },
     });
     const back = fromRecords(toRecords(saved), saved.cursor);
+    expect(back.clock?.line).toHaveLength(2);
     expect(back).toEqual(saved);
   });
 

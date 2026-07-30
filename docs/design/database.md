@@ -25,6 +25,9 @@ Two reasons, neither of them "we might need a database someday".
      — `fromRecords` takes it as an argument.
    - **`gamesPerSet` and the player names are settings**, not properties of a
      game or a match. They now live on their own record.
+
+   A fourth was confirmed rather than fixed: the per-ply clock line is
+   position-scoped, so it maps onto the **move** rows and not the game row.
 2. **It makes the online-play question answerable.** "Add multiplayer" is not a
    schema problem, it is an *authority* problem (see below). Better to know that
    before writing tables.
@@ -112,6 +115,8 @@ create table moves (
   to_row    smallint not null, to_col   smallint not null,
   captures  smallint not null default 0,  -- derived; kept for querying
   hash_before text,                        -- position hash, for repetition
+  clock_after_attackers int,               -- banks this position was offered with, ms
+  clock_after_defenders int,
   primary key (game_id, ply)
 );
 ```
@@ -130,6 +135,16 @@ index scan instead of arithmetic, and it makes a hand-inspected row readable.
 repetition is computed from `history[].hashBefore` in memory, and a replay
 regenerates it — but a server that wants to answer "is this move a draw claim?"
 without replaying the whole game needs it on the row.
+
+**The clock times live here, not on the game.** This one fell out of the schema
+rather than being designed into it. `clockLine` (see
+[`clockLine.ts`](../../src/game/clockLine.ts)) records the banks each position
+was *first offered with*, so rewinding restores the time a move was originally
+played under. That makes clock time a property of the **position**, which means
+it belongs on the ply — one entry per move row, with the opening position's entry
+on the game row since no move reached it. lila stores a per-ply clock history for
+the same reason. The `games.clock_remaining_*` columns are a different thing: the
+banks *right now*, for the live game.
 
 ### `matches` and `match_games` — the over-the-board series
 
@@ -317,7 +332,8 @@ part and is worth having early; the authority inversion is the project.
 | --- | --- | --- | --- |
 | Game identity | `SavedGame.id`, minted per game | `games.id` | ✅ added by this work |
 | Move list | `SavedMove[]` on the blob | `moves` rows | ✅ `toRecords` |
-| Clock | nested `SavedClock` | flat columns | ✅ `toRecords` |
+| Clock (live banks) | nested `SavedClock` | flat columns on `games` | ✅ `toRecords` |
+| Clock (per position) | `SavedClock.line[]` | `moves.clock_after_*` | ✅ `toRecords` |
 | OTB series | nested `Match` | `matches` + `match_games` | ✅ `toRecords` |
 | Set length, names | on the game blob | `player_settings` | ✅ split out |
 | Review cursor | on the game blob | not stored (client state) | ✅ argument, not column |

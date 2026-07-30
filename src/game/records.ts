@@ -25,6 +25,7 @@
 import type { Difficulty } from "./ai";
 import type { GameStatus, PlayMode, Side } from "./types";
 import type { Match, MatchSet, PlayerId, SetGameResult } from "./matchSet";
+import type { ClockBanks } from "./clockLine";
 import { CUSTOM_RULE_DEFAULTS, type CustomRuleSet } from "./variants";
 import { GAME_SCHEMA_VERSION, type SavedGame, type SavedMove } from "./persist";
 
@@ -64,6 +65,13 @@ export interface GameRecord {
   clockActive: Side | null;
   clockStarted: boolean;
   clockFlagged: Side | null;
+  /**
+   * The banks the *opening* position was reached with — entry 0 of the clock
+   * line. Every later entry belongs to the ply that reached it, so it lives on
+   * the move row instead; see {@link MoveRecord.clockAfterAttackers}.
+   */
+  clockStartAttackers: number | null;
+  clockStartDefenders: number | null;
 
   /** The over-the-board series this game belongs to, if any. */
   matchId: string | null;
@@ -91,6 +99,15 @@ export interface MoveRecord {
    * kept anyway so "games with a triple capture" needs a scan, not a replay.
    */
   captures: number;
+  /**
+   * The banks the position this move reached was first offered with, in ms
+   * (`clockLine[ply]`). Clock time is a property of the position, not of the
+   * session — which is why it belongs on the ply and not on the game, and why
+   * lila stores a per-ply clock history too. Null when unrecorded: a save from
+   * before the line existed, or one whose time control changed mid-game.
+   */
+  clockAfterAttackers: number | null;
+  clockAfterDefenders: number | null;
 }
 
 /** One row of the `matches` table: an over-the-board series between two people. */
@@ -185,10 +202,13 @@ export function toRecords(saved: SavedGame, capturesPerPly: number[] = []): Game
     clockActive: saved.clock?.active ?? null,
     clockStarted: saved.clock?.started ?? false,
     clockFlagged: saved.clock?.flagged ?? null,
+    clockStartAttackers: saved.clock?.line[0]?.attackers ?? null,
+    clockStartDefenders: saved.clock?.line[0]?.defenders ?? null,
     matchId,
     recorded: saved.recorded,
   };
 
+  const line = saved.clock?.line ?? [];
   const moves: MoveRecord[] = saved.moves.map(([fromRow, fromCol, toRow, toCol], i) => ({
     gameId: saved.id,
     ply: i + 1,
@@ -198,6 +218,8 @@ export function toRecords(saved: SavedGame, capturesPerPly: number[] = []): Game
     toRow,
     toCol,
     captures: capturesPerPly[i] ?? 0,
+    clockAfterAttackers: line[i + 1]?.attackers ?? null,
+    clockAfterDefenders: line[i + 1]?.defenders ?? null,
   }));
 
   const match: MatchRecord | null =
@@ -240,9 +262,21 @@ export function toRecords(saved: SavedGame, capturesPerPly: number[] = []): Game
 export function fromRecords(records: GameRecords, cursor?: number): SavedGame {
   const { game, moves, match, setGames, settings } = records;
 
-  const savedMoves: SavedMove[] = [...moves]
-    .sort((a, b) => a.ply - b.ply)
-    .map((m) => [m.fromRow, m.fromCol, m.toRow, m.toCol]);
+  const ordered = [...moves].sort((a, b) => a.ply - b.ply);
+  const savedMoves: SavedMove[] = ordered.map((m) => [m.fromRow, m.fromCol, m.toRow, m.toCol]);
+
+  // The clock line is a dense prefix: entry 0 from the game row, then one per ply
+  // until the first unrecorded one. Stopping there rather than filling holes is
+  // deliberate — a half-trusted line hands out full banks at the plies it could
+  // not read, which is the free time the line exists to prevent.
+  const line: ClockBanks[] = [];
+  if (game.clockStartAttackers !== null && game.clockStartDefenders !== null) {
+    line.push({ attackers: game.clockStartAttackers, defenders: game.clockStartDefenders });
+    for (const m of ordered) {
+      if (m.clockAfterAttackers === null || m.clockAfterDefenders === null) break;
+      line.push({ attackers: m.clockAfterAttackers, defenders: m.clockAfterDefenders });
+    }
+  }
 
   const clock =
     game.clockInitialSeconds === null || game.clockIncrementSeconds === null
@@ -257,6 +291,7 @@ export function fromRecords(records: GameRecords, cursor?: number): SavedGame {
           active: game.clockActive,
           started: game.clockStarted,
           flagged: game.clockFlagged,
+          line,
         };
 
   const set: MatchSet | null = match
