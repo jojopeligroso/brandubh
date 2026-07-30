@@ -63,18 +63,19 @@ knowledge of any file format. Session 1's `restoreGame` now sits on it too, so
 a save and a pasted game are validated by the same code — one trust boundary,
 two encodings, neither coupled to the other.
 
-### Session 4 — Attacker endgame recognizer *(M)*
-**Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture / forced encirclement) — helps the side you're pressure-testing.
-- [ ] `forcedAttackerWin(state, rules)` returning `+RECOGNIZED_WIN`; escape-zone-style gate for zero throughput cost.
-- [ ] Cross-validate against the solver + an independent AND-OR oracle (as `recognizers.test.ts` does).
-- [ ] Confirm throughput-neutral; gauntlet for strength/neutrality; document honestly.
+### Session 4 — Attacker endgame recognizer *(M)* — **shipped (as a default-off knob)**
+**Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture) — helps the side you're pressure-testing.
+- [x] `forcedAttackerWin(state, rules)` returning `+RECOGNIZED_WIN` — attacker on move with a capture in hand, or defender on move but *netted* (every reply losing the king). `src/game/ai.ts`.
+- [x] Cross-validated against an independent AND-OR oracle over random self-play in both variants — the exact mirror of `recognizers.test.ts`. `src/game/attackerRecognizer.test.ts` (6 tests): fixtures + a soundness sweep that fires and agrees at depth 4 on every hit.
+- [x] **Throughput measured, and it is *not* free** — the finding that shaped the outcome. A capture, unlike an escape, is not pure geometry: the active-capture rule needs the *moving* attacker beside the king, so proving one needs move generation, not a `clearPathToCorner`-style O(1) test. A naïve ≤3-ply version measured ~150× slower per leaf; trimmed hard (O(1) pressure gate, bounded defender loop, capture check limited to king-adjacent landings) it still measured **~7% fewer nodes/s** in an isolated A/B (defender-recognizer baseline vs +attacker) on an endgame-heavy sample. A fixed-depth gauntlet showed **no win-rate change** (strength-neutral, like the defender twin).
+- [x] **Decision (per the sizing rule below): neutral + not-free ⇒ shipped behind its own `attackerRecognizer` weight flag, default OFF** — a per-variant / analysis knob, exactly as PVS ships off. The default engine path is byte-for-byte unchanged, so there is **no throughput regression**. Kept rather than dropped because it is a proven, cross-validated tool the analysis UI (Session 7) and pressure-testing can switch on deliberately. The roadmap's original "escape-zone-style gate for zero throughput cost" assumed a symmetry with escapes that does not hold; documented honestly in `ai.ts`.
 
-### Session 5 — Correctness & discoverability polish *(S — batch)*
+### Session 5 — Correctness & discoverability polish *(S — batch)* — **shipped**
 **Goal:** fix known bugs and make features findable.
-- [ ] **Clock reachable in Zen:** surface the clock toggle in the gear ⚙ modal (like `ZenSettings`) so enabling Zen doesn't hide the timer.
-- [ ] **Custom-rule-editor reset:** toggling a custom rule mid-game must call `newGame()` (currently leaves inconsistent state).
-- [ ] **Unhide Irish (`ga`) locale** — full translation exists behind `VISIBLE_LANGS`; verify cló rendering, then reveal. On-brand with Ollaṁ.
-- [ ] Remove or wire the dead `.piece.threat` CSS; refresh `docs/screenshot.png`.
+- [x] **Clock reachable in Zen:** the `ClockSettings` panel now also renders in the gear ⚙ `DesignModal` (beside `ZenSettings`), so turning Zen on — which hides the inline settings stack — never leaves the timer unreachable.
+- [x] **Custom-rule-editor reset:** the editor's `onChange` routes through a new `changeCustomRules` handler that resets the board and match exactly as the variant dropdown does, so the move history and the live ruleset can no longer disagree.
+- [x] **Unhide Irish (`ga`) locale** — added to `VISIBLE_LANGS`, and the header language toggle (previously hard-coded to EN/ES) now renders from that list. Cló rendering verified in a driven browser: the full overdot orthography (Foġlaiṫe, Cluiċe, Rialaċa, Géill, COMÓRTAS…) displays with no missing glyphs.
+- [x] Removed the dead `.piece.threat` CSS (never applied in any component) and refreshed `docs/screenshot.png` from the current build via `scripts/screenshot.mjs` (`npm run screenshot`) — the board now shows the current *Brandubh · WTF* variant name, not the old *Copenhagen* label, and the new **GA** toggle.
 
 ### Session 6 — Opening book (Ollamh) *(M–L)*
 **Goal:** Ollamh opens instantly, varied, and strong.

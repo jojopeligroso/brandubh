@@ -73,11 +73,19 @@ export interface EvalWeights {
   /** Use the blocker-aware king→corner distance (1/2/3 real king-moves) instead
    *  of the crude aligned?1:2 estimate that ignores pieces in the lane. */
   blockerAwareKingDist: boolean;
-  /** Consult the exact endgame recognizers (two-lane fork, guarded corner race) at
-   *  leaf nodes: they return a *proven* defender win where a heuristic would only
-   *  guess, sharpening the search's horizon. Sound (validated against the exhaustive
-   *  solver) — never claims a win that isn't forced. */
+  /** Consult the exact *defender* endgame recognizers at leaf nodes (two-lane fork,
+   *  guarded corner race): they return a *proven* defender win where a heuristic
+   *  would only guess, sharpening the search's horizon. Sound (validated against the
+   *  exhaustive solver) — never claims a win that isn't forced. Free (throughput
+   *  unchanged), so ON by default. */
   endgameRecognizers: boolean;
+  /** Consult the *attacker* recognizer (`forcedAttackerWin`) at leaf nodes: the
+   *  proven twin, an imminent king capture. Equally sound (cross-validated against an
+   *  independent AND-OR oracle), but *not* free — a capture, unlike an escape, needs
+   *  move generation to prove, not an O(1) geometric test, so it measures a small but
+   *  real per-leaf cost. OFF by default (a per-variant / analysis knob), exactly as
+   *  PVS ships off; see the note above `forcedAttackerWin`. */
+  attackerRecognizer: boolean;
 }
 
 /**
@@ -100,6 +108,7 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   kingRegion: 6,
   blockerAwareKingDist: false,
   endgameRecognizers: true,
+  attackerRecognizer: false,
 };
 
 /** Cap on the king's flood-filled confinement region, so a wide-open board
@@ -266,6 +275,106 @@ export function forcedDefenderWin(state: GameState, rules: RuleSet): boolean {
   return false;
 }
 
+// ── Exact endgame recognizer (proven attacker win) ────────────────────────────
+// The attacker twin of the defender recognizers: a proven *imminent king capture*.
+// Attacker on move ⇒ a capture in hand; defender on move ⇒ the king is netted, every
+// reply losing it (the mirror of forkWinAttackerToMove). Same soundness discipline —
+// every terminal is read from the engine (applyMove → status), so capture, block and
+// a losing repetition are honoured without re-deriving a rule; a false result only
+// ever means "not proven".
+//
+// Why it rides a *default-off* flag while the defender pair ships on: a capture,
+// unlike an escape, is not pure geometry. The active-capture rule needs the *moving*
+// attacker beside the king, so proving one needs move generation, not a
+// `clearPathToCorner`-style O(1) test. It is trimmed hard to stay cheap — an O(1)
+// king-pressure gate (a hostile flank present, ≤2 liberties), a bounded defender-move
+// loop, and a capture check restricted to attacker moves that land *beside* the king
+// (the only squares an active capture can come from). Even so it is not free: an
+// isolated A/B (defender-recognizer baseline vs +attacker) measured ~7% fewer nodes/s
+// on an endgame-heavy position sample (a naïve ≤3-ply version measured ~150× worse,
+// hence the trimming). And the upside is small: a capture, unlike an escape, is what
+// the search + quiescence already chase hardest, so a fixed-depth self-play gauntlet
+// with it on measured no win-rate change — strength-neutral, like the defender twin.
+// Neutral-and-not-free ⇒ off by default, a per-variant / analysis knob, exactly as
+// PVS ships off. Returns +RECOGNIZED_WIN from evaluate, mirroring the defender
+// −RECOGNIZED_WIN. Kept (not dropped) because it is a proven, cross-validated tool
+// the analysis UI and pressure-testing can switch on deliberately.
+
+/** A genuine net has few defender replies (an endgame). Beyond this the loop bails
+ *  rather than pay O(D·A) at a leaf where a forced capture is implausible anyway. */
+const NET_MAX_DEFENDER_MOVES = 14;
+
+/** Attackers to move: can some attacker move capture the king right now? Only moves
+ *  landing orthogonally beside the king can actively capture, so the loop skips the
+ *  rest — keeping this near the cost of the defender twin's per-reply check. The
+ *  engine decides the terminal, so the capture rule is never re-derived. */
+function attackerCapturesKingNow(state: GameState, rules: RuleSet, kr: number, kc: number): boolean {
+  for (const m of allMoves(state.board, "attackers", rules)) {
+    if (Math.abs(m.to.row - kr) + Math.abs(m.to.col - kc) !== 1) continue; // not a flank ⇒ no active capture
+    const child = applyMove(state, m, rules);
+    if (isGameOver(child.status) && winnerOf(child.status) === "attackers") return true;
+  }
+  return false;
+}
+
+/** Defender on move but netted: every defender reply leaves the attacker an
+ *  immediate king capture. The mirror of `forkWinAttackerToMove` — a 2-ply proof
+ *  the defender cannot save the king. Bounded: a genuine net has few replies (an
+ *  endgame), so a wide move list bails rather than pay O(D·A). */
+function defenderNetted(state: GameState, rules: RuleSet): boolean {
+  const moves = allMoves(state.board, "defenders", rules);
+  if (moves.length === 0 || moves.length > NET_MAX_DEFENDER_MOVES) return false;
+  for (const m of moves) {
+    const child = applyMove(state, m, rules);
+    if (isGameOver(child.status)) {
+      if (winnerOf(child.status) === "attackers") continue; // this reply loses too
+      return false; // a corner / draw / saving capture ⇒ not netted
+    }
+    const kk = findKing(child.board);
+    if (!kk || !attackerCapturesKingNow(child, rules, kk.row, kk.col)) return false; // a reply left unpunished
+  }
+  return true; // every defender reply loses the king ⇒ attacker wins next move
+}
+
+/** Is `state` a proven *attacker* win — an imminent king capture (the twin of
+ *  `forcedDefenderWin`)? Attacker on move: a capture in hand. Defender on move: the
+ *  king is netted, every reply losing it. Sound subset: a false result only ever
+ *  means "not proven", never a missed win. Scope is imminent king capture; the
+ *  pure-encirclement/block cases are left to the search (see the note above on why a
+ *  capture can't be an O(1) geometric test). Exported for cross-validation against an
+ *  independent AND-OR oracle. */
+export function forcedAttackerWin(state: GameState, rules: RuleSet): boolean {
+  const b = state.board;
+  const k = findKing(b);
+  if (!k) return false;
+
+  // O(1) gate: the king must be under real capture pressure — a hostile flank
+  // already beside it (an attacker, or an empty throne/corner that walls it) and at
+  // most two empty liberties. A king with room to run cannot be force-captured next
+  // move, so it bails here and the recognizer stays near-free at most leaves. Tighter
+  // than strictly necessary — the trim only ever costs completeness, never soundness.
+  let liberties = 0;
+  let anchor = false;
+  for (const [dr, dc] of DIRS) {
+    const nr = k.row + dr;
+    const nc = k.col + dc;
+    if (!inBounds(nr, nc)) continue; // the board edge is not hostile in Brandubh
+    const p = b[nr][nc];
+    if (p === null) {
+      liberties++;
+      if (isThrone(nr, nc) && rules.throneHostileToKing) anchor = true; // empty hostile throne flank
+    } else if (p === "attacker") {
+      anchor = true;
+    }
+    if (isCorner(nr, nc) && rules.cornersHostile) anchor = true;
+  }
+  if (liberties > 2 || !anchor) return false;
+
+  return state.turn === "attackers"
+    ? attackerCapturesKingNow(state, rules, k.row, k.col) // a capture in hand
+    : defenderNetted(state, rules); // the king is netted, every reply loses it
+}
+
 export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rules?: RuleSet): number {
   if (isGameOver(state.status)) {
     const winner = winnerOf(state.status);
@@ -275,7 +384,13 @@ export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rul
   }
 
   // Exact endgame recognizers: a proven forced escape is worth (−)a decisive score.
-  if (w.endgameRecognizers && rules && forcedDefenderWin(state, rules)) return -RECOGNIZED_WIN;
+  // The defender pair is free and ships on; its attacker twin needs move generation
+  // to prove a capture, so it rides its own (default-off) flag. Mutually exclusive —
+  // only one side can have a forced win — so consulting both is safe.
+  if (rules) {
+    if (w.endgameRecognizers && forcedDefenderWin(state, rules)) return -RECOGNIZED_WIN;
+    if (w.attackerRecognizer && forcedAttackerWin(state, rules)) return RECOGNIZED_WIN;
+  }
 
   const b = state.board;
   let attackers = 0;
