@@ -1,0 +1,51 @@
+# Brandubh — project notes for Claude
+
+A React 18 + TypeScript + Vite SPA (Tailwind v4) implementing Brandubh, the
+Irish 7×7 tafl game. No router, no backend: `src/App.tsx` is the shell, pure
+game logic lives in `src/game/`, and screens are conditionally-rendered
+overlays.
+
+## Commands
+
+- `npm test` — vitest, pure-logic suites only (no jsdom, no component tests)
+- `npm run build` — `tsc -b && vite build`; strict TS is also the i18n
+  completeness check (every `Translations` key must exist in all locales)
+- `npm run dev` / `npm run preview` — local server
+- `npm run screenshot` — playwright-core driven-browser capture; the project
+  convention is a manual driven-browser pass for UI changes
+
+## Decisions to respect
+
+### Irish (ga) locale is hidden — do not re-expose it
+
+`VISIBLE_LANGS` in `src/i18n.ts` deliberately lists only `en` and `es`. The
+`ga` translations in that file are **unreviewed machine drafts** and the owner
+considers them not fit to ship; the locale stays out of the language toggle
+until a human Irish speaker reviews and signs off the copy. Keep new keys
+flowing into the `ga` table (TypeScript requires it) and mark them as drafts,
+but do not add `ga` back to `VISIBLE_LANGS`. (`TASKS.md` once recorded this
+locale as "unhidden" — that decision was reversed here.)
+
+### Replay-from-opening invariant
+
+Persistence (`src/game/persist.ts`) and import/export (`src/game/gameFile.ts`)
+replay move lists from `initialState()` only — see `src/game/replay.ts`. Do
+not thread custom starting positions through them. The tutorial set plays
+(`src/game/tutorials.ts`) intentionally keep their hand-built boards in
+component state only, never in the persisted/exported timeline.
+
+### Contested rule
+
+`throneHostileToKing` + `strongKingAdjacentToThrone` in `src/game/variants.ts`
+carry a ⚠ CONTESTED RULE note — read it (and `docs/rules-review.md`) before
+touching king-capture logic. The `fourth-wall` tutorial scenario teaches this
+rule and is pinned to the `wtf` preset; update it if the rule changes.
+
+## i18n
+
+Hand-rolled: `src/i18n.ts` holds a `Translations` interface and full `en`,
+`es`, `ga` tables; `t` is prop-drilled from `App`. The language choice
+persists under `brandubh.lang` and defaults from `navigator.language`
+(Spanish browsers start in Spanish). Gaelic locales are deep-converted to
+overdot orthography by `src/gaelic.ts` — never set non-Gaelic text in the cló
+face.

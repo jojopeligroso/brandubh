@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from "./components/Board";
-import RulesModal from "./components/RulesModal";
-import HowToDemo from "./components/HowToDemo";
+import LearnModal, { type LearnView } from "./components/LearnModal";
+import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { DIFFICULTIES, type Difficulty } from "./game/ai";
@@ -79,7 +79,14 @@ import {
   type ZenConfig,
   type ZenExtraId,
 } from "./zen";
-import { VISIBLE_LANGS, type Lang, type Translations, translations } from "./i18n";
+import {
+  loadLang,
+  saveLang,
+  translations,
+  VISIBLE_LANGS,
+  type Lang,
+  type Translations,
+} from "./i18n";
 import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
 import {
   applyPieceColors,
@@ -150,8 +157,41 @@ function sideLabel(s: Side, t: Translations): string {
   return s === "attackers" ? t.raiders : t.kingsSide;
 }
 
+/** The localized one-liner for a finished game — shared by the status bar and
+ *  the victory overlay so the two can never drift apart. */
+function gameOverText(status: GameStatus, t: Translations): string {
+  switch (status) {
+    case "defenders_win_escape":
+      return t.defendersWinEscape;
+    case "attackers_win_capture":
+      return t.attackersWinCapture;
+    case "attackers_win_encirclement":
+      return t.attackersWinEncirclement;
+    case "attackers_win_repetition":
+      return t.attackersWinRepetition;
+    case "attackers_win_no_moves":
+      return t.attackersWinNoMoves;
+    case "attackers_win_resign":
+      return t.attackersWinResign;
+    case "defenders_win_resign":
+      return t.defendersWinResign;
+    case "attackers_win_time":
+      return t.attackersWinTime;
+    case "defenders_win_time":
+      return t.defendersWinTime;
+    case "draw_repetition":
+      return t.drawMessage;
+    default:
+      return t.defendersWinNoMoves;
+  }
+}
+
 export default function App() {
-  const [lang, setLang] = useState<Lang>("en");
+  // Language: persisted choice, else browser detection (see i18n.loadLang).
+  const [lang, setLang] = useState<Lang>(loadLang);
+  useEffect(() => {
+    saveLang(lang);
+  }, [lang]);
   // Gaelic locales (Irish/Scottish Gaelic) render in traditional overdot
   // orthography; every other language passes through unchanged. See gaelic.ts.
   const t = useMemo(
@@ -320,7 +360,8 @@ export default function App() {
 
   const [selected, setSelected] = useState<Square | null>(null);
   const [fadingCaptures, setFadingCaptures] = useState<Square[]>([]);
-  const [showRules, setShowRules] = useState(false);
+  // The Learn hub (objectives / rules / tutorials); null = closed.
+  const [learnView, setLearnView] = useState<LearnView | null>(null);
   const [thinking, setThinking] = useState(false);
   // Stats from the AI's last search — surfaced so the depth/nodes actually reached
   // on this device (not just the benchmark machine) are visible while diagnosing.
@@ -331,7 +372,6 @@ export default function App() {
     difficulty: Difficulty;
   } | null>(null);
   const [showModeOverlay, setShowModeOverlay] = useState(true);
-  const [showDemo, setShowDemo] = useState(false);
   const [showTakeback, setShowTakeback] = useState(false);
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
   const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
@@ -360,6 +400,22 @@ export default function App() {
   const reviewing = !atTip;
   const game = states[cursor];
   const gameOver = isGameOver(game.status);
+
+  // ── Victory overlay ─────────────────────────────────────────────────────────
+  // Announce a game the moment it ends *live*: the watcher fires only on a
+  // playing → terminal transition of the tip status, so restoring, importing
+  // or browsing back into an already-finished game never re-raises the
+  // curtain. Loaders that install a whole timeline pre-seed the ref (below)
+  // for the same reason the clock's prevTipRef is pre-seeded.
+  const [showVictory, setShowVictory] = useState(false);
+  const tipStatus = states[tip].status;
+  const prevTipStatusRef = useRef<GameStatus>(tipStatus);
+  useEffect(() => {
+    const prev = prevTipStatusRef.current;
+    prevTipStatusRef.current = tipStatus;
+    if (prev === "playing" && isGameOver(tipStatus)) setShowVictory(true);
+    else if (!isGameOver(tipStatus)) setShowVictory(false);
+  }, [tipStatus]);
 
   const lastMove: Move | null = game.history.length
     ? game.history[game.history.length - 1].move
@@ -592,6 +648,9 @@ export default function App() {
       // The timeline arrives whole, so the clock must not read the jump as a
       // move being played (the same guard the resume path uses).
       prevTipRef.current = tipIndex;
+      // A finished import is history, not a live result — no victory curtain.
+      prevTipStatusRef.current = imported.states[tipIndex].status;
+      setShowVictory(false);
       setVariantId(imported.variantId);
       if (imported.variantId === "custom") setCustomRules(ruleFlags(imported.rules));
       setPlayMode("hotseat");
@@ -650,6 +709,10 @@ export default function App() {
     // The timeline arrives whole rather than a move at a time, so the clock
     // must not read the jump as a move being played.
     prevTipRef.current = r.states.length - 1;
+    // A restored game's result (a resumable time loss) is old news, not a
+    // fresh live ending — no victory curtain on resume.
+    prevTipStatusRef.current = r.states[r.states.length - 1].status;
+    setShowVictory(false);
     setStates(r.states);
     setCursor(r.cursor);
     setSelected(null);
@@ -957,6 +1020,15 @@ export default function App() {
   // offered with — rather than the live banks, so what you see while reviewing
   // is what you get if you resume from there.
   const viewedBanks = reviewing ? banksAt(clockLine, cursor, timeControl) : clock.remaining;
+
+  // The chosen emblems, resolved once for every consumer (board, learn hub,
+  // victory overlay).
+  const emblemSet = {
+    attackerEmblem: emblemById(attackerEmblem),
+    kingEmblem: kingEmblemById(kingEmblem),
+    defenderEmblem: defenderEmblemById(defenderEmblem),
+    cornerEmblem: cornerEmblemById(cornerEmblem),
+  };
   const renderClock = (side: Side) => (
     <GameClock
       name={sideLabel(side, t)}
@@ -976,7 +1048,7 @@ export default function App() {
         t={t}
         lang={lang}
         onLang={setLang}
-        onShowRules={() => setShowRules(true)}
+        onShowRules={() => setLearnView("menu")}
         onShowDesign={() => setShowDesign(true)}
       />
 
@@ -1005,10 +1077,10 @@ export default function App() {
           fadingCaptures={fadingCaptures}
           interactive={interactive}
           controllable={humanSide}
-          attackerEmblem={emblemById(attackerEmblem)}
-          kingEmblem={kingEmblemById(kingEmblem)}
-          defenderEmblem={defenderEmblemById(defenderEmblem)}
-          cornerEmblem={cornerEmblemById(cornerEmblem)}
+          attackerEmblem={emblemSet.attackerEmblem}
+          kingEmblem={emblemSet.kingEmblem}
+          defenderEmblem={emblemSet.defenderEmblem}
+          cornerEmblem={emblemSet.cornerEmblem}
           onSquareClick={onSquareClick}
         />
       </div>
@@ -1055,7 +1127,7 @@ export default function App() {
               </button>
             )}
             {showRulesBtn && (
-              <button className="btn" onClick={() => setShowRules(true)}>
+              <button className="btn" onClick={() => setLearnView("rules")}>
                 {t.rules}
               </button>
             )}
@@ -1156,15 +1228,31 @@ export default function App() {
         </p>
       )}
 
-      {showRules && <RulesModal t={t} rules={rules} onClose={() => setShowRules(false)} />}
+      {showVictory && isGameOver(states[tip].status) && (
+        <VictoryOverlay
+          t={t}
+          winner={winnerOf(states[tip].status) ?? "draw"}
+          reason={gameOverText(states[tip].status, t)}
+          moveCount={states[tip].moveCount}
+          emblems={emblemSet}
+          primaryLabel={primaryLabel}
+          onPrimary={() => {
+            setShowVictory(false);
+            primaryAction();
+          }}
+          onReview={() => setShowVictory(false)}
+        />
+      )}
 
       {showModeOverlay && (
         <ModeOverlay
           t={t}
+          lang={lang}
+          onLang={setLang}
           difficulty={difficulty}
           onDifficulty={setDifficulty}
           side={humanSide ?? "defenders"}
-          onShowDemo={() => setShowDemo(true)}
+          onShowDemo={() => setLearnView("menu")}
           resume={pendingResume}
           onResume={resumeSavedGame}
           onDiscardResume={discardSavedGame}
@@ -1175,15 +1263,13 @@ export default function App() {
         />
       )}
 
-      {showDemo && (
-        <HowToDemo
+      {learnView !== null && (
+        <LearnModal
           t={t}
           rules={rules}
-          attackerEmblem={emblemById(attackerEmblem)}
-          kingEmblem={kingEmblemById(kingEmblem)}
-          defenderEmblem={defenderEmblemById(defenderEmblem)}
-          cornerEmblem={cornerEmblemById(cornerEmblem)}
-          onClose={() => setShowDemo(false)}
+          emblems={emblemSet}
+          initialView={learnView}
+          onClose={() => setLearnView(null)}
         />
       )}
 
@@ -1385,21 +1471,8 @@ function StatusBar({
   let tone = "text-parchment";
   if (isGameOver(game.status)) {
     const w = winnerOf(game.status);
-    if (w === "draw") {
-      text = t.drawMessage;
-    } else {
-      if (game.status === "defenders_win_escape") text = t.defendersWinEscape;
-      else if (game.status === "attackers_win_capture") text = t.attackersWinCapture;
-      else if (game.status === "attackers_win_encirclement") text = t.attackersWinEncirclement;
-      else if (game.status === "attackers_win_repetition") text = t.attackersWinRepetition;
-      else if (game.status === "attackers_win_no_moves") text = t.attackersWinNoMoves;
-      else if (game.status === "attackers_win_resign") text = t.attackersWinResign;
-      else if (game.status === "defenders_win_resign") text = t.defendersWinResign;
-      else if (game.status === "attackers_win_time") text = t.attackersWinTime;
-      else if (game.status === "defenders_win_time") text = t.defendersWinTime;
-      else text = t.defendersWinNoMoves;
-      tone = w === "defenders" ? "text-gold" : "text-blood";
-    }
+    text = gameOverText(game.status, t);
+    if (w !== "draw") tone = w === "defenders" ? "text-gold" : "text-blood";
   } else {
     const toMove = sideLabel(game.turn, t);
     const who =
@@ -2341,6 +2414,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function ModeOverlay({
   t,
+  lang,
+  onLang,
   difficulty,
   onDifficulty,
   side,
@@ -2351,6 +2426,8 @@ function ModeOverlay({
   onChoose,
 }: {
   t: Translations;
+  lang: Lang;
+  onLang: (l: Lang) => void;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
   /** The side played last time, offered as the default. */
@@ -2373,6 +2450,22 @@ function ModeOverlay({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
+        {/* The language choice lives on the landing card itself: the first
+            words a new player reads should already be in their language, not
+            behind the overlay in the header. */}
+        <div className="flex justify-center">
+          <div className="seg">
+            {VISIBLE_LANGS.map(({ code, label }) => (
+              <button
+                key={code}
+                className={lang === code ? "on" : ""}
+                onClick={() => onLang(code)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <h2 className="gaelic text-3xl text-parchment">
           {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h2>

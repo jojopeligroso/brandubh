@@ -10,8 +10,9 @@ export type Lang = "en" | "es" | "ga";
  * file and renders correctly — the cló Gaelach face and the overdot orthography
  * are exercised by the tests, and a Gaelic locale flags the document so display
  * text picks up the face (see gaelic.ts). What it has not had is a proper
- * translation review, so the whole Irish *interface* surface stays out of the
- * user's reach until it does. This is not about the machinery.
+ * translation review — the strings are unreviewed machine drafts — so the whole
+ * Irish *interface* surface stays out of the user's reach until a human signs
+ * it off (see CLAUDE.md before re-adding it). This is not about the machinery.
  *
  * Individual Gaelic words in the otherwise-English UI — the Branduḃ wordmark,
  * the Ollaṁ difficulty — are names, not translated interface, and stay as they
@@ -27,6 +28,37 @@ export const VISIBLE_LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "es", label: "ES" },
 ];
+
+// ── Language choice ───────────────────────────────────────────────────────────
+// Persisted like every other setting (brandubh.*); first visit falls back to
+// the browser language, so a Spanish visitor starts in Spanish.
+const LANG_KEY = "brandubh.lang";
+
+export function loadLang(): Lang {
+  const visible = new Set(VISIBLE_LANGS.map((l) => l.code));
+  try {
+    const stored = localStorage.getItem(LANG_KEY);
+    // A stored language that is no longer offered (e.g. "ga" while it is
+    // hidden for review) falls through to browser detection.
+    if (stored && visible.has(stored as Lang)) return stored as Lang;
+  } catch {
+    /* localStorage unavailable */
+  }
+  try {
+    if (navigator.language?.toLowerCase().startsWith("es")) return "es";
+  } catch {
+    /* navigator unavailable */
+  }
+  return "en";
+}
+
+export function saveLang(lang: Lang): void {
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    /* ignore persistence failures */
+  }
+}
 
 export interface Translations {
   // Header
@@ -302,6 +334,47 @@ export interface Translations {
   chooseSide: string;
   sideKingHint: string;
   sideRaidersHint: string;
+
+  // Learn hub ("Show me how")
+  learnTitle: string;
+  learnObjectives: string;
+  learnObjectivesHint: string;
+  learnRules: string;
+  learnRulesHint: string;
+  learnTutorials: string;
+  learnTutorialsHint: string;
+
+  // Quick rules (condensed view; the extended view reuses the rules-modal keys)
+  quickRulesTab: string;
+  fullRulesTab: string;
+  quickGoalKing: string;
+  quickGoalRaiders: string;
+  quickMovement: string;
+  quickCapture: string;
+  quickKingCaptureStrong: string;
+  quickKingCaptureSimple: string;
+  quickSpecialSquares: string;
+
+  // Tutorial set plays
+  tutorialProgress: string;
+  tutorialYouPlayAs: string;
+  tutorialShowHint: string;
+  tutorialWrongMove: string;
+  tutorialTryAgain: string;
+  tutorialSolvedTitle: string;
+  tutorialNext: string;
+  tutorialReset: string;
+  tutorialBackToList: string;
+  tutorialAllDone: string;
+  tutorialTitles: Record<string, string>;
+  tutorialGoals: Record<string, string>;
+  tutorialHints: Record<string, string>;
+
+  // Victory overlay
+  victoryRaiders: string;
+  victoryKing: string;
+  victoryDraw: string;
+  victoryReview: string;
 }
 
 const en: Translations = {
@@ -580,6 +653,93 @@ const en: Translations = {
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
   sideRaidersHint: "Eight raiders · capture the king · you move first",
+
+  learnTitle: "Learn Brandubh",
+  learnObjectives: "The goal",
+  learnObjectivesHint: "Watch how each side wins and how captures work.",
+  learnRules: "The rules",
+  learnRulesHint: "The quick version, with the full letter of the law behind it.",
+  learnTutorials: "Set plays",
+  learnTutorialsHint: "Twelve short drills — find the winning move.",
+
+  quickRulesTab: "Quick rules",
+  fullRulesTab: "Full rules",
+  quickGoalKing: "King’s side wins by bringing the King to any corner square.",
+  quickGoalRaiders: "Raiders win by capturing the King.",
+  quickMovement:
+    "Every piece moves like a chess rook: any distance along a row or column, no jumping.",
+  quickCapture:
+    "Capture a soldier by closing it between two of your pieces in a straight line. A corner — or the empty throne — counts as one of yours.",
+  quickKingCaptureStrong:
+    "The King falls between two raiders — except on or beside the throne, where he must be surrounded on all four sides.",
+  quickKingCaptureSimple:
+    "The King falls like a soldier: caught between two raiders, anywhere on the board.",
+  quickSpecialSquares:
+    "Only the King may stop on the throne or a corner. Walking between two enemies is safe — a trap only springs when the enemy closes it.",
+
+  tutorialProgress: "solved",
+  tutorialYouPlayAs: "You play:",
+  tutorialShowHint: "Show a hint",
+  tutorialWrongMove: "Not that one — look again.",
+  tutorialTryAgain: "Try again",
+  tutorialSolvedTitle: "Solved!",
+  tutorialNext: "Next drill",
+  tutorialReset: "Reset",
+  tutorialBackToList: "All set plays",
+  tutorialAllDone: "All twelve solved — you are ready for a real game.",
+  tutorialTitles: {
+    "pincer": "The pincer",
+    "corner-anvil": "The corner anvil",
+    "throne-anvil": "The throne anvil",
+    "double-take": "Two at a stroke",
+    "kings-blade": "The King’s blade",
+    "road-to-corner": "The open road",
+    "royal-fork": "The royal fork",
+    "bar-the-door": "Bar the door",
+    "take-the-king": "Take the King",
+    "wall-of-four": "The wall of four",
+    "fourth-wall": "The fourth wall",
+    "close-the-ring": "Close the ring",
+  },
+  tutorialGoals: {
+    "pincer": "Capture a defender by closing him between two raiders.",
+    "corner-anvil": "Capture the defender using a hostile corner as the second raider.",
+    "throne-anvil": "Capture the defender using the empty throne as the anvil.",
+    "double-take": "Capture two raiders with a single move.",
+    "kings-blade": "Use the King himself to capture a raider.",
+    "road-to-corner": "Escape: bring the King to a corner.",
+    "royal-fork": "Threaten two corners at once, then escape (two moves).",
+    "bar-the-door": "Stop the King from escaping on his next move.",
+    "take-the-king": "Capture the King between two raiders.",
+    "wall-of-four": "Capture the King on his throne.",
+    "fourth-wall": "Capture the King beside his throne.",
+    "close-the-ring": "Win by encircling the King and his last guard.",
+  },
+  tutorialHints: {
+    "pincer": "The defender already has a raider at his back. Bring the other jaw down the c-file.",
+    "corner-anvil": "A corner counts as an enemy piece. Pin the guard on b7 against it.",
+    "throne-anvil": "The empty throne is hostile to soldiers. Trap the guard on c4 against it.",
+    "double-take":
+      "A soldier may slide across the empty throne. Land where both traps close at once.",
+    "kings-blade":
+      "The King is armed: he can close a trap like any soldier. One step off his throne does it.",
+    "road-to-corner": "One corner road is barred. The other rank is clear — run it to the end.",
+    "royal-fork":
+      "From the top rank the King eyes both corners. No single raider can shut both doors.",
+    "bar-the-door": "The King has one open road left. Put a raider on it.",
+    "take-the-king":
+      "Away from the throne, two raiders suffice — and yours must make the closing move.",
+    "wall-of-four":
+      "On his throne the King must be surrounded on all four sides. One wall is missing.",
+    "fourth-wall":
+      "Beside the throne, the empty throne itself walls one side. Close the last one.",
+    "close-the-ring": "An unbroken ring of raiders wins. One gap remains — seal it.",
+  },
+
+  victoryRaiders: "The Raiders triumph",
+  victoryKing: "The King prevails",
+  victoryDraw: "A draw",
+  victoryReview: "Review the board",
 };
 
 const es: Translations = {
@@ -869,6 +1029,93 @@ const es: Translations = {
   sideKingHint:
     "El rey y cuatro guerreros · alcanza una esquina · los asaltantes mueven primero",
   sideRaidersHint: "Ocho asaltantes · captura al rey · mueves primero",
+
+  learnTitle: "Aprende Brandubh",
+  learnObjectives: "El objetivo",
+  learnObjectivesHint: "Mira cómo gana cada bando y cómo funcionan las capturas.",
+  learnRules: "Las reglas",
+  learnRulesHint: "La versión rápida, con la letra completa de la ley detrás.",
+  learnTutorials: "Jugadas de manual",
+  learnTutorialsHint: "Doce ejercicios breves: encuentra la jugada ganadora.",
+
+  quickRulesTab: "Reglas rápidas",
+  fullRulesTab: "Reglas completas",
+  quickGoalKing: "El bando del Rey gana llevando al Rey a cualquier esquina.",
+  quickGoalRaiders: "Los Asaltantes ganan capturando al Rey.",
+  quickMovement:
+    "Todas las piezas mueven como una torre de ajedrez: cualquier distancia en fila o columna, sin saltar.",
+  quickCapture:
+    "Captura un soldado encerrándolo en línea recta entre dos piezas tuyas. Una esquina — o el trono vacío — cuenta como una de las tuyas.",
+  quickKingCaptureStrong:
+    "El Rey cae entre dos asaltantes, salvo en el trono o junto a él, donde debe quedar rodeado por los cuatro lados.",
+  quickKingCaptureSimple:
+    "El Rey cae como un soldado: atrapado entre dos asaltantes, en cualquier parte del tablero.",
+  quickSpecialSquares:
+    "Solo el Rey puede detenerse en el trono o en una esquina. Pasar entre dos enemigos es seguro: la trampa solo se cierra cuando la cierra el enemigo.",
+
+  tutorialProgress: "resueltas",
+  tutorialYouPlayAs: "Juegas con:",
+  tutorialShowHint: "Ver una pista",
+  tutorialWrongMove: "Esa no es — mira de nuevo.",
+  tutorialTryAgain: "Inténtalo otra vez",
+  tutorialSolvedTitle: "¡Resuelta!",
+  tutorialNext: "Siguiente jugada",
+  tutorialReset: "Reiniciar",
+  tutorialBackToList: "Todas las jugadas",
+  tutorialAllDone: "Las doce resueltas: ya estás listo para una partida de verdad.",
+  tutorialTitles: {
+    "pincer": "La tenaza",
+    "corner-anvil": "El yunque de la esquina",
+    "throne-anvil": "El yunque del trono",
+    "double-take": "Dos de un golpe",
+    "kings-blade": "La espada del Rey",
+    "road-to-corner": "El camino abierto",
+    "royal-fork": "La horquilla real",
+    "bar-the-door": "Atranca la puerta",
+    "take-the-king": "Captura al Rey",
+    "wall-of-four": "El muro de cuatro",
+    "fourth-wall": "La cuarta muralla",
+    "close-the-ring": "Cierra el anillo",
+  },
+  tutorialGoals: {
+    "pincer": "Captura a un defensor encerrándolo entre dos asaltantes.",
+    "corner-anvil": "Captura al defensor usando una esquina hostil como segundo asaltante.",
+    "throne-anvil": "Captura al defensor usando el trono vacío como yunque.",
+    "double-take": "Captura dos asaltantes con un solo movimiento.",
+    "kings-blade": "Usa al propio Rey para capturar a un asaltante.",
+    "road-to-corner": "Escapa: lleva al Rey a una esquina.",
+    "royal-fork": "Amenaza dos esquinas a la vez y escapa (dos movimientos).",
+    "bar-the-door": "Impide que el Rey escape en su próximo movimiento.",
+    "take-the-king": "Captura al Rey entre dos asaltantes.",
+    "wall-of-four": "Captura al Rey en su trono.",
+    "fourth-wall": "Captura al Rey junto a su trono.",
+    "close-the-ring": "Gana cercando al Rey y a su último guardia.",
+  },
+  tutorialHints: {
+    "pincer":
+      "El defensor ya tiene un asaltante a la espalda. Cierra la otra mordaza por la columna c.",
+    "corner-anvil": "Una esquina cuenta como pieza enemiga. Aprisiona contra ella al guardia de b7.",
+    "throne-anvil": "El trono vacío es hostil a los soldados. Atrapa contra él al guardia de c4.",
+    "double-take":
+      "Un soldado puede deslizarse sobre el trono vacío. Cae donde ambas trampas se cierren a la vez.",
+    "kings-blade":
+      "El Rey está armado: puede cerrar una trampa como cualquier soldado. Un paso desde el trono basta.",
+    "road-to-corner": "Un camino está cortado. La otra fila está libre: recórrela hasta el final.",
+    "royal-fork":
+      "Desde la fila superior el Rey mira ambas esquinas. Ningún asaltante puede cerrar las dos puertas.",
+    "bar-the-door": "Al Rey le queda un solo camino abierto. Pon un asaltante en él.",
+    "take-the-king":
+      "Lejos del trono bastan dos asaltantes — y el tuyo debe hacer el movimiento que cierra.",
+    "wall-of-four":
+      "En su trono, el Rey debe quedar rodeado por los cuatro lados. Falta un muro.",
+    "fourth-wall": "Junto al trono, el propio trono vacío cierra un lado. Cierra el último.",
+    "close-the-ring": "Un anillo intacto de asaltantes gana. Queda un hueco: séllalo.",
+  },
+
+  victoryRaiders: "Triunfan los Asaltantes",
+  victoryKing: "El Rey prevalece",
+  victoryDraw: "Tablas",
+  victoryReview: "Revisar el tablero",
 };
 
 const ga: Translations = {
@@ -1160,6 +1407,98 @@ const ga: Translations = {
   sideKingHint:
     "An r\u00ed agus ceathrar laoch \u00b7 sroich c\u00fainne \u00b7 bogann na foghlaithe ar dt\u00fas",
   sideRaidersHint: "Ochtar foghlaithe \u00b7 gabh an r\u00ed \u00b7 bogann t\u00fa ar dt\u00fas",
+
+  // \u2500\u2500 MACHINE DRAFT \u2014 pending human review \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // Everything below (like the rest of this ga table) is an unreviewed draft;
+  // the ga locale stays out of VISIBLE_LANGS until it is signed off.
+  learnTitle: "Foghlaim Brandubh",
+  learnObjectives: "An sprioc",
+  learnObjectivesHint: "F\u00e9ach conas a bhuann gach taobh agus conas a oibr\u00edonn gabh\u00e1lacha.",
+  learnRules: "Na rialacha",
+  learnRulesHint: "An leagan gasta, agus na rialacha ioml\u00e1na taobh thiar de.",
+  learnTutorials: "Bearta r\u00e9amhshocraithe",
+  learnTutorialsHint: "Dh\u00e1 chleachtadh d\u00e9ag ghearra \u2014 aimsigh an beart buach.",
+
+  quickRulesTab: "Rialacha gasta",
+  fullRulesTab: "Rialacha ioml\u00e1na",
+  quickGoalKing: "Buann taobh an R\u00ed ach an R\u00ed a thabhairt chuig c\u00fainne ar bith.",
+  quickGoalRaiders: "Buann na foghlaithe ach an R\u00ed a ghabh\u00e1il.",
+  quickMovement:
+    "Bogann gach p\u00edosa ar n\u00f3s caisle\u00e1in fichille: fad ar bith feadh sraithe n\u00f3 col\u00fain, gan l\u00e9im.",
+  quickCapture:
+    "Gabh saighdi\u00fair ach \u00e9 a dh\u00fanadh idir dh\u00e1 ph\u00edosa de do chuid i l\u00edne dh\u00edreach. Cuntar c\u00fainne \u2014 n\u00f3 an r\u00edchathaoir fholamh \u2014 mar cheann de do chuid.",
+  quickKingCaptureStrong:
+    "Titeann an R\u00ed idir bheirt fhoghlaithe \u2014 ach ar an r\u00edchathaoir n\u00f3 lena taobh, n\u00ed m\u00f3r \u00e9 a thimpeall\u00fa ar na ceithre thaobh.",
+  quickKingCaptureSimple:
+    "Titeann an R\u00ed mar shaighdi\u00fair: gafa idir bheirt fhoghlaithe, \u00e1it ar bith ar an gcl\u00e1r.",
+  quickSpecialSquares:
+    "N\u00ed fh\u00e9adann ach an R\u00ed stopadh ar an r\u00edchathaoir n\u00f3 ar ch\u00fainne. T\u00e1 s\u00e9 s\u00e1bh\u00e1ilte si\u00fal idir bheirt naimhde \u2014 n\u00ed dh\u00fanann gaiste ach nuair a dh\u00fanann an namhaid \u00e9.",
+
+  tutorialProgress: "r\u00e9itithe",
+  tutorialYouPlayAs: "Imr\u00edonn t\u00fa:",
+  tutorialShowHint: "Taispe\u00e1in leid",
+  tutorialWrongMove: "N\u00ed h\u00e9 sin \u00e9 \u2014 f\u00e9ach ar\u00eds.",
+  tutorialTryAgain: "Bain triail eile as",
+  tutorialSolvedTitle: "R\u00e9itithe!",
+  tutorialNext: "An ch\u00e9ad chleachtadh eile",
+  tutorialReset: "Athshocraigh",
+  tutorialBackToList: "Gach beart",
+  tutorialAllDone: "An d\u00e1 cheann d\u00e9ag r\u00e9itithe \u2014 t\u00e1 t\u00fa r\u00e9idh do chluiche ceart.",
+  tutorialTitles: {
+    "pincer": "An teanchair",
+    "corner-anvil": "Inneoin an ch\u00fainne",
+    "throne-anvil": "Inneoin na r\u00edchathaoireach",
+    "double-take": "Dh\u00e1 cheann d'aon bhuille",
+    "kings-blade": "Lann an R\u00ed",
+    "road-to-corner": "An b\u00f3thar oscailte",
+    "royal-fork": "An gabhal r\u00edoga",
+    "bar-the-door": "Cuir barra ar an doras",
+    "take-the-king": "Gabh an R\u00ed",
+    "wall-of-four": "Balla an cheathrair",
+    "fourth-wall": "An ceathr\u00fa balla",
+    "close-the-ring": "D\u00fan an f\u00e1inne",
+  },
+  tutorialGoals: {
+    "pincer": "Gabh cosant\u00f3ir ach \u00e9 a dh\u00fanadh idir bheirt fhoghlaithe.",
+    "corner-anvil": "Gabh an cosant\u00f3ir le c\u00fainne naimhdeach mar dhara foghla\u00ed.",
+    "throne-anvil": "Gabh an cosant\u00f3ir leis an r\u00edchathaoir fholamh mar inneoin.",
+    "double-take": "Gabh dh\u00e1 fhoghla\u00ed le beart amh\u00e1in.",
+    "kings-blade": "Bain \u00fas\u00e1id as an R\u00ed f\u00e9in chun foghla\u00ed a ghabh\u00e1il.",
+    "road-to-corner": "\u00c9alaigh: tabhair an R\u00ed chuig c\u00fainne.",
+    "royal-fork": "Bagair dh\u00e1 ch\u00fainne in \u00e9ineacht, ansin \u00e9alaigh (dh\u00e1 bheart).",
+    "bar-the-door": "Coisc an R\u00ed \u00f3 \u00e9al\u00fa ar a ch\u00e9ad bheart eile.",
+    "take-the-king": "Gabh an R\u00ed idir bheirt fhoghlaithe.",
+    "wall-of-four": "Gabh an R\u00ed ar a r\u00edchathaoir.",
+    "fourth-wall": "Gabh an R\u00ed le taobh a r\u00edchathaoireach.",
+    "close-the-ring": "Buaigh ach an R\u00ed agus a gharda deireanach a thimpeall\u00fa.",
+  },
+  tutorialHints: {
+    "pincer": "T\u00e1 foghla\u00ed ar ch\u00fal an chosant\u00f3ra cheana. Tabhair an ghialla eile s\u00edos col\u00fan c.",
+    "corner-anvil": "Cuntar c\u00fainne mar ph\u00edosa namhad. Br\u00faigh garda b7 ina choinne.",
+    "throne-anvil":
+      "T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed. S\u00e1innigh garda c4 ina coinne.",
+    "double-take":
+      "F\u00e9adann saighdi\u00fair sleamhn\u00fa thar an r\u00edchathaoir fholamh. Tuirling san \u00e1it a nd\u00fanann an d\u00e1 ghaiste in \u00e9ineacht.",
+    "kings-blade":
+      "T\u00e1 an R\u00ed armtha: f\u00e9adann s\u00e9 gaiste a dh\u00fanadh mar aon saighdi\u00fair. Is leor c\u00e9im amh\u00e1in \u00f3n r\u00edchathaoir.",
+    "road-to-corner":
+      "T\u00e1 b\u00f3thar amh\u00e1in d\u00fanta. T\u00e1 an tsraith eile saor \u2014 rith go dt\u00ed a deireadh \u00ed.",
+    "royal-fork":
+      "\u00d3n tsraith uachtarach feiceann an R\u00ed an d\u00e1 ch\u00fainne. N\u00ed f\u00e9idir le foghla\u00ed amh\u00e1in an d\u00e1 dhoras a dh\u00fanadh.",
+    "bar-the-door": "N\u00edl ach b\u00f3thar amh\u00e1in oscailte ag an R\u00ed. Cuir foghla\u00ed air.",
+    "take-the-king":
+      "I bhfad \u00f3n r\u00edchathaoir is leor beirt fhoghlaithe \u2014 agus caithfidh do cheannsa an beart d\u00fanta a dh\u00e9anamh.",
+    "wall-of-four":
+      "Ar a r\u00edchathaoir n\u00ed m\u00f3r an R\u00ed a thimpeall\u00fa ar na ceithre thaobh. T\u00e1 balla amh\u00e1in in easnamh.",
+    "fourth-wall":
+      "Le taobh na r\u00edchathaoireach, d\u00fanann an r\u00edchathaoir fholamh f\u00e9in taobh amh\u00e1in. D\u00fan an ceann deireanach.",
+    "close-the-ring": "Buann f\u00e1inne sl\u00e1n foghlaithe. T\u00e1 bearna amh\u00e1in f\u00e1gtha \u2014 d\u00fan \u00ed.",
+  },
+
+  victoryRaiders: "Bua na bhFoghlaithe",
+  victoryKing: "An R\u00ed i r\u00e9im",
+  victoryDraw: "Cluiche cothrom",
+  victoryReview: "Athbhreithnigh an cl\u00e1r",
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };

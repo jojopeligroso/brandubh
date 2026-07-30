@@ -1303,3 +1303,66 @@ body {
     transition: none;
   }
 }
+
+/* ── Tutorial set plays (Learn hub) ─────────────────────────────────────────
+   The real interactive board, capped so a 7×7 grid sits comfortably inside
+   the learn modal on any width. */
+.tutorial-board {
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+/* ── Victory overlay ─────────────────────────────────────────────────────────
+   The end-of-game curtain: the card sweeps in and the winner's stone sits in
+   a slow-breathing halo. All colour comes from the theme variables, tinted
+   gold for the King's side and blood for the raiders. */
+.victory-card {
+  --victory-tint: var(--color-parchment);
+  animation: victory-in 480ms cubic-bezier(0.2, 0.9, 0.3, 1.05) both;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--victory-tint) 35%, transparent),
+    0 0 48px -8px color-mix(in srgb, var(--victory-tint) 45%, transparent),
+    0 24px 48px -24px rgba(0, 0, 0, 0.9);
+}
+.victory-card.victory-attackers {
+  --victory-tint: var(--color-blood);
+}
+.victory-card.victory-defenders {
+  --victory-tint: var(--color-gold);
+}
+.victory-emblem {
+  position: relative;
+  width: 5.5rem;
+  height: 5.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  animation: victory-halo 2600ms ease-in-out 480ms infinite;
+  box-shadow: 0 0 34px color-mix(in srgb, var(--victory-tint) 55%, transparent);
+}
+@keyframes victory-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes victory-halo {
+  0%,
+  100% {
+    box-shadow: 0 0 26px color-mix(in srgb, var(--victory-tint) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 46px color-mix(in srgb, var(--victory-tint) 75%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .victory-card,
+  .victory-emblem {
+    animation: none;
+  }
+}

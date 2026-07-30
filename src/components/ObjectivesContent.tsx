@@ -7,8 +7,9 @@ import type { EmblemDef } from "../emblems";
 import type { KingEmblemDef } from "../kingEmblems";
 import type { DefenderEmblemDef } from "../defenderEmblems";
 import type { CornerEmblemDef } from "../cornerEmblems";
+import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
 
-type Emblems = {
+export type Emblems = {
   attackerEmblem: EmblemDef;
   kingEmblem: KingEmblemDef;
   defenderEmblem: DefenderEmblemDef;
@@ -44,19 +45,6 @@ const LOOP = T_HOLD_START + T_SLIDE + T_FLASH + T_RESET; // ≈ 2500ms
 const STAGGER = 600; // wave offset between vignettes
 
 type Phase = "start" | "move" | "flash";
-
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const onChange = () => setReduced(mq.matches);
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
-  return reduced;
-}
 
 function DemoBoard({
   scene,
@@ -253,105 +241,71 @@ const THRONE: Scene = {
   outcome: "capture",
 };
 
-export default function HowToDemo({
+/**
+ * The animated "what is this game" walkthrough — the goal strip plus the four
+ * capture vignettes. Rendered inside the Learn hub (see LearnModal.tsx).
+ */
+export default function ObjectivesContent({
   t,
   rules,
-  attackerEmblem,
-  kingEmblem,
-  defenderEmblem,
-  cornerEmblem,
-  onClose,
+  emblems,
 }: {
   t: Translations;
   rules: RuleSet;
-  onClose: () => void;
-} & Emblems) {
-  const emblems = { attackerEmblem, kingEmblem, defenderEmblem, cornerEmblem };
+  emblems: Emblems;
+}) {
   const goal = t.demoGoalByVariant[rules.id] ?? t.demoGoal;
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="card w-full sm:max-w-xl max-h-[90vh] overflow-y-auto p-6 rounded-b-none sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="demo-title"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h2 id="demo-title" className="font-display text-2xl text-gold">
-            {t.demoTitle}
-          </h2>
-          <button className="btn" onClick={onClose} aria-label={t.back}>
-            ✕
-          </button>
-        </div>
+    <div>
+      {/* The goal */}
+      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-parchment-dim">
+        {t.demoGoalLabel}
+      </p>
+      <p className="mt-1 font-display text-xl text-parchment">{goal}</p>
+      <p className="mt-1 text-sm text-parchment-dim">{t.demoGoalHint}</p>
+      <div className="mt-3">
+        <DemoBoard scene={GOAL} emblems={emblems} label={t.demoGoal} />
+      </div>
 
-        {/* The goal */}
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-parchment-dim">
-          {t.demoGoalLabel}
-        </p>
-        <p className="mt-1 font-display text-xl text-parchment">{goal}</p>
-        <p className="mt-1 text-sm text-parchment-dim">{t.demoGoalHint}</p>
-        <div className="mt-3">
-          <DemoBoard scene={GOAL} emblems={emblems} label={t.demoGoal} />
-        </div>
-
-        {/* How captures work */}
-        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-parchment-dim">
-          {t.demoCapturesTitle}
-        </p>
-        <p className="mt-1 text-sm text-parchment-dim">{t.demoCapturesHint}</p>
-        <div className="demo mt-3">
-          <Vignette
-            scene={HORIZONTAL}
-            emblems={emblems}
-            delay={0}
-            label={t.demoCapHorizontal}
-            caption={t.demoCapHorizontal}
-          />
-          <Vignette
-            scene={VERTICAL}
-            emblems={emblems}
-            delay={STAGGER}
-            label={t.demoCapVertical}
-            caption={t.demoCapVertical}
-          />
-          <Vignette
-            scene={CORNER}
-            emblems={emblems}
-            delay={STAGGER * 2}
-            label={t.demoCapCorner}
-            caption={t.demoCapCorner}
-          />
-          <Vignette
-            scene={THRONE}
-            emblems={emblems}
-            delay={STAGGER * 3}
-            label={t.demoCapThrone}
-            caption={
-              <>
-                {t.demoCapThrone}{" "}
-                <b>{t.demoThroneKing}</b>
-              </>
-            }
-          />
-        </div>
-
-        <button className="btn btn-primary mt-6 w-full" onClick={onClose}>
-          {t.playButton}
-        </button>
+      {/* How captures work */}
+      <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-parchment-dim">
+        {t.demoCapturesTitle}
+      </p>
+      <p className="mt-1 text-sm text-parchment-dim">{t.demoCapturesHint}</p>
+      <div className="demo mt-3">
+        <Vignette
+          scene={HORIZONTAL}
+          emblems={emblems}
+          delay={0}
+          label={t.demoCapHorizontal}
+          caption={t.demoCapHorizontal}
+        />
+        <Vignette
+          scene={VERTICAL}
+          emblems={emblems}
+          delay={STAGGER}
+          label={t.demoCapVertical}
+          caption={t.demoCapVertical}
+        />
+        <Vignette
+          scene={CORNER}
+          emblems={emblems}
+          delay={STAGGER * 2}
+          label={t.demoCapCorner}
+          caption={t.demoCapCorner}
+        />
+        <Vignette
+          scene={THRONE}
+          emblems={emblems}
+          delay={STAGGER * 3}
+          label={t.demoCapThrone}
+          caption={
+            <>
+              {t.demoCapThrone} <b>{t.demoThroneKing}</b>
+            </>
+          }
+        />
       </div>
     </div>
   );
