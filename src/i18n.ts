@@ -332,6 +332,8 @@ export interface Translations {
 
   // Board tools — flip + analysis (Session 7b)
   flipBoard: string;
+  flipBoardH: string;
+  flipBoardV: string;
   analysisMode: string;
   analysisExit: string;
   analysisHint: string;
@@ -662,6 +664,8 @@ const en: Translations = {
   zenElGameFile: "Export / import",
 
   flipBoard: "Flip board",
+  flipBoardH: "Flip board left-right",
+  flipBoardV: "Flip board top-bottom",
   analysisMode: "Analysis",
   analysisExit: "Leave analysis",
   analysisHint: "Move both sides freely \u00b7 the computer and the clock are paused \u00b7 nothing is saved",
@@ -1053,6 +1057,8 @@ const es: Translations = {
   zenElGameFile: "Exportar / importar",
 
   flipBoard: "Girar el tablero",
+  flipBoardH: "Girar el tablero izquierda-derecha",
+  flipBoardV: "Girar el tablero arriba-abajo",
   analysisMode: "An\u00e1lisis",
   analysisExit: "Salir del an\u00e1lisis",
   analysisHint: "Mueve los dos bandos libremente \u00b7 la m\u00e1quina y el reloj est\u00e1n en pausa \u00b7 no se guarda nada",
@@ -1451,6 +1457,8 @@ const ga: Translations = {
   // DRAFT (Session 7b) \u2014 unreviewed, like the rest of this table. Present so
   // the locale stays complete while it waits for review; `ga` is not offered.
   flipBoard: "Iompaigh an cl\u00e1r",
+  flipBoardH: "Iompaigh an cl\u00e1r \u00f3 chl\u00e9 go deas",
+  flipBoardV: "Iompaigh an cl\u00e1r \u00f3 bharr go bun",
   analysisMode: "Anail\u00eds",
   analysisExit: "F\u00e1g an anail\u00eds",
   analysisHint: "Bog an d\u00e1 thaobh gan bhac \u00b7 t\u00e1 an r\u00edomhaire agus an clog ar sos \u00b7 n\u00ed sh\u00e1bh\u00e1iltear faic",

@@ -129,7 +129,7 @@ import {
   loadDefenderEmblem,
 } from "./defenderEmblems";
 import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
-import { BOARD_FLIP_KEY } from "./orientation";
+import { BOARD_FLIP_H_KEY, BOARD_FLIP_V_KEY } from "./orientation";
 import {
   type AnalysisSnapshot,
   aiMayReply,
@@ -344,15 +344,25 @@ export default function App() {
   // Which way up the board is drawn. Purely a preference about the picture: it
   // does not touch the position, the side you control or the saved game, and
   // `game/sides.ts` still holds that orientation never follows the side you
-  // play. The whole view flips together — see the clock note at the render.
-  const [flipped, setFlipped] = useState<boolean>(() => loadFlag(BOARD_FLIP_KEY));
+  // play. Two independent mirrors: east–west (left/right) and north–south
+  // (top/bottom) — see the clock note at the render for which one moves the
+  // clocks.
+  const [flippedH, setFlippedH] = useState<boolean>(() => loadFlag(BOARD_FLIP_H_KEY));
+  const [flippedV, setFlippedV] = useState<boolean>(() => loadFlag(BOARD_FLIP_V_KEY));
   useEffect(() => {
     try {
-      localStorage.setItem(BOARD_FLIP_KEY, flipped ? "1" : "0");
+      localStorage.setItem(BOARD_FLIP_H_KEY, flippedH ? "1" : "0");
     } catch {
       /* ignore persistence failures */
     }
-  }, [flipped]);
+  }, [flippedH]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(BOARD_FLIP_V_KEY, flippedV ? "1" : "0");
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [flippedV]);
 
   // ── Zen mode (calm, over-the-board board) ───────────────────────────────────
   // Off by default. When on, only the essentials show — board, turn, clock,
@@ -1144,16 +1154,17 @@ export default function App() {
   // near side below it. Vs the computer the human sits on the bottom, whichever
   // side they took.
   //
-  // **Flipping the board flips the clocks with it.** The whole view turns over
-  // or none of it does: the clocks are the two players' chairs, so leaving them
-  // put while the board rotates would seat the away player's clock next to the
-  // near player's pieces — the one thing Lichess-style placement exists to get
-  // right. So the pair is swapped here, in the view, and `clockPlacement` in
+  // **Flipping the board north–south flips the clocks with it.** The clocks
+  // are the two players' chairs, seated above/below the board — only a
+  // top/bottom mirror (`flippedV`) moves them; the east–west mirror
+  // (`flippedH`) only swaps which side of the screen each column is drawn on
+  // and leaves top/bottom alone, so it leaves the clocks put. So the pair is
+  // swapped here, in the view, off `flippedV` alone, and `clockPlacement` in
   // game/sides.ts keeps saying the same thing it always said about who is
   // *actually* near and far.
   const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
-  const topClockSide = flipped ? bottomSide : topSide;
-  const bottomClockSide = flipped ? topSide : bottomSide;
+  const topClockSide = flippedV ? bottomSide : topSide;
+  const bottomClockSide = flippedV ? topSide : bottomSide;
   const showPause = clock.enabled && clock.started && atTip && !gameOver;
 
   // Who goes in the exported file's [Attackers] / [Defenders] tags: the AI's
@@ -1232,7 +1243,8 @@ export default function App() {
           fadingCaptures={fadingCaptures}
           interactive={interactive}
           controllable={controllableIn(analysis, humanSide)}
-          flipped={flipped}
+          flippedH={flippedH}
+          flippedV={flippedV}
           attackerEmblem={emblemSet.attackerEmblem}
           kingEmblem={emblemSet.kingEmblem}
           defenderEmblem={emblemSet.defenderEmblem}
@@ -1247,8 +1259,10 @@ export default function App() {
         t={t}
         showFlip={showExtra("flip")}
         showAnalysis={showExtra("analysis")}
-        flipped={flipped}
-        onFlip={() => setFlipped((f) => !f)}
+        flippedH={flippedH}
+        onFlipH={() => setFlippedH((f) => !f)}
+        flippedV={flippedV}
+        onFlipV={() => setFlippedV((f) => !f)}
         analysis={analysis}
         onToggleAnalysis={toggleAnalysis}
       />
@@ -1860,16 +1874,20 @@ function BoardTools({
   t,
   showFlip,
   showAnalysis,
-  flipped,
-  onFlip,
+  flippedH,
+  onFlipH,
+  flippedV,
+  onFlipV,
   analysis,
   onToggleAnalysis,
 }: {
   t: Translations;
   showFlip: boolean;
   showAnalysis: boolean;
-  flipped: boolean;
-  onFlip: () => void;
+  flippedH: boolean;
+  onFlipH: () => void;
+  flippedV: boolean;
+  onFlipV: () => void;
   analysis: boolean;
   onToggleAnalysis: () => void;
 }) {
@@ -1879,13 +1897,24 @@ function BoardTools({
       <div className="flex items-center justify-center gap-2">
         {showFlip && (
           <button
-            className={`iconbtn${flipped ? " on" : ""}`}
-            onClick={onFlip}
-            aria-pressed={flipped}
-            aria-label={t.flipBoard}
-            title={t.flipBoard}
+            className={`iconbtn${flippedH ? " on" : ""}`}
+            onClick={onFlipH}
+            aria-pressed={flippedH}
+            aria-label={t.flipBoardH}
+            title={t.flipBoardH}
           >
-            <FlipIcon flipped={flipped} />
+            <FlipIconH flipped={flippedH} />
+          </button>
+        )}
+        {showFlip && (
+          <button
+            className={`iconbtn${flippedV ? " on" : ""}`}
+            onClick={onFlipV}
+            aria-pressed={flippedV}
+            aria-label={t.flipBoardV}
+            title={t.flipBoardV}
+          >
+            <FlipIconV flipped={flippedV} />
           </button>
         )}
         {showAnalysis && (
@@ -1908,10 +1937,34 @@ function BoardTools({
   );
 }
 
-// Two stacked chevrons pointing at each other — the board turning over. The
-// icon itself rotates to show which way up you are; the transition is dropped
-// under prefers-reduced-motion (see .flip-icon in index.css).
-function FlipIcon({ flipped }: { flipped: boolean }) {
+// Two side-by-side chevrons pointing at each other — the board mirroring
+// left-to-right (east–west). The icon itself rotates to show it has been
+// pressed; the transition is dropped under prefers-reduced-motion (see
+// .flip-icon in index.css).
+function FlipIconH({ flipped }: { flipped: boolean }) {
+  return (
+    <svg
+      className={`flip-icon${flipped ? " is-flipped" : ""}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 12h6" />
+      <path d="m6 8-3 4 3 4" />
+      <path d="M12 4v16" />
+      <path d="M21 12h-6" />
+      <path d="m18 16 3-4-3-4" />
+    </svg>
+  );
+}
+
+// Two stacked chevrons pointing at each other — the board mirroring
+// top-to-bottom (north–south).
+function FlipIconV({ flipped }: { flipped: boolean }) {
   return (
     <svg
       className={`flip-icon${flipped ? " is-flipped" : ""}`}

@@ -97,11 +97,13 @@ interface BoardProps {
   /** The side the local human is allowed to move (null = both, hotseat). */
   controllable: Side | null;
   /**
-   * Draw the board rotated 180° (view only — see src/orientation.ts). The
-   * squares keep their names: flipping changes which drawn edge carries the
-   * coordinate labels, never what a square is called.
+   * Mirror the board east–west (left/right) and/or north–south (top/bottom)
+   * (view only — see src/orientation.ts). The squares keep their names:
+   * flipping changes which drawn edge carries the coordinate labels, never
+   * what a square is called.
    */
-  flipped?: boolean;
+  flippedH?: boolean;
+  flippedV?: boolean;
   /** Chosen emblem for the attacker (raider) pieces. */
   attackerEmblem: EmblemDef;
   /** Chosen emblem for the king piece. */
@@ -122,7 +124,8 @@ export default function Board({
   fadingCaptures,
   interactive,
   controllable,
-  flipped = false,
+  flippedH = false,
+  flippedV = false,
   attackerEmblem,
   kingEmblem,
   defenderEmblem,
@@ -147,16 +150,17 @@ export default function Board({
   };
 
   // The cells are emitted in *view* order — left to right, top to bottom as
-  // drawn — and each one resolves back to the board square it stands for. A
-  // flipped board therefore reverses both axes together (a 180° rotation) while
-  // every square keeps its own identity: `d4` is the throne from either chair.
-  // See src/orientation.ts; the coordinate labels below move to whichever drawn
-  // edge is now the bottom/left, but they never rename a square.
+  // drawn — and each one resolves back to the board square it stands for.
+  // `flippedH` mirrors columns (east–west), `flippedV` mirrors rows
+  // (north–south), independently; every square keeps its own identity: `d4`
+  // is the throne from either chair. See src/orientation.ts; the coordinate
+  // labels below move to whichever drawn edge is now the bottom/left, but
+  // they never rename a square.
   return (
     <div className="board" role="grid" aria-label="Brandubh board">
       {Array.from({ length: BOARD_SIZE }, (_, viewRow) =>
         Array.from({ length: BOARD_SIZE }, (_, viewCol) => {
-          const { row: r, col: c } = fromView({ row: viewRow, col: viewCol }, flipped);
+          const { row: r, col: c } = fromView({ row: viewRow, col: viewCol }, flippedH, flippedV);
           const piece = board[r][c];
           const key = r * 10 + c;
           const special = isThrone(r, c) || isCorner(r, c);
@@ -167,8 +171,8 @@ export default function Board({
           const lastFrom = lastMove && lastMove.from.row === r && lastMove.from.col === c;
           const dark = (r + c) % 2 === 1;
           const pickable = canPick({ row: r, col: c }) || isLegal;
-          const file = isLabelledFileRow(r, flipped) ? fileLabel(c) : null;
-          const rank = isLabelledRankCol(c, flipped) ? rankLabel(r) : null;
+          const file = isLabelledFileRow(r, flippedV) ? fileLabel(c) : null;
+          const rank = isLabelledRankCol(c, flippedH) ? rankLabel(r) : null;
 
           return (
             <div
