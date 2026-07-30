@@ -842,6 +842,50 @@ body {
   border-radius: 14px;
 }
 
+/* ── Header menu ──────────────────────────────────────────────────────────────
+   The hamburger's drop-down: a card floated under the button, holding the
+   between-games controls (language, rules, settings) that used to sit in the
+   header itself. It draws over the status bar, hence the z-index and the
+   shadow — everything below stays put while it is open. */
+.menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 40;
+  min-width: 13.5rem;
+  padding: 0.4rem;
+  /* The card is semi-transparent by design; the board would otherwise read
+     straight through the menu. */
+  background-color: var(--color-night);
+  box-shadow: 0 16px 38px rgb(0 0 0 / 45%);
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.55rem 0.6rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
+  margin-bottom: 0.3rem;
+}
+.menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-parchment);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.menu-item:hover {
+  background: color-mix(in srgb, var(--color-parchment) 11%, transparent);
+}
+
 /* Backlight glow on the turn indicator, tinted by the side to move so it's
    clear at a glance whose move it is. */
 .turn-glow {

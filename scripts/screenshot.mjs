@@ -54,6 +54,18 @@ const page = await browser.newPage({
   viewport: { width: 860, height: 1880 },
   deviceScaleFactor: 1,
 });
+// Pin the theme before the app's first paint. `pickDefaultTheme()` picks
+// Everforest only 66% of the time and Carved Wood the rest (src/theme.ts), so
+// without this the cover image re-rolls its entire palette on every
+// regeneration and the diff is never just the UI change you made. Everforest is
+// DEFAULT_THEME and the majority roll, so it is what this pins.
+await page.addInitScript(() => {
+  try {
+    localStorage.setItem("brandubh.theme", "everforest");
+  } catch {
+    /* localStorage unavailable — fall back to whatever the app picks */
+  }
+});
 await page.goto(`http://localhost:${port}/`, { waitUntil: "networkidle" });
 
 // Past the opening overlay into a fresh over-the-board game (no AI turn to wait

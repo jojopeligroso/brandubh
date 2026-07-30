@@ -8,10 +8,17 @@
 // contextual, so a minimal "Next game" / "Next set" prompt appears only when a
 // game actually ends, never as a persistent button mid-play. Everything else is
 // an opt-in *extra* — hidden by default in Zen and revealed individually from
-// settings: the match scoreboard, captured tray, move navigator, rules button,
-// propose-takeback, resign, pause, the settings panels themselves and the
-// export/import panel, the board-flip button, the analysis toggle, the engine
-// eval (bar + best-move arrow), the variation tree the annotation pass and position setup.
+// settings: the match scoreboard, captured tray, rules button, propose-takeback,
+// resign, pause, the settings panels themselves and the export/import panel, the
+// board-flip button, the analysis toggle, the engine eval (bar + best-move
+// arrow), the variation tree the annotation pass and position setup.
+//
+// The one exception is the move navigator, which is ON by default (see
+// ZEN_DEFAULT_EXTRAS). Stepping back through the moves just played is part of
+// reading the board over a real table, not a piece of instrumentation on top of
+// it — and with the board otherwise stripped bare it is the only way back to a
+// position you have already left. It is still a normal extra, so it can be
+// switched off like any other.
 //
 // The eval belongs in this list more than most: it is the one extra that tells
 // you who is winning before you have worked it out, which is the opposite of
@@ -60,23 +67,33 @@ export interface ZenConfig {
   extras: Record<ZenExtraId, boolean>;
 }
 
+/** Extras that Zen leaves switched on unless they are explicitly turned off. */
+export const ZEN_DEFAULT_EXTRAS: ZenExtraId[] = ["nav"];
+
 export const ZEN_ENABLED_KEY = "brandubh.zen.enabled";
 export const ZEN_EXTRAS_KEY = "brandubh.zen.extras";
 
-const noExtras = (): Record<ZenExtraId, boolean> =>
+// Bumped whenever ZEN_DEFAULT_EXTRAS gains an entry. A stored map written by an
+// older build spells out `false` for every extra it knew about, so a new default
+// would never reach anyone who had already opened Zen; on a version bump the
+// newly-defaulted extras are switched back on once, and the stamp is rewritten.
+export const ZEN_EXTRAS_VERSION_KEY = "brandubh.zen.extras.v";
+export const ZEN_EXTRAS_VERSION = 1;
+
+const defaultExtras = (): Record<ZenExtraId, boolean> =>
   ZEN_EXTRAS.reduce(
     (acc, id) => {
-      acc[id] = false;
+      acc[id] = ZEN_DEFAULT_EXTRAS.includes(id);
       return acc;
     },
     {} as Record<ZenExtraId, boolean>,
   );
 
-export const defaultZenConfig = (): ZenConfig => ({ enabled: false, extras: noExtras() });
+export const defaultZenConfig = (): ZenConfig => ({ enabled: false, extras: defaultExtras() });
 
-/** Parse a stored extras map, keeping only known boolean flags (missing → off). */
+/** Parse a stored extras map, keeping only known boolean flags (missing → default). */
 export function parseZenExtras(raw: string | null): Record<ZenExtraId, boolean> {
-  const extras = noExtras();
+  const extras = defaultExtras();
   if (!raw) return extras;
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -91,11 +108,29 @@ export function parseZenExtras(raw: string | null): Record<ZenExtraId, boolean> 
   return extras;
 }
 
+/**
+ * Apply a stored-defaults upgrade: extras added to ZEN_DEFAULT_EXTRAS since the
+ * stored map was written are switched on, whatever it says about them. Anything
+ * stamped with the current version is left exactly as the player left it.
+ */
+export function upgradeZenExtras(
+  extras: Record<ZenExtraId, boolean>,
+  storedVersion: string | null,
+): Record<ZenExtraId, boolean> {
+  if (Number(storedVersion) === ZEN_EXTRAS_VERSION) return extras;
+  const upgraded = { ...extras };
+  for (const id of ZEN_DEFAULT_EXTRAS) upgraded[id] = true;
+  return upgraded;
+}
+
 export function loadZenConfig(): ZenConfig {
   const cfg = defaultZenConfig();
   try {
     cfg.enabled = localStorage.getItem(ZEN_ENABLED_KEY) === "1";
-    cfg.extras = parseZenExtras(localStorage.getItem(ZEN_EXTRAS_KEY));
+    cfg.extras = upgradeZenExtras(
+      parseZenExtras(localStorage.getItem(ZEN_EXTRAS_KEY)),
+      localStorage.getItem(ZEN_EXTRAS_VERSION_KEY),
+    );
   } catch {
     /* localStorage unavailable */
   }
@@ -106,6 +141,7 @@ export function saveZenConfig(cfg: ZenConfig): void {
   try {
     localStorage.setItem(ZEN_ENABLED_KEY, cfg.enabled ? "1" : "0");
     localStorage.setItem(ZEN_EXTRAS_KEY, JSON.stringify(cfg.extras));
+    localStorage.setItem(ZEN_EXTRAS_VERSION_KEY, String(ZEN_EXTRAS_VERSION));
   } catch {
     /* ignore persistence failures */
   }

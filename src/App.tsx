@@ -5,6 +5,7 @@ import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
+import { evalAvailable } from "./evalBar";
 import { useAiWorker } from "./game/useAiWorker";
 import { useAnalysisWorker } from "./game/useAnalysisWorker";
 import EvalBar from "./components/EvalBar";
@@ -681,7 +682,31 @@ export default function App() {
   const { requestAnalysis, cancel: cancelAnalysis } = useAnalysisWorker();
   const [evalInfo, setEvalInfo] = useState<{ score: number; move: Move | null } | null>(null);
   const [evalPending, setEvalPending] = useState(false);
-  const showEval = evalOn && showExtra("eval");
+
+  // The eval is a POST-GAME tool and nothing else — see `evalAvailable`. While a
+  // game is still being played, showing it would be an engine telling a player
+  // what to do, so it is not offered, not togglable, and not searched for.
+  //
+  // The result consulted is the **live game's**, never the position on screen,
+  // and reading it is trivial since 7c: `liveStates` is the live game and
+  // analysis never touches it. That one choice closes every route at once:
+  //
+  //  - reviewing back through an unfinished game lands on positions that are
+  //    not themselves terminal, and still gets nothing;
+  //  - analysis mode on an unfinished game gets nothing — it suppresses the AI
+  //    and never saves, so it looks harmless, but you can enter it mid-game,
+  //    read the engine, leave, and play on;
+  //  - a *pasted* position gets nothing while a game is unfinished. The
+  //    position panel shows the current board with a copy button, so keying the
+  //    eval off the pasted root instead would be a two-click bypass: copy the
+  //    live position, paste it back, read the engine. Pasting and exploring by
+  //    hand still works mid-game; only the engine's opinion waits.
+  //
+  // Analysing a *finished* game keeps the eval throughout, including down a
+  // variation, because the live result is what is being asked about.
+  const liveTipStatus = liveStates[liveStates.length - 1].status;
+  const canShowEval = evalAvailable({ liveGameOver: isGameOver(liveTipStatus) });
+  const showEval = canShowEval && evalOn && showExtra("eval");
   useEffect(() => {
     if (!showEval) {
       // Switched off (or hidden by Zen): stop searching and drop the readout, so
@@ -887,10 +912,22 @@ export default function App() {
   const marks = annotation?.key === lineKey ? annotation.marks : null;
 
   // The real constraint is the single worker: the pass must not race the AI for
-  // it. So it is offered wherever the AI will not be wanting it — a finished
-  // game, analysis (which suppresses the AI), or over-the-board play (where
-  // there is no computer at all) — and never while a search is in flight.
-  const canAnnotate = tip >= 1 && !thinking && (gameOver || analysis || aiSide === null);
+  // it.
+  //
+  // Availability was originally reasoned about from the *engine's* side — offer
+  // it wherever the AI will not be wanting the worker: a finished game, analysis
+  // (which suppresses the AI), or over-the-board play (where there is no
+  // computer at all). That is a sound answer to a different question, and it
+  // left the pass runnable mid-game in two of those three cases. Re-searching
+  // every move of a game still being played, and being told where it swung, is
+  // engine assistance during play — over the board it is assistance in front of
+  // the opponent it is being used against.
+  //
+  // So it now shares the eval bar's gate: `evalAvailable`, on the *live* game's
+  // result. Annotations are what 7d always called them — post-game — and this is
+  // the reading that matches the name. Analysis on a *finished* game still
+  // annotates, since the gate reads the live result rather than the tip.
+  const canAnnotate = tip >= 1 && !thinking && canShowEval;
 
   const stopAnnotating = useCallback(() => {
     // The in-flight search is left to finish rather than terminating the worker:
@@ -1484,6 +1521,8 @@ export default function App() {
         t={t}
         lang={lang}
         onLang={setLang}
+        zenOn={zen.enabled}
+        onZen={setZenEnabled}
         onShowRules={() => setLearnView("menu")}
         onShowDesign={() => setShowDesign(true)}
       />
@@ -1543,7 +1582,7 @@ export default function App() {
         t={t}
         showFlip={showExtra("flip")}
         showAnalysis={showExtra("analysis")}
-        showEvalToggle={showExtra("eval")}
+        showEvalToggle={canShowEval && showExtra("eval")}
         flippedH={flippedH}
         onFlipH={() => setFlippedH((f) => !f)}
         flippedV={flippedV}
@@ -1635,8 +1674,9 @@ export default function App() {
       {/* The settings panels can themselves be hidden in Zen, and so can the
           export/import panel below. Everything Zen can hide that is *configuration*
           — Zen itself, the clock, the custom ruleset, the game file — is also
-          rendered in the always-reachable gear ⚙ modal, so no Zen setting can
-          ever lock you out of the control that would undo it. */}
+          rendered in the settings modal, which the header menu always reaches, so
+          no Zen setting can ever lock you out of the control that would undo it.
+          (Zen itself now has a second way back out: the header toggle.) */}
       {showExtra("settings") && (
         <>
           <Settings
@@ -1900,19 +1940,50 @@ export default function App() {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────────
+// The header carries two controls and no more: Zen mode, which is the one thing
+// you reach for *while* playing, and a menu holding everything you reach for
+// between games — the language toggle, the rules and the settings modal. The
+// three of those used to sit in the header as a row of their own, which put a
+// language segment and a "How to play" button beside the board on every move.
 function Header({
   t,
   lang,
   onLang,
+  zenOn,
+  onZen,
   onShowRules,
   onShowDesign,
 }: {
   t: Translations;
   lang: Lang;
   onLang: (l: Lang) => void;
+  zenOn: boolean;
+  onZen: (v: boolean) => void;
   onShowRules: () => void;
   onShowDesign: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Dismiss on a click outside the menu or on Escape — the two ways out anyone
+  // tries first. Bound only while it is open so the listeners cost nothing the
+  // rest of the time.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
@@ -1926,46 +1997,105 @@ function Header({
         </p>
       </div>
       <div className="flex items-center gap-2">
-        {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line change
-            there rather than a hand-edit here. */}
-        <div className="seg">
-          {VISIBLE_LANGS.map((l) => (
-            <button
-              key={l.code}
-              className={lang === l.code ? "on" : ""}
-              onClick={() => onLang(l.code)}
-              aria-pressed={lang === l.code}
-              lang={l.code}
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
-        <button className="btn" onClick={onShowRules}>
-          {t.howToPlay}
-        </button>
         <button
-          className="iconbtn"
-          onClick={onShowDesign}
-          aria-label={t.settings}
-          title={t.settings}
-          data-testid="gear"
+          className={`iconbtn${zenOn ? " on" : ""}`}
+          onClick={() => onZen(!zenOn)}
+          aria-pressed={zenOn}
+          aria-label={t.zenMode}
+          title={t.zenMode}
+          data-testid="zen-toggle"
         >
-          <GearIcon />
+          <ZenIcon />
         </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            className={`iconbtn${menuOpen ? " on" : ""}`}
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={t.menu}
+            title={t.menu}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            data-testid="menu-toggle"
+          >
+            <MenuIcon />
+          </button>
+          {menuOpen && (
+            <div className="card menu-panel" data-testid="header-menu">
+              {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line
+                  change there rather than a hand-edit here. */}
+              <div className="menu-row">
+                <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+                  {t.language}
+                </span>
+                <div className="seg">
+                  {VISIBLE_LANGS.map((l) => (
+                    <button
+                      key={l.code}
+                      className={lang === l.code ? "on" : ""}
+                      onClick={() => onLang(l.code)}
+                      aria-pressed={lang === l.code}
+                      lang={l.code}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                className="menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onShowRules();
+                }}
+              >
+                {t.howToPlay}
+              </button>
+              <button
+                className="menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onShowDesign();
+                }}
+                data-testid="gear"
+              >
+                {t.settings}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
 }
 
-function GearIcon() {
+// Ensō — the open brush circle. A calm mark rather than a gear, and it reads as
+// a state (gold when Zen is on) rather than a door into another panel.
+function ZenIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <circle cx="12" cy="12" r="3.2" />
-      <path
-        d="M12 2.5l1.4 2.6 2.9-.5.4 2.9 2.6 1.4-1.3 2.6 1.3 2.6-2.6 1.4-.4 2.9-2.9-.5L12 21.5l-1.4-2.6-2.9.5-.4-2.9-2.6-1.4 1.3-2.6-1.3-2.6 2.6-1.4.4-2.9 2.9.5z"
-        strokeLinejoin="round"
-      />
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M15.6 4.2a8.5 8.5 0 1 0 4.1 5.3" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
     </svg>
   );
 }
@@ -2840,9 +2970,10 @@ function ZenSettings({
   );
 }
 
-// The gear ⚙ modal. It is the *guaranteed* home for configuration: Zen mode can
-// hide the inline settings stack and the export/import panel, so every control
-// those carry is rendered here as well. The rule is simple — if Zen can hide it
+// The settings modal, opened from the header menu. It is the *guaranteed* home
+// for configuration: Zen mode can hide the inline settings stack and the
+// export/import panel, so every control those carry is rendered here as well.
+// The rule is simple — if Zen can hide it
 // and it configures the app, it lives here too, and no Zen setting can strand
 // you without the control that undoes it. Board design lives here as before.
 function SettingsModal({
