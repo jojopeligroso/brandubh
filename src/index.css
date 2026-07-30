@@ -756,11 +756,6 @@ body {
 .piece.captured {
   animation: capture 260ms ease-in forwards;
 }
-.piece.threat {
-  outline: 2px solid color-mix(in srgb, var(--color-blood) 85%, transparent);
-  outline-offset: 1px;
-}
-
 @keyframes place {
   from {
     transform: scale(0.5);
