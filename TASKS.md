@@ -12,7 +12,12 @@ Ordered by value ÷ effort:
 4. ~~**Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.~~ **Shipped** as a cross-validated, default-off knob (`attackerRecognizer`): a capture needs move-gen where an escape is O(1) geometry, so it is neutral-but-not-free — off by default, no throughput regression. See `docs/ROADMAP.md` Session 4.
 5. ~~**Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.~~ **Shipped**.
 6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
-7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
+   Launch prompt: [`docs/design/lichess-ui-prompts.md`](docs/design/lichess-ui-prompts.md#session-6--opening-book-ollamh).
+7. **Lichess-style analysis UI** *(L, multi-session)* — sliced; see [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md), with paste-ready launch prompts in [`docs/design/lichess-ui-prompts.md`](docs/design/lichess-ui-prompts.md):
+   - [ ] **7a** — eval bar + best-move arrow (still needs the score threaded through the worker; consumes 7b's `orientation.ts` arrow seam).
+   - [x] **7b** — board flip + analysis (free-move) toggle. **Shipped** → `src/orientation.ts`, `src/analysis.ts`.
+   - [ ] **7c** — move-tree panel (variations) — the big one; the linear `states[]`/`commitBasePly` timeline becomes a tree.
+   - [ ] **7d** — post-game blunder/inaccuracy annotations (depends on 7a's score channel).
 
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
 the raw backlog those sessions draw from.

@@ -10,6 +10,9 @@ Detailed specs:
 - Game import/export (PGN-style): [`docs/design/game-import-export.md`](./design/game-import-export.md)
 - Lichess-style analysis UI: [`docs/design/lichess-ui.md`](./design/lichess-ui.md)
 
+Paste-ready session-launch prompts for the remaining work (Session 6, and Session 7
+slices 7a/7c/7d): [`docs/design/lichess-ui-prompts.md`](./design/lichess-ui-prompts.md).
+
 ---
 
 ## How to size a session (the rule this plan follows)
@@ -82,12 +85,14 @@ two encodings, neither coupled to the other.
 
 ### Session 6 — Opening book (Ollamh) *(M–L)*
 **Goal:** Ollamh opens instantly, varied, and strong.
+Paste-ready launch prompt: [`lichess-ui-prompts.md`](./design/lichess-ui-prompts.md#session-6--opening-book-ollamh).
 - [ ] Offline generator: deep search over the (D4-folded) opening tree, best-N with light randomization → data file.
 - [ ] Load into the existing `OPENING_BOOK` hook (already wired); label honestly as *deep-search*, not *proven*.
 - [ ] Book-lookup tests; measure opening speed + move variety.
 
 ### Session 7 — Lichess-style analysis UI *(L — see design doc)*
 **Goal:** the analysis experience: eval bar, analysis mode, move tree, board flip, etc. Likely spans multiple sessions; start from the design doc and slice.
+Paste-ready launch prompts for the open slices (7a/7c/7d): [`lichess-ui-prompts.md`](./design/lichess-ui-prompts.md).
 
 - [ ] **7a — Eval bar + best-move arrow.** *Not started.* Nothing of it exists on `main` or on any branch.
 - [x] **7b — Board flip + analysis (free-move) toggle — shipped.** Built without 7a, which turned out not to exist: 7b's own two features do not depend on it, and the ordering in the design doc was a suggestion about size, not a compile-time dependency. What 7b owed 7a — *"the arrow overlay must become orientation-aware"* — is delivered as the seam rather than the consumer: `src/orientation.ts` is the single mapping between board space and view space, and `viewCenter`/`viewArrow` give an arrow its endpoints in view coordinates. An overlay that draws from those is orientation-aware for free and cannot point at a different square than the one on screen. Both are unit-tested (endpoints reflect through the centre, length is preserved, on-screen direction reverses) so the contract is pinned before there is a caller.
