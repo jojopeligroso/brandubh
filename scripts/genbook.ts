@@ -21,10 +21,16 @@
  * positions — while live-search latency at ply 4+ is already mid-game-normal, so
  * deeper coverage is not worth the bundle weight (measured in the roadmap).
  *
- * Per position, the best-`keep` moves within `margin` of the best score are kept
- * (margin ≈ a third of a material unit — see EvalWeights.material = 40); ollamh
- * randomises among them at play time for variety. Moves outside the margin are
- * never booked, so variety cannot cost measurable strength.
+ * Per position, the best-`keep` moves within `margin` of the best score are kept;
+ * ollamh randomises among them (and their D4 orientations) at play time for
+ * variety. The shipped book uses `--margin 0` — EXACT ties only — after a
+ * measured lesson: a margin-13 candidate book (~⅓ material unit) lost paired
+ * fixed-depth-8 gauntlet games it should have held (2 bad flips / 0 good in 16),
+ * because "within a small margin of best" is still measurably weaker than best
+ * when the opponent is strong. Margin 0 restores the hard guarantee the book is
+ * sold on: a booked move is exactly what the generation-depth search would play,
+ * never a deliberate sacrifice for variety. Orientation variety survives via the
+ * D4 unfold (a symmetric position offers every image of its best moves).
  *
  * Deterministic: fixed depth, no deadline, no rng. `--parallel K` shards each
  * level's scoring across K child processes (same determinism per position).
@@ -33,7 +39,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { scoreRootMoves } from "../src/game/ai";
+import { resetTT, scoreRootMoves } from "../src/game/ai";
 import { canonicalHash, transformMove } from "../src/game/d4";
 import { allMoves, applyMove, hashBoard, isGameOver } from "../src/game/engine";
 import { encodeMove, rulesFingerprint } from "../src/game/openingBook";
@@ -49,7 +55,7 @@ const flag = (name: string, def: number): number => {
   return i >= 0 ? Number(argv[i + 1]) : def;
 };
 const DEPTH = flag("depth", 8);
-const MARGIN = flag("margin", 13);
+const MARGIN = flag("margin", 0); // exact ties only — see header before raising
 const KEEP = flag("keep", 3);
 const PLIES = flag("plies", 4); // number of plies covered (book plies 0..PLIES-1)
 const PARALLEL = flag("parallel", 1);
@@ -98,8 +104,14 @@ interface Entry {
   nodes: number;
 }
 
-/** Score one canonical position and keep the best-N-within-margin moves. */
+/** Score one canonical position and keep the best-N-within-margin moves.
+ *  The TT is reset per position: the live engine consults the book instead of
+ *  searching, so every booked position must be scored exactly the way the live
+ *  search would score it — from cold. A TT warmed by *other* positions'
+ *  searches measurably drifts root values (search instability) and once put a
+ *  6-point-worse move into an "exact ties" book. */
 function scorePosition(hash: string, depth: number, margin = MARGIN, keep = KEEP): Entry {
+  resetTT();
   const state = stateFromHash(hash);
   const { best, within, nodes } = scoreRootMoves(state, rules, depth, margin);
   const kept = within.slice(0, keep);
@@ -211,10 +223,15 @@ async function main(): Promise<void> {
     return entries;
   };
 
-  // Plies 0–1 are the most-played positions and the cheapest levels (1 + 5
-  // positions), so they get an extra ply of depth for the same handful of
-  // seconds. Deeper levels use the base depth.
-  const rootDepth = DEPTH + 1;
+  // ONE depth everywhere — deliberately, after a measured lesson. Plies 0–1 were
+  // briefly generated a ply deeper (cheap, "better" moves); the paired gauntlet
+  // then showed the book *losing* games its shallower moves held (depth-9 picks a
+  // different opening orbit than depth-8 — e.g. d5-b5 over d5-g5 after d7-c7,
+  // confirmed better at depths 10–11 — but a depth-8 follow-up engine defends the
+  // deeper move's positions worse than its own choice's). A book only helps the
+  // engine that has to play out its lines, so every entry is generated at exactly
+  // the depth ollamh's live opening search measures (8), never deeper.
+  const rootDepth = DEPTH;
 
   // Ply 0 — the opening, attackers to move (attacker cone root).
   const init = canonicalHash(openingHash()).hash;

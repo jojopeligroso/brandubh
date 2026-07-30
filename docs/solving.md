@@ -115,9 +115,9 @@ into `OPENING_BOOK` (in `ai.ts`) and the **Ollamh** tier plays them instantly.
 
 **Update (roadmap Session 6):** the book is no longer empty — but what filled it
 is *not* a solve, and it is deliberately not labelled as one. The shipped book is
-**deep-search best-effort**: each entry comes from a fixed-depth search
-(`scripts/genbook.ts`) at least as deep as Ollamh's own live opening search, so a
-booked move is never weaker than what Ollamh would have found at the board — but
+**deep-search best-effort**: each entry is computed by exactly the search
+Ollamh's live opening pass runs (`scripts/genbook.ts` — same depth, cold table),
+so a booked move is one the engine itself rates equal-best at the board — but
 it carries no game-theoretic guarantee whatsoever. The original "proven moves
 only" bar was retired *explicitly* rather than quietly diluted: the book's
 honest claim is "as strong as the live search, instant, varied", and the

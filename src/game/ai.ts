@@ -1043,31 +1043,42 @@ export function scoreRootMoves(
     if (Math.abs(localBest) >= DECISIVE) break;
   }
 
-  // Pass 2: exact scores for the near-best. Ties are already exact; every other
-  // move gets a margin-widened window at full depth — fail-soft, so a returned
-  // value inside the window is exact, at/over the tie bound means "equal best",
-  // and at/under alpha proves the move is outside the margin.
+  // Pass 2: exact scores for the near-best. Ties are already exact, and at
+  // margin 0 they are the whole answer — the extra pass would only re-search
+  // moves through a TT warmed by pass 1's tight windows, and values reproduced
+  // through foreign bound entries can drift (ordinary alpha–beta search
+  // instability). A drifted value that sneaks a strictly-worse move into an
+  // "exact ties" book is precisely the corruption the offline generator must
+  // not ship, so the margin-0 path stops here. For margin > 0, each remaining
+  // move gets a margin-widened window at full depth — fail-soft, so a value
+  // inside the window is exact — and the accept test compares against the
+  // margin itself, never the (integer-widened) window bound: evaluation scores
+  // are fractional, and accepting everything inside the window would admit
+  // moves up to a point worse than the margin promises.
   const within: RootMoveScore[] = ties.map((m) => ({ move: m, score: best }));
-  for (const m of ordered) {
-    if (ties.some((t) => sameMove(t, m))) continue;
-    const child = applyMove(state, m, rules);
-    if (maximizing) {
-      const v = search(child, depth - 1, 1, best - margin - 1, best, ctx);
-      if (v > best - margin - 1) within.push({ move: m, score: Math.min(v, best) });
-    } else {
-      const v = search(child, depth - 1, 1, best, best + margin + 1, ctx);
-      if (v < best + margin + 1) within.push({ move: m, score: Math.max(v, best) });
+  if (margin > 0) {
+    for (const m of ordered) {
+      if (ties.some((t) => sameMove(t, m))) continue;
+      const child = applyMove(state, m, rules);
+      if (maximizing) {
+        const v = search(child, depth - 1, 1, best - margin - 1, best, ctx);
+        if (v >= best - margin) within.push({ move: m, score: Math.min(v, best) });
+      } else {
+        const v = search(child, depth - 1, 1, best, best + margin + 1, ctx);
+        if (v <= best + margin) within.push({ move: m, score: Math.max(v, best) });
+      }
     }
+    within.sort((a, b) => (maximizing ? b.score - a.score : a.score - b.score));
   }
-  within.sort((a, b) => (maximizing ? b.score - a.score : a.score - b.score));
   return { best, within, nodes: ctx.nodes };
 }
 
 // ── Opening book (deep-search, offline-generated) ─────────────────────────────
 // A map from a position's `hashBoard(board, turn)` to the strong moves to play
-// there, generated offline by scripts/genbook.ts: a fixed-depth search at least
-// as deep as ollamh's own live opening search, keeping the best few moves per
-// position (within a small eval margin) for variety. These moves are
+// there, generated offline by scripts/genbook.ts: a fixed-depth search at
+// exactly the depth ollamh's live opening search measures (deliberately never
+// deeper — a deeper book measurably hurt the shallower follow-up engine; see
+// genbook.ts), keeping the exact-tie best moves per position. These moves are
 // *deep-search best-effort*, NOT proven — the Brandubh opening is not solved
 // (see docs/solving.md), so the book claims "as strong as ollamh searching,
 // instant", never "perfect". What IS guaranteed: a book move is only served
@@ -1111,7 +1122,7 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
   // with folding + LMR, reaches depth ~8–9 in the opening where the clock allows —
   // deep enough to see the king's corner races several moves out. The deep-search
   // opening book skips the slowest early moves: booked replies were searched
-  // offline at least as deep as this tier's live opening search, so they arrive
+  // offline at exactly this tier's measured live opening depth, so they arrive
   // instantly at no measured strength cost (see docs/ROADMAP.md Session 6) —
   // strong, not proven. Named for the highest rank of Gaelic filí.
   ollamh: { limits: { maxDepth: 12, deadlineMs: 8000, minDepth: 5 }, config: FULL_CONFIG, blunder: 0 },

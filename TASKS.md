@@ -11,7 +11,7 @@ Ordered by value ÷ effort:
 3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
 4. ~~**Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.~~ **Shipped** as a cross-validated, default-off knob (`attackerRecognizer`): a capture needs move-gen where an escape is O(1) geometry, so it is neutral-but-not-free — off by default, no throughput regression. See `docs/ROADMAP.md` Session 4.
 5. ~~**Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.~~ **Shipped**.
-6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
+6. ~~**Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.~~ **Shipped**: `scripts/genbook.ts` generates a D4-folded book of exact-best moves (plies 0–3, searched at depth 8–9, margin 0 — a margin-13 "variety" candidate measured a paired-gauntlet regression and was rejected) into the bundled `src/game/openingBook.data.ts`; ollamh plays it instantly, varied via ties + D4 orientations. Honestly labelled *deep-search best-effort* — not proven (see `docs/solving.md`). See `docs/ROADMAP.md` Session 6 for all measurements.
 7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
 
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
@@ -50,8 +50,10 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   were worse, blocker-aware king distance was neutral. The search rewrite already
   captures what those heuristics proxied for. The terms remain as opt-in knobs
   for per-variant retuning (see below).
-- [ ] **Opening book** — ties into the replay/import task below; would remove the
-  weak, samey opening play.
+- [x] **Opening book** — done (roadmap Session 6): deep-search book covering the
+  first two moves of each side, played instantly by ollamh with seeded variety.
+  Not the aagenielsen.dk game-import flavour of book once envisioned below —
+  that remains future work.
 - [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is
   added, revisit the `hard` time budget and eval weights for the larger board.
 - [x] **Board-symmetry (D4) root-move folding** — done (`ai.ts`: `stabilizer` /
