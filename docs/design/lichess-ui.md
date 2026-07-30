@@ -150,7 +150,13 @@ overlay; `useAnalysisWorker` runs the search.
   *live* game's result, so analysing a finished game keeps the eval down a
   variation (which truncates the timeline and would otherwise revoke it), while
   analysis mode entered on an unfinished game gets nothing — that path was a way
-  to ask the engine mid-game and then play on. `evalAvailable` in `evalBar.ts`.
+  to ask the engine mid-game and then play on. `evalAvailable` in `evalBar.ts`. Three routes were closed, not one:
+  analysis mode on an unfinished game; the **7d annotation pass**, which was
+  gated on not disturbing the AI rather than on the game being over, and so ran
+  mid-game over the board; and a **pasted position**, since the position panel
+  shows the current board with a copy button and keying the eval off the pasted
+  root would have made copy-then-paste a two-click bypass. Pasting and exploring
+  by hand still works mid-game — only the engine's opinion waits.
 - **Opt-in twice over** (once available): a Zen extra (`eval`) decides whether the toggle button
   exists; a persisted preference holds whether the bar is on. Off means the
   search is *cancelled*, not merely hidden.

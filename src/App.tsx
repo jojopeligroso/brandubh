@@ -687,14 +687,24 @@ export default function App() {
   // game is still being played, showing it would be an engine telling a player
   // what to do, so it is not offered, not togglable, and not searched for.
   //
-  // The result consulted is the *live* game's, which is why analysis mode is
-  // read through the snapshot: exploring a line truncates the timeline and
-  // makes the tip unfinished again, but the real game behind it is still over.
-  // Analysis entered on an unfinished game gets nothing — that path would
-  // otherwise be a way to ask the engine mid-game and then play on.
-  const liveTipStatus = analysis
-    ? (liveGameRef.current?.states[liveGameRef.current.states.length - 1].status ?? tipStatus)
-    : tipStatus;
+  // The result consulted is the **live game's**, never the position on screen,
+  // and reading it is trivial since 7c: `liveStates` is the live game and
+  // analysis never touches it. That one choice closes every route at once:
+  //
+  //  - reviewing back through an unfinished game lands on positions that are
+  //    not themselves terminal, and still gets nothing;
+  //  - analysis mode on an unfinished game gets nothing — it suppresses the AI
+  //    and never saves, so it looks harmless, but you can enter it mid-game,
+  //    read the engine, leave, and play on;
+  //  - a *pasted* position gets nothing while a game is unfinished. The
+  //    position panel shows the current board with a copy button, so keying the
+  //    eval off the pasted root instead would be a two-click bypass: copy the
+  //    live position, paste it back, read the engine. Pasting and exploring by
+  //    hand still works mid-game; only the engine's opinion waits.
+  //
+  // Analysing a *finished* game keeps the eval throughout, including down a
+  // variation, because the live result is what is being asked about.
+  const liveTipStatus = liveStates[liveStates.length - 1].status;
   const canShowEval = evalAvailable({ liveGameOver: isGameOver(liveTipStatus) });
   const showEval = canShowEval && evalOn && showExtra("eval");
   useEffect(() => {
@@ -902,10 +912,22 @@ export default function App() {
   const marks = annotation?.key === lineKey ? annotation.marks : null;
 
   // The real constraint is the single worker: the pass must not race the AI for
-  // it. So it is offered wherever the AI will not be wanting it — a finished
-  // game, analysis (which suppresses the AI), or over-the-board play (where
-  // there is no computer at all) — and never while a search is in flight.
-  const canAnnotate = tip >= 1 && !thinking && (gameOver || analysis || aiSide === null);
+  // it.
+  //
+  // Availability was originally reasoned about from the *engine's* side — offer
+  // it wherever the AI will not be wanting the worker: a finished game, analysis
+  // (which suppresses the AI), or over-the-board play (where there is no
+  // computer at all). That is a sound answer to a different question, and it
+  // left the pass runnable mid-game in two of those three cases. Re-searching
+  // every move of a game still being played, and being told where it swung, is
+  // engine assistance during play — over the board it is assistance in front of
+  // the opponent it is being used against.
+  //
+  // So it now shares the eval bar's gate: `evalAvailable`, on the *live* game's
+  // result. Annotations are what 7d always called them — post-game — and this is
+  // the reading that matches the name. Analysis on a *finished* game still
+  // annotates, since the gate reads the live result rather than the tip.
+  const canAnnotate = tip >= 1 && !thinking && canShowEval;
 
   const stopAnnotating = useCallback(() => {
     // The in-flight search is left to finish rather than terminating the worker:
