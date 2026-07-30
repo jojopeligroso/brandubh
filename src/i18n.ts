@@ -66,6 +66,10 @@ export interface Translations {
   sectionGame: string;
   sectionMatch: string;
   sectionAppearance: string;
+  menuLabel: string;
+  filterSettings: string;
+  noSettingsMatch: string;
+  language: string;
 
   // Move navigation
   prevMove: string;
@@ -115,7 +119,6 @@ export interface Translations {
   zenElCaptured: string;
   zenElNav: string;
   zenElRules: string;
-  zenElSettings: string;
 
   // Custom rules
   customRulesTitle: string;
@@ -274,12 +277,16 @@ export interface Translations {
   importErrMovesAfterEnd: string;
   importErrCaptureMismatch: string;
   importErrUnreadableFile: string;
-  zenElGameFile: string;
 
   // Side picker (opening overlay)
   chooseSide: string;
   sideKingHint: string;
   sideRaidersHint: string;
+
+  // Time picker (opening overlay)
+  chooseTime: string;
+  casualLabel: string;
+  casualHint: string;
 }
 
 const en: Translations = {
@@ -335,6 +342,10 @@ const en: Translations = {
   sectionGame: "Game",
   sectionMatch: "Match",
   sectionAppearance: "Appearance",
+  menuLabel: "Menu",
+  filterSettings: "Filter settings…",
+  noSettingsMatch: "No matching settings",
+  language: "Language",
 
   prevMove: "Previous move",
   nextMove: "Next move",
@@ -381,7 +392,6 @@ const en: Translations = {
   zenElCaptured: "Captured pieces",
   zenElNav: "Move navigation",
   zenElRules: "Rules button",
-  zenElSettings: "Settings panels",
 
   customRulesTitle: "Custom rules",
   ruleArmedKing: "Armed king",
@@ -528,7 +538,7 @@ const en: Translations = {
       "Official WTF tournament rules (aagenielsen.dk). The empty throne is hostile to soldiers but never to the king. King on the throne needs all four sides surrounded. Encirclement wins. Repetition is a loss for the defending side.",
     custom: "Your custom ruleset.",
   },
-  gameFileTitle: "Export / import game",
+  gameFileTitle: "Export / import",
   exportLabel: "Export this game",
   exportDownload: "Download",
   exportCopy: "Copy",
@@ -553,11 +563,14 @@ const en: Translations = {
   importErrMovesAfterEnd: "the move list carries on after the game had ended.",
   importErrCaptureMismatch: "the captures do not match this ruleset.",
   importErrUnreadableFile: "that file could not be read.",
-  zenElGameFile: "Export / import",
 
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
   sideRaidersHint: "Eight raiders · capture the king · you move first",
+
+  chooseTime: "How much time?",
+  casualLabel: "Casual",
+  casualHint: "No clock — take your time",
 };
 
 const es: Translations = {
@@ -618,6 +631,10 @@ const es: Translations = {
   sectionGame: "Juego",
   sectionMatch: "Encuentro",
   sectionAppearance: "Apariencia",
+  menuLabel: "Menú",
+  filterSettings: "Filtrar ajustes…",
+  noSettingsMatch: "Ningún ajuste coincide",
+  language: "Idioma",
 
   prevMove: "Jugada anterior",
   nextMove: "Jugada siguiente",
@@ -664,7 +681,6 @@ const es: Translations = {
   zenElCaptured: "Piezas capturadas",
   zenElNav: "Navegaci\u00f3n de jugadas",
   zenElRules: "Bot\u00f3n de reglas",
-  zenElSettings: "Paneles de ajustes",
 
   customRulesTitle: "Reglas personalizadas",
   ruleArmedKing: "Rey armado",
@@ -816,7 +832,7 @@ const es: Translations = {
       "Reglas oficiales del torneo FMT (aagenielsen.dk). El trono vac\u00edo es hostil para los soldados pero nunca para el rey. El rey en el trono necesita los cuatro lados rodeados. El cerco gana. La repetici\u00f3n es una derrota para el bando defensor.",
     custom: "Tu conjunto de reglas personalizado.",
   },
-  gameFileTitle: "Exportar / importar partida",
+  gameFileTitle: "Exportar / importar",
   exportLabel: "Exportar esta partida",
   exportDownload: "Descargar",
   exportCopy: "Copiar",
@@ -841,12 +857,14 @@ const es: Translations = {
   importErrMovesAfterEnd: "la lista de jugadas contin\u00faa despu\u00e9s de terminar la partida.",
   importErrCaptureMismatch: "las capturas no cuadran con este reglamento.",
   importErrUnreadableFile: "no se pudo leer ese archivo.",
-  zenElGameFile: "Exportar / importar",
-
   chooseSide: "¿Con qué bando jugarás?",
   sideKingHint:
     "El rey y cuatro guerreros · alcanza una esquina · los asaltantes mueven primero",
   sideRaidersHint: "Ocho asaltantes · captura al rey · mueves primero",
+
+  chooseTime: "¿Cuánto tiempo?",
+  casualLabel: "Amistosa",
+  casualHint: "Sin reloj — tómate tu tiempo",
 };
 
 const ga: Translations = {
@@ -907,6 +925,10 @@ const ga: Translations = {
   sectionGame: "Cluiche",
   sectionMatch: "Comórtas",
   sectionAppearance: "Cuma",
+  menuLabel: "Roghchlár",
+  filterSettings: "Scag na socruithe…",
+  noSettingsMatch: "Níl aon socrú ag teacht leis",
+  language: "Teanga",
 
   prevMove: "An bogadh roimhe seo",
   nextMove: "An chéad bhogadh eile",
@@ -953,7 +975,6 @@ const ga: Translations = {
   zenElCaptured: "Píosaí gafa",
   zenElNav: "Nascleanúint bogtha",
   zenElRules: "Cnaipe rialacha",
-  zenElSettings: "Painéil socruithe",
 
   customRulesTitle: "Rialacha saincheaptha",
   ruleArmedKing: "Rí armtha",
@@ -1107,7 +1128,7 @@ const ga: Translations = {
       "Rialacha oifigi\u00faila com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don thaobh cosanta.",
     custom: "Do shraith rialacha f\u00e9in.",
   },
-  gameFileTitle: "Easport\u00e1il / iomp\u00f3rt\u00e1il cluiche",
+  gameFileTitle: "Easport\u00e1il / iomp\u00f3rt\u00e1il",
   exportLabel: "Easport\u00e1il an cluiche seo",
   exportDownload: "\u00cdosl\u00f3d\u00e1il",
   exportCopy: "C\u00f3ipe\u00e1il",
@@ -1132,12 +1153,15 @@ const ga: Translations = {
   importErrMovesAfterEnd: "leanann liosta na mbeart ar aghaidh tar \u00e9is dheireadh an chluiche.",
   importErrCaptureMismatch: "n\u00ed r\u00e9it\u00edonn na gabh\u00e1lacha leis an sraith rialacha seo.",
   importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
-  zenElGameFile: "Easport\u00e1il / iomp\u00f3rt\u00e1il",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:
     "An r\u00ed agus ceathrar laoch \u00b7 sroich c\u00fainne \u00b7 bogann na foghlaithe ar dt\u00fas",
   sideRaidersHint: "Ochtar foghlaithe \u00b7 gabh an r\u00ed \u00b7 bogann t\u00fa ar dt\u00fas",
+
+  chooseTime: "C\u00e9 mh\u00e9ad ama?",
+  casualLabel: "R\u00e9ch\u00faiseach",
+  casualHint: "Gan chlog \u2014 t\u00f3g d'am",
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };

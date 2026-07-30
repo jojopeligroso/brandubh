@@ -2,9 +2,10 @@ import { formatClock, isLowTime } from "../game/clock";
 import type { Side } from "../game/types";
 
 /**
- * A single side's clock face — the raiders' or the king's bank. Highlights while
- * that side is on the move, turns urgent red in the final ten seconds, and dims
- * to a flag once the bank is spent.
+ * A side's plate above/below the board: its name, and — when a clock is in
+ * play — its remaining bank. The plate of the side to move is highlighted, so
+ * it doubles as the turn indicator (there is no separate status bar). It turns
+ * urgent red in the final ten seconds and dims to a flag once the bank is spent.
  */
 export default function GameClock({
   name,
@@ -15,10 +16,12 @@ export default function GameClock({
   flagged,
   increment,
   flagLabel,
+  thinking,
 }: {
   name: string;
   side: Side;
-  ms: number;
+  /** Remaining bank in ms, or null when the game is untimed (no clock shown). */
+  ms: number | null;
   /** This side is the one to move. */
   active: boolean;
   /** The clock as a whole is ticking right now. */
@@ -28,8 +31,11 @@ export default function GameClock({
   /** Fischer increment, seconds — shown as a "+2" badge. */
   increment: number;
   flagLabel: string;
+  /** The computer holds this side and is choosing its move. */
+  thinking?: boolean;
 }) {
-  const low = isLowTime(ms) && !flagged;
+  const timed = ms !== null;
+  const low = timed && isLowTime(ms) && !flagged;
   const classes = [
     "clock",
     `clock-${side}`,
@@ -42,14 +48,27 @@ export default function GameClock({
     .join(" ");
 
   return (
-    <div className={classes} aria-label={`${name} — ${formatClock(ms)}`} aria-live="off">
+    <div
+      className={classes}
+      aria-label={timed ? `${name} — ${formatClock(ms)}` : name}
+      aria-live="off"
+    >
       <span className="clock-name">
         {name}
-        {increment > 0 && <span className="clock-inc">+{increment}</span>}
+        {timed && increment > 0 && <span className="clock-inc">+{increment}</span>}
+        {thinking && (
+          <span className="clock-thinking" aria-hidden>
+            <i />
+            <i />
+            <i />
+          </span>
+        )}
       </span>
-      <span className="clock-time font-mono">
-        {flagged ? flagLabel : formatClock(ms)}
-      </span>
+      {timed && (
+        <span className="clock-time font-mono">
+          {flagged ? flagLabel : formatClock(ms)}
+        </span>
+      )}
     </div>
   );
 }

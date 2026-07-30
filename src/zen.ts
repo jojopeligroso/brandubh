@@ -9,8 +9,8 @@
 // game actually ends, never as a persistent button mid-play. Everything else is
 // an opt-in *extra* — hidden by default in Zen and revealed individually from
 // settings: the match scoreboard, captured tray, move navigator, rules button,
-// propose-takeback, resign, pause, the settings panels themselves and the
-// export/import panel.
+// propose-takeback, resign and pause. Settings and the export/import panel live
+// in the always-reachable menu, so they need no Zen toggle of their own.
 
 export type ZenExtraId =
   | "scoreboard"
@@ -19,9 +19,7 @@ export type ZenExtraId =
   | "rules"
   | "takeback"
   | "resign"
-  | "pause"
-  | "settings"
-  | "gamefile";
+  | "pause";
 
 /** Opt-in extras, in the order they appear in the settings picker. */
 export const ZEN_EXTRAS: ZenExtraId[] = [
@@ -32,8 +30,6 @@ export const ZEN_EXTRAS: ZenExtraId[] = [
   "takeback",
   "resign",
   "pause",
-  "settings",
-  "gamefile",
 ];
 
 export interface ZenConfig {
@@ -46,20 +42,22 @@ export interface ZenConfig {
 export const ZEN_ENABLED_KEY = "brandubh.zen.enabled";
 export const ZEN_EXTRAS_KEY = "brandubh.zen.extras";
 
-const noExtras = (): Record<ZenExtraId, boolean> =>
+const defaultExtras = (): Record<ZenExtraId, boolean> =>
   ZEN_EXTRAS.reduce(
     (acc, id) => {
-      acc[id] = false;
+      // Move navigation stays available in Zen out of the box — stepping through
+      // the game is part of the calm flow, not clutter. Everything else opts in.
+      acc[id] = id === "nav";
       return acc;
     },
     {} as Record<ZenExtraId, boolean>,
   );
 
-export const defaultZenConfig = (): ZenConfig => ({ enabled: false, extras: noExtras() });
+export const defaultZenConfig = (): ZenConfig => ({ enabled: false, extras: defaultExtras() });
 
-/** Parse a stored extras map, keeping only known boolean flags (missing → off). */
+/** Parse a stored extras map, keeping only known boolean flags (missing → default). */
 export function parseZenExtras(raw: string | null): Record<ZenExtraId, boolean> {
-  const extras = noExtras();
+  const extras = defaultExtras();
   if (!raw) return extras;
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -69,7 +67,7 @@ export function parseZenExtras(raw: string | null): Record<ZenExtraId, boolean> 
       }
     }
   } catch {
-    /* malformed — fall back to no extras */
+    /* malformed — fall back to the defaults */
   }
   return extras;
 }

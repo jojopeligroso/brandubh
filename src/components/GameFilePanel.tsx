@@ -151,14 +151,11 @@ export default function GameFilePanel({ t, state, rules, meta, onImport }: Props
     if (fileInput.current) fileInput.current.value = "";
   };
 
+  // Body-only: the settings menu's accordion supplies the title and collapse.
   return (
-    <details className="card mt-4 p-4" data-testid="gamefile-panel">
-      <summary className="cursor-pointer text-sm font-semibold text-parchment-dim">
-        {t.gameFileTitle}
-      </summary>
-
+    <div data-testid="gamefile-panel">
       {/* ── Export ── */}
-      <section className="mt-3">
+      <section>
         <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
           {t.exportLabel}
         </span>
@@ -241,6 +238,6 @@ export default function GameFilePanel({ t, state, rules, meta, onImport }: Props
           </div>
         )}
       </section>
-    </details>
+    </div>
   );
 }

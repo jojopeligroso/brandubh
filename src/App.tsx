@@ -79,7 +79,7 @@ import {
   type ZenConfig,
   type ZenExtraId,
 } from "./zen";
-import { type Lang, type Translations, translations } from "./i18n";
+import { type Lang, type Translations, translations, VISIBLE_LANGS } from "./i18n";
 import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
 import {
   applyPieceColors,
@@ -326,6 +326,7 @@ export default function App() {
   const [showNewMatchConfirm, setShowNewMatchConfirm] = useState(false);
   const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const rules: RuleSet =
     variantId === "custom"
@@ -763,6 +764,34 @@ export default function App() {
     setCursor(tip);
   }, [tip]);
 
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+  // "z" toggles Zen; ←/→ step through the move timeline — never while typing in
+  // a field, and never with a modifier held (browser shortcuts stay theirs).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "z" || e.key === "Z") {
+        setZen((z) => ({ ...z, enabled: !z.enabled }));
+      } else if (e.key === "ArrowLeft") {
+        goPrev();
+      } else if (e.key === "ArrowRight") {
+        goNext();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goPrev, goNext]);
+
   // Branch the game at the currently-viewed position and resume play.
   const playFromHere = useCallback(
     (vsComputer: boolean) => {
@@ -923,18 +952,20 @@ export default function App() {
   };
   // Browsing the game shows each position's own clocks — the times it was first
   // offered with — rather than the live banks, so what you see while reviewing
-  // is what you get if you resume from there.
+  // is what you get if you resume from there. The plates render with or without
+  // a clock: they double as the turn indicator, so they are always on screen.
   const viewedBanks = reviewing ? banksAt(clockLine, cursor, timeControl) : clock.remaining;
-  const renderClock = (side: Side) => (
+  const renderPlate = (side: Side) => (
     <GameClock
       name={sideLabel(side, t)}
       side={side}
-      ms={viewedBanks[side]}
-      active={reviewing ? game.turn === side : clock.active === side}
+      ms={clock.enabled ? viewedBanks[side] : null}
+      active={!gameOver && game.turn === side}
       running={clock.running}
-      flagged={!reviewing && clock.flagged === side}
+      flagged={clock.enabled && !reviewing && clock.flagged === side}
       increment={timeControl?.incrementSeconds ?? 0}
       flagLabel={t.flagLabel}
+      thinking={thinking && side === aiSide}
     />
   );
 
@@ -942,13 +973,12 @@ export default function App() {
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
       <Header
         t={t}
-        lang={lang}
-        onLang={setLang}
-        onShowRules={() => setShowRules(true)}
-        onShowDesign={() => setShowDesign(true)}
+        zenOn={zen.enabled}
+        onToggleZen={() => setZenEnabled(!zen.enabled)}
+        onMenu={() => setShowMenu(true)}
       />
 
-      <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
+      {gameOver && <ResultBanner t={t} status={game.status} />}
 
       {otbMatch && showExtra("scoreboard") && (
         <SetScoreboard
@@ -961,9 +991,9 @@ export default function App() {
         />
       )}
 
-      {clock.enabled && <div className="mt-3">{renderClock(topSide)}</div>}
+      <div className="mt-3">{renderPlate(topSide)}</div>
 
-      <div className="mt-3">
+      <div className="mt-2">
         <Board
           board={game.board}
           rules={rules}
@@ -981,7 +1011,7 @@ export default function App() {
         />
       </div>
 
-      {clock.enabled && <div className="mt-3">{renderClock(bottomSide)}</div>}
+      <div className="mt-2">{renderPlate(bottomSide)}</div>
 
       {showExtra("captured") && <CapturedTray t={t} game={game} />}
 
@@ -1011,7 +1041,7 @@ export default function App() {
           progression || showRulesBtn || showTakebackBtn || showResignBtn || showPauseBtn;
         if (!anyControls) return null;
         return (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="fade-in mt-3 flex flex-wrap items-center gap-2">
             {progression && (
               <button className="btn btn-primary" onClick={primaryAction}>
                 {primaryLabel}
@@ -1060,72 +1090,64 @@ export default function App() {
         />
       )}
 
-      {/* The settings panels can themselves be hidden in Zen. When they are, the
-          same Zen controls remain in the always-reachable gear ⚙ modal, so you
-          are never locked out. */}
-      {showExtra("settings") && (
-        <>
-          <Settings
-            t={t}
-            variantId={variantId}
-            onVariant={changeVariant}
-            playMode={playMode}
-            onMode={changeMode}
-            difficulty={difficulty}
-            onDifficulty={setDifficulty}
-            gamesPerSet={gamesPerSet}
-            onSetLength={changeSetLength}
-            canNewMatch={matchHasProgress}
-            onNewMatch={requestNewMatch}
-            onShowDesign={() => setShowDesign(true)}
-          />
-
-          <ClockSettings
-            t={t}
-            enabled={clockEnabled}
-            onEnabled={setClockEnabled}
-            controlId={controlId}
-            onControl={setControlId}
-            customMinutes={customMinutes}
-            onCustomMinutes={setCustomMinutes}
-            customIncrement={customIncrement}
-            onCustomIncrement={setCustomIncrement}
-          />
-
-          <div className="card mt-4 p-4">
-            <ZenSettings
-              t={t}
-              zen={zen}
-              onEnabled={setZenEnabled}
-              onToggleExtra={toggleZenExtra}
-            />
-          </div>
-
-          {variantId === "custom" && (
-            <CustomRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
-          )}
-        </>
-      )}
-
       <MoveLog t={t} game={states[tip]} activeIndex={cursor - 1} onMoveClick={(i) => setCursor(i + 1)} />
 
-      {/* Export/import the whole mainline — always the tip, never the position
-          currently under review (see docs/design/game-import-export.md). */}
-      {showExtra("gamefile") && (
-        <GameFilePanel
-          t={t}
-          state={states[tip]}
-          rules={rules}
-          meta={exportMeta}
-          onImport={loadImportedGame}
-        />
-      )}
-
-      {aiSide !== null && lastAiInfo && (
+      {!zen.enabled && aiSide !== null && lastAiInfo && (
         <p className="mt-1 text-center font-mono text-[11px] text-parchment-dim/70 tabular-nums">
           {lastAiInfo.difficulty} · depth {lastAiInfo.depth} · {lastAiInfo.nodes.toLocaleString()} nodes ·{" "}
           {Math.round(lastAiInfo.elapsedMs)} ms
         </p>
+      )}
+
+      {/* Every setting lives in the one menu — filterable, collapsible, always
+          reachable from the header (Zen included), so nothing can lock you out. */}
+      {showMenu && (
+        <SettingsMenu
+          t={t}
+          lang={lang}
+          onLang={setLang}
+          onClose={() => setShowMenu(false)}
+          onShowRules={() => {
+            setShowMenu(false);
+            setShowRules(true);
+          }}
+          onShowDesign={() => {
+            setShowMenu(false);
+            setShowDesign(true);
+          }}
+          variantId={variantId}
+          onVariant={changeVariant}
+          playMode={playMode}
+          onMode={changeMode}
+          difficulty={difficulty}
+          onDifficulty={setDifficulty}
+          gamesPerSet={gamesPerSet}
+          onSetLength={changeSetLength}
+          canNewMatch={matchHasProgress}
+          onNewMatch={requestNewMatch}
+          clockEnabled={clockEnabled}
+          onClockEnabled={setClockEnabled}
+          controlId={controlId}
+          onControl={setControlId}
+          customMinutes={customMinutes}
+          onCustomMinutes={setCustomMinutes}
+          customIncrement={customIncrement}
+          onCustomIncrement={setCustomIncrement}
+          zen={zen}
+          onZenEnabled={setZenEnabled}
+          onToggleZenExtra={toggleZenExtra}
+          customRules={customRules}
+          onCustomRules={setCustomRules}
+          gameFile={
+            <GameFilePanel
+              t={t}
+              state={states[tip]}
+              rules={rules}
+              meta={exportMeta}
+              onImport={loadImportedGame}
+            />
+          }
+        />
       )}
 
       {showRules && <RulesModal t={t} rules={rules} onClose={() => setShowRules(false)} />}
@@ -1140,7 +1162,17 @@ export default function App() {
           resume={pendingResume}
           onResume={resumeSavedGame}
           onDiscardResume={discardSavedGame}
-          onChoose={(m) => {
+          clockEnabled={clockEnabled}
+          controlId={controlId}
+          onStart={(m, timeId) => {
+            // The chosen pace rides in with the game: a preset id arms the
+            // clock with it; Casual switches the clock off entirely.
+            if (timeId) {
+              setControlId(timeId);
+              setClockEnabled(true);
+            } else {
+              setClockEnabled(false);
+            }
             changeMode(m);
             setShowModeOverlay(false);
           }}
@@ -1245,9 +1277,6 @@ export default function App() {
           onDefenderEmblem={setDefenderEmblem}
           cornerEmblem={cornerEmblem}
           onCornerEmblem={setCornerEmblem}
-          zen={zen}
-          onZenEnabled={setZenEnabled}
-          onToggleZenExtra={toggleZenExtra}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -1258,16 +1287,14 @@ export default function App() {
 // ── Sub-components ──────────────────────────────────────────────────────────────
 function Header({
   t,
-  lang,
-  onLang,
-  onShowRules,
-  onShowDesign,
+  zenOn,
+  onToggleZen,
+  onMenu,
 }: {
   t: Translations;
-  lang: Lang;
-  onLang: (l: Lang) => void;
-  onShowRules: () => void;
-  onShowDesign: () => void;
+  zenOn: boolean;
+  onToggleZen: () => void;
+  onMenu: () => void;
 }) {
   return (
     <header className="flex items-center justify-between gap-2">
@@ -1277,100 +1304,73 @@ function Header({
               "Brandubh" renders "Branduḃ". */}
           {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h1>
-        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
-          {t.subtitle}
-        </p>
+        {/* The tagline is chrome, not play — it rests while Zen is on. */}
+        {!zenOn && (
+          <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
+            {t.subtitle}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-2">
-        <div className="seg">
-          <button className={lang === "en" ? "on" : ""} onClick={() => onLang("en")}>
-            EN
-          </button>
-          <button className={lang === "es" ? "on" : ""} onClick={() => onLang("es")}>
-            ES
-          </button>
-        </div>
-        <button className="btn" onClick={onShowRules}>
-          {t.howToPlay}
-        </button>
         <button
-          className="iconbtn"
-          onClick={onShowDesign}
-          aria-label={t.design}
-          title={t.design}
+          className={`iconbtn ${zenOn ? "on" : ""}`}
+          onClick={onToggleZen}
+          aria-pressed={zenOn}
+          aria-label={t.zenMode}
+          title={`${t.zenMode} (z)`}
         >
-          <GearIcon />
+          <ZenIcon />
+        </button>
+        <button className="iconbtn" onClick={onMenu} aria-label={t.menuLabel} title={t.menuLabel}>
+          <MenuIcon />
         </button>
       </div>
     </header>
   );
 }
 
-function GearIcon() {
+// Crescent moon — the calm of Zen mode.
+function ZenIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <circle cx="12" cy="12" r="3.2" />
       <path
-        d="M12 2.5l1.4 2.6 2.9-.5.4 2.9 2.6 1.4-1.3 2.6 1.3 2.6-2.6 1.4-.4 2.9-2.9-.5L12 21.5l-1.4-2.6-2.9.5-.4-2.9-2.6-1.4 1.3-2.6-1.3-2.6 2.6-1.4.4-2.9 2.9.5z"
+        d="M20.5 13.6A8.7 8.7 0 1 1 10.4 3.5a7 7 0 0 0 10.1 10.1Z"
         strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-function StatusBar({
-  t,
-  game,
-  thinking,
-  humanSide,
-  aiSide,
-}: {
-  t: Translations;
-  game: GameState;
-  thinking: boolean;
-  humanSide: Side | null;
-  aiSide: Side | null;
-}) {
-  let text: string;
-  let tone = "text-parchment";
-  if (isGameOver(game.status)) {
-    const w = winnerOf(game.status);
-    if (w === "draw") {
-      text = t.drawMessage;
-    } else {
-      if (game.status === "defenders_win_escape") text = t.defendersWinEscape;
-      else if (game.status === "attackers_win_capture") text = t.attackersWinCapture;
-      else if (game.status === "attackers_win_encirclement") text = t.attackersWinEncirclement;
-      else if (game.status === "attackers_win_repetition") text = t.attackersWinRepetition;
-      else if (game.status === "attackers_win_no_moves") text = t.attackersWinNoMoves;
-      else if (game.status === "attackers_win_resign") text = t.attackersWinResign;
-      else if (game.status === "defenders_win_resign") text = t.defendersWinResign;
-      else if (game.status === "attackers_win_time") text = t.attackersWinTime;
-      else if (game.status === "defenders_win_time") text = t.defendersWinTime;
-      else text = t.defendersWinNoMoves;
-      tone = w === "defenders" ? "text-gold" : "text-blood";
-    }
-  } else {
-    const toMove = sideLabel(game.turn, t);
-    const who =
-      humanSide === null
-        ? `${toMove} ${t.toMove}`
-        : game.turn === humanSide
-          ? `${t.yourMove} · ${toMove}`
-          : thinking
-            ? `${toMove} ${t.thinkingSuffix}`
-            : `${toMove} ${t.toMove}`;
-    text = who;
-    if (aiSide && game.turn === aiSide) tone = "text-parchment-dim";
-  }
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+    </svg>
+  );
+}
 
-  const live = !isGameOver(game.status);
-  const turnGlow = live ? ` turn-glow turn-glow-${game.turn}` : "";
+// Shown only once a game has actually ended — the calm counterpart of the old
+// always-on status bar. Whose turn it is now lives on the side plates.
+function ResultBanner({ t, status }: { t: Translations; status: GameStatus }) {
+  const w = winnerOf(status);
+  let text: string;
+  if (w === "draw") text = t.drawMessage;
+  else if (status === "defenders_win_escape") text = t.defendersWinEscape;
+  else if (status === "attackers_win_capture") text = t.attackersWinCapture;
+  else if (status === "attackers_win_encirclement") text = t.attackersWinEncirclement;
+  else if (status === "attackers_win_repetition") text = t.attackersWinRepetition;
+  else if (status === "attackers_win_no_moves") text = t.attackersWinNoMoves;
+  else if (status === "attackers_win_resign") text = t.attackersWinResign;
+  else if (status === "defenders_win_resign") text = t.defendersWinResign;
+  else if (status === "attackers_win_time") text = t.attackersWinTime;
+  else if (status === "defenders_win_time") text = t.defendersWinTime;
+  else text = t.defendersWinNoMoves;
+  const tone =
+    w === "draw" ? "text-parchment" : w === "defenders" ? "text-gold" : "text-blood";
 
   return (
-    <div className={`card mt-4 flex items-center justify-between px-4 py-2.5${turnGlow}`}>
+    <div className="card fade-in mt-4 px-4 py-2.5 text-center">
       <span className={`font-display text-lg ${tone}`}>{text}</span>
-      <span className="font-mono text-xs text-parchment-dim">{t.moveLabel} {game.moveCount}</span>
     </div>
   );
 }
@@ -1643,7 +1643,7 @@ function ReviewBar({
   onPlayVsAi: () => void;
 }) {
   return (
-    <div className="card mt-3 p-3">
+    <div className="card fade-in mt-3 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-parchment-dim">
           {reviewing ? `${t.reviewingLabel} · ${moveNumber}/${totalMoves}` : t.playFromHere}
@@ -1669,8 +1669,18 @@ function ReviewBar({
   );
 }
 
-function Settings({
+// ── Settings menu ─────────────────────────────────────────────────────────────
+// The one place every setting lives: a dropdown from the header's menu button,
+// hamburger-style. A filter box narrows the accordion sections by name; with no
+// filter, one section opens at a time. Quick actions (how to play, language)
+// sit above the fold.
+function SettingsMenu({
   t,
+  lang,
+  onLang,
+  onClose,
+  onShowRules,
+  onShowDesign,
   variantId,
   onVariant,
   playMode,
@@ -1681,9 +1691,27 @@ function Settings({
   onSetLength,
   canNewMatch,
   onNewMatch,
-  onShowDesign,
+  clockEnabled,
+  onClockEnabled,
+  controlId,
+  onControl,
+  customMinutes,
+  onCustomMinutes,
+  customIncrement,
+  onCustomIncrement,
+  zen,
+  onZenEnabled,
+  onToggleZenExtra,
+  customRules,
+  onCustomRules,
+  gameFile,
 }: {
   t: Translations;
+  lang: Lang;
+  onLang: (l: Lang) => void;
+  onClose: () => void;
+  onShowRules: () => void;
+  onShowDesign: () => void;
   variantId: string;
   onVariant: (id: string) => void;
   playMode: PlayMode;
@@ -1694,108 +1722,260 @@ function Settings({
   onSetLength: (n: number) => void;
   canNewMatch: boolean;
   onNewMatch: () => void;
-  onShowDesign: () => void;
+  clockEnabled: boolean;
+  onClockEnabled: (v: boolean) => void;
+  controlId: string;
+  onControl: (id: string) => void;
+  customMinutes: number;
+  onCustomMinutes: (n: number) => void;
+  customIncrement: number;
+  onCustomIncrement: (n: number) => void;
+  zen: ZenConfig;
+  onZenEnabled: (v: boolean) => void;
+  onToggleZenExtra: (id: ZenExtraId) => void;
+  customRules: CustomRuleSet;
+  onCustomRules: (r: CustomRuleSet) => void;
+  gameFile: React.ReactNode;
 }) {
-  return (
-    <div className="card mt-4 space-y-4 p-4">
-      <h2 className="font-display text-lg text-parchment">{t.settings}</h2>
+  const [filter, setFilter] = useState("");
+  const [openId, setOpenId] = useState("game");
 
-      {/* ── Game ── how you play: side, opponent strength, ruleset ── */}
-      <SettingsSection label={t.sectionGame}>
-        <Row label={t.playAs}>
-          <div className="seg">
-            {(
-              [
-                ["defenders", t.king],
-                ["attackers", t.raiders],
-                ["hotseat", t.overTheBoard],
-              ] as [PlayMode, string][]
-            ).map(([m, l]) => (
-              <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
-                {l}
-              </button>
-            ))}
-          </div>
-        </Row>
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-        {playMode !== "hotseat" && (
-          <Row label={t.aiLevel}>
+  const zenExtraLabels: Record<ZenExtraId, string> = {
+    scoreboard: t.zenElScoreboard,
+    captured: t.zenElCaptured,
+    nav: t.zenElNav,
+    rules: t.zenElRules,
+    takeback: t.proposeTakeback,
+    resign: t.resign,
+    pause: t.pause,
+  };
+
+  const sections: { id: string; title: string; keywords: string[]; body: React.ReactNode }[] = [
+    {
+      id: "game",
+      title: t.sectionGame,
+      keywords: [
+        t.playAs, t.king, t.raiders, t.overTheBoard, t.aiLevel,
+        t.easy, t.medium, t.hard, t.ollamh, t.variant,
+      ],
+      body: (
+        <div className="space-y-3">
+          <Row label={t.playAs}>
             <div className="seg">
-              {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard], ["ollamh", t.ollamh]] as [Difficulty, string][]).map(([d, label]) => (
-                <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
-                  {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
-                  {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
-                </button>
-              )))}
-            </div>
-          </Row>
-        )}
-
-        <Row label={t.variant}>
-          <select
-            className="btn"
-            value={variantId}
-            onChange={(e) => onVariant(e.target.value)}
-          >
-            {Object.values(VARIANTS).map((v) => (
-              <option key={v.id} value={v.id}>
-                {t.variantNames[v.id] ?? v.name}
-              </option>
-            ))}
-            <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
-          </select>
-        </Row>
-      </SettingsSection>
-
-      {/* ── Match ── over-the-board series controls (hotseat only) ── */}
-      {playMode === "hotseat" && (
-        <SettingsSection label={t.sectionMatch}>
-          <Row label={t.setLength}>
-            <div className="seg">
-              {SET_LENGTH_OPTIONS.map((n) => (
-                <button key={n} className={gamesPerSet === n ? "on" : ""} onClick={() => onSetLength(n)}>
-                  {n}
+              {(
+                [
+                  ["defenders", t.king],
+                  ["attackers", t.raiders],
+                  ["hotseat", t.overTheBoard],
+                ] as [PlayMode, string][]
+              ).map(([m, l]) => (
+                <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
+                  {l}
                 </button>
               ))}
             </div>
           </Row>
-
-          {/* Reset the running match — kept here (not in the action row) so it
-              can't be fumbled mid-set, but still reachable while a set is live. */}
-          {canNewMatch && (
-            <Row label={t.newMatch}>
-              <button className="btn" onClick={onNewMatch}>
-                {t.newMatch}
-              </button>
+          {playMode !== "hotseat" && (
+            <Row label={t.aiLevel}>
+              <div className="seg">
+                {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard], ["ollamh", t.ollamh]] as [Difficulty, string][]).map(([d, label]) => (
+                  <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
+                    {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
+                    {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
+                  </button>
+                )))}
+              </div>
             </Row>
           )}
-        </SettingsSection>
-      )}
-
-      {/* ── Appearance ── board & piece look (opens the design modal) ── */}
-      <SettingsSection label={t.sectionAppearance}>
+          <Row label={t.variant}>
+            <select className="btn" value={variantId} onChange={(e) => onVariant(e.target.value)}>
+              {Object.values(VARIANTS).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {t.variantNames[v.id] ?? v.name}
+                </option>
+              ))}
+              <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
+            </select>
+          </Row>
+        </div>
+      ),
+    },
+    {
+      id: "clock",
+      title: t.clock,
+      keywords: [
+        t.timeControlLabel, t.clockOff, t.catBullet, t.catBlitz, t.catRapid,
+        t.customTimeControl, t.minutesLabel, t.incrementLabel,
+      ],
+      body: (
+        <ClockSettingsBody
+          t={t}
+          enabled={clockEnabled}
+          onEnabled={onClockEnabled}
+          controlId={controlId}
+          onControl={onControl}
+          customMinutes={customMinutes}
+          onCustomMinutes={onCustomMinutes}
+          customIncrement={customIncrement}
+          onCustomIncrement={onCustomIncrement}
+        />
+      ),
+    },
+    ...(playMode === "hotseat"
+      ? [
+          {
+            id: "match",
+            title: t.sectionMatch,
+            keywords: [t.setLength, t.newMatch],
+            body: (
+              <div className="space-y-3">
+                <Row label={t.setLength}>
+                  <div className="seg">
+                    {SET_LENGTH_OPTIONS.map((n) => (
+                      <button
+                        key={n}
+                        className={gamesPerSet === n ? "on" : ""}
+                        onClick={() => onSetLength(n)}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </Row>
+                {/* Reset the running match — kept in the menu (not the action
+                    row) so it can't be fumbled mid-set, yet stays reachable. */}
+                {canNewMatch && (
+                  <Row label={t.newMatch}>
+                    <button className="btn" onClick={onNewMatch}>
+                      {t.newMatch}
+                    </button>
+                  </Row>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
+    {
+      id: "zen",
+      title: t.zenMode,
+      keywords: [t.zenShowExtras, ...Object.values(zenExtraLabels)],
+      body: <ZenSettings t={t} zen={zen} onEnabled={onZenEnabled} onToggleExtra={onToggleZenExtra} />,
+    },
+    ...(variantId === "custom"
+      ? [
+          {
+            id: "rules",
+            title: t.customRulesTitle,
+            keywords: [t.ruleArmedKing, t.ruleCornersHostile, t.repetitionResultLabel],
+            body: <CustomRuleEditor t={t} rules={customRules} onChange={onCustomRules} />,
+          },
+        ]
+      : []),
+    {
+      id: "appearance",
+      title: t.sectionAppearance,
+      keywords: [t.design, t.colourTheme, t.pieceColours],
+      body: (
         <button className="btn w-full justify-center" onClick={onShowDesign}>
           {t.design}
         </button>
-      </SettingsSection>
-    </div>
-  );
-}
+      ),
+    },
+    {
+      id: "gamefile",
+      title: t.gameFileTitle,
+      keywords: [t.exportLabel, t.importLabel],
+      body: gameFile,
+    },
+  ];
 
-// A labelled group of rows inside the settings card.
-function SettingsSection({ label, children }: { label: string; children: React.ReactNode }) {
+  const q = filter.trim().toLowerCase();
+  const visible = q
+    ? sections.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          s.keywords.some((k) => k.toLowerCase().includes(q)),
+      )
+    : sections;
+
   return (
-    <div className="space-y-3 border-t border-parchment/10 pt-3 first-of-type:border-t-0 first-of-type:pt-0">
-      <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
-        {label}
-      </span>
-      {children}
+    <div className="menu-backdrop" onClick={onClose}>
+      <div
+        className="menu-panel"
+        role="dialog"
+        aria-label={t.settings}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="menu-head">
+          <span className="font-display text-lg text-parchment">{t.settings}</span>
+          <button className="iconbtn" onClick={onClose} aria-label={t.close}>
+            ✕
+          </button>
+        </div>
+
+        <div className="menu-quick">
+          <button className="btn flex-1" onClick={onShowRules}>
+            {t.howToPlay}
+          </button>
+          <div className="seg" aria-label={t.language}>
+            {VISIBLE_LANGS.map((l) => (
+              <button
+                key={l.code}
+                className={lang === l.code ? "on" : ""}
+                onClick={() => onLang(l.code)}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <input
+          className="menu-filter"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder={t.filterSettings}
+          aria-label={t.filterSettings}
+        />
+
+        {visible.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-parchment-dim">{t.noSettingsMatch}</p>
+        )}
+        {visible.map((s) => {
+          // A live filter opens every match; otherwise one section at a time.
+          const open = q ? true : openId === s.id;
+          return (
+            <div key={s.id} className={`acc ${open ? "open" : ""}`}>
+              <button
+                className="acc-head"
+                onClick={() => setOpenId(open && !q ? "" : s.id)}
+                aria-expanded={open}
+              >
+                {s.title}
+                <span className="chev" aria-hidden>
+                  ›
+                </span>
+              </button>
+              {open && <div className="acc-body">{s.body}</div>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 // ── Clock settings (time-control picker) ─────────────────────────────────────
-function ClockSettings({
+function ClockSettingsBody({
   t,
   enabled,
   onEnabled,
@@ -1828,7 +2008,7 @@ function ClockSettings({
   });
 
   return (
-    <div className="card mt-4 space-y-3 p-4">
+    <div className="space-y-3">
       <Row label={t.clock}>
         <div className="seg">
           <button className={!enabled ? "on" : ""} onClick={() => onEnabled(false)}>
@@ -1928,8 +2108,6 @@ function ZenSettings({
     takeback: t.proposeTakeback,
     resign: t.resign,
     pause: t.pause,
-    settings: t.zenElSettings,
-    gamefile: t.zenElGameFile,
   };
   return (
     <div>
@@ -1988,9 +2166,6 @@ function DesignModal({
   onDefenderEmblem,
   cornerEmblem,
   onCornerEmblem,
-  zen,
-  onZenEnabled,
-  onToggleZenExtra,
   onClose,
 }: {
   t: Translations;
@@ -2007,9 +2182,6 @@ function DesignModal({
   onDefenderEmblem: (id: DefenderEmblemId) => void;
   cornerEmblem: CornerEmblemId;
   onCornerEmblem: (id: CornerEmblemId) => void;
-  zen: ZenConfig;
-  onZenEnabled: (v: boolean) => void;
-  onToggleZenExtra: (id: ZenExtraId) => void;
   onClose: () => void;
 }) {
   // The colour a piece has under the current theme, with any custom override
@@ -2059,15 +2231,6 @@ function DesignModal({
             ✕
           </button>
         </div>
-
-        <section className="mt-5">
-          <ZenSettings
-            t={t}
-            zen={zen}
-            onEnabled={onZenEnabled}
-            onToggleExtra={onToggleZenExtra}
-          />
-        </section>
 
         <section className="mt-5">
           <span className="text-sm font-semibold text-parchment-dim">{t.colourTheme}</span>
@@ -2266,7 +2429,9 @@ function ModeOverlay({
   resume,
   onResume,
   onDiscardResume,
-  onChoose,
+  clockEnabled,
+  controlId,
+  onStart,
 }: {
   t: Translations;
   difficulty: Difficulty;
@@ -2278,16 +2443,23 @@ function ModeOverlay({
   resume: RestoredGame | null;
   onResume: () => void;
   onDiscardResume: () => void;
-  onChoose: (m: PlayMode) => void;
+  /** The clock setting the last game was played with, offered as the default. */
+  clockEnabled: boolean;
+  controlId: string;
+  /** Start the game: mode + a preset id to play timed, or null for casual. */
+  onStart: (m: PlayMode, timeId: string | null) => void;
 }) {
-  // Three-step overlay: pick opponent (AI or a friend), then — for the AI —
-  // which side to play, then how strong the computer should be, before the board
-  // appears. A saved game, if there is one, gets asked about first: resume it, or
-  // drop it and set a new game up.
-  const [step, setStep] = useState<"mode" | "side" | "difficulty">("mode");
-  // Held here until a difficulty is picked, since that's the step that starts
+  // Stepped overlay, Lichess-style: pick opponent (AI or a friend), then — for
+  // the AI — which side and how strong, and finally the pace of the game (a
+  // casual untimed default, or a preset time control). A saved game, if there
+  // is one, gets asked about first: resume it, or drop it and set a new game up.
+  const [step, setStep] = useState<"mode" | "side" | "difficulty" | "time">("mode");
+  // Held here until the final (time) step, since that's the step that starts
   // the game (and starting it resets the board, so it must happen once).
   const [chosenSide, setChosenSide] = useState<Side>(side);
+  const [chosenMode, setChosenMode] = useState<PlayMode>("defenders");
+  // The last game's pace is the highlighted default.
+  const currentTimeId = clockEnabled ? controlId : null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
@@ -2360,7 +2532,8 @@ function ModeOverlay({
                   className={`btn py-3 text-base ${difficulty === d ? "btn-primary" : ""}`}
                   onClick={() => {
                     onDifficulty(d);
-                    onChoose(chosenSide);
+                    setChosenMode(chosenSide);
+                    setStep("time");
                   }}
                 >
                   {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
@@ -2371,6 +2544,43 @@ function ModeOverlay({
             <button
               className="text-xs text-parchment-dim underline"
               onClick={() => setStep("side")}
+            >
+              {t.back}
+            </button>
+          </>
+        ) : step === "time" ? (
+          <>
+            <p className="text-sm text-parchment-dim">{t.chooseTime}</p>
+            <div className="flex flex-col gap-3">
+              <button
+                className={`tc-tile tc-casual ${currentTimeId === null ? "on" : ""}`}
+                onClick={() => onStart(chosenMode, null)}
+              >
+                <b>{t.casualLabel}</b>
+                <span>{t.casualHint}</span>
+              </button>
+              <div className="tc-tiles">
+                {TIME_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    className={`tc-tile ${currentTimeId === p.id ? "on" : ""}`}
+                    onClick={() => onStart(chosenMode, p.id)}
+                  >
+                    <b>{p.id}</b>
+                    <span>
+                      {p.category === "bullet"
+                        ? t.catBullet
+                        : p.category === "blitz"
+                          ? t.catBlitz
+                          : t.catRapid}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              className="text-xs text-parchment-dim underline"
+              onClick={() => setStep(chosenMode === "hotseat" ? "mode" : "difficulty")}
             >
               {t.back}
             </button>
@@ -2387,7 +2597,10 @@ function ModeOverlay({
               </button>
               <button
                 className="btn py-3 text-base"
-                onClick={() => onChoose("hotseat")}
+                onClick={() => {
+                  setChosenMode("hotseat");
+                  setStep("time");
+                }}
               >
                 {t.otbOverlay}
                 <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
@@ -2435,12 +2648,10 @@ function CustomRuleEditor({
     { key: "encirclementWin", label: t.ruleEncirclementWin, hint: t.ruleEncirclementWinHint },
   ];
 
+  // Body-only: the settings menu's accordion supplies the title and collapse.
   return (
-    <div className="card mt-4 p-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-parchment-dim">
-        {t.customRulesTitle}
-      </h3>
-      <ul className="mt-3 space-y-2">
+    <div>
+      <ul className="space-y-2">
         {boolRules.map(({ key, label, hint }) => (
           <li key={key} className="flex items-start gap-3">
             <input
