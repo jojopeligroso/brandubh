@@ -257,6 +257,10 @@ export const TUTORIALS: TutorialScenario[] = [
   {
     // One slide across the empty throne takes two raiders at a stroke — the
     // f-file raiders have pressed too deep between the king's guards.
+    //
+    // The raider on b5 is what keeps the capture the right idea. Without it the
+    // king ran d5–a5, taking a6 against the a7 corner and reaching a7 next move
+    // whatever the raiders did — a won game the drill would have refused.
     id: "double-take",
     side: "defenders",
     rulesId: "wtf",
@@ -264,7 +268,7 @@ export const TUTORIALS: TutorialScenario[] = [
     rows: [
       "...a...",
       "a....d.",
-      "...k.a.",
+      ".a.k.a.",
       ".d.....",
       ".....a.",
       "a....d.",
@@ -272,7 +276,9 @@ export const TUTORIALS: TutorialScenario[] = [
     ],
     steps: [{ solution: [mv("b4", "f4")] }],
     goal: (s) => s.captured.attackers === 2,
-    foils: [mv("b4", "b2"), mv("f6", "e6")],
+    // f6–b6 is the near miss: it takes b5 against the b4 guard, but one raider
+    // is not two, and it spends the guard the real answer needs.
+    foils: [mv("b4", "b2"), mv("f6", "b6")],
   },
   {
     // The armed king fights too: one step off his throne closes the trap on

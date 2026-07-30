@@ -278,19 +278,21 @@ describe("capture drills are sound positions, not dressed-up blunders", () => {
     });
   }
 
-  // The learner must never be passing up an immediate win of their own: if a
-  // one-move win existed, that — not the taught capture — would be the lesson.
+  // The learner must never be passing up a win of their own: if one existed,
+  // that — not the taught capture — would be the lesson. Searched to the same
+  // depth the opponent is searched to above; a shallower one-move-only check
+  // let `double-take` ship a position the king won outright in two.
   for (const sc of TUTORIALS) {
     if (sc.id === "royal-fork") continue; // its step 1 deliberately sets up the win
     it(`${sc.id}: the taught move is not passing up a faster win`, () => {
       const rules = rulesForScenario(sc);
       const start = stateFor(sc);
       const solutionWins = sc.steps.length === 1 && isGameOver(playLine(sc).status);
-      if (solutionWins) return; // the taught move IS the immediate win
-      const oneMove = allMoves(start.board, sc.side, rules).some(
-        (m) => winnerOf(applyMove(start, m, rules).status) === sc.side,
-      );
-      expect(oneMove, `${sc.id}: a one-move win exists that the drill ignores`).toBe(false);
+      if (solutionWins) return; // the taught move IS the win
+      expect(
+        forcedWinWithin2(start, sc.side, rules),
+        `${sc.id}: the learner can force a win within two moves and the drill ignores it`,
+      ).toBe(false);
     });
   }
 });
