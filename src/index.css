@@ -1624,3 +1624,38 @@ body {
   padding: 0.3rem 0.6rem;
   font-size: 0.75rem;
 }
+
+/* ── Annotations (Session 7d) ────────────────────────────────────────────────
+   The glyph carries the meaning — ?! / ? / ?? is notation everyone reading a
+   game already knows — and colour is a second channel on top of it, never the
+   only one. */
+.mark {
+  margin-inline-start: 0.15rem;
+  font-weight: 700;
+}
+.mark-inaccuracy {
+  color: var(--color-gold);
+}
+.mark-mistake {
+  color: color-mix(in srgb, var(--color-blood) 70%, var(--color-gold));
+}
+.mark-blunder {
+  color: var(--color-blood);
+}
+.annotate-bar {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  overflow: hidden;
+}
+.annotate-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-gold);
+  transition: width 160ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .annotate-bar > span {
+    transition: none;
+  }
+}

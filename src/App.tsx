@@ -145,6 +145,14 @@ import {
   type MoveTree,
 } from "./game/moveTree";
 import { aiMayReply, autosaveAllowed, boardIsInteractive, controllableIn } from "./analysis";
+import {
+  ANNOTATE_DIFFICULTY,
+  type Mark,
+  markGlyph,
+  marksFromScores,
+  tally,
+  terminalScore,
+} from "./game/annotate";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
 // Difficulty, variant and side survive a page refresh (a reload otherwise silently
@@ -803,6 +811,83 @@ export default function App() {
     setSelected(null);
     setNodeId(parent);
   }, [tree, nodeId]);
+
+  // ── Post-game annotations (Session 7d) ──────────────────────────────────────
+  // Re-search the displayed line position by position and mark the moves where
+  // the evaluation swung. The judgement is in `game/annotate.ts`, where it is
+  // unit-tested; what lives here is the walk, because it drives the worker.
+  //
+  // One search per *position*, not two per move: the value after ply k is the
+  // value before ply k+1, so an n-move game costs n+1 searches.
+  //
+  // The marks are stored against the exact line they were computed for, so
+  // stepping into a variation hides them rather than showing another line's
+  // verdicts, and stepping back shows them again.
+  const [annotation, setAnnotation] = useState<{ key: string; marks: (Mark | null)[] } | null>(null);
+  const [annotating, setAnnotating] = useState<{ done: number; total: number } | null>(null);
+  const annotateStopped = useRef(false);
+
+  const lineKey = useMemo(
+    () => states[states.length - 1].history.map((h) => moveName(h.move)).join(" "),
+    [states],
+  );
+  const marks = annotation?.key === lineKey ? annotation.marks : null;
+
+  // The real constraint is the single worker: the pass must not race the AI for
+  // it. So it is offered wherever the AI will not be wanting it — a finished
+  // game, analysis (which suppresses the AI), or over-the-board play (where
+  // there is no computer at all) — and never while a search is in flight.
+  const canAnnotate = tip >= 1 && !thinking && (gameOver || analysis || aiSide === null);
+
+  const stopAnnotating = useCallback(() => {
+    // The in-flight search is left to finish rather than terminating the worker:
+    // `cancel()` kills it mid-search and the promise waiting on it would never
+    // settle. At this depth that is one position's wait, ~50ms.
+    annotateStopped.current = true;
+  }, []);
+
+  const runAnnotation = useCallback(async () => {
+    const line = states; // judge the line as it stands now, not as it may become
+    if (line.length < 2) return;
+    const key = line[line.length - 1].history.map((h) => moveName(h.move)).join(" ");
+    annotateStopped.current = false;
+    setAnnotation(null);
+    setAnnotating({ done: 0, total: line.length });
+
+    const scores: number[] = [];
+    const onlyMoves: boolean[] = [];
+    for (let k = 0; k < line.length; k++) {
+      if (annotateStopped.current) {
+        setAnnotating(null);
+        return;
+      }
+      // A position the board has already settled is read from its result; with
+      // no legal moves a search reports 0, which would read as "level" in the
+      // very place the game was decided.
+      const settled = terminalScore(line[k].status);
+      scores.push(settled ?? (await requestMove(line[k], ANNOTATE_DIFFICULTY, rules)).score);
+      if (k < line.length - 1) {
+        onlyMoves.push(allMoves(line[k].board, line[k].turn, rules).length === 1);
+      }
+      setAnnotating({ done: k + 1, total: line.length });
+    }
+
+    if (annotateStopped.current) {
+      setAnnotating(null);
+      return;
+    }
+    const movers = line.slice(1).map((s) => s.history[s.history.length - 1].sideThatMoved);
+    setAnnotation({ key, marks: marksFromScores(scores, movers, onlyMoves) });
+    setAnnotating(null);
+  }, [states, rules, requestMove]);
+
+  // A pass judges one line; anything that replaces the game underneath it must
+  // stop it rather than let it finish and label a game that is no longer there.
+  useEffect(() => {
+    if (annotating) annotateStopped.current = true;
+    // Only on a change of game identity, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variantId, playMode]);
 
   // ── Human interaction ───────────────────────────────────────────────────────
   const interactive = boardIsInteractive({
@@ -1536,6 +1621,7 @@ export default function App() {
         t={t}
         game={states[tip]}
         activeIndex={cursor - 1}
+        marks={marks}
         onMoveClick={(i) => {
           // In analysis the log shows the line to the current node, so clicking
           // ply i selects that node rather than sliding an index.
@@ -1543,6 +1629,17 @@ export default function App() {
           else setCursor(i + 1);
         }}
       />
+      {showExtra("annotate") && canAnnotate && (
+        <AnnotatePanel
+          t={t}
+          running={annotating}
+          marks={marks}
+          movers={states[tip].history.map((h) => h.sideThatMoved)}
+          onRun={runAnnotation}
+          onStop={stopAnnotating}
+        />
+      )}
+
       {analysis && tree && showExtra("tree") && (
         <MoveTreePanel
           t={t}
@@ -2026,6 +2123,70 @@ function SetScoreboard({
 }
 
 // Curved-arrow move navigator: cycle back and forth through the whole game.
+// ── Annotations — run the pass, show the tally ────────────────────────────────
+// Offered only where the engine is free (a finished game, or analysis), so the
+// pass never races the AI for the one worker. Progress is shown move by move and
+// can be stopped: a forty-move game is a couple of seconds, but a slow phone is
+// not, and a control that cannot be interrupted is a control that traps you.
+function AnnotatePanel({
+  t,
+  running,
+  marks,
+  movers,
+  onRun,
+  onStop,
+}: {
+  t: Translations;
+  running: { done: number; total: number } | null;
+  marks: (Mark | null)[] | null;
+  movers: Side[];
+  onRun: () => void;
+  onStop: () => void;
+}) {
+  const counts = marks ? tally(marks, movers) : null;
+  const line = (side: Side): string => {
+    const c = (counts as NonNullable<typeof counts>)[side];
+    return `${sideLabel(side, t)}: ${c.blunder} ${t.mark_blunder} · ${c.mistake} ${t.mark_mistake} · ${c.inaccuracy} ${t.mark_inaccuracy}`;
+  };
+
+  return (
+    <div className="card mt-4 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-parchment-dim">{t.annotateTitle}</span>
+        {running ? (
+          <button className="btn btn-sm" onClick={onStop}>
+            {t.annotateStop}
+          </button>
+        ) : (
+          <button className="btn btn-sm" onClick={onRun}>
+            {marks ? t.annotateAgain : t.annotateRun}
+          </button>
+        )}
+      </div>
+
+      {running && (
+        <div className="annotate-progress mt-2" role="status">
+          <div className="annotate-bar" aria-hidden>
+            <span style={{ width: `${Math.round((running.done / running.total) * 100)}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-parchment-dim">
+            {t.annotateProgress} {running.done}/{running.total}
+          </p>
+        </div>
+      )}
+
+      {!running && counts && (
+        <div className="annotate-summary mt-2 space-y-0.5 text-xs text-parchment-dim">
+          <p>{line("attackers")}</p>
+          <p>{line("defenders")}</p>
+        </div>
+      )}
+
+      {!running && !marks && <p className="mt-2 text-xs text-parchment-dim">{t.annotateHint}</p>}
+    </div>
+  );
+}
+
 // ── Board tools — flip + analysis ─────────────────────────────────────────────
 // The two view controls that sit with the board rather than with the game: which
 // way up it is drawn, and whether the position is live or being explored. Both
@@ -2519,6 +2680,7 @@ function ZenSettings({
     analysis: t.analysisMode,
     eval: t.zenElEval,
     tree: t.moveTree,
+    annotate: t.annotateTitle,
   };
   return (
     <div>
@@ -3131,11 +3293,14 @@ function MoveLog({
   t,
   game,
   activeIndex,
+  marks,
   onMoveClick,
 }: {
   t: Translations;
   game: GameState;
   activeIndex: number;
+  /** Per-ply annotations, index-aligned with `game.history` (Session 7d). */
+  marks: (Mark | null)[] | null;
   onMoveClick: (i: number) => void;
 }) {
   if (game.history.length === 0) return null;
@@ -3157,6 +3322,14 @@ function MoveLog({
             <span className={h.sideThatMoved === "attackers" ? "text-blood/90" : "text-gold/90"}>
               {moveName(h.move)}
             </span>
+            {marks?.[i] && (
+              // The glyph carries the meaning for anyone reading it; the colour
+              // is a second channel, never the only one.
+              <span className={`mark mark-${marks[i]}`} title={t[`mark_${marks[i] as Mark}`]}>
+                {markGlyph(marks[i] as Mark)}
+                <span className="sr-only"> {t[`mark_${marks[i] as Mark}`]}</span>
+              </span>
+            )}
           </li>
         ))}
       </ol>

@@ -35,7 +35,7 @@ suggested slicing so each slice is its own shippable session.
 - 7a — Eval bar + best-move arrow (background worker eval; read-only). **Shipped** — see below.
 - 7b — Board flip + analysis "free move" toggle. **Shipped** — see below.
 - 7c — Move-tree panel (variations, navigation). **Shipped** — brief: [`docs/prompts/7c-move-tree.md`](../prompts/7c-move-tree.md).
-- 7d — Post-game annotations (needs export/replay). **Open** — brief: [`docs/prompts/7d-annotations.md`](../prompts/7d-annotations.md).
+- 7d — Post-game annotations (needs export/replay). **Shipped** — brief: [`docs/prompts/7d-annotations.md`](../prompts/7d-annotations.md).
 
 The ordering above is about *size*, not dependency. 7b shipped before 7a because
 its two features stand on their own; what 7a needed from it is described next.
@@ -77,13 +77,11 @@ should swap ends with the clocks — see the flip decision below.
   own square name as an `aria-label`, so assistive tech reads the board rather
   than the view.
 - **Analysis never touches the live save.** The autosave is closed while
-  analysing *and* the live timeline — states, cursor, and the index-aligned clock
-  line — is snapshotted on enter and restored on exit. Belt and braces, because
-  the page-hide autosave can fire at any moment. New game / import / resume drop
-  the snapshot rather than restoring it: they are replacing the game it describes.
-- **Analysis moves from a rewound position truncate**, exactly as "play from
-  here" always has. That is deliberate and is not a stand-in for variations; see
-  `commitBasePly` in `src/analysis.ts`, which is the line 7c replaces.
+  analysing *and* the live timeline was snapshotted on enter and restored on
+  exit. *(Superseded in 7c: analysis stopped borrowing the timeline, so the
+  snapshot is gone. The autosave guard remains and still matters.)*
+- **Analysis moves from a rewound position truncate.** *(Superseded in 7c: they
+  branch. `commitBasePly` was retired with the behaviour it described.)*
 
 ## 7a — what shipped
 
@@ -169,13 +167,44 @@ never reused, **first child = mainline**. `addMove` / `promote` / `remove` /
   stays and still matters — the autosave reads the *derived* line, which in
   analysis is a variation, not the game.
 
-### Anchors for 7d
+## 7d — what shipped
 
-- `src/game/ai.ts` — `evaluate` (`:378`) and `pickMove` (`:890`). Scores are
-  **attacker-positive**; `DECISIVE` marks a forced mate.
-- `src/game/useAiWorker.ts` — `requestMove` is one search, off the main thread,
-  and `cancel()` terminates the worker.
-- `src/App.tsx` — `MoveLog` is where a per-ply mark attaches.
+`src/game/annotate.ts` holds the judgement; `App.tsx` holds only the walk.
+
+### Decisions taken in 7d
+
+- **The bands are measured.** `scripts/annotate-calibrate.ts` sampled 40 seeded
+  self-play games at depth 3 — 850 plies, 327 losing ground — giving p50 30,
+  p75 76, p90 110, p95 180. inaccuracy **40** (≈p60, one piece), mistake **80**
+  (≈p80), blunder **120** (≈p91, `escapeLane`: an open road to a corner). Re-run
+  the script if `DEFAULT_WEIGHTS` changes; bands measured against a different
+  evaluation say nothing about this one.
+- **The pass searches at the depth the bands were measured at** (`medium`, fixed
+  depth 3). Scores from another depth are not comparable to them.
+- **A decided position is never marked**, or the tail of every finished game is a
+  wall of `??`. **A forced move is never a mistake.** Walking from a live
+  position into a forced loss still marks at full severity — that is the move
+  that threw it.
+- **The sign convention lives in one function.** `lossFor` is the only place the
+  attacker-positive asymmetry is handled, and it is tested from both sides.
+- **One search per position, not two per move.** The value after ply k is the
+  value before ply k+1.
+- **Stopping does not kill the worker.** `cancel()` terminates mid-search and the
+  promise awaiting it would never settle, so a stopped pass lets the search in
+  flight finish (~50ms at this depth) and then bails.
+- **Nothing is persisted.** Annotations are derived and re-derivable in seconds,
+  so no save or `FORMAT_VERSION` bump and none of that risk. Marks are keyed to
+  the line they were computed for, so a variation hides them rather than
+  inheriting another line's verdicts.
+
+### Anchors for 7a — the one slice left
+
+- `src/orientation.ts` — `viewCenter` / `viewArrow` give the arrow overlay its
+  endpoints; do not read `row`/`col` directly.
+- `AiResponse.score` (`src/game/ai.worker.ts`) — 7d added it. The eval bar needs
+  exactly this number, so the plumbing already exists.
+- `src/game/annotate.ts` — `terminalScore` and `DECISIVE_SCORE` show how a
+  decided position should be displayed rather than searched.
 
 Added by 7a — what a move tree will have to carry with it:
 - **The eval is keyed on the viewed position, not on a ply index.** The analysis

@@ -351,6 +351,17 @@ export interface Translations {
   promoteVariation: string;
   deleteVariation: string;
 
+  // Post-game annotations (Session 7d)
+  annotateTitle: string;
+  annotateRun: string;
+  annotateAgain: string;
+  annotateStop: string;
+  annotateProgress: string;
+  annotateHint: string;
+  mark_inaccuracy: string;
+  mark_mistake: string;
+  mark_blunder: string;
+
   // Side picker (opening overlay)
   chooseSide: string;
   sideKingHint: string;
@@ -693,6 +704,16 @@ const en: Translations = {
   moveTreeNotSaved: "Variations live for this session only \u2014 they are not saved with the game.",
   promoteVariation: "Promote to main line",
   deleteVariation: "Delete variation",
+
+  annotateTitle: "Game review",
+  annotateRun: "Analyse game",
+  annotateAgain: "Analyse again",
+  annotateStop: "Stop",
+  annotateProgress: "Analysing move",
+  annotateHint: "Re-searches every position and marks where the game swung.",
+  mark_inaccuracy: "inaccuracies",
+  mark_mistake: "mistakes",
+  mark_blunder: "blunders",
 
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
@@ -1097,6 +1118,16 @@ const es: Translations = {
   moveTreeNotSaved: "Las variantes solo duran esta sesi\u00f3n \u2014 no se guardan con la partida.",
   promoteVariation: "Convertir en l\u00ednea principal",
   deleteVariation: "Borrar la variante",
+
+  annotateTitle: "Revisi\u00f3n de la partida",
+  annotateRun: "Analizar la partida",
+  annotateAgain: "Analizar otra vez",
+  annotateStop: "Detener",
+  annotateProgress: "Analizando la jugada",
+  annotateHint: "Vuelve a calcular cada posici\u00f3n y marca d\u00f3nde cambi\u00f3 la partida.",
+  mark_inaccuracy: "imprecisiones",
+  mark_mistake: "errores",
+  mark_blunder: "errores graves",
 
   chooseSide: "¿Con qué bando jugarás?",
   sideKingHint:
@@ -1510,6 +1541,17 @@ const ga: Translations = {
   moveTreeNotSaved: "N\u00ed mhaireann na malairt\u00ed ach don seisi\u00fan seo \u2014 n\u00ed sh\u00e1bh\u00e1iltear leis an gcluiche iad.",
   promoteVariation: "D\u00e9an an phr\u00edomhl\u00edne de",
   deleteVariation: "Scrios an mhalairt",
+
+  // DRAFT (Session 7d) — unreviewed, like the rest of this table.
+  annotateTitle: "Athbhreithni\u00fa ar an gcluiche",
+  annotateRun: "D\u00e9an anail\u00eds ar an gcluiche",
+  annotateAgain: "D\u00e9an anail\u00eds ar\u00eds",
+  annotateStop: "Stad",
+  annotateProgress: "Ag d\u00e9anamh anail\u00edse ar bheart",
+  annotateHint: "Cuardaítear gach su\u00edomh ar\u00eds agus marc\u00e1iltear na h\u00e1iteanna ar iompaigh an cluiche.",
+  mark_inaccuracy: "m\u00edchruinneas",
+  mark_mistake: "botúin",
+  mark_blunder: "botúin mh\u00f3ra",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:

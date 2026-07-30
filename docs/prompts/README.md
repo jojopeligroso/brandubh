@@ -41,12 +41,13 @@ Six sections, in this order:
 | --- | --- | --- |
 | [`7b-board-flip-and-analysis.md`](7b-board-flip-and-analysis.md) | 7b — board flip + analysis toggle | **Shipped** |
 | [`7c-move-tree.md`](7c-move-tree.md) | 7c — move-tree panel (variations) | **Shipped** |
-| [`7d-annotations.md`](7d-annotations.md) | 7d — post-game annotations | Open |
+| [`7d-annotations.md`](7d-annotations.md) | 7d — post-game annotations | **Shipped** |
 
-**7a (eval bar + best-move arrow) has no prompt yet and no code anywhere.** It
-is the only unwritten slice of Session 7. 7c and 7d are both written to stand
-without it; the orientation seam it will need is already built and tested
-(`src/orientation.ts` — see the 7b prompt).
+**7a (eval bar + best-move arrow) has no prompt yet and no code anywhere.** With
+7b, 7c and 7d shipped it is the only slice of Session 7 left, and the only one
+without a brief. Everything it needs is already in place and tested: the
+orientation seam (`src/orientation.ts`, `viewCenter` / `viewArrow`) and the
+worker's per-position `score`, which 7d added to `AiResponse`.
 
 Sessions 1–6 predate this directory and were briefed conversationally; their
 outcomes are recorded in [`docs/ROADMAP.md`](../ROADMAP.md).

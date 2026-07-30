@@ -11,7 +11,7 @@
 // settings: the match scoreboard, captured tray, move navigator, rules button,
 // propose-takeback, resign, pause, the settings panels themselves and the
 // export/import panel, the board-flip button, the analysis toggle, the engine
-// eval (bar + best-move arrow) and the variation tree.
+// eval (bar + best-move arrow), the variation tree and the annotation pass.
 //
 // The eval belongs in this list more than most: it is the one extra that tells
 // you who is winning before you have worked it out, which is the opposite of
@@ -30,7 +30,8 @@ export type ZenExtraId =
   | "flip"
   | "analysis"
   | "eval"
-  | "tree";
+  | "tree"
+  | "annotate";
 
 /** Opt-in extras, in the order they appear in the settings picker. */
 export const ZEN_EXTRAS: ZenExtraId[] = [
@@ -47,6 +48,7 @@ export const ZEN_EXTRAS: ZenExtraId[] = [
   "analysis",
   "eval",
   "tree",
+  "annotate",
 ];
 
 export interface ZenConfig {
