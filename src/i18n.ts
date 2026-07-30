@@ -344,6 +344,13 @@ export interface Translations {
   analysisExit: string;
   analysisHint: string;
 
+  // Move tree — variations (Session 7c)
+  moveTree: string;
+  moveTreeEmpty: string;
+  moveTreeNotSaved: string;
+  promoteVariation: string;
+  deleteVariation: string;
+
   // Side picker (opening overlay)
   chooseSide: string;
   sideKingHint: string;
@@ -680,6 +687,12 @@ const en: Translations = {
   analysisMode: "Analysis",
   analysisExit: "Leave analysis",
   analysisHint: "Move both sides freely \u00b7 the computer and the clock are paused \u00b7 nothing is saved",
+
+  moveTree: "Variations",
+  moveTreeEmpty: "Play a move to start a line. Going back and playing something else keeps both.",
+  moveTreeNotSaved: "Variations live for this session only \u2014 they are not saved with the game.",
+  promoteVariation: "Promote to main line",
+  deleteVariation: "Delete variation",
 
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
@@ -1078,6 +1091,12 @@ const es: Translations = {
   analysisMode: "An\u00e1lisis",
   analysisExit: "Salir del an\u00e1lisis",
   analysisHint: "Mueve los dos bandos libremente \u00b7 la m\u00e1quina y el reloj est\u00e1n en pausa \u00b7 no se guarda nada",
+
+  moveTree: "Variantes",
+  moveTreeEmpty: "Haz una jugada para empezar una l\u00ednea. Si retrocedes y juegas otra cosa, se guardan las dos.",
+  moveTreeNotSaved: "Las variantes solo duran esta sesi\u00f3n \u2014 no se guardan con la partida.",
+  promoteVariation: "Convertir en l\u00ednea principal",
+  deleteVariation: "Borrar la variante",
 
   chooseSide: "¿Con qué bando jugarás?",
   sideKingHint:
@@ -1484,6 +1503,13 @@ const ga: Translations = {
   analysisMode: "Anail\u00eds",
   analysisExit: "F\u00e1g an anail\u00eds",
   analysisHint: "Bog an d\u00e1 thaobh gan bhac \u00b7 t\u00e1 an r\u00edomhaire agus an clog ar sos \u00b7 n\u00ed sh\u00e1bh\u00e1iltear faic",
+
+  // DRAFT (Session 7c) — unreviewed, like the rest of this table.
+  moveTree: "Malairt\u00ed",
+  moveTreeEmpty: "Imir beart chun l\u00edne a thos\u00fa. M\u00e1 th\u00e9ann t\u00fa siar agus imirt rud eile, coime\u00e1dtar an dá cheann.",
+  moveTreeNotSaved: "N\u00ed mhaireann na malairt\u00ed ach don seisi\u00fan seo \u2014 n\u00ed sh\u00e1bh\u00e1iltear leis an gcluiche iad.",
+  promoteVariation: "D\u00e9an an phr\u00edomhl\u00edne de",
+  deleteVariation: "Scrios an mhalairt",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:

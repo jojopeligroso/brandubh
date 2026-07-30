@@ -34,7 +34,7 @@ suggested slicing so each slice is its own shippable session.
 ## Suggested slicing (each a session)
 - 7a — Eval bar + best-move arrow (background worker eval; read-only). **Shipped** — see below.
 - 7b — Board flip + analysis "free move" toggle. **Shipped** — see below.
-- 7c — Move-tree panel (variations, navigation). **Open** — brief: [`docs/prompts/7c-move-tree.md`](../prompts/7c-move-tree.md).
+- 7c — Move-tree panel (variations, navigation). **Shipped** — brief: [`docs/prompts/7c-move-tree.md`](../prompts/7c-move-tree.md).
 - 7d — Post-game annotations (needs export/replay). **Open** — brief: [`docs/prompts/7d-annotations.md`](../prompts/7d-annotations.md).
 
 The ordering above is about *size*, not dependency. 7b shipped before 7a because
@@ -137,19 +137,45 @@ Read-only means read-only: no position setup, no eval on the move-log rows, no
 per-move swing annotation. The bar answers "what is this position worth"; "which
 move was the mistake" is 7d and needs a search per ply, not one per view.
 
-### Anchors for 7c
+## 7c — what shipped
 
-7a's brief asked for a warm-start note on "next: 7b (board flip + free-move)".
-**7b is already shipped** — it landed before 7a, as the section above records —
-so the next open slice is 7c, and these are its anchors.
+`src/game/moveTree.ts` is the tree: pure, React-free, nodes keyed by ids that are
+never reused, **first child = mainline**. `addMove` / `promote` / `remove` /
+`treeLines`, all unit-tested.
 
-From 7b:
-- `src/analysis.ts` — `commitBasePly` is where the truncate-or-branch decision is
-  taken today; the pure predicates around it (`aiMayReply`, `autosaveAllowed`,
-  `boardIsInteractive`) are the mode's contract and are unit-tested.
-- `src/App.tsx` — `states[]` + `cursor` is the linear timeline a move tree would
-  replace, and `commitMove` is its only writer. `enterAnalysis`/`exitAnalysis`
-  show what a mode has to save and restore to leave the live game intact.
+### Decisions taken in 7c
+
+- **The tree is analysis's structure, not the game's.** Live play stays a single
+  line, because a game has one history — the save and the export encode one move
+  list, and a takeback is *supposed* to destroy moves. `rewindTo`, `doTakeback`,
+  `playFromHere` and `resign` are explicitly closed to analysis so the two
+  representations can never cross.
+- **The UI never learned about trees.** `App.tsx` derives `states`/`cursor` from
+  the line between the root and the selected node, so the board, move log,
+  captured tray and review controls work inside a variation unchanged. In
+  analysis "back" selects the *parent node* rather than sliding an index, which
+  is precisely why stepping back and playing something else branches.
+- **Replaying a tried move navigates rather than duplicating.** Without that a
+  tree fills with copies of itself; it is the difference between a panel that
+  stays readable and a pile.
+- **`promote` walks the whole path to the root.** A node promoted only within its
+  own parent would still sit inside a variation, leaving `isMainline` false and
+  the button apparently broken.
+- **Variations are session-only**, and the panel says so rather than letting a
+  reload teach it. Analysis has never written to storage, so this needed no
+  save-format or `FORMAT_VERSION` bump and carries none of that risk.
+- **7b's snapshot is gone.** Analysis no longer borrows the live timeline, so
+  there is nothing to restore; `commitBasePly` went with it. The autosave guard
+  stays and still matters — the autosave reads the *derived* line, which in
+  analysis is a variation, not the game.
+
+### Anchors for 7d
+
+- `src/game/ai.ts` — `evaluate` (`:378`) and `pickMove` (`:890`). Scores are
+  **attacker-positive**; `DECISIVE` marks a forced mate.
+- `src/game/useAiWorker.ts` — `requestMove` is one search, off the main thread,
+  and `cancel()` terminates the worker.
+- `src/App.tsx` — `MoveLog` is where a per-ply mark attaches.
 
 Added by 7a — what a move tree will have to carry with it:
 - **The eval is keyed on the viewed position, not on a ply index.** The analysis

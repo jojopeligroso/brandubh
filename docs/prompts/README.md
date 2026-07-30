@@ -40,7 +40,7 @@ Six sections, in this order:
 | Prompt | Roadmap slice | State |
 | --- | --- | --- |
 | [`7b-board-flip-and-analysis.md`](7b-board-flip-and-analysis.md) | 7b — board flip + analysis toggle | **Shipped** |
-| [`7c-move-tree.md`](7c-move-tree.md) | 7c — move-tree panel (variations) | Open |
+| [`7c-move-tree.md`](7c-move-tree.md) | 7c — move-tree panel (variations) | **Shipped** |
 | [`7d-annotations.md`](7d-annotations.md) | 7d — post-game annotations | Open |
 
 **7a (eval bar + best-move arrow) has no prompt yet and no code anywhere.** It

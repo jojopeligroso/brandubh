@@ -132,15 +132,19 @@ import {
 } from "./defenderEmblems";
 import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
 import { BOARD_FLIP_KEY } from "./orientation";
+import MoveTreePanel from "./components/MoveTreePanel";
 import {
-  type AnalysisSnapshot,
-  aiMayReply,
-  autosaveAllowed,
-  boardIsInteractive,
-  commitBasePly,
-  controllableIn,
-  snapshotFor,
-} from "./analysis";
+  addMove as treeAddMove,
+  fromLine,
+  lineTo,
+  parentOf,
+  promote as treePromote,
+  remove as treeRemove,
+  statesTo,
+  tipOfLine,
+  type MoveTree,
+} from "./game/moveTree";
+import { aiMayReply, autosaveAllowed, boardIsInteractive, controllableIn } from "./analysis";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
 // Difficulty, variant and side survive a page refresh (a reload otherwise silently
@@ -400,8 +404,10 @@ export default function App() {
   // currently on screen. Browsing with the arrows only moves the cursor — it
   // never discards moves, so you can cycle back and forth freely. "Play from
   // here" is the only action that branches (truncates) the timeline.
-  const [states, setStates] = useState<GameState[]>(() => [initialState()]);
-  const [cursor, setCursor] = useState(0);
+  // The *live* game. In analysis these are left untouched — see the tree below —
+  // so `states`/`cursor` are derived a few lines down rather than read directly.
+  const [liveStates, setStates] = useState<GameState[]>(() => [initialState()]);
+  const [liveCursor, setCursor] = useState(0);
 
   // ── Analysis (free-move) mode ───────────────────────────────────────────────
   // A scratch mode over the live game: the computer stops replying, both sides
@@ -414,8 +420,17 @@ export default function App() {
   // in analysis with no live game to hand back — and since analysis never
   // writes to storage, a reload already lands you safely on the real game.
   const [analysis, setAnalysis] = useState(false);
-  // The live game while analysis borrows the timeline. See analysis.ts.
-  const liveGameRef = useRef<AnalysisSnapshot | null>(null);
+
+  // ── The analysis move tree (Session 7c) ─────────────────────────────────────
+  // Analysis no longer borrows the live timeline: it has its own structure, a
+  // *tree*, so a second idea from the same position becomes a sibling instead of
+  // destroying the first (`src/game/moveTree.ts`).
+  //
+  // Live play stays a single line. A game has one history, the save and the
+  // export encode one move list, and a takeback is meant to destroy moves — see
+  // docs/design/lichess-ui.md, where that decision is written down.
+  const [tree, setTree] = useState<MoveTree | null>(null);
+  const [nodeId, setNodeId] = useState(0);
 
   // ── Resumable game ──────────────────────────────────────────────────────────
   // A game in progress is written to localStorage as it is played (see
@@ -460,6 +475,23 @@ export default function App() {
   // computer. Both derive from the play mode — see game/sides.ts.
   const humanSide: Side | null = humanSideOf(playMode);
   const aiSide: Side | null = aiSideOf(playMode);
+
+  // ── What the board is actually showing ──────────────────────────────────────
+  // In analysis this is the line from the tree's root down to the selected node;
+  // otherwise it is the live game. Deriving it here is what lets the board, the
+  // move log, the captured tray and the review controls work inside a tree
+  // without any of them knowing a tree exists — they see a list of positions and
+  // an index, exactly as they always have.
+  //
+  // Note this makes `cursor` the end of the displayed line in analysis, so
+  // `atTip` is always true there: stepping "back" selects the parent *node*,
+  // which shortens the line, rather than moving an index along a fixed one.
+  const analysisLine = useMemo(
+    () => (analysis && tree ? statesTo(tree, nodeId) : null),
+    [analysis, tree, nodeId],
+  );
+  const states = analysisLine ?? liveStates;
+  const cursor = analysisLine ? analysisLine.length - 1 : liveCursor;
 
   const tip = states.length - 1;
   const atTip = cursor === tip;
@@ -528,20 +560,23 @@ export default function App() {
         setFadingCaptures(caps);
         window.setTimeout(() => setFadingCaptures([]), 340);
       }
-      // Live play only ever commits from the tip, so this appends. Analysis may
-      // commit from a position the cursor has been stepped back to, and when it
-      // does the future is TRUNCATED — the same single-line behaviour "play from
-      // here" has always had. Variation *trees* are Session 7c; see
-      // `commitBasePly` in analysis.ts.
-      setStates((prev) => {
-        const base = commitBasePly(analysis, cursor, prev.length - 1);
-        const line = prev.slice(0, base + 1);
-        return [...line, applyMove(line[base], move, rules)];
-      });
+      // In analysis a move extends the *tree* (Session 7c). Playing from a
+      // position that already has a continuation adds a sibling rather than
+      // replacing it, and replaying a move already tried navigates to the branch
+      // that exists instead of growing a second copy of it.
+      if (analysis && tree) {
+        const grown = treeAddMove(tree, nodeId, move, rules);
+        setTree(grown.tree);
+        setNodeId(grown.nodeId);
+        setSelected(null);
+        return;
+      }
+      // Live play only ever commits from the tip, so this appends.
+      setStates((prev) => [...prev, applyMove(prev[prev.length - 1], move, rules)]);
       setCursor((c) => c + 1);
       setSelected(null);
     },
-    [rules, analysis, cursor],
+    [rules, analysis, tree, nodeId],
   );
 
   // ── AI turn (only while live at the tip, never while browsing) ───────────────
@@ -675,6 +710,7 @@ export default function App() {
   // resuming the position clears it too.
   const rewindTo = useCallback(
     (ply: number) => {
+      if (analysis) return; // analysis branches in the tree; it never cuts the live line
       setStates((prev) => {
         const next = prev.slice(0, ply + 1);
         if (isTimeLoss(next[ply].status)) next[ply] = { ...next[ply], status: "playing" };
@@ -686,65 +722,87 @@ export default function App() {
         clock.resumeAt(banksAt(clockLine, ply, timeControl), states[ply].turn, ply > 0);
       }
     },
-    [clock, clockLine, states, timeControl],
+    [clock, clockLine, states, timeControl, analysis],
   );
 
   // ── Entering and leaving analysis ───────────────────────────────────────────
-  // Analysis borrows the live timeline rather than keeping a second copy of it,
-  // which is what lets the board, the move log and the review controls all work
-  // inside it unchanged. The price is that entering has to put the live game
-  // aside and leaving has to hand it back — exactly, and including the clock
-  // line, whose per-ply banks are index-aligned to the timeline and would
-  // otherwise hand out an explored line's times.
+  // Since 7c, analysis does not borrow the live timeline at all: entering seeds
+  // a move tree from the live line and every exploratory move goes into that,
+  // so `liveStates`/`liveCursor` are simply never written while analysing. The
+  // snapshot-and-restore 7b needed is gone with the borrowing that made it
+  // necessary — there is nothing left to put back.
   //
-  // The autosave is held off independently (see `persistGame`), so even a
-  // page-hide in the middle of an analysis line cannot write over the save.
+  // What still stands is the autosave guard (see `persistGame`): `states` is the
+  // *derived* line, so without it a page-hide mid-variation would happily write
+  // an explored position over the real game.
   const enterAnalysis = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     cancelAi();
-    liveGameRef.current = snapshotFor(states, cursor, clockLine);
+    const seeded = fromLine(liveStates);
+    setTree(seeded);
+    // Open on the position the player was looking at, not at the root.
+    setNodeId(lineTo(seeded, tipOfLine(seeded, seeded.rootId))[liveCursor] ?? seeded.rootId);
     setAnalysis(true);
     setThinking(false);
     setSelected(null);
     setFadingCaptures([]);
     setShowTakeback(false);
-  }, [states, cursor, clockLine, cancelAi]);
+  }, [liveStates, liveCursor, cancelAi]);
 
   const exitAnalysis = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     cancelAi();
-    const snap = liveGameRef.current;
-    liveGameRef.current = null;
     setAnalysis(false);
+    setTree(null);
     setThinking(false);
     setSelected(null);
     setFadingCaptures([]);
-    if (!snap) return;
-    const liveTip = snap.states.length - 1;
-    // The timeline comes back whole rather than a move at a time, so neither
-    // the clock nor the victory curtain may read the jump as something that
-    // just happened (the same guards the resume and import paths use).
-    prevTipRef.current = liveTip;
-    prevTipStatusRef.current = snap.states[liveTip].status;
+    // The live game was never touched, so it needs no restoring — but the board
+    // is about to jump from a variation back to it, and neither the clock nor
+    // the victory curtain may read that as something that just happened (the
+    // same guards the resume and import paths use).
+    prevTipRef.current = liveStates.length - 1;
+    prevTipStatusRef.current = liveStates[liveStates.length - 1].status;
     setShowVictory(false);
-    setStates(snap.states);
-    setCursor(snap.cursor);
-    setClockLine(snap.clockLine);
-  }, [cancelAi]);
+  }, [cancelAi, liveStates]);
 
   const toggleAnalysis = useCallback(() => {
     if (analysis) exitAnalysis();
     else enterAnalysis();
   }, [analysis, enterAnalysis, exitAnalysis]);
 
-  // Leaving analysis *without* restoring: for the paths that install a whole new
-  // timeline of their own (new game, import, resume). The snapshot describes a
-  // game that is being replaced, so putting it back would undo the very thing
-  // the player just asked for — it is dropped, not restored.
+  // Leaving analysis for the paths that install a whole new game of their own
+  // (new game, import, resume): the tree describes a game that is being
+  // replaced, so it is discarded rather than carried across.
   const dropAnalysis = useCallback(() => {
-    liveGameRef.current = null;
     setAnalysis(false);
+    setTree(null);
   }, []);
+
+  // ── Moving around the tree ──────────────────────────────────────────────────
+  // The review controls mean something slightly different in analysis: "back" is
+  // the parent node and "forward" is the first child, so stepping back and then
+  // playing something else branches instead of overwriting. Outside analysis
+  // they are the cursor moves they always were.
+  const selectNode = useCallback((id: number) => {
+    setSelected(null);
+    setNodeId(id);
+  }, []);
+
+  const promoteCurrent = useCallback(() => {
+    if (!tree) return;
+    setTree(treePromote(tree, nodeId));
+  }, [tree, nodeId]);
+
+  // Deleting the branch you are standing on has to move you somewhere that still
+  // exists — its parent, which is always the position it departed from.
+  const deleteCurrent = useCallback(() => {
+    if (!tree || nodeId === tree.rootId) return;
+    const parent = parentOf(tree, nodeId) ?? tree.rootId;
+    setTree(treeRemove(tree, nodeId));
+    setSelected(null);
+    setNodeId(parent);
+  }, [tree, nodeId]);
 
   // ── Human interaction ───────────────────────────────────────────────────────
   const interactive = boardIsInteractive({
@@ -1041,20 +1099,35 @@ export default function App() {
 
   const goPrev = useCallback(() => {
     setSelected(null);
+    if (analysis && tree) {
+      setNodeId((id) => parentOf(tree, id) ?? id);
+      return;
+    }
     setCursor((c) => Math.max(0, c - 1));
-  }, []);
+  }, [analysis, tree]);
   const goNext = useCallback(() => {
     setSelected(null);
+    if (analysis && tree) {
+      // The first child is the mainline continuation of wherever you are; the
+      // other branches are reached from the tree panel.
+      setNodeId((id) => tree.nodes[id]?.children[0] ?? id);
+      return;
+    }
     setCursor((c) => Math.min(tip, c + 1));
-  }, [tip]);
+  }, [analysis, tree, tip]);
   const goLatest = useCallback(() => {
     setSelected(null);
+    if (analysis && tree) {
+      setNodeId((id) => tipOfLine(tree, id));
+      return;
+    }
     setCursor(tip);
-  }, [tip]);
+  }, [analysis, tree, tip]);
 
   // Branch the game at the currently-viewed position and resume play.
   const playFromHere = useCallback(
     (vsComputer: boolean) => {
+      if (analysis) return; // branching the live game is not an analysis action
       if (!resumable(states[cursor].status)) return; // nothing to play from a finished position
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
       // A game already banked into the set is coming back to life (only a loss
@@ -1072,7 +1145,7 @@ export default function App() {
         setPlayMode(sideToMove);
       }
     },
-    [cursor, states, rewindTo],
+    [cursor, states, rewindTo, analysis],
   );
 
   // Over the board, resuming from an earlier move discards every move that
@@ -1090,17 +1163,18 @@ export default function App() {
 
   const doTakeback = useCallback(() => {
     setShowTakeback(false);
-    if (tip < 1) return;
+    if (analysis || tip < 1) return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     rewindTo(tip - 1);
     setCursor(tip - 1);
     setSelected(null);
     setFadingCaptures([]);
     setThinking(false);
-  }, [tip, rewindTo]);
+  }, [tip, rewindTo, analysis]);
 
   const resign = useCallback(() => {
     setShowResign(false);
+    if (analysis) return; // you cannot resign a position you are only exploring
     if (gameOver || !atTip) return;
     // In AI play the human resigns; over-the-board, the side to move resigns.
     const loser: Side = humanSide === null ? game.turn : humanSide;
@@ -1114,7 +1188,7 @@ export default function App() {
       copy[copy.length - 1] = { ...copy[copy.length - 1], status };
       return copy;
     });
-  }, [gameOver, atTip, humanSide, game.turn]);
+  }, [gameOver, atTip, humanSide, game.turn, analysis]);
 
   // ── Changing the rules ──────────────────────────────────────────────────────
   // A ruleset change cannot be applied to a game already in progress: the board
@@ -1458,7 +1532,27 @@ export default function App() {
         </>
       )}
 
-      <MoveLog t={t} game={states[tip]} activeIndex={cursor - 1} onMoveClick={(i) => setCursor(i + 1)} />
+      <MoveLog
+        t={t}
+        game={states[tip]}
+        activeIndex={cursor - 1}
+        onMoveClick={(i) => {
+          // In analysis the log shows the line to the current node, so clicking
+          // ply i selects that node rather than sliding an index.
+          if (analysis && tree) selectNode(lineTo(tree, nodeId)[i + 1] ?? nodeId);
+          else setCursor(i + 1);
+        }}
+      />
+      {analysis && tree && showExtra("tree") && (
+        <MoveTreePanel
+          t={t}
+          tree={tree}
+          currentId={nodeId}
+          onSelect={selectNode}
+          onPromote={promoteCurrent}
+          onDelete={deleteCurrent}
+        />
+      )}
 
       {/* Export/import the whole mainline — always the tip, never the position
           currently under review (see docs/design/game-import-export.md). */}
@@ -2424,6 +2518,7 @@ function ZenSettings({
     flip: t.flipBoard,
     analysis: t.analysisMode,
     eval: t.zenElEval,
+    tree: t.moveTree,
   };
   return (
     <div>

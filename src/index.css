@@ -1557,3 +1557,70 @@ body {
     transition: none;
   }
 }
+/* ── Move tree — variations (Session 7c) ─────────────────────────────────────
+   Lichess-style: the mainline reads as one run of moves, each variation
+   indented under the move it departs from. Every colour is a theme token, so
+   light and dark follow the rest of the app. */
+.movetree {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+.movetree-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem;
+}
+.movetree-variation {
+  border-inline-start: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+  padding-inline-start: 0.4rem;
+  opacity: 0.9;
+}
+.movetree-bracket {
+  color: var(--color-parchment-dim);
+  margin-inline-end: 0.1rem;
+}
+.movetree-move {
+  border: 0;
+  background: none;
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+  cursor: pointer;
+  color: var(--color-parchment-dim);
+  font: inherit;
+  transition: background-color 120ms ease;
+}
+.movetree-move:hover {
+  background: color-mix(in srgb, var(--color-parchment) 10%, transparent);
+}
+.movetree-move.is-attacker {
+  color: color-mix(in srgb, var(--color-blood) 90%, var(--color-parchment));
+}
+.movetree-move.is-defender {
+  color: color-mix(in srgb, var(--color-gold) 90%, var(--color-parchment));
+}
+.movetree-move.is-onpath {
+  background: color-mix(in srgb, var(--color-parchment) 8%, transparent);
+}
+.movetree-move.is-current {
+  background: color-mix(in srgb, var(--color-gold) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-gold) 60%, transparent);
+}
+.movetree-ply {
+  color: color-mix(in srgb, var(--color-parchment) 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .movetree-move {
+    transition: none;
+  }
+}
+
+/* A compact button, for panel-local actions that must not compete with the
+   game-flow controls. */
+.btn.btn-sm {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
