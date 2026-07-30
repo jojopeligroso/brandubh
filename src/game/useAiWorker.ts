@@ -4,9 +4,10 @@ import type { GameState } from "./types";
 import type { RuleSet } from "./variants";
 import type { AiRequest, AiResponse } from "./ai.worker";
 
-/** What a move request resolves to: the chosen move plus the search stats behind
- *  it (depth/nodes/elapsed), so the caller can both play the move and show what
- *  the engine actually reached on this device. */
+/** What a move request resolves to: the chosen move, the position's score, and
+ *  the search stats behind it (depth/nodes/elapsed) — so the caller can play the
+ *  move, show what the engine actually reached on this device, and (7a) show
+ *  what it thinks the position is worth. */
 export type AiMove = Omit<AiResponse, "id">;
 
 /**
@@ -62,7 +63,7 @@ export function useAiWorker(): {
           resolve(move);
         };
         worker.addEventListener("message", onMessage);
-        worker.postMessage({ id, state, difficulty, rules } satisfies AiRequest);
+        worker.postMessage({ kind: "move", id, state, difficulty, rules } satisfies AiRequest);
       });
     },
     [supported, kill, spawn],

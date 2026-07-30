@@ -10,7 +10,12 @@
 // an opt-in *extra* — hidden by default in Zen and revealed individually from
 // settings: the match scoreboard, captured tray, move navigator, rules button,
 // propose-takeback, resign, pause, the settings panels themselves and the
-// export/import panel, the board-flip button and the analysis toggle.
+// export/import panel, the board-flip button, the analysis toggle and the
+// engine eval (bar + best-move arrow).
+//
+// The eval belongs in this list more than most: it is the one extra that tells
+// you who is winning before you have worked it out, which is the opposite of
+// what a calm over-the-board game is for. Hidden in Zen unless asked for.
 
 export type ZenExtraId =
   | "scoreboard"
@@ -23,7 +28,8 @@ export type ZenExtraId =
   | "settings"
   | "gamefile"
   | "flip"
-  | "analysis";
+  | "analysis"
+  | "eval";
 
 /** Opt-in extras, in the order they appear in the settings picker. */
 export const ZEN_EXTRAS: ZenExtraId[] = [
@@ -38,6 +44,7 @@ export const ZEN_EXTRAS: ZenExtraId[] = [
   "gamefile",
   "flip",
   "analysis",
+  "eval",
 ];
 
 export interface ZenConfig {

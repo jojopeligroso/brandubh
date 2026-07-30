@@ -1424,3 +1424,136 @@ body {
     animation: none;
   }
 }
+
+/* ── Engine eval: bar + best-move arrow (Session 7a) ───────────────────────── */
+
+/* The board and its eval bar share a row so the two line up top and bottom. */
+.board-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.board-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The bar's two ends are the two chairs: the fill grows from the bottom, which
+   belongs to the near player, and it carries that player's piece colour. The
+   near/far pair swaps with a flipped board, exactly as the clocks do — the
+   caller sets `.near-attackers` from the same `bottomClockSide` the bottom
+   clock uses. See the orientation note in src/evalBar.ts. */
+.evalbar {
+  --eval-near: var(--def);
+  --eval-far: var(--atk);
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  /* Wide enough for the numeric readout beneath the track, and for the longest
+     *word* in any shipped decisive verdict — Spanish "asaltantes" — so the
+     verdict wraps on its spaces rather than breaking mid-word. */
+  width: 3.4rem;
+}
+.evalbar.near-attackers {
+  --eval-near: var(--atk);
+  --eval-far: var(--def);
+}
+.evalbar-track {
+  position: relative;
+  flex: 1 1 auto;
+  width: 0.85rem;
+  min-height: 6rem;
+  border-radius: 999px;
+  overflow: hidden;
+  /* The unfilled remainder is the far player's share. */
+  background: color-mix(in srgb, var(--eval-far) 78%, #000 22%);
+  border: 1px solid color-mix(in srgb, var(--motif-ink) 45%, transparent);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.evalbar-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--eval-near) 88%, #fff 12%) 0%,
+    var(--eval-near) 100%
+  );
+  transition: height 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Level — the reference the fill is read against. */
+.evalbar-midline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-gold) 75%, #000 25%);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+.evalbar-score {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--color-parchment);
+  opacity: 0.85;
+}
+/* A proven result is a different kind of statement from a number, so it looks
+   like one rather than being squeezed into the same slot. */
+/* Words, not a number: the proportional face fits more of them in the column,
+   and wrapping on spaces keeps "Raiders win" from becoming "Raider / s win". */
+.evalbar-score.is-decisive {
+  font-family: inherit;
+  /* Small and only semi-bold: bold at 0.58rem pushed "asaltantes" past the
+     column and CSS then broke it mid-word, which reads as a typo. */
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+  color: var(--color-gold);
+  opacity: 1;
+}
+/* A search is in flight for a newer position: the last picture is held, dimmed,
+   rather than blanked — a bar that emptied on every cursor step would flicker
+   more than it informed. */
+.evalbar.is-pending .evalbar-track,
+.evalbar.is-pending .evalbar-score {
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+/* The best-move arrow overlays the board's 7×7 tracks. It is absolutely
+   positioned, so it is out of flow and never becomes a grid item; the inset
+   matches `.board`'s padding, because an abspos child of a grid container is
+   laid out against the container's *padding* box. */
+.board {
+  position: relative;
+}
+.best-move-arrow {
+  position: absolute;
+  inset: 10px; /* = .board padding, so the overlay covers exactly the tracks */
+  z-index: 3; /* above the pieces (z-index 2) — the suggestion is the point */
+  pointer-events: none;
+  overflow: visible;
+  stroke: color-mix(in srgb, var(--color-gold) 92%, #000 8%);
+  fill: color-mix(in srgb, var(--color-gold) 92%, #000 8%);
+  opacity: 0.82;
+  /* Keeps the arrow legible over the light board themes as well as the dark
+     ones, without needing a per-theme colour. */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evalbar-fill,
+  .evalbar.is-pending .evalbar-track,
+  .evalbar.is-pending .evalbar-score {
+    transition: none;
+  }
+}

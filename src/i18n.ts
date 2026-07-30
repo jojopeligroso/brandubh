@@ -332,6 +332,14 @@ export interface Translations {
 
   // Board tools — flip + analysis (Session 7b)
   flipBoard: string;
+  /** Engine eval (bar + best-move arrow) — Session 7a. */
+  evalLabel: string;
+  evalShow: string;
+  evalHide: string;
+  evalThinking: string;
+  evalAttackersWin: string;
+  evalDefendersWin: string;
+  zenElEval: string;
   analysisMode: string;
   analysisExit: string;
   analysisHint: string;
@@ -662,6 +670,13 @@ const en: Translations = {
   zenElGameFile: "Export / import",
 
   flipBoard: "Flip board",
+  evalLabel: "Engine eval",
+  evalShow: "Show eval",
+  evalHide: "Hide eval",
+  evalThinking: "Evaluating\u2026",
+  evalAttackersWin: "Raiders win",
+  evalDefendersWin: "King wins",
+  zenElEval: "Engine eval",
   analysisMode: "Analysis",
   analysisExit: "Leave analysis",
   analysisHint: "Move both sides freely \u00b7 the computer and the clock are paused \u00b7 nothing is saved",
@@ -1053,6 +1068,13 @@ const es: Translations = {
   zenElGameFile: "Exportar / importar",
 
   flipBoard: "Girar el tablero",
+  evalLabel: "Evaluaci\u00f3n",
+  evalShow: "Mostrar evaluaci\u00f3n",
+  evalHide: "Ocultar evaluaci\u00f3n",
+  evalThinking: "Evaluando\u2026",
+  evalAttackersWin: "Ganan los asaltantes",
+  evalDefendersWin: "Gana el rey",
+  zenElEval: "Evaluaci\u00f3n del motor",
   analysisMode: "An\u00e1lisis",
   analysisExit: "Salir del an\u00e1lisis",
   analysisHint: "Mueve los dos bandos libremente \u00b7 la m\u00e1quina y el reloj est\u00e1n en pausa \u00b7 no se guarda nada",
@@ -1451,6 +1473,14 @@ const ga: Translations = {
   // DRAFT (Session 7b) \u2014 unreviewed, like the rest of this table. Present so
   // the locale stays complete while it waits for review; `ga` is not offered.
   flipBoard: "Iompaigh an cl\u00e1r",
+  // DRAFT (unreviewed machine translation) \u2014 `ga` stays out of VISIBLE_LANGS.
+  evalLabel: "Luach\u00e1il an innill",
+  evalShow: "Taispe\u00e1in an luach\u00e1il",
+  evalHide: "Folaigh an luach\u00e1il",
+  evalThinking: "\u00c1 luach\u00e1il\u2026",
+  evalAttackersWin: "Buann na foghlaithe",
+  evalDefendersWin: "Buann an r\u00ed",
+  zenElEval: "Luach\u00e1il an innill",
   analysisMode: "Anail\u00eds",
   analysisExit: "F\u00e1g an anail\u00eds",
   analysisHint: "Bog an d\u00e1 thaobh gan bhac \u00b7 t\u00e1 an r\u00edomhaire agus an clog ar sos \u00b7 n\u00ed sh\u00e1bh\u00e1iltear faic",
