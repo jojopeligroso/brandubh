@@ -18,6 +18,7 @@ import {
   clearSavedGame,
   hasMatchProgress,
   loadResumableGame,
+  newGameId,
   saveGame,
   snapshotGame,
   type RestoredGame,
@@ -367,6 +368,11 @@ export default function App() {
   // Guards the set recorder so a finished game is counted exactly once, even as
   // the cursor is moved back and forth over the terminal position.
   const recorded = useRef(false);
+  // This game's stable identity, held for as long as the game lasts so every
+  // autosave writes the same game rather than a new one. A resumed game keeps
+  // the id it was saved under. See game/records.ts.
+  const gameId = useRef<string>(pendingResume?.id ?? newGameId());
+  const gameStartedAt = useRef<number>(pendingResume?.createdAt ?? Date.now());
 
   // ── Applying a move (shared by human + AI) ──────────────────────────────────
   const commitMove = useCallback(
@@ -521,6 +527,9 @@ export default function App() {
   const resetBoard = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     recorded.current = false;
+    // A fresh board is a new game, so it gets a new identity (see game/records.ts).
+    gameId.current = newGameId();
+    gameStartedAt.current = Date.now();
     prevTipRef.current = 0;
     setStates([initialState()]);
     setCursor(0);
@@ -576,6 +585,9 @@ export default function App() {
     setNames(r.names);
     setMatch(r.match);
     recorded.current = r.recorded;
+    // Resuming continues the same game, so it keeps its id and start time.
+    gameId.current = r.id;
+    gameStartedAt.current = r.createdAt;
     // The timeline arrives whole rather than a move at a time, so the clock
     // must not read the jump as a move being played.
     prevTipRef.current = r.states.length - 1;
@@ -605,6 +617,10 @@ export default function App() {
   const discardSavedGame = useCallback(() => {
     setPendingResume(null);
     clearSavedGame();
+    // The id was seeded from the save being offered; dropping it means the next
+    // game is a new game, so it must not inherit the discarded one's identity.
+    gameId.current = newGameId();
+    gameStartedAt.current = Date.now();
   }, []);
 
   // ── Autosave ────────────────────────────────────────────────────────────────
@@ -624,6 +640,8 @@ export default function App() {
     const c = clockRef.current;
     saveGame(
       snapshotGame({
+        id: gameId.current,
+        createdAt: gameStartedAt.current,
         states,
         cursor,
         variantId,
