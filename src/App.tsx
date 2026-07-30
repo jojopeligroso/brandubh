@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from "./components/Board";
 import RulesModal from "./components/RulesModal";
 import HowToDemo from "./components/HowToDemo";
+import GameFilePanel from "./components/GameFilePanel";
+import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { DIFFICULTIES, type Difficulty } from "./game/ai";
 import { useAiWorker } from "./game/useAiWorker";
 import {
@@ -38,6 +40,7 @@ import {
   CUSTOM_RULE_DEFAULTS,
   DEFAULT_VARIANT,
   VARIANTS,
+  ruleFlags,
   type CustomRuleSet,
   type RuleSet,
 } from "./game/variants";
@@ -549,6 +552,49 @@ export default function App() {
     clearSavedGame();
   }, [resetBoard, playMode, gamesPerSet]);
 
+  // ── Load an imported game into the timeline ─────────────────────────────────
+  // The parsed states are engine output — every ply was replayed through
+  // `applyMove` on the way in (see game/replay.ts) — so they drop straight into
+  // `states` and the existing review controls work on them unchanged: step back
+  // and forth, click the move log, branch with "play from here".
+  //
+  // An import lands over the board rather than in whatever mode you were in. An
+  // imported game is often mid-position and often the computer's turn, and the
+  // AI effect would otherwise play a move on top of it the instant it appeared;
+  // "play from here vs the computer" hands a side back whenever you want one.
+  //
+  // It is a *different game* from whatever was on the board, so it takes a new
+  // identity and a fresh clock line: reusing the old id would autosave the
+  // import as a continuation of a game it has nothing to do with, and the old
+  // per-ply banks are index-aligned to a timeline that no longer exists, so a
+  // rewind would hand out another game's times.
+  const loadImportedGame = useCallback(
+    (imported: ParsedGame) => {
+      if (aiTimer.current) window.clearTimeout(aiTimer.current);
+      cancelAi();
+      recorded.current = false;
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
+      const tipIndex = imported.states.length - 1;
+      // The timeline arrives whole, so the clock must not read the jump as a
+      // move being played (the same guard the resume path uses).
+      prevTipRef.current = tipIndex;
+      setVariantId(imported.variantId);
+      if (imported.variantId === "custom") setCustomRules(ruleFlags(imported.rules));
+      setPlayMode("hotseat");
+      setMatch(null);
+      setStates(imported.states);
+      setCursor(tipIndex);
+      setSelected(null);
+      setFadingCaptures([]);
+      setThinking(false);
+      setShowTakeback(false);
+      setClockLine(initialClockLine(timeControl));
+      clock.reset();
+    },
+    [cancelAi, clock.reset, timeControl],
+  );
+
   // Start the next game of the current set (sides already swapped on record).
   const nextGame = useCallback(() => {
     resetBoard();
@@ -859,6 +905,22 @@ export default function App() {
   // side they took.
   const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
   const showPause = clock.enabled && clock.started && atTip && !gameOver;
+
+  // Who goes in the exported file's [Attackers] / [Defenders] tags: the AI's
+  // tier when the computer holds that side, otherwise the player's own name
+  // (over the board, the set records who is on which side this game).
+  const participantName = (side: Side): string => {
+    if (side === aiSide) return difficulty;
+    if (side === humanSide) return names.p1.trim() || t.player1;
+    const attackersId: PlayerId = otbSet?.attackersPlayer ?? "p1";
+    const id: PlayerId = side === "attackers" ? attackersId : attackersId === "p1" ? "p2" : "p1";
+    return names[id].trim() || (id === "p1" ? t.player1 : t.player2);
+  };
+  const exportMeta: GameFileMeta = {
+    event: "Brandubh",
+    attackers: participantName("attackers"),
+    defenders: participantName("defenders"),
+  };
   // Browsing the game shows each position's own clocks — the times it was first
   // offered with — rather than the live banks, so what you see while reviewing
   // is what you get if you resume from there.
@@ -1046,6 +1108,18 @@ export default function App() {
       )}
 
       <MoveLog t={t} game={states[tip]} activeIndex={cursor - 1} onMoveClick={(i) => setCursor(i + 1)} />
+
+      {/* Export/import the whole mainline — always the tip, never the position
+          currently under review (see docs/design/game-import-export.md). */}
+      {showExtra("gamefile") && (
+        <GameFilePanel
+          t={t}
+          state={states[tip]}
+          rules={rules}
+          meta={exportMeta}
+          onImport={loadImportedGame}
+        />
+      )}
 
       {aiSide !== null && lastAiInfo && (
         <p className="mt-1 text-center font-mono text-[11px] text-parchment-dim/70 tabular-nums">
@@ -1855,6 +1929,7 @@ function ZenSettings({
     resign: t.resign,
     pause: t.pause,
     settings: t.zenElSettings,
+    gamefile: t.zenElGameFile,
   };
   return (
     <div>

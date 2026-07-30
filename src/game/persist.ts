@@ -34,16 +34,17 @@
 //     separate, human-facing serialization, free to evolve independently.
 
 import { DIFFICULTIES, type Difficulty } from "./ai";
-import { allMoves, applyMove, initialState, isGameOver } from "./engine";
-import type { GameState, GameStatus, Move, PlayMode, Side } from "./types";
+import type { GameState, GameStatus, PlayMode, Side } from "./types";
 import type { Match, PlayerId } from "./matchSet";
 import type { ClockBanks } from "./clockLine";
 import {
   CUSTOM_RULE_DEFAULTS,
   VARIANTS,
+  rulesFor,
   type CustomRuleSet,
   type RuleSet,
 } from "./variants";
+import { isExternalStatus, replayPlies } from "./replay";
 
 /** Versioned storage key. Bump the suffix on any incompatible schema change. */
 export const GAME_STORAGE_KEY = "brandubh.game.v1";
@@ -152,18 +153,6 @@ export interface GameSnapshotInput {
   names: { p1: string; p2: string };
 }
 
-/**
- * Results the move list cannot imply. Everything else (escape, capture,
- * encirclement, block, repetition) falls straight out of replaying the moves,
- * so a replay that disagrees about *those* means the save is corrupt.
- */
-const EXTERNAL_STATUSES: ReadonlySet<GameStatus> = new Set<GameStatus>([
-  "attackers_win_resign",
-  "defenders_win_resign",
-  "attackers_win_time",
-  "defenders_win_time",
-]);
-
 const PLAY_MODES: readonly PlayMode[] = ["attackers", "defenders", "hotseat"];
 
 /**
@@ -177,12 +166,9 @@ export function newGameId(): string {
   return `g-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
 
-/** Resolve the ruleset a save was played under. */
-export function rulesFor(variantId: string, custom: CustomRuleSet): RuleSet {
-  return variantId === "custom"
-    ? { id: "custom", name: "Custom", blurb: "Your custom ruleset.", ...custom }
-    : VARIANTS[variantId];
-}
+/** Resolve the ruleset a save was played under. Shared with the export format
+ *  (see variants.ts) so the two serializations cannot disagree about "custom". */
+export { rulesFor };
 
 // ── Serialize ────────────────────────────────────────────────────────────────
 
@@ -365,16 +351,19 @@ export function restoreGame(saved: SavedGame): RestoredGame | null {
   const rules = rulesFor(saved.variantId, saved.customRules);
   if (!rules) return null;
 
-  const states: GameState[] = [initialState()];
-  for (const [fr, fc, tr, tc] of saved.moves) {
-    const from = states[states.length - 1];
-    if (isGameOver(from.status)) return null; // moves after the game ended
-    const legal: Move | undefined = allMoves(from.board, from.turn, rules).find(
-      (m) => m.from.row === fr && m.from.col === fc && m.to.row === tr && m.to.col === tc,
-    );
-    if (!legal) return null; // illegal move → not a game this engine ever played
-    states.push(applyMove(from, legal, rules));
-  }
+  // The replay itself is shared with the export format (see game/replay.ts):
+  // one trust boundary, so a save and a pasted game are validated identically.
+  // Anything that will not replay legally — a corrupt, tampered or
+  // rule-mismatched save — aborts the restore rather than being half-applied.
+  const replayed = replayPlies(
+    saved.moves.map(([fr, fc, tr, tc]) => ({
+      from: { row: fr, col: fc },
+      to: { row: tr, col: tc },
+    })),
+    rules,
+  );
+  if (!replayed.ok) return null;
+  const states = replayed.states;
   if (saved.cursor >= states.length) return null;
 
   // Reconcile the stored result with the replayed one. A resignation or a flag
@@ -382,7 +371,7 @@ export function restoreGame(saved: SavedGame): RestoredGame | null {
   // disagreement means the save does not describe this position and is dropped.
   const tip = states[states.length - 1];
   if (tip.status !== saved.status) {
-    if (tip.status === "playing" && EXTERNAL_STATUSES.has(saved.status)) {
+    if (tip.status === "playing" && isExternalStatus(saved.status)) {
       states[states.length - 1] = { ...tip, status: saved.status };
     } else {
       return null;

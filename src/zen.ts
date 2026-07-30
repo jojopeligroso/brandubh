@@ -9,7 +9,8 @@
 // game actually ends, never as a persistent button mid-play. Everything else is
 // an opt-in *extra* — hidden by default in Zen and revealed individually from
 // settings: the match scoreboard, captured tray, move navigator, rules button,
-// propose-takeback, resign, pause and the settings panels themselves.
+// propose-takeback, resign, pause, the settings panels themselves and the
+// export/import panel.
 
 export type ZenExtraId =
   | "scoreboard"
@@ -19,7 +20,8 @@ export type ZenExtraId =
   | "takeback"
   | "resign"
   | "pause"
-  | "settings";
+  | "settings"
+  | "gamefile";
 
 /** Opt-in extras, in the order they appear in the settings picker. */
 export const ZEN_EXTRAS: ZenExtraId[] = [
@@ -31,6 +33,7 @@ export const ZEN_EXTRAS: ZenExtraId[] = [
   "resign",
   "pause",
   "settings",
+  "gamefile",
 ];
 
 export interface ZenConfig {
