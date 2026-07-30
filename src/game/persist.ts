@@ -74,6 +74,15 @@ export interface SavedClock {
 /** The full save payload. */
 export interface SavedGame {
   v: number;
+  /**
+   * Stable identity for this game, unchanged across every autosave of it. The
+   * blob does not need a key, but a row does, and the same id is what lets a
+   * game be exported, archived or synced without becoming a duplicate. Saves
+   * written before ids existed are given one on read.
+   */
+  id: string;
+  /** When the game was started; `savedAt` is when it was last written. */
+  createdAt: number;
   savedAt: number;
   variantId: string;
   customRules: CustomRuleSet;
@@ -94,6 +103,9 @@ export interface SavedGame {
 
 /** What `restoreGame` hands back: everything App needs to pick up play. */
 export interface RestoredGame {
+  /** The resumed game keeps its identity — the same game, not a copy of it. */
+  id: string;
+  createdAt: number;
   states: GameState[];
   cursor: number;
   rules: RuleSet;
@@ -110,6 +122,10 @@ export interface RestoredGame {
 
 /** Everything App knows about the live game, as handed to {@link snapshotGame}. */
 export interface GameSnapshotInput {
+  /** The game's stable id; omitted means "this is a new game, mint one". */
+  id?: string;
+  /** When the game started; omitted defaults to now. */
+  createdAt?: number;
   states: GameState[];
   cursor: number;
   variantId: string;
@@ -137,6 +153,17 @@ const EXTERNAL_STATUSES: ReadonlySet<GameStatus> = new Set<GameStatus>([
 
 const PLAY_MODES: readonly PlayMode[] = ["attackers", "defenders", "hotseat"];
 
+/**
+ * A fresh game id. `crypto.randomUUID` where it exists (every browser this app
+ * targets, and Node 19+); a random fallback otherwise, since an id that is
+ * merely unique-enough-locally is still better than none.
+ */
+export function newGameId(): string {
+  const c: Crypto | undefined = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `g-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
 /** Resolve the ruleset a save was played under. */
 export function rulesFor(variantId: string, custom: CustomRuleSet): RuleSet {
   return variantId === "custom"
@@ -146,11 +173,17 @@ export function rulesFor(variantId: string, custom: CustomRuleSet): RuleSet {
 
 // ── Serialize ────────────────────────────────────────────────────────────────
 
-/** Build the save payload from the live game. */
+/**
+ * Build the save payload from the live game. The id and `createdAt` identify the
+ * game across its whole life, so App keeps them for as long as the game lasts
+ * and passes them back on every autosave; a snapshot without them is a new game.
+ */
 export function snapshotGame(input: GameSnapshotInput, now: number = Date.now()): SavedGame {
   const tip = input.states[input.states.length - 1];
   return {
     v: GAME_SCHEMA_VERSION,
+    id: input.id ?? newGameId(),
+    createdAt: input.createdAt ?? now,
     savedAt: now,
     variantId: input.variantId,
     customRules: input.customRules,
@@ -258,6 +291,14 @@ export function parseSavedGame(raw: string | null, now: number = Date.now()): Sa
 
   return {
     v: GAME_SCHEMA_VERSION,
+    // Ids and start times arrived after the first saves did. Rather than reject a
+    // game in progress over a missing key, mint one and treat the save time as
+    // the start: read tolerantly, write completely.
+    id: typeof data.id === "string" && data.id !== "" ? data.id : newGameId(),
+    createdAt:
+      typeof data.createdAt === "number" && Number.isFinite(data.createdAt)
+        ? data.createdAt
+        : data.savedAt,
     savedAt: data.savedAt,
     variantId: data.variantId,
     customRules,
@@ -311,6 +352,8 @@ export function restoreGame(saved: SavedGame): RestoredGame | null {
   }
 
   return {
+    id: saved.id,
+    createdAt: saved.createdAt,
     states,
     cursor: saved.cursor,
     rules,
