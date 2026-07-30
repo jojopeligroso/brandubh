@@ -59,8 +59,25 @@ export const GAME_SCHEMA_VERSION = 1;
  */
 export const MAX_SAVE_AGE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
-/** A move as stored: `[fromRow, fromCol, toRow, toCol]`. Captures are replayed. */
-export type SavedMove = [number, number, number, number];
+/**
+ * A move as stored: `[fromRow, fromCol, toRow, toCol]`, optionally followed by
+ * the number of pieces it captured.
+ *
+ * The board is never stored — captures are recomputed by replaying the move
+ * through the engine (see `restoreGame`). The trailing count is not used to
+ * *produce* the position; it is a claim the replay checks its own arithmetic
+ * against, exactly as the export format does (see game/replay.ts,
+ * `capture_mismatch`). That check is what catches a move list paired with a
+ * ruleset it was not played under: swapping, say, `cornersHostile` leaves most
+ * moves legal but changes what they take, so without the count the save would
+ * replay "successfully" into a *different* game.
+ *
+ * The count is optional so saves written before it existed still restore; they
+ * simply go unchecked, as they always were.
+ */
+export type SavedMove =
+  | [number, number, number, number]
+  | [number, number, number, number, number];
 
 /** The clock as stored: the banks, who holds them, and the flag. */
 export interface SavedClock {
@@ -188,12 +205,15 @@ export function snapshotGame(input: GameSnapshotInput, now: number = Date.now())
     customRules: input.customRules,
     playMode: input.playMode,
     difficulty: input.difficulty,
-    moves: tip.history.map((h) => [
-      h.move.from.row,
-      h.move.from.col,
-      h.move.to.row,
-      h.move.to.col,
-    ]),
+    moves: tip.history.map(
+      (h): SavedMove => [
+        h.move.from.row,
+        h.move.from.col,
+        h.move.to.row,
+        h.move.to.col,
+        h.move.captures?.length ?? 0,
+      ],
+    ),
     status: tip.status,
     cursor: input.cursor,
     recorded: input.recorded,
@@ -213,8 +233,15 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 
 const isSide = (v: unknown): v is Side => v === "attackers" || v === "defenders";
 
+/** No single move can take more than the four squares around its destination. */
+const MAX_CAPTURES_PER_MOVE = 4;
+
 const isSavedMove = (v: unknown): v is SavedMove =>
-  Array.isArray(v) && v.length === 4 && v.every((n) => Number.isInteger(n) && n >= 0 && n < 16);
+  Array.isArray(v) &&
+  (v.length === 4 || v.length === 5) &&
+  v.slice(0, 4).every((n) => Number.isInteger(n) && n >= 0 && n < 16) &&
+  (v.length === 4 ||
+    (Number.isInteger(v[4]) && v[4] >= 0 && v[4] <= MAX_CAPTURES_PER_MOVE));
 
 const parseBanks = (v: unknown): ClockBanks | null => {
   if (!isObject(v)) return null;
@@ -343,8 +370,9 @@ export function parseSavedGame(raw: string | null, now: number = Date.now()): Sa
 
 /**
  * Rebuild the state timeline by replaying the saved moves through the engine.
- * Any move that is not legal in the position it claims to be played from — the
- * signature of a corrupt, tampered or rule-mismatched save — aborts the whole
+ * Any move that is not legal in the position it claims to be played from, or
+ * that captures a different number of pieces than the save recorded — the
+ * signatures of a corrupt, tampered or rule-mismatched save — aborts the whole
  * restore, and null is returned so the caller starts a fresh game instead.
  */
 export function restoreGame(saved: SavedGame): RestoredGame | null {
@@ -356,9 +384,12 @@ export function restoreGame(saved: SavedGame): RestoredGame | null {
   // Anything that will not replay legally — a corrupt, tampered or
   // rule-mismatched save — aborts the restore rather than being half-applied.
   const replayed = replayPlies(
-    saved.moves.map(([fr, fc, tr, tc]) => ({
+    saved.moves.map(([fr, fc, tr, tc, captures]) => ({
       from: { row: fr, col: fc },
       to: { row: tr, col: tc },
+      // Undefined on a save written before capture counts were stored, which
+      // `replayPlies` reads as "the source said nothing" and leaves unchecked.
+      captures: captures ?? null,
     })),
     rules,
   );

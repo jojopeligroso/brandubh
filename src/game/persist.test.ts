@@ -362,6 +362,123 @@ describe("invalidation", () => {
   });
 });
 
+// ── A move list may never be reinterpreted under different rules ─────────────
+//
+// The dangerous case is not the save that fails to replay — that one is already
+// caught. It is the save that replays *perfectly well* under the wrong ruleset
+// and quietly yields a different game. The stored per-ply capture count is what
+// closes it: the counts are the one thing a rules swap changes even when every
+// move stays legal.
+
+describe("a save cannot be replayed under rules it was not played under", () => {
+  // Five plies, chosen so that every move is legal under either setting of
+  // `throneHostileToSoldiers`, but the last one takes a defender against the
+  // emptied throne only when the flag is on. Legality alone cannot tell the two
+  // games apart; the capture count can.
+  const LINE: [number, number, number, number][] = [
+    [3, 1, 2, 1], // a raider steps off the king's rank…
+    [2, 3, 2, 2], // …a defender clears the square above the throne…
+    [0, 3, 0, 2],
+    [3, 3, 2, 3], // …the king leaves the throne, which is now empty…
+    [2, 1, 3, 1], // …and the raider steps back, flanking d4 against the throne.
+  ];
+
+  const play = (throneHostileToSoldiers: boolean) => {
+    const ruleSet = rulesFor("custom", { ...CUSTOM_RULE_DEFAULTS, throneHostileToSoldiers });
+    const states: GameState[] = [initialState()];
+    for (const [fr, fc, tr, tc] of LINE) {
+      const from = states[states.length - 1];
+      const move = allMoves(from.board, from.turn, ruleSet).find(
+        (m) => m.from.row === fr && m.from.col === fc && m.to.row === tr && m.to.col === tc,
+      );
+      expect(move).toBeDefined();
+      states.push(applyMove(from, move as Move, ruleSet));
+    }
+    return states;
+  };
+
+  const capturesIn = (states: GameState[]) =>
+    states[states.length - 1].history.map((h) => h.move.captures?.length ?? 0);
+
+  it("the line really is legal either way, and only the captures differ", () => {
+    expect(capturesIn(play(true))).toEqual([0, 0, 0, 0, 1]);
+    expect(capturesIn(play(false))).toEqual([0, 0, 0, 0, 0]);
+  });
+
+  it("rejects a save whose ruleset was swapped under an intact move list", () => {
+    const states = play(true);
+    const saved = snapshotGame(
+      snapshotInput({
+        states,
+        cursor: states.length - 1,
+        variantId: "custom",
+        customRules: { ...CUSTOM_RULE_DEFAULTS, throneHostileToSoldiers: true },
+      }),
+    );
+    expect(restoreGame(saved)).not.toBeNull(); // honest save, honest rules
+
+    // What a mid-game rule toggle used to leave behind: the same moves, now
+    // paired with the rules the player has just switched to.
+    const swapped: SavedGame = {
+      ...saved,
+      customRules: { ...CUSTOM_RULE_DEFAULTS, throneHostileToSoldiers: false },
+    };
+    expect(restoreGame(swapped)).toBeNull();
+  });
+
+  it("would otherwise have restored a different game in silence", () => {
+    // Same swap, but with the capture counts stripped — the pre-check schema.
+    // It restores, and the board it produces is not the board that was saved:
+    // proof that the counts are doing the work, not the legality check.
+    const states = play(true);
+    const saved = snapshotGame(
+      snapshotInput({
+        states,
+        cursor: states.length - 1,
+        variantId: "custom",
+        customRules: { ...CUSTOM_RULE_DEFAULTS, throneHostileToSoldiers: false },
+      }),
+    );
+    const uncounted: SavedGame = {
+      ...saved,
+      moves: saved.moves.map(([a, b, c, d]) => [a, b, c, d] as [number, number, number, number]),
+    };
+    const restored = restoreGame(uncounted);
+    expect(restored).not.toBeNull();
+    expect(restored!.states[5].board).not.toEqual(states[5].board);
+  });
+
+  it("rejects a save whose stored capture count is simply wrong", () => {
+    const saved = snapshotGame(snapshotInput());
+    const [a, b, c, d] = saved.moves[0];
+    const lying: SavedGame = { ...saved, moves: [[a, b, c, d, 3], ...saved.moves.slice(1)] };
+    expect(restoreGame(lying)).toBeNull();
+  });
+
+  it("still restores a save written before capture counts existed", () => {
+    const saved = snapshotGame(snapshotInput());
+    const old: SavedGame = {
+      ...saved,
+      moves: saved.moves.map(([a, b, c, d]) => [a, b, c, d] as [number, number, number, number]),
+    };
+    const restored = restoreGame(old);
+    expect(restored).not.toBeNull();
+    expect(restored!.states).toHaveLength(saved.moves.length + 1);
+  });
+
+  it("accepts the counts through a full parse, and rejects a malformed one", () => {
+    const now = Date.now();
+    const raw = serializeGame(snapshotGame(snapshotInput(), now));
+    expect(parseSavedGame(raw, now)!.moves[0]).toHaveLength(5);
+    const bad = (moves: unknown) =>
+      parseSavedGame(JSON.stringify({ ...JSON.parse(raw), moves, cursor: 1 }), now);
+    expect(bad([[0, 3, 0, 2, 9]])).toBeNull(); // more captures than a move can make
+    expect(bad([[0, 3, 0, 2, -1]])).toBeNull();
+    expect(bad([[0, 3, 0, 2, 1, 1]])).toBeNull();
+    expect(bad([[0, 3, 0, 2, 1]])).not.toBeNull();
+  });
+});
+
 // ── localStorage wrappers ────────────────────────────────────────────────────
 
 class MemoryStorage {

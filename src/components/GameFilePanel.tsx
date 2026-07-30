@@ -28,6 +28,13 @@ interface Props {
   rules: RuleSet;
   meta: GameFileMeta;
   onImport: (game: ParsedGame) => void;
+  /**
+   * Where this copy of the panel is rendered. The panel appears both in the
+   * page (its own card) and inside the gear ⚙ modal, which supplies the
+   * surrounding section — so the two need different chrome, and different test
+   * ids to stay individually addressable while both are mounted.
+   */
+  placement?: "page" | "modal";
 }
 
 type Feedback =
@@ -93,7 +100,14 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export default function GameFilePanel({ t, state, rules, meta, onImport }: Props) {
+export default function GameFilePanel({
+  t,
+  state,
+  rules,
+  meta,
+  onImport,
+  placement = "page",
+}: Props) {
   const [pasted, setPasted] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -152,7 +166,10 @@ export default function GameFilePanel({ t, state, rules, meta, onImport }: Props
   };
 
   return (
-    <details className="card mt-4 p-4" data-testid="gamefile-panel">
+    <details
+      className={placement === "modal" ? "" : "card mt-4 p-4"}
+      data-testid={placement === "modal" ? "gamefile-panel-modal" : "gamefile-panel"}
+    >
       <summary className="cursor-pointer text-sm font-semibold text-parchment-dim">
         {t.gameFileTitle}
       </summary>

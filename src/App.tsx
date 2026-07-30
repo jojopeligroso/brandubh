@@ -79,7 +79,7 @@ import {
   type ZenConfig,
   type ZenExtraId,
 } from "./zen";
-import { type Lang, type Translations, translations, VISIBLE_LANGS } from "./i18n";
+import { VISIBLE_LANGS, type Lang, type Translations, translations } from "./i18n";
 import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
 import {
   applyPieceColors,
@@ -258,6 +258,19 @@ export default function App() {
     () => resolveTimeControl(clockEnabled, controlId, customMinutes, customIncrement),
     [clockEnabled, controlId, customMinutes, customIncrement],
   );
+  // The time-control picker is rendered in two places (the inline settings stack
+  // and the gear ⚙ modal), so its wiring is described once here.
+  const clockControls = {
+    t,
+    enabled: clockEnabled,
+    onEnabled: setClockEnabled,
+    controlId,
+    onControl: setControlId,
+    customMinutes,
+    onCustomMinutes: setCustomMinutes,
+    customIncrement,
+    onCustomIncrement: setCustomIncrement,
+  };
   // The clocks each position was first offered with, index-aligned with the move
   // timeline below. Rewinding the board rewinds these too, so a position always
   // resumes with the time it had when it was first put in front of the player.
@@ -827,19 +840,29 @@ export default function App() {
     });
   }, [gameOver, atTip, humanSide, game.turn]);
 
+  // ── Changing the rules ──────────────────────────────────────────────────────
+  // A ruleset change cannot be applied to a game already in progress: the board
+  // stands in a position the new rules may never have allowed, and the moves
+  // that produced it may have taken pieces the new rules would have left alone.
+  // So a rule change is a new game — `resetGame` clears the board, restarts the
+  // match, *and* drops the save.
+  //
+  // Dropping the save is not housekeeping, it is the half that makes storage
+  // agree with the UI. The autosave writes the current move list alongside the
+  // current ruleset, and `restoreGame` replays that list under those rules
+  // (game/persist.ts); leaving the two paired after a rule change would hand a
+  // reload a move list to reinterpret under rules it was never played under.
+  //
+  // Both entry points go through here — picking a different variant, and
+  // toggling a flag in the custom-rule editor. They are the same event.
   const changeVariant = (id: string) => {
     setVariantId(id);
-    resetBoard();
-    setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
+    resetGame();
   };
 
-  // Toggling a custom rule mid-game changes the board's legal moves under it, so
-  // it starts a fresh game exactly as the variant dropdown does — otherwise the
-  // move history and the live ruleset disagree.
-  const changeCustomRules = (r: CustomRuleSet) => {
-    setCustomRules(r);
-    resetBoard();
-    setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
+  const changeCustomRules = (next: CustomRuleSet) => {
+    setCustomRules(next);
+    resetGame();
   };
 
   const changeMode = (m: PlayMode) => {
@@ -1069,9 +1092,11 @@ export default function App() {
         />
       )}
 
-      {/* The settings panels can themselves be hidden in Zen. When they are, the
-          same Zen controls remain in the always-reachable gear ⚙ modal, so you
-          are never locked out. */}
+      {/* The settings panels can themselves be hidden in Zen, and so can the
+          export/import panel below. Everything Zen can hide that is *configuration*
+          — Zen itself, the clock, the custom ruleset, the game file — is also
+          rendered in the always-reachable gear ⚙ modal, so no Zen setting can
+          ever lock you out of the control that would undo it. */}
       {showExtra("settings") && (
         <>
           <Settings
@@ -1089,17 +1114,9 @@ export default function App() {
             onShowDesign={() => setShowDesign(true)}
           />
 
-          <ClockSettings
-            t={t}
-            enabled={clockEnabled}
-            onEnabled={setClockEnabled}
-            controlId={controlId}
-            onControl={setControlId}
-            customMinutes={customMinutes}
-            onCustomMinutes={setCustomMinutes}
-            customIncrement={customIncrement}
-            onCustomIncrement={setCustomIncrement}
-          />
+          <div className="card mt-4 p-4">
+            <ClockControls {...clockControls} />
+          </div>
 
           <div className="card mt-4 p-4">
             <ZenSettings
@@ -1111,7 +1128,9 @@ export default function App() {
           </div>
 
           {variantId === "custom" && (
-            <CustomRuleEditor t={t} rules={customRules} onChange={changeCustomRules} />
+            <div className="card mt-4 p-4">
+              <CustomRuleControls t={t} rules={customRules} onChange={changeCustomRules} />
+            </div>
           )}
         </>
       )}
@@ -1239,7 +1258,7 @@ export default function App() {
       )}
 
       {showDesign && (
-        <DesignModal
+        <SettingsModal
           t={t}
           theme={theme}
           onTheme={setTheme}
@@ -1257,14 +1276,20 @@ export default function App() {
           zen={zen}
           onZenEnabled={setZenEnabled}
           onToggleZenExtra={toggleZenExtra}
-          clockEnabled={clockEnabled}
-          onClockEnabled={setClockEnabled}
-          controlId={controlId}
-          onControl={setControlId}
-          customMinutes={customMinutes}
-          onCustomMinutes={setCustomMinutes}
-          customIncrement={customIncrement}
-          onCustomIncrement={setCustomIncrement}
+          clockControls={clockControls}
+          customRules={variantId === "custom" ? customRules : null}
+          onCustomRules={changeCustomRules}
+          gameFile={{
+            state: states[tip],
+            rules,
+            meta: exportMeta,
+            // An import replaces the board, so the modal has no reason to stay open.
+            onImport: (g) => {
+              loadImportedGame(g);
+              setShowDesign(false);
+            },
+            placement: "modal",
+          }}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -1299,14 +1324,18 @@ function Header({
         </p>
       </div>
       <div className="flex items-center gap-2">
+        {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line change
+            there rather than a hand-edit here. */}
         <div className="seg">
-          {VISIBLE_LANGS.map(({ code, label }) => (
+          {VISIBLE_LANGS.map((l) => (
             <button
-              key={code}
-              className={lang === code ? "on" : ""}
-              onClick={() => onLang(code)}
+              key={l.code}
+              className={lang === l.code ? "on" : ""}
+              onClick={() => onLang(l.code)}
+              aria-pressed={lang === l.code}
+              lang={l.code}
             >
-              {label}
+              {l.label}
             </button>
           ))}
         </div>
@@ -1316,8 +1345,9 @@ function Header({
         <button
           className="iconbtn"
           onClick={onShowDesign}
-          aria-label={t.design}
-          title={t.design}
+          aria-label={t.settings}
+          title={t.settings}
+          data-testid="gear"
         >
           <GearIcon />
         </button>
@@ -1815,7 +1845,10 @@ function SettingsSection({ label, children }: { label: string; children: React.R
 }
 
 // ── Clock settings (time-control picker) ─────────────────────────────────────
-function ClockSettings({
+// Card-less, like ZenSettings: rendered both inline (in the settings stack) and
+// in the gear ⚙ modal, so the time control stays reachable when Zen has hidden
+// the inline panels. The caller supplies the surrounding card or section.
+function ClockControls({
   t,
   enabled,
   onEnabled,
@@ -1848,7 +1881,7 @@ function ClockSettings({
   });
 
   return (
-    <div className="card mt-4 space-y-3 p-4">
+    <div className="space-y-3">
       <Row label={t.clock}>
         <div className="seg">
           <button className={!enabled ? "on" : ""} onClick={() => onEnabled(false)}>
@@ -1992,8 +2025,12 @@ function ZenSettings({
   );
 }
 
-// "Design your board" — theme + piece/corner icon customisation (gear menu).
-function DesignModal({
+// The gear ⚙ modal. It is the *guaranteed* home for configuration: Zen mode can
+// hide the inline settings stack and the export/import panel, so every control
+// those carry is rendered here as well. The rule is simple — if Zen can hide it
+// and it configures the app, it lives here too, and no Zen setting can strand
+// you without the control that undoes it. Board design lives here as before.
+function SettingsModal({
   t,
   theme,
   onTheme,
@@ -2011,14 +2048,10 @@ function DesignModal({
   zen,
   onZenEnabled,
   onToggleZenExtra,
-  clockEnabled,
-  onClockEnabled,
-  controlId,
-  onControl,
-  customMinutes,
-  onCustomMinutes,
-  customIncrement,
-  onCustomIncrement,
+  clockControls,
+  customRules,
+  onCustomRules,
+  gameFile,
   onClose,
 }: {
   t: Translations;
@@ -2038,14 +2071,11 @@ function DesignModal({
   zen: ZenConfig;
   onZenEnabled: (v: boolean) => void;
   onToggleZenExtra: (id: ZenExtraId) => void;
-  clockEnabled: boolean;
-  onClockEnabled: (v: boolean) => void;
-  controlId: string;
-  onControl: (id: string) => void;
-  customMinutes: number;
-  onCustomMinutes: (n: number) => void;
-  customIncrement: number;
-  onCustomIncrement: (n: number) => void;
+  clockControls: React.ComponentProps<typeof ClockControls>;
+  /** Null unless the "custom" variant is selected — nothing to edit otherwise. */
+  customRules: CustomRuleSet | null;
+  onCustomRules: (r: CustomRuleSet) => void;
+  gameFile: Omit<React.ComponentProps<typeof GameFilePanel>, "t">;
   onClose: () => void;
 }) {
   // The colour a piece has under the current theme, with any custom override
@@ -2090,13 +2120,13 @@ function DesignModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 className="font-display text-2xl text-gold">{t.design}</h2>
+          <h2 className="font-display text-2xl text-gold">{t.settings}</h2>
           <button className="btn" onClick={onClose} aria-label={t.close}>
             ✕
           </button>
         </div>
 
-        <section className="mt-5">
+        <section className="mt-5" data-testid="modal-zen">
           <ZenSettings
             t={t}
             zen={zen}
@@ -2105,23 +2135,23 @@ function DesignModal({
           />
         </section>
 
-        {/* The clock lives here too, so turning Zen on (which hides the inline
-            settings stack) never leaves the timer unreachable. */}
-        <section className="mt-5">
-          <ClockSettings
-            t={t}
-            enabled={clockEnabled}
-            onEnabled={onClockEnabled}
-            controlId={controlId}
-            onControl={onControl}
-            customMinutes={customMinutes}
-            onCustomMinutes={onCustomMinutes}
-            customIncrement={customIncrement}
-            onCustomIncrement={onCustomIncrement}
-          />
+        {/* The time control — the panel Zen used to take with it. */}
+        <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-clock">
+          <ClockControls {...clockControls} />
         </section>
 
-        <section className="mt-5">
+        {customRules && (
+          <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-rules">
+            <CustomRuleControls t={t} rules={customRules} onChange={onCustomRules} />
+          </section>
+        )}
+
+        {/* Export/import: a Zen extra too, so it needs the same guarantee. */}
+        <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-gamefile">
+          <GameFilePanel t={t} {...gameFile} />
+        </section>
+
+        <section className="mt-5 border-t border-parchment/10 pt-4">
           <span className="text-sm font-semibold text-parchment-dim">{t.colourTheme}</span>
           <div className="theme-swatches mt-2">
             {THEMES.map((m) => (
@@ -2462,7 +2492,9 @@ function ModeOverlay({
   );
 }
 
-function CustomRuleEditor({
+// Card-less for the same reason as ClockControls / ZenSettings — the custom
+// ruleset is configuration, so it needs a home in the gear ⚙ modal too.
+function CustomRuleControls({
   t,
   rules,
   onChange,
@@ -2488,7 +2520,7 @@ function CustomRuleEditor({
   ];
 
   return (
-    <div className="card mt-4 p-4">
+    <div>
       <h3 className="text-sm font-semibold uppercase tracking-wide text-parchment-dim">
         {t.customRulesTitle}
       </h3>

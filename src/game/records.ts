@@ -176,10 +176,11 @@ export const matchIdFor = (gameId: string): string => `${gameId}:match`;
 /**
  * Flatten a save into rows.
  *
- * `captures` cannot be recovered from `SavedMove` (the blob stores from/to only
- * and replays for the rest), so a caller holding the replayed timeline may pass
- * the per-ply counts. Without them the column reads 0 — which is precisely why
- * it is documented as derived: a backend fills it during the replay it already
+ * `captures` comes off the saved move itself, which now carries the count the
+ * replay checks itself against (see `SavedMove`). A save written before the
+ * count existed has none, so a caller holding the replayed timeline may still
+ * pass the per-ply counts; without either, the column reads 0 — which is why it
+ * stays documented as derived, recoverable from the replay a backend already
  * runs to validate the move.
  */
 export function toRecords(saved: SavedGame, capturesPerPly: number[] = []): GameRecords {
@@ -209,7 +210,7 @@ export function toRecords(saved: SavedGame, capturesPerPly: number[] = []): Game
   };
 
   const line = saved.clock?.line ?? [];
-  const moves: MoveRecord[] = saved.moves.map(([fromRow, fromCol, toRow, toCol], i) => ({
+  const moves: MoveRecord[] = saved.moves.map(([fromRow, fromCol, toRow, toCol, captures], i) => ({
     gameId: saved.id,
     ply: i + 1,
     side: sideOfPly(i + 1),
@@ -217,7 +218,7 @@ export function toRecords(saved: SavedGame, capturesPerPly: number[] = []): Game
     fromCol,
     toRow,
     toCol,
-    captures: capturesPerPly[i] ?? 0,
+    captures: captures ?? capturesPerPly[i] ?? 0,
     clockAfterAttackers: line[i + 1]?.attackers ?? null,
     clockAfterDefenders: line[i + 1]?.defenders ?? null,
   }));
@@ -263,7 +264,13 @@ export function fromRecords(records: GameRecords, cursor?: number): SavedGame {
   const { game, moves, match, setGames, settings } = records;
 
   const ordered = [...moves].sort((a, b) => a.ply - b.ply);
-  const savedMoves: SavedMove[] = ordered.map((m) => [m.fromRow, m.fromCol, m.toRow, m.toCol]);
+  const savedMoves: SavedMove[] = ordered.map((m) => [
+    m.fromRow,
+    m.fromCol,
+    m.toRow,
+    m.toCol,
+    m.captures,
+  ]);
 
   // The clock line is a dense prefix: entry 0 from the game row, then one per ply
   // until the first unrecorded one. Stopping there rather than filling holes is
