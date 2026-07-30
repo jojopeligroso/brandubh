@@ -10,7 +10,7 @@ Ordered by value ÷ effort:
 2. ~~**Play either side** *(S–M)* — choose raiders or king from the overlay.~~ **Shipped** → `src/game/sides.ts`.
 3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
 4. **Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.
-5. **Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.
+5. ~~**Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.~~ **Shipped**.
 6. **Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.
 7. **Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree → [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
 
@@ -27,8 +27,8 @@ custom-rule editor.
 
 ## Half-built
 
-- [ ] **Irish (ga) locale** — Full translation exists in `i18n.ts` but hidden from UI via `VISIBLE_LANGS`. Unhide when ready.
-- [ ] **`.piece.threat` CSS** — Styled in `index.css` but never applied in components. Either wire up or remove dead CSS. (`.piece.captured` is now used by the "Show me how" demo in `HowToDemo.tsx`.)
+- [x] **Irish (ga) locale** — Unhidden. Added `ga` to `VISIBLE_LANGS` and made the header language toggle render from that list (it was hard-coded to EN/ES). Cló rendering verified in a driven browser.
+- [x] **`.piece.threat` CSS** — Removed as dead code; it was styled in `index.css` but never applied in any component. (`.piece.captured` is still used by the "Show me how" demo in `HowToDemo.tsx`.)
 
 ## AI engine — next levers
 
@@ -74,8 +74,8 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 ## Minor UX
 
 - [x] **"Play vs AI" overlay always picks defenders** — fixed: the overlay now steps side → difficulty, and every derived side comes from `game/sides.ts`.
-- [ ] **Custom Rule Editor doesn't reset game** — Toggling rules mid-game creates inconsistent state. Variant dropdown resets correctly (`changeVariant()`) but custom rule toggles don't call `newGame()`.
+- [x] **Custom Rule Editor doesn't reset game** — Fixed. Toggling a custom rule now routes through `changeCustomRules()`, which resets the board and match just like `changeVariant()`, so the move history and live ruleset stay consistent.
 
 ## Docs
 
-- [ ] **Update screenshot** — `docs/screenshot.png` shows old variant names (Copenhagen Brandubh).
+- [x] **Update screenshot** — `docs/screenshot.png` refreshed from the current build (`npm run screenshot`, driven by `scripts/screenshot.mjs`); it now shows the current *Brandubh · WTF* variant name and the GA locale toggle.

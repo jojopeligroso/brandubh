@@ -79,7 +79,7 @@ import {
   type ZenConfig,
   type ZenExtraId,
 } from "./zen";
-import { type Lang, type Translations, translations } from "./i18n";
+import { type Lang, type Translations, translations, VISIBLE_LANGS } from "./i18n";
 import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
 import {
   applyPieceColors,
@@ -833,6 +833,15 @@ export default function App() {
     setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
   };
 
+  // Toggling a custom rule mid-game changes the board's legal moves under it, so
+  // it starts a fresh game exactly as the variant dropdown does — otherwise the
+  // move history and the live ruleset disagree.
+  const changeCustomRules = (r: CustomRuleSet) => {
+    setCustomRules(r);
+    resetBoard();
+    setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
+  };
+
   const changeMode = (m: PlayMode) => {
     setPlayMode(m);
     resetBoard();
@@ -1102,7 +1111,7 @@ export default function App() {
           </div>
 
           {variantId === "custom" && (
-            <CustomRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
+            <CustomRuleEditor t={t} rules={customRules} onChange={changeCustomRules} />
           )}
         </>
       )}
@@ -1248,6 +1257,14 @@ export default function App() {
           zen={zen}
           onZenEnabled={setZenEnabled}
           onToggleZenExtra={toggleZenExtra}
+          clockEnabled={clockEnabled}
+          onClockEnabled={setClockEnabled}
+          controlId={controlId}
+          onControl={setControlId}
+          customMinutes={customMinutes}
+          onCustomMinutes={setCustomMinutes}
+          customIncrement={customIncrement}
+          onCustomIncrement={setCustomIncrement}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -1283,12 +1300,15 @@ function Header({
       </div>
       <div className="flex items-center gap-2">
         <div className="seg">
-          <button className={lang === "en" ? "on" : ""} onClick={() => onLang("en")}>
-            EN
-          </button>
-          <button className={lang === "es" ? "on" : ""} onClick={() => onLang("es")}>
-            ES
-          </button>
+          {VISIBLE_LANGS.map(({ code, label }) => (
+            <button
+              key={code}
+              className={lang === code ? "on" : ""}
+              onClick={() => onLang(code)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <button className="btn" onClick={onShowRules}>
           {t.howToPlay}
@@ -1991,6 +2011,14 @@ function DesignModal({
   zen,
   onZenEnabled,
   onToggleZenExtra,
+  clockEnabled,
+  onClockEnabled,
+  controlId,
+  onControl,
+  customMinutes,
+  onCustomMinutes,
+  customIncrement,
+  onCustomIncrement,
   onClose,
 }: {
   t: Translations;
@@ -2010,6 +2038,14 @@ function DesignModal({
   zen: ZenConfig;
   onZenEnabled: (v: boolean) => void;
   onToggleZenExtra: (id: ZenExtraId) => void;
+  clockEnabled: boolean;
+  onClockEnabled: (v: boolean) => void;
+  controlId: string;
+  onControl: (id: string) => void;
+  customMinutes: number;
+  onCustomMinutes: (n: number) => void;
+  customIncrement: number;
+  onCustomIncrement: (n: number) => void;
   onClose: () => void;
 }) {
   // The colour a piece has under the current theme, with any custom override
@@ -2066,6 +2102,22 @@ function DesignModal({
             zen={zen}
             onEnabled={onZenEnabled}
             onToggleExtra={onToggleZenExtra}
+          />
+        </section>
+
+        {/* The clock lives here too, so turning Zen on (which hides the inline
+            settings stack) never leaves the timer unreachable. */}
+        <section className="mt-5">
+          <ClockSettings
+            t={t}
+            enabled={clockEnabled}
+            onEnabled={onClockEnabled}
+            controlId={controlId}
+            onControl={onControl}
+            customMinutes={customMinutes}
+            onCustomMinutes={onCustomMinutes}
+            customIncrement={customIncrement}
+            onCustomIncrement={onCustomIncrement}
           />
         </section>
 

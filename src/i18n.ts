@@ -1,9 +1,10 @@
 export type Lang = "en" | "es" | "ga";
 
-/** Languages shown in the UI toggle. Irish is available but hidden for now. */
+/** Languages shown in the UI toggle. */
 export const VISIBLE_LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "es", label: "ES" },
+  { code: "ga", label: "GA" },
 ];
 
 export interface Translations {

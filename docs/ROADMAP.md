@@ -69,12 +69,12 @@ two encodings, neither coupled to the other.
 - [ ] Cross-validate against the solver + an independent AND-OR oracle (as `recognizers.test.ts` does).
 - [ ] Confirm throughput-neutral; gauntlet for strength/neutrality; document honestly.
 
-### Session 5 — Correctness & discoverability polish *(S — batch)*
+### Session 5 — Correctness & discoverability polish *(S — batch)* — **shipped**
 **Goal:** fix known bugs and make features findable.
-- [ ] **Clock reachable in Zen:** surface the clock toggle in the gear ⚙ modal (like `ZenSettings`) so enabling Zen doesn't hide the timer.
-- [ ] **Custom-rule-editor reset:** toggling a custom rule mid-game must call `newGame()` (currently leaves inconsistent state).
-- [ ] **Unhide Irish (`ga`) locale** — full translation exists behind `VISIBLE_LANGS`; verify cló rendering, then reveal. On-brand with Ollaṁ.
-- [ ] Remove or wire the dead `.piece.threat` CSS; refresh `docs/screenshot.png`.
+- [x] **Clock reachable in Zen:** the `ClockSettings` panel now also renders in the gear ⚙ `DesignModal` (beside `ZenSettings`), so turning Zen on — which hides the inline settings stack — never leaves the timer unreachable.
+- [x] **Custom-rule-editor reset:** the editor's `onChange` routes through a new `changeCustomRules` handler that resets the board and match exactly as the variant dropdown does, so the move history and the live ruleset can no longer disagree.
+- [x] **Unhide Irish (`ga`) locale** — added to `VISIBLE_LANGS`, and the header language toggle (previously hard-coded to EN/ES) now renders from that list. Cló rendering verified in a driven browser: the full overdot orthography (Foġlaiṫe, Cluiċe, Rialaċa, Géill, COMÓRTAS…) displays with no missing glyphs.
+- [x] Removed the dead `.piece.threat` CSS (never applied in any component) and refreshed `docs/screenshot.png` from the current build via `scripts/screenshot.mjs` (`npm run screenshot`) — the board now shows the current *Brandubh · WTF* variant name, not the old *Copenhagen* label, and the new **GA** toggle.
 
 ### Session 6 — Opening book (Ollamh) *(M–L)*
 **Goal:** Ollamh opens instantly, varied, and strong.
