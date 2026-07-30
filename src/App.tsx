@@ -1990,20 +1990,32 @@ function Header({
               "Brandubh" renders "Branduḃ". */}
           {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h1>
-        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
+        <p className="header-subtitle mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
           {t.subtitle}
         </p>
       </div>
       <div className="flex items-center gap-2">
+        {/* A switch, not an icon button: Zen is a state you leave turned on, so
+            the control has to show which way it is set without being pressed.
+            role="switch" + aria-checked is the same promise made to a screen
+            reader. The word carries the meaning, so there is no icon to decode
+            — and, where the icon button was a second gold circle a glance away
+            from the eval toggle in the board tools, this cannot be mistaken for
+            one. */}
         <button
-          className={`iconbtn${zenOn ? " on" : ""}`}
+          type="button"
+          role="switch"
+          aria-checked={zenOn}
+          className={`switch${zenOn ? " on" : ""}`}
           onClick={() => onZen(!zenOn)}
-          aria-pressed={zenOn}
           aria-label={t.zenMode}
           title={t.zenMode}
           data-testid="zen-toggle"
         >
-          <ZenIcon />
+          <span>{t.zenShort}</span>
+          <span className="switch-track" aria-hidden>
+            <span className="switch-knob" />
+          </span>
         </button>
         <div className="relative" ref={menuRef}>
           <button
@@ -2063,23 +2075,6 @@ function Header({
         </div>
       </div>
     </header>
-  );
-}
-
-// Ensō — the open brush circle. A calm mark rather than a gear, and it reads as
-// a state (gold when Zen is on) rather than a door into another panel.
-function ZenIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M15.6 4.2a8.5 8.5 0 1 0 4.1 5.3" />
-    </svg>
   );
 }
 
