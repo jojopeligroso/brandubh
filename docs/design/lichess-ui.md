@@ -34,8 +34,8 @@ suggested slicing so each slice is its own shippable session.
 ## Suggested slicing (each a session)
 - 7a — Eval bar + best-move arrow (background worker eval; read-only). **Shipped** — see below.
 - 7b — Board flip + analysis "free move" toggle. **Shipped** — see below.
-- 7c — Move-tree panel (variations, navigation). **Open.**
-- 7d — Post-game annotations (needs export/replay). **Open.**
+- 7c — Move-tree panel (variations, navigation). **Open** — brief: [`docs/prompts/7c-move-tree.md`](../prompts/7c-move-tree.md).
+- 7d — Post-game annotations (needs export/replay). **Open** — brief: [`docs/prompts/7d-annotations.md`](../prompts/7d-annotations.md).
 
 The ordering above is about *size*, not dependency. 7b shipped before 7a because
 its two features stand on their own; what 7a needed from it is described next.

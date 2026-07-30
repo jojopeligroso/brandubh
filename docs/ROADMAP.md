@@ -107,8 +107,12 @@ two encodings, neither coupled to the other.
   - Moving from a rewound position in analysis **truncates**, exactly as "play from here" always has. Variation trees are 7c and nothing here pretends otherwise (`commitBasePly`, `analysis.ts`).
   - Both toggles are opt-in Zen extras (`flip`, `analysis`); labels in `en` + `es`, with `ga` drafts marked as such — the Irish interface stays held back.
   - Verified: 383 tests (was 346; +37 across `orientation.test.ts` and `analysis.test.ts`), `npm run build` clean, and 53 driven-browser assertions against the production build over three runs — flip geometry and labels, clock swap, a flipped click moving the right piece, no AI reply in analysis, both sides pickable, the save untouched during and restored after, the AI resuming afterwards, truncation from a rewound cursor, and Zen hiding both.
-- [ ] **7c — Move-tree panel (variations, navigation).** Open. Anchors: `commitBasePly` in `src/analysis.ts` is where the truncation decision is taken today; `states[]` + `cursor` in `App.tsx` is the linear timeline it would replace.
-- [ ] **7d — Post-game annotations.** Open; needs export/replay (already shipped, Session 3).
+- [ ] **7c — Move-tree panel (variations, navigation).** Open — brief written: [`docs/prompts/7c-move-tree.md`](prompts/7c-move-tree.md). Anchors: `commitBasePly` in `src/analysis.ts` is where the truncation decision is taken today; `states[]` + `cursor` in `App.tsx` is the linear timeline it would replace.
+- [ ] **7d — Post-game annotations.** Open — brief written: [`docs/prompts/7d-annotations.md`](prompts/7d-annotations.md). Needs export/replay (already shipped, Session 3); 7c is not a hard dependency.
+
+Session briefs now live in [`docs/prompts/`](prompts/README.md), one per slice, so a
+session can be started cold without the anchors and invariants being retyped from
+memory. 7a is the only slice with no brief and no code.
 
 ---
 
