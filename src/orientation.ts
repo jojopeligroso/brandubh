@@ -17,7 +17,15 @@
 
 import { BOARD_SIZE, type Move, type Square } from "./game/types";
 
-/** East–west flip (mirrors columns; which side is drawn left vs right). */
+/**
+ * East–west flip (mirrors columns; which side is drawn left vs right).
+ *
+ * Deliberately the *old* single-flip key. Before the split this one flag meant
+ * a 180° rotation — both mirrors at once — so a save holding it is ambiguous
+ * read alone. App resolves it by defaulting the north–south flag to this one
+ * when the north–south key is absent, which is only ever true for a save from
+ * before the split; see the note at its `useState`.
+ */
 export const BOARD_FLIP_H_KEY = "brandubh.boardFlipped";
 /** North–south flip (mirrors rows; which side is drawn top vs bottom). */
 export const BOARD_FLIP_V_KEY = "brandubh.boardFlippedV";

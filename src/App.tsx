@@ -367,7 +367,16 @@ export default function App() {
   // (top/bottom) — see the clock note at the render for which one moves the
   // clocks.
   const [flippedH, setFlippedH] = useState<boolean>(() => loadFlag(BOARD_FLIP_H_KEY));
-  const [flippedV, setFlippedV] = useState<boolean>(() => loadFlag(BOARD_FLIP_V_KEY));
+  // The north–south flag falls back to the east–west one, which carries a
+  // pre-split save over intact: back then there was a single key meaning a full
+  // 180° rotation — *both* mirrors — and it is the key `BOARD_FLIP_H_KEY` still
+  // reads. So a returning player who left the board flipped gets both toggles
+  // on and sees the picture they left, rather than a half-applied east–west
+  // one. One-shot by construction: the effects below write the V key on mount,
+  // so the fallback only ever fires on the first load after the split.
+  const [flippedV, setFlippedV] = useState<boolean>(() =>
+    loadFlag(BOARD_FLIP_V_KEY, loadFlag(BOARD_FLIP_H_KEY)),
+  );
   useEffect(() => {
     try {
       localStorage.setItem(BOARD_FLIP_H_KEY, flippedH ? "1" : "0");
