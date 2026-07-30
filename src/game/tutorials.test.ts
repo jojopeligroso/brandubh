@@ -5,6 +5,7 @@ import type { RuleSet } from "./variants";
 import type { GameState, Move, Side } from "./types";
 import {
   TUTORIALS,
+  explainMistake,
   isAcceptedMove,
   mv,
   parseTutorialProgress,
@@ -12,6 +13,7 @@ import {
   sameMove,
   sq,
   stateFor,
+  type TutorialMistake,
 } from "./tutorials";
 
 const isLegal = (s: GameState, m: Move, sc: (typeof TUTORIALS)[number]): boolean =>
@@ -94,9 +96,67 @@ describe("tutorial scenarios", () => {
           expect(isAcceptedMove(sc, 0, s, foil, rules), `${sc.id} foil rejected`).toBe(false);
         }
       });
+
+      // The bug this guards: a drill listing one answer while the position
+      // offers two. The learner finds the unlisted one, is told "not that
+      // one", and learns the wrong lesson. Every move that reaches the goal
+      // must be accepted — if a position offers an unsound second route, fix
+      // the position, don't teach the losing move.
+      it("accepts every move that reaches its goal", () => {
+        const deciding = sc.steps.length - 1;
+        const s = stateBeforeStep(sc, deciding);
+        const solving = allMoves(s.board, sc.side, rules).filter((m) =>
+          sc.goal(applyMove(s, m, rules)),
+        );
+        expect(solving.length, `${sc.id} has at least one move reaching the goal`).toBeGreaterThan(
+          0,
+        );
+        for (const m of solving) {
+          expect(
+            isAcceptedMove(sc, deciding, s, m, rules),
+            `${sc.id}: ${describe_(m)} reaches the goal but is refused`,
+          ).toBe(true);
+        }
+      });
+
+      it("explains every refusal it can hand out", () => {
+        const s = stateFor(sc);
+        for (const m of allMoves(s.board, sc.side, rules)) {
+          if (isAcceptedMove(sc, 0, s, m, rules)) continue;
+          const why = explainMistake(sc, 0, s, m, rules);
+          expect(MISTAKES, `${sc.id}: ${describe_(m)} → ${why}`).toContain(why);
+        }
+      });
     });
   }
 });
+
+const MISTAKES: TutorialMistake[] = [
+  "roadOpen",
+  "losesGame",
+  "noCapture",
+  "wrongCapture",
+  "kingStands",
+  "noEscape",
+  "notForcing",
+];
+
+const squareName = (s: { row: number; col: number }): string =>
+  String.fromCharCode(97 + s.col) + String(7 - s.row);
+const describe_ = (m: Move): string => `${squareName(m.from)}–${squareName(m.to)}`;
+
+/** The position the learner faces at `step`, having played the intended line so far. */
+function stateBeforeStep(sc: (typeof TUTORIALS)[number], step: number): GameState {
+  const rules = rulesForScenario(sc);
+  let s = stateFor(sc);
+  for (let i = 0; i < step; i++) {
+    const move = sc.steps[i].solution?.[0] ?? canonicalPredicateMove(sc, s);
+    s = applyMove(s, move, rules);
+    const reply = sc.steps[i].reply;
+    if (reply) s = applyMove(s, reply, rules);
+  }
+  return s;
+}
 
 describe("scenario-specific outcomes", () => {
   const byId = Object.fromEntries(TUTORIALS.map((s) => [s.id, s]));

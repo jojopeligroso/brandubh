@@ -359,7 +359,12 @@ export interface Translations {
   tutorialProgress: string;
   tutorialYouPlayAs: string;
   tutorialShowHint: string;
-  tutorialWrongMove: string;
+  /** Heading of the full-screen refusal curtain. */
+  tutorialWrongTitle: string;
+  /** Label above the restated goal on that curtain. */
+  tutorialGoalLabel: string;
+  /** One line per TutorialMistake, keyed by its value (see game/tutorials.ts). */
+  tutorialMistakes: Record<string, string>;
   tutorialTryAgain: string;
   tutorialSolvedTitle: string;
   tutorialNext: string;
@@ -680,7 +685,18 @@ const en: Translations = {
   tutorialProgress: "solved",
   tutorialYouPlayAs: "You play:",
   tutorialShowHint: "Show a hint",
-  tutorialWrongMove: "Not that one — look again.",
+  tutorialWrongTitle: "Not that move",
+  tutorialGoalLabel: "This drill asks:",
+  tutorialMistakes: {
+    roadOpen: "The King can still reach a corner on his very next move. That is the road to bar.",
+    losesGame: "That gives the game away — the other side wins at once.",
+    noCapture:
+      "Nothing was taken. A piece only falls when your move closes it in between two hostile squares.",
+    wrongCapture: "That takes a piece, but not the capture this drill is about.",
+    kingStands: "The King still stands. He falls only when the closing move is yours.",
+    noEscape: "The King did not reach a corner — only the four corners count as escape.",
+    notForcing: "That does not force the win: the raiders can shut the road on their reply.",
+  },
   tutorialTryAgain: "Try again",
   tutorialSolvedTitle: "Solved!",
   tutorialNext: "Next drill",
@@ -1056,7 +1072,20 @@ const es: Translations = {
   tutorialProgress: "resueltas",
   tutorialYouPlayAs: "Juegas con:",
   tutorialShowHint: "Ver una pista",
-  tutorialWrongMove: "Esa no es — mira de nuevo.",
+  tutorialWrongTitle: "Ese movimiento no",
+  tutorialGoalLabel: "Esta jugada pide:",
+  tutorialMistakes: {
+    roadOpen:
+      "El Rey todavía puede llegar a una esquina en su próximo movimiento. Ese es el camino que hay que cerrar.",
+    losesGame: "Eso entrega la partida: el otro bando gana de inmediato.",
+    noCapture:
+      "No capturaste nada. Una pieza solo cae cuando tu movimiento la encierra entre dos casillas hostiles.",
+    wrongCapture: "Eso captura una pieza, pero no es la captura de la que trata esta jugada.",
+    kingStands: "El Rey sigue en pie. Solo cae cuando el movimiento que cierra la trampa es tuyo.",
+    noEscape: "El Rey no llegó a una esquina: solo las cuatro esquinas cuentan como escape.",
+    notForcing:
+      "Eso no fuerza la victoria: los asaltantes pueden cerrar el camino en su respuesta.",
+  },
   tutorialTryAgain: "Inténtalo otra vez",
   tutorialSolvedTitle: "¡Resuelta!",
   tutorialNext: "Siguiente jugada",
@@ -1437,7 +1466,23 @@ const ga: Translations = {
   tutorialProgress: "r\u00e9itithe",
   tutorialYouPlayAs: "Imr\u00edonn t\u00fa:",
   tutorialShowHint: "Taispe\u00e1in leid",
-  tutorialWrongMove: "N\u00ed h\u00e9 sin \u00e9 \u2014 f\u00e9ach ar\u00eds.",
+  // Draft, like the rest of this table \u2014 not signed off by an Irish speaker.
+  tutorialWrongTitle: "N\u00ed h\u00e9 sin an beart",
+  tutorialGoalLabel: "Iarrann an cleachtadh seo:",
+  tutorialMistakes: {
+    roadOpen:
+      "F\u00e9adann an R\u00ed c\u00fainne a bhaint amach lena ch\u00e9ad bheart eile f\u00f3s. Sin \u00e9 an b\u00f3thar le dh\u00fanadh.",
+    losesGame: "Tugann sin an cluiche uait \u2014 buann an taobh eile l\u00e1ithreach.",
+    noCapture:
+      "N\u00edor gabhadh aon rud. N\u00ed thiteann p\u00edosa ach nuair a dh\u00fanann do bheart isteach idir dh\u00e1 chearn\u00f3g naimhdeacha \u00e9.",
+    wrongCapture: "Gabhann sin p\u00edosa, ach n\u00ed h\u00ed sin an gabh\u00e1il at\u00e1 i gceist anseo.",
+    kingStands:
+      "T\u00e1 an R\u00ed ina sheasamh f\u00f3s. N\u00ed thiteann s\u00e9 ach nuair is leatsa an beart d\u00fanta.",
+    noEscape:
+      "N\u00edor bhain an R\u00ed c\u00fainne amach \u2014 n\u00ed chuntar mar \u00e9al\u00fa ach na ceithre ch\u00fainne.",
+    notForcing:
+      "N\u00ed chuireann sin iallach ar an mbua: f\u00e9adann na foghlaithe an b\u00f3thar a dh\u00fanadh ina bhfreagra.",
+  },
   tutorialTryAgain: "Bain triail eile as",
   tutorialSolvedTitle: "R\u00e9itithe!",
   tutorialNext: "An ch\u00e9ad chleachtadh eile",
