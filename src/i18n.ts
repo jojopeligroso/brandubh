@@ -181,6 +181,8 @@ export interface Translations {
   otbOverlay: string;
   withFriend: string;
   chooseDifficulty: string;
+  resumeBody: string;
+  resumeGame: string;
 
   // Rewind
   continueFromMove: string;
@@ -273,6 +275,11 @@ export interface Translations {
   importErrCaptureMismatch: string;
   importErrUnreadableFile: string;
   zenElGameFile: string;
+
+  // Side picker (opening overlay)
+  chooseSide: string;
+  sideKingHint: string;
+  sideRaidersHint: string;
 }
 
 const en: Translations = {
@@ -436,6 +443,8 @@ const en: Translations = {
   otbOverlay: "Over the board",
   withFriend: "with a friend in person",
   chooseDifficulty: "Choose difficulty",
+  resumeBody: "You have a game in progress.",
+  resumeGame: "Resume game",
 
   continueFromMove: "Continue from move",
   movesWillBeLost: "All subsequent moves will be lost.",
@@ -545,6 +554,10 @@ const en: Translations = {
   importErrCaptureMismatch: "the captures do not match this ruleset.",
   importErrUnreadableFile: "that file could not be read.",
   zenElGameFile: "Export / import",
+
+  chooseSide: "Which side will you play?",
+  sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
+  sideRaidersHint: "Eight raiders · capture the king · you move first",
 };
 
 const es: Translations = {
@@ -713,6 +726,8 @@ const es: Translations = {
   otbOverlay: "Frente al tablero",
   withFriend: "con un amigo en persona",
   chooseDifficulty: "Elige la dificultad",
+  resumeBody: "Tienes una partida en curso.",
+  resumeGame: "Reanudar partida",
 
   continueFromMove: "\u00bfContinuar desde el movimiento",
   movesWillBeLost:
@@ -827,6 +842,11 @@ const es: Translations = {
   importErrCaptureMismatch: "las capturas no cuadran con este reglamento.",
   importErrUnreadableFile: "no se pudo leer ese archivo.",
   zenElGameFile: "Exportar / importar",
+
+  chooseSide: "¿Con qué bando jugarás?",
+  sideKingHint:
+    "El rey y cuatro guerreros · alcanza una esquina · los asaltantes mueven primero",
+  sideRaidersHint: "Ocho asaltantes · captura al rey · mueves primero",
 };
 
 const ga: Translations = {
@@ -995,6 +1015,8 @@ const ga: Translations = {
   otbOverlay: "Os comhair a ch\u00e9ile",
   withFriend: "le cara i bpearsa",
   chooseDifficulty: "Roghnaigh an deacracht",
+  resumeBody: "Tá cluiche ar siúl agat.",
+  resumeGame: "Lean ar aghaidh leis an gcluiche",
 
   continueFromMove: "Lean ar aghaidh \u00f3 bhogadh",
   movesWillBeLost: "Caillfear gach bogadh ina dhiaidh seo.",
@@ -1111,6 +1133,11 @@ const ga: Translations = {
   importErrCaptureMismatch: "n\u00ed r\u00e9it\u00edonn na gabh\u00e1lacha leis an sraith rialacha seo.",
   importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
   zenElGameFile: "Easport\u00e1il / iomp\u00f3rt\u00e1il",
+
+  chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
+  sideKingHint:
+    "An r\u00ed agus ceathrar laoch \u00b7 sroich c\u00fainne \u00b7 bogann na foghlaithe ar dt\u00fas",
+  sideRaidersHint: "Ochtar foghlaithe \u00b7 gabh an r\u00ed \u00b7 bogann t\u00fa ar dt\u00fas",
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };

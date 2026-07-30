@@ -6,6 +6,7 @@ spec-heavy features have their own design docs (linked below); this file is the
 master index and the per-session plan.
 
 Detailed specs:
+- Game resumability (shipped): [`docs/design/game-persistence.md`](./design/game-persistence.md)
 - Game import/export (PGN-style): [`docs/design/game-import-export.md`](./design/game-import-export.md)
 - Lichess-style analysis UI: [`docs/design/lichess-ui.md`](./design/lichess-ui.md)
 
@@ -31,19 +32,24 @@ last session (PVS dropped, recognizers kept, kingRegion shipped).
 
 ## Sessions (ordered by value ÷ effort)
 
-### Session 1 — Game resumability *(M)*
+### Session 1 — Game resumability *(M)* — **shipped**
 **Goal:** a page refresh never loses a game in progress.
-Match-setup (difficulty/variant/side) already persists; extend it to the live game.
-- [ ] Serialize the state timeline (`states[]`), `cursor`, clock banks, and match score to `localStorage` (versioned key, e.g. `brandubh.game.v1`).
-- [ ] Restore on load; if a saved game exists, offer **Resume / New** instead of silently overwriting.
-- [ ] Invalidate the save on corrupt/oldschema data and on "New match".
-- [ ] Round-trip unit test (serialize → restore → deep-equal); manual refresh mid-game.
+Match-setup (difficulty/variant/side) already persisted; this extended it to the live game.
+Design + Lichess comparison: [`docs/design/game-persistence.md`](./design/game-persistence.md).
+- [x] Serialize the game, `cursor`, clock banks and match score to `localStorage` under the versioned key `brandubh.game.v1`. The timeline is stored as its **move list** and replayed on load (as lila does), not as a position per ply — ~550 bytes for a three-move game.
+- [x] Restore on load; a saved game is offered as **Resume / New** in the opening overlay, and nothing overwrites it until that choice is made.
+- [x] Invalidate on corrupt / old-schema / stale (>14 days) data, on an unknown variant, on a move list that will not replay legally, and on "New match" / "New game".
+- [x] Round-trip unit tests (`persist.test.ts`, 23 tests) plus a driven-browser refresh mid-game: board, move log and clock banks identical after Resume.
 
-### Session 2 — Play either side *(S–M)*
+### Session 2 — Play either side *(S–M)* — **shipped**
 **Goal:** choose to play the **raiders (attackers)** or the **king (defenders)** from the overlay.
-- [ ] Overlay side picker (attackers / defenders / hotseat); `App.tsx` currently hardcodes `onChoose("defenders")`.
-- [ ] Verify `aiSide`/`topSide`/board orientation already follow `humanSide` (they do); wire the choice through.
-- [ ] Side already persists (done in Session 0). Test both sides drive the AI correctly.
+- [x] Overlay side picker: *Play vs AI* now steps **side → difficulty** before the board appears, and the last side played is pre-selected. Over the board stays a top-level choice, as before.
+- [x] Sides all derive from the play mode in one place, [`src/game/sides.ts`](../src/game/sides.ts) — `humanSideOf` / `aiSideOf` / `clockPlacement`. `App.tsx` no longer hardcodes `onChoose("defenders")`; the picked side is what starts the game.
+- [x] Board **orientation** needs nothing: the opening is D4-symmetric (two raiders at the head of each arm, king centred), so there is no near/far half to flip. Only `controllable` changes. Recorded in `sides.ts`.
+- [x] Clock placement follows the human: they sit at the bottom whichever side they took; over the board the raiders keep the top (they move first).
+- [x] Side persists (Session 0) and rides in the resumable game (Session 1) for **both** sides — `sides.test.ts` round-trips each.
+- [x] `sides.test.ts` (13 tests): both sides drive the AI to legal moves by pieces it owns, and the computer opens when the human takes the king (the raiders always move first).
+- [x] Driven-browser check against the production build (29 assertions, all passing): a game played as the raiders (human opens, the AI answers with a defender) and as the king (the AI opens with a raider unprompted), each refreshed mid-game and resumed to an identical board, move log and side; plus the clock faces — the computer above the board, the human below, either way.
 
 ### Session 3 — Export / import games (PGN-style) *(L — see design doc)* — **shipped**
 **Goal:** save a game to a file and load one back, Lichess-style.
@@ -53,8 +59,9 @@ Match-setup (difficulty/variant/side) already persists; extend it to the live ga
 - [x] Parser/round-trip tests; reject malformed input gracefully — `gameFile.test.ts`, `replay.test.ts` (60 tests), plus a browser pass (29 checks).
 
 `src/game/replay.ts` came out of this session: replay-and-validate, with no
-knowledge of any file format. Session 1's storage format should sit on it too —
-one trust boundary, two encodings, neither coupled to the other.
+knowledge of any file format. Session 1's `restoreGame` now sits on it too, so
+a save and a pasted game are validated by the same code — one trust boundary,
+two encodings, neither coupled to the other.
 
 ### Session 4 — Attacker endgame recognizer *(M)*
 **Goal:** the exact twin of the defender recognizers, for **forced attacker wins** (imminent king capture / forced encirclement) — helps the side you're pressure-testing.

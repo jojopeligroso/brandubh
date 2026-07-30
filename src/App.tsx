@@ -3,8 +3,8 @@ import Board from "./components/Board";
 import RulesModal from "./components/RulesModal";
 import HowToDemo from "./components/HowToDemo";
 import GameFilePanel from "./components/GameFilePanel";
-import { ruleFlags, type GameFileMeta, type ParsedGame } from "./game/gameFile";
-import { type Difficulty } from "./game/ai";
+import type { GameFileMeta, ParsedGame } from "./game/gameFile";
+import { DIFFICULTIES, type Difficulty } from "./game/ai";
 import { useAiWorker } from "./game/useAiWorker";
 import {
   allMoves,
@@ -15,7 +15,16 @@ import {
   sideOf,
   winnerOf,
 } from "./game/engine";
-import type { GameState, Move, Side, Square } from "./game/types";
+import type { GameState, GameStatus, Move, PlayMode, Side, Square } from "./game/types";
+import {
+  clearSavedGame,
+  hasMatchProgress,
+  loadResumableGame,
+  newGameId,
+  saveGame,
+  snapshotGame,
+  type RestoredGame,
+} from "./game/persist";
 import {
   matchTotals,
   newMatch,
@@ -23,10 +32,18 @@ import {
   SET_LENGTH_OPTIONS,
   standing,
   startNextSet,
+  unrecordLastMatchGame,
   type Match,
   type PlayerId,
 } from "./game/matchSet";
-import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./game/variants";
+import {
+  CUSTOM_RULE_DEFAULTS,
+  DEFAULT_VARIANT,
+  VARIANTS,
+  ruleFlags,
+  type CustomRuleSet,
+  type RuleSet,
+} from "./game/variants";
 import GameClock from "./components/GameClock";
 import { useGameClock } from "./useGameClock";
 import {
@@ -47,6 +64,14 @@ import {
   loadCustomMinutes,
   resolveTimeControl,
 } from "./game/clock";
+import {
+  banksAt,
+  initialClockLine,
+  isTimeLoss,
+  recordArrival,
+  truncateTo,
+  type ClockLine,
+} from "./game/clockLine";
 import {
   ZEN_EXTRAS,
   loadZenConfig,
@@ -96,8 +121,7 @@ import {
   defenderEmblemById,
   loadDefenderEmblem,
 } from "./defenderEmblems";
-
-type PlayMode = "attackers" | "defenders" | "hotseat";
+import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
 // Difficulty, variant and side survive a page refresh (a reload otherwise silently
@@ -115,7 +139,12 @@ function loadSetting<T extends string>(key: string, valid: readonly T[], fallbac
   }
 }
 
-const opposite = (s: Side): Side => (s === "attackers" ? "defenders" : "attackers");
+// A position can be played on from unless the *board* has settled the game. A
+// loss on time is the exception: it was the clock that ran out, not the
+// position, so it can be resumed — with the times that position was first
+// offered with, which is exactly what a player who stepped away needs.
+const resumable = (status: GameStatus): boolean => !isGameOver(status) || isTimeLoss(status);
+
 
 function sideLabel(s: Side, t: Translations): string {
   return s === "attackers" ? t.raiders : t.kingsSide;
@@ -190,14 +219,12 @@ export default function App() {
   const [variantId, setVariantId] = useState(() =>
     loadSetting(VARIANT_KEY, [...Object.keys(VARIANTS), "custom"], DEFAULT_VARIANT),
   );
-  const [customRules, setCustomRules] = useState<Omit<RuleSet, "id" | "name" | "blurb">>(
-    CUSTOM_RULE_DEFAULTS,
-  );
+  const [customRules, setCustomRules] = useState<CustomRuleSet>(CUSTOM_RULE_DEFAULTS);
   const [playMode, setPlayMode] = useState<PlayMode>(() =>
     loadSetting(PLAYMODE_KEY, ["attackers", "defenders", "hotseat"], "defenders"),
   );
   const [difficulty, setDifficulty] = useState<Difficulty>(() =>
-    loadSetting(DIFFICULTY_KEY, ["easy", "medium", "hard", "ollamh"], "medium"),
+    loadSetting(DIFFICULTY_KEY, DIFFICULTIES, "medium"),
   );
   // Remember the match setup across refreshes.
   useEffect(() => {
@@ -231,6 +258,15 @@ export default function App() {
     () => resolveTimeControl(clockEnabled, controlId, customMinutes, customIncrement),
     [clockEnabled, controlId, customMinutes, customIncrement],
   );
+  // The clocks each position was first offered with, index-aligned with the move
+  // timeline below. Rewinding the board rewinds these too, so a position always
+  // resumes with the time it had when it was first put in front of the player.
+  const [clockLine, setClockLine] = useState<ClockLine>(() => initialClockLine(timeControl));
+  // A new bank/increment re-arms the live clock (see useGameClock); the recorded
+  // line starts over with it rather than keeping times from the old control.
+  useEffect(() => {
+    setClockLine(initialClockLine(timeControl));
+  }, [timeControl]);
 
   // ── Zen mode (calm, over-the-board board) ───────────────────────────────────
   // Off by default. When on, only the essentials show — board, turn, clock,
@@ -261,6 +297,13 @@ export default function App() {
   // here" is the only action that branches (truncates) the timeline.
   const [states, setStates] = useState<GameState[]>(() => [initialState()]);
   const [cursor, setCursor] = useState(0);
+
+  // ── Resumable game ──────────────────────────────────────────────────────────
+  // A game in progress is written to localStorage as it is played (see
+  // game/persist.ts) and read back once, here, at startup. It is never restored
+  // silently: while it is pending, the opening overlay offers Resume or a fresh
+  // game, and nothing is saved over it until that choice is made.
+  const [pendingResume, setPendingResume] = useState<RestoredGame | null>(loadResumableGame);
 
   const [selected, setSelected] = useState<Square | null>(null);
   const [fadingCaptures, setFadingCaptures] = useState<Square[]>([]);
@@ -294,8 +337,10 @@ export default function App() {
       setKingEmblem(DEFAULT_KING_EMBLEM);
     }
   }, [rules.armedKing, kingEmblem]);
-  const humanSide: Side | null = playMode === "hotseat" ? null : playMode;
-  const aiSide: Side | null = humanSide ? opposite(humanSide) : null;
+  // Which side the player took (raiders or king) and which one is left for the
+  // computer. Both derive from the play mode — see game/sides.ts.
+  const humanSide: Side | null = humanSideOf(playMode);
+  const aiSide: Side | null = aiSideOf(playMode);
 
   const tip = states.length - 1;
   const atTip = cursor === tip;
@@ -326,6 +371,11 @@ export default function App() {
   // Guards the set recorder so a finished game is counted exactly once, even as
   // the cursor is moved back and forth over the terminal position.
   const recorded = useRef(false);
+  // This game's stable identity, held for as long as the game lasts so every
+  // autosave writes the same game rather than a new one. A resumed game keeps
+  // the id it was saved under. See game/records.ts.
+  const gameId = useRef<string>(pendingResume?.id ?? newGameId());
+  const gameStartedAt = useRef<number>(pendingResume?.createdAt ?? Date.now());
 
   // ── Applying a move (shared by human + AI) ──────────────────────────────────
   const commitMove = useCallback(
@@ -387,23 +437,45 @@ export default function App() {
 
   // ── Drive the clock from the move timeline ──────────────────────────────────
   // Each new move at the tip presses the mover's clock (banks their increment
-  // and hands the running clock to the opponent). Stepping back — a takeback or
-  // branch — re-points the clock at whichever side is now to move.
+  // and hands the running clock to the opponent). The banks that result are the
+  // arrival time of the position just reached, so they go into the clock line;
+  // going back to that position later replays exactly them.
   const prevTipRef = useRef(tip);
   useEffect(() => {
     const prev = prevTipRef.current;
     prevTipRef.current = tip;
     if (!clock.enabled) return;
-    if (tip === prev + 1 && atTip && !gameOver) {
-      // After a move, `game.turn` is the side *now* to move, so the mover was
-      // the opposite side.
-      clock.press(opposite(game.turn));
-    } else if (tip < prev && atTip && !gameOver) {
-      clock.handTo(game.turn);
-    }
+    if (tip !== prev + 1) return; // stepping back is handled by rewindTo
+    // After a move, the position's `turn` is the side *now* to move, so the
+    // mover was the opposite side.
+    const banks = clock.press(opposite(states[tip].turn));
+    setClockLine((line) => recordArrival(line, tip, banks));
     // Only react to timeline length changes, not cursor scrubbing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tip]);
+
+  // ── Returning the live game to an earlier position ──────────────────────────
+  // Takebacks and "play from here" both land here. The timeline is cut back to
+  // `ply`, and both clocks are put back to the times that position was first
+  // offered with — which lifts a flag that fell after it, so a game the player
+  // walked away from can be picked up again rather than being stuck lost on
+  // time. A loss on time *at* `ply` is a clock result, not a board one, so
+  // resuming the position clears it too.
+  const rewindTo = useCallback(
+    (ply: number) => {
+      setStates((prev) => {
+        const next = prev.slice(0, ply + 1);
+        if (isTimeLoss(next[ply].status)) next[ply] = { ...next[ply], status: "playing" };
+        return next;
+      });
+      setClockLine((line) => truncateTo(line, ply));
+      prevTipRef.current = ply; // this is a rewind, not a move
+      if (clock.enabled) {
+        clock.resumeAt(banksAt(clockLine, ply, timeControl), states[ply].turn, ply > 0);
+      }
+    },
+    [clock, clockLine, states, timeControl],
+  );
 
   // ── Human interaction ───────────────────────────────────────────────────────
   const interactive =
@@ -458,6 +530,9 @@ export default function App() {
   const resetBoard = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     recorded.current = false;
+    // A fresh board is a new game, so it gets a new identity (see game/records.ts).
+    gameId.current = newGameId();
+    gameStartedAt.current = Date.now();
     prevTipRef.current = 0;
     setStates([initialState()]);
     setCursor(0);
@@ -465,13 +540,16 @@ export default function App() {
     setFadingCaptures([]);
     setThinking(false);
     setShowTakeback(false);
+    setClockLine(initialClockLine(timeControl));
     clock.reset();
-  }, [clock.reset]);
+  }, [clock.reset, timeControl]);
 
   // Fresh board and, in hotseat play, a brand-new match (score reset to zero).
+  // Starting over is also the moment a saved game stops being worth keeping.
   const resetGame = useCallback(() => {
     resetBoard();
     setMatch(playMode === "hotseat" ? newMatch(gamesPerSet) : null);
+    clearSavedGame();
   }, [resetBoard, playMode, gamesPerSet]);
 
   // ── Load an imported game into the timeline ─────────────────────────────────
@@ -484,12 +562,22 @@ export default function App() {
   // imported game is often mid-position and often the computer's turn, and the
   // AI effect would otherwise play a move on top of it the instant it appeared;
   // "play from here vs the computer" hands a side back whenever you want one.
+  //
+  // It is a *different game* from whatever was on the board, so it takes a new
+  // identity and a fresh clock line: reusing the old id would autosave the
+  // import as a continuation of a game it has nothing to do with, and the old
+  // per-ply banks are index-aligned to a timeline that no longer exists, so a
+  // rewind would hand out another game's times.
   const loadImportedGame = useCallback(
     (imported: ParsedGame) => {
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
       cancelAi();
       recorded.current = false;
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
       const tipIndex = imported.states.length - 1;
+      // The timeline arrives whole, so the clock must not read the jump as a
+      // move being played (the same guard the resume path uses).
       prevTipRef.current = tipIndex;
       setVariantId(imported.variantId);
       if (imported.variantId === "custom") setCustomRules(ruleFlags(imported.rules));
@@ -501,9 +589,10 @@ export default function App() {
       setFadingCaptures([]);
       setThinking(false);
       setShowTakeback(false);
+      setClockLine(initialClockLine(timeControl));
       clock.reset();
     },
-    [cancelAi, clock.reset],
+    [cancelAi, clock.reset, timeControl],
   );
 
   // Start the next game of the current set (sides already swapped on record).
@@ -526,6 +615,141 @@ export default function App() {
     setMatch((m) => (m ? recordMatchGame(m, game.status, game.moveCount) : m));
   }, [playMode, match, atTip, gameOver, game.status, game.moveCount]);
 
+  // ── Resume a saved game ─────────────────────────────────────────────────────
+  // Put back the setup the game was played under, then the timeline itself.
+  // The clock banks only come back onto a matching time control: resuming a 3+2
+  // game into a 10+0 setting would otherwise hand out or steal time.
+  const resumeSavedGame = useCallback(() => {
+    const r = pendingResume;
+    if (!r) return;
+    if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    setVariantId(r.variantId);
+    setCustomRules(r.customRules);
+    setPlayMode(r.playMode);
+    setDifficulty(r.difficulty);
+    setGamesPerSet(r.gamesPerSet);
+    setNames(r.names);
+    setMatch(r.match);
+    recorded.current = r.recorded;
+    // Resuming continues the same game, so it keeps its id and start time.
+    gameId.current = r.id;
+    gameStartedAt.current = r.createdAt;
+    // The timeline arrives whole rather than a move at a time, so the clock
+    // must not read the jump as a move being played.
+    prevTipRef.current = r.states.length - 1;
+    setStates(r.states);
+    setCursor(r.cursor);
+    setSelected(null);
+    setFadingCaptures([]);
+    setThinking(false);
+    if (
+      r.clock &&
+      timeControl &&
+      r.clock.initialSeconds === timeControl.initialSeconds &&
+      r.clock.incrementSeconds === timeControl.incrementSeconds
+    ) {
+      clock.restore(r.clock);
+      // A saved line comes back as it was; a save written before the line
+      // existed starts a fresh one, so its earlier positions rewind to a full
+      // bank rather than blocking play.
+      setClockLine(r.clock.line.length ? r.clock.line : initialClockLine(timeControl));
+    }
+    setPendingResume(null);
+    setShowModeOverlay(false);
+  }, [pendingResume, timeControl, clock.restore]);
+
+  // Declining the offer discards the save immediately, so the fresh game starts
+  // from a clean slate however the player sets it up.
+  const discardSavedGame = useCallback(() => {
+    setPendingResume(null);
+    clearSavedGame();
+    // The id was seeded from the save being offered; dropping it means the next
+    // game is a new game, so it must not inherit the discarded one's identity.
+    gameId.current = newGameId();
+    gameStartedAt.current = Date.now();
+  }, []);
+
+  // ── Autosave ────────────────────────────────────────────────────────────────
+  // Written on every move, cursor move and score change; the clock banks ride
+  // along, refreshed whenever the clock is pressed (the between-press ticking is
+  // caught by the page-hide handler below rather than by writing ten times a
+  // second). Nothing is written while the overlay is still offering to resume —
+  // an empty board must never overwrite the game it is offering to restore.
+  const clockRef = useRef(clock);
+  clockRef.current = clock;
+  const persistGame = useCallback(() => {
+    if (showModeOverlay || pendingResume) return;
+    if (tip < 1 && !hasMatchProgress(match)) {
+      clearSavedGame(); // nothing worth resuming
+      return;
+    }
+    const c = clockRef.current;
+    saveGame(
+      snapshotGame({
+        id: gameId.current,
+        createdAt: gameStartedAt.current,
+        states,
+        cursor,
+        variantId,
+        customRules,
+        playMode,
+        difficulty,
+        recorded: recorded.current,
+        clock: timeControl
+          ? {
+              initialSeconds: timeControl.initialSeconds,
+              incrementSeconds: timeControl.incrementSeconds,
+              remaining: c.remaining,
+              active: c.active,
+              started: c.started,
+              flagged: c.flagged,
+              // The per-position times ride along with the banks: without them
+              // a reload would forget what each move was first offered with.
+              line: clockLine,
+            }
+          : null,
+        match,
+        gamesPerSet,
+        names,
+      }),
+    );
+  }, [
+    showModeOverlay,
+    pendingResume,
+    tip,
+    states,
+    cursor,
+    variantId,
+    customRules,
+    playMode,
+    difficulty,
+    match,
+    gamesPerSet,
+    names,
+    timeControl,
+    // Clock book-keeping changes on a press/reset, never on a tick.
+    clock.active,
+    clock.started,
+    clock.flagged,
+  ]);
+  useEffect(() => {
+    persistGame();
+  }, [persistGame]);
+  // Leaving the page (closing the tab, backgrounding on mobile) is the one
+  // moment the ticking clock has to be captured — `pagehide` fires where
+  // `unload` is unreliable on iOS, and `visibilitychange` covers app switching.
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") persistGame();
+    };
+    window.addEventListener("pagehide", persistGame);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", persistGame);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, [persistGame]);
+
   const goPrev = useCallback(() => {
     setSelected(null);
     setCursor((c) => Math.max(0, c - 1));
@@ -542,11 +766,15 @@ export default function App() {
   // Branch the game at the currently-viewed position and resume play.
   const playFromHere = useCallback(
     (vsComputer: boolean) => {
-      if (isGameOver(states[cursor].status)) return; // nothing to play from a finished position
+      if (!resumable(states[cursor].status)) return; // nothing to play from a finished position
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
+      // A game already banked into the set is coming back to life (only a loss
+      // on time can be), so take its result back out — otherwise the resumed
+      // game would be scored twice.
+      if (recorded.current) setMatch((m) => (m ? unrecordLastMatchGame(m) : m));
       recorded.current = false; // this branch becomes a fresh live game
       const sideToMove = states[cursor].turn;
-      setStates((prev) => prev.slice(0, cursor + 1));
+      rewindTo(cursor);
       setSelected(null);
       setFadingCaptures([]);
       setThinking(false);
@@ -555,7 +783,7 @@ export default function App() {
         setPlayMode(sideToMove);
       }
     },
-    [cursor, states],
+    [cursor, states, rewindTo],
   );
 
   // Over the board, resuming from an earlier move discards every move that
@@ -564,7 +792,7 @@ export default function App() {
   // has no opponent to ask, so it branches immediately.
   const requestPlayFromHere = useCallback(
     (vsComputer: boolean) => {
-      if (isGameOver(states[cursor].status)) return;
+      if (!resumable(states[cursor].status)) return;
       if (humanSide === null) setPendingBranch({ vsComputer });
       else playFromHere(vsComputer);
     },
@@ -575,12 +803,12 @@ export default function App() {
     setShowTakeback(false);
     if (tip < 1) return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
-    setStates((prev) => prev.slice(0, -1));
+    rewindTo(tip - 1);
     setCursor(tip - 1);
     setSelected(null);
     setFadingCaptures([]);
     setThinking(false);
-  }, [tip]);
+  }, [tip, rewindTo]);
 
   const resign = useCallback(() => {
     setShowResign(false);
@@ -673,9 +901,9 @@ export default function App() {
   const showNewMatch = matchHasProgress && !midSet;
 
   // Clock placement, Lichess-style: the away side rides above the board, the
-  // near side below it. Vs the computer the human sits on the bottom.
-  const topSide: Side = humanSide ? aiSide! : "attackers";
-  const bottomSide: Side = humanSide ?? "defenders";
+  // near side below it. Vs the computer the human sits on the bottom, whichever
+  // side they took.
+  const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
   const showPause = clock.enabled && clock.started && atTip && !gameOver;
 
   // Who goes in the exported file's [Attackers] / [Defenders] tags: the AI's
@@ -693,14 +921,18 @@ export default function App() {
     attackers: participantName("attackers"),
     defenders: participantName("defenders"),
   };
+  // Browsing the game shows each position's own clocks — the times it was first
+  // offered with — rather than the live banks, so what you see while reviewing
+  // is what you get if you resume from there.
+  const viewedBanks = reviewing ? banksAt(clockLine, cursor, timeControl) : clock.remaining;
   const renderClock = (side: Side) => (
     <GameClock
       name={sideLabel(side, t)}
       side={side}
-      ms={clock.remaining[side]}
-      active={clock.active === side}
+      ms={viewedBanks[side]}
+      active={reviewing ? game.turn === side : clock.active === side}
       running={clock.running}
-      flagged={clock.flagged === side}
+      flagged={!reviewing && clock.flagged === side}
       increment={timeControl?.incrementSeconds ?? 0}
       flagLabel={t.flagLabel}
     />
@@ -820,7 +1052,7 @@ export default function App() {
           reviewing={reviewing}
           moveNumber={cursor}
           totalMoves={tip}
-          viewedTerminal={gameOver}
+          viewedTerminal={!resumable(game.status)}
           showVsAi={showVsAiBranch}
           onLatest={goLatest}
           onPlay={() => requestPlayFromHere(false)}
@@ -903,7 +1135,11 @@ export default function App() {
           t={t}
           difficulty={difficulty}
           onDifficulty={setDifficulty}
+          side={humanSide ?? "defenders"}
           onShowDemo={() => setShowDemo(true)}
+          resume={pendingResume}
+          onResume={resumeSavedGame}
+          onDiscardResume={discardSavedGame}
           onChoose={(m) => {
             changeMode(m);
             setShowModeOverlay(false);
@@ -2025,25 +2261,89 @@ function ModeOverlay({
   t,
   difficulty,
   onDifficulty,
+  side,
   onShowDemo,
+  resume,
+  onResume,
+  onDiscardResume,
   onChoose,
 }: {
   t: Translations;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
+  /** The side played last time, offered as the default. */
+  side: Side;
   onShowDemo: () => void;
+  /** A game found in storage, offered before anything else. */
+  resume: RestoredGame | null;
+  onResume: () => void;
+  onDiscardResume: () => void;
   onChoose: (m: PlayMode) => void;
 }) {
-  // Two-step overlay: pick opponent (AI or a friend), then — for the AI — pick
-  // the difficulty before the board appears.
-  const [pickingDifficulty, setPickingDifficulty] = useState(false);
+  // Three-step overlay: pick opponent (AI or a friend), then — for the AI —
+  // which side to play, then how strong the computer should be, before the board
+  // appears. A saved game, if there is one, gets asked about first: resume it, or
+  // drop it and set a new game up.
+  const [step, setStep] = useState<"mode" | "side" | "difficulty">("mode");
+  // Held here until a difficulty is picked, since that's the step that starts
+  // the game (and starting it resets the board, so it must happen once).
+  const [chosenSide, setChosenSide] = useState<Side>(side);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
         <h2 className="gaelic text-3xl text-parchment">
           {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h2>
-        {pickingDifficulty ? (
+        {resume ? (
+          <>
+            <div className="space-y-1">
+              <p className="text-sm text-parchment-dim">{t.resumeBody}</p>
+              <p className="font-mono text-xs text-parchment-dim/80 tabular-nums">
+                {resume.states.length - 1} {t.movesWord} ·{" "}
+                {resume.playMode === "hotseat" ? t.otbOverlay : t.playVsAi}
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button className="btn btn-primary py-3 text-base" onClick={onResume}>
+                {t.resumeGame}
+              </button>
+              <button className="btn py-3 text-base" onClick={onDiscardResume}>
+                {t.newGame}
+              </button>
+            </div>
+          </>
+        ) : step === "side" ? (
+          <>
+            <p className="text-sm text-parchment-dim">{t.chooseSide}</p>
+            <div className="flex flex-col gap-3">
+              {(
+                [
+                  ["defenders", t.kingsSide, t.sideKingHint],
+                  ["attackers", t.raiders, t.sideRaidersHint],
+                ] as [Side, string, string][]
+              ).map(([s, label, hint]) => (
+                <button
+                  key={s}
+                  className={`btn py-3 text-base ${chosenSide === s ? "btn-primary" : ""}`}
+                  onClick={() => {
+                    setChosenSide(s);
+                    setStep("difficulty");
+                  }}
+                >
+                  {label}
+                  {/* Inherit the button's ink so the hint reads on gold too. */}
+                  <span className="block text-xs font-normal opacity-70">{hint}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              className="text-xs text-parchment-dim underline"
+              onClick={() => setStep("mode")}
+            >
+              {t.back}
+            </button>
+          </>
+        ) : step === "difficulty" ? (
           <>
             <p className="text-sm text-parchment-dim">{t.chooseDifficulty}</p>
             <div className="flex flex-col gap-3">
@@ -2060,7 +2360,7 @@ function ModeOverlay({
                   className={`btn py-3 text-base ${difficulty === d ? "btn-primary" : ""}`}
                   onClick={() => {
                     onDifficulty(d);
-                    onChoose("defenders");
+                    onChoose(chosenSide);
                   }}
                 >
                   {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
@@ -2070,7 +2370,7 @@ function ModeOverlay({
             </div>
             <button
               className="text-xs text-parchment-dim underline"
-              onClick={() => setPickingDifficulty(false)}
+              onClick={() => setStep("side")}
             >
               {t.back}
             </button>
@@ -2081,7 +2381,7 @@ function ModeOverlay({
             <div className="flex flex-col gap-3">
               <button
                 className="btn btn-primary py-3 text-base"
-                onClick={() => setPickingDifficulty(true)}
+                onClick={() => setStep("side")}
               >
                 {t.playVsAi}
               </button>
@@ -2110,22 +2410,20 @@ function ModeOverlay({
   );
 }
 
-type CustomRules = Omit<RuleSet, "id" | "name" | "blurb">;
-
 function CustomRuleEditor({
   t,
   rules,
   onChange,
 }: {
   t: Translations;
-  rules: CustomRules;
-  onChange: (r: CustomRules) => void;
+  rules: CustomRuleSet;
+  onChange: (r: CustomRuleSet) => void;
 }) {
-  const toggle = (key: keyof CustomRules) => {
+  const toggle = (key: keyof CustomRuleSet) => {
     onChange({ ...rules, [key]: !rules[key] });
   };
 
-  const boolRules: Array<{ key: keyof CustomRules; label: string; hint: string }> = [
+  const boolRules: Array<{ key: keyof CustomRuleSet; label: string; hint: string }> = [
     { key: "armedKing", label: t.ruleArmedKing, hint: t.ruleArmedKingHint },
     { key: "throneHostileToSoldiers", label: t.ruleThroneHostileSoldiers, hint: t.ruleThroneHostileSoldiersHint },
     { key: "throneHostileToKing", label: t.ruleThroneHostileKing, hint: t.ruleThroneHostileKingHint },
@@ -2167,7 +2465,7 @@ function CustomRuleEditor({
               ["none", t.repetitionOptionNone],
               ["draw", t.repetitionOptionDraw],
               ["loss_for_defenders", t.repetitionOptionLossDefenders],
-            ] as [CustomRules["repetitionResult"], string][]
+            ] as [CustomRuleSet["repetitionResult"], string][]
           ).map(([val, label]) => (
             <label key={val} className="flex cursor-pointer items-center gap-1.5 text-sm">
               <input

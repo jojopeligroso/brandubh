@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { allMoves, applyMove, initialState, isGameOver, moveName } from "./engine";
 import {
-  customRuleSet,
   exportFileName,
   exportGame,
   parseGame,
@@ -10,7 +9,7 @@ import {
 } from "./gameFile";
 import { replayPlies } from "./replay";
 import type { GameState } from "./types";
-import { CUSTOM_RULE_DEFAULTS, VARIANTS, type RuleSet } from "./variants";
+import { CUSTOM_RULE_DEFAULTS, VARIANTS, rulesFor, type RuleSet } from "./variants";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -119,7 +118,7 @@ describe("round trip: export → import → identical timeline", () => {
   }
 
   it("survives a custom ruleset (rules travel with the game)", () => {
-    const rules = customRuleSet({
+    const rules = rulesFor("custom", {
       ...CUSTOM_RULE_DEFAULTS,
       armedKing: false,
       throneHostileToSoldiers: false,
@@ -194,7 +193,7 @@ describe("import: tolerant parsing", () => {
     ["one move per line", "1.\nd1-c1\nd3-c3\nd7-e7\nd5-e5"],
     ["ragged whitespace and tabs", "  1.\td1-c1     d3-c3  \n\n\n 2.  d7-e7\td5-e5   \n"],
     ["CRLF line endings", "[Variant \"wtf\"]\r\n\r\n1. d1-c1 d3-c3\r\n2. d7-e7 d5-e5\r\n*\r\n"],
-    ["a UTF-8 BOM", "﻿1. d1-c1 d3-c3 d7-e7 d5-e5"],
+    ["a UTF-8 BOM", "\uFEFF1. d1-c1 d3-c3 d7-e7 d5-e5"],
     ["semicolon comments", "; a game from the forum\n1. d1-c1 d3-c3 ; opening pair\n2. d7-e7 d5-e5"],
     ["brace comments, even across lines", "1. d1-c1 {a solid\nreply} d3-c3\n2. d7-e7 d5-e5"],
     ["percent-escaped lines", "%this line is not for us\n1. d1-c1 d3-c3 d7-e7 d5-e5"],

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Side } from "./game/types";
 import type { TimeControl } from "./game/clock";
+import type { ClockBanks } from "./game/clockLine";
 
 const other = (s: Side): Side => (s === "attackers" ? "defenders" : "attackers");
 
 export interface GameClock {
   /** Milliseconds left on each side's bank. */
-  remaining: Record<Side, number>;
+  remaining: ClockBanks;
   /** The side whose bank is currently counting down (or would, once running). */
   active: Side | null;
   /** True once the first move has engaged the clock. */
@@ -19,15 +20,36 @@ export interface GameClock {
   running: boolean;
   /** Whether a clock is configured at all. */
   enabled: boolean;
-  /** Record a completed move: bank the mover's increment, hand over the clock. */
-  press: (mover: Side) => void;
+  /**
+   * Record a completed move: bank the mover's increment, hand over the clock.
+   * Returns the banks as they now stand — the arrival time of the position the
+   * move just reached, which the caller stores in the clock line.
+   */
+  press: (mover: Side) => ClockBanks;
   /** Re-arm both banks to the starting time (new game / new control). */
   reset: () => void;
   /** Toggle the manual hold. */
   togglePause: () => void;
-  /** Hand the running clock to a specific side without any increment (takeback
-   *  / branch), so the bank that ticks matches the side now to move. */
-  handTo: (side: Side) => void;
+  /**
+   * Put the clocks back to a position's recorded banks (takeback, branch, or
+   * resuming a game lost on time) and hand them to the side now to move. Any
+   * flag is lifted: the bank that ran out is restored to what it held when that
+   * position was first reached, so play can continue from it.
+   *
+   * This is the *within-a-game* counterpart to {@link restore}, which reloads a
+   * whole game from storage and so keeps a flag that had already fallen.
+   */
+  resumeAt: (banks: ClockBanks, toMove: Side, started: boolean) => void;
+  /** Re-arm both banks from a saved game (see game/persist.ts). */
+  restore: (snapshot: ClockSnapshot) => void;
+}
+
+/** The parts of the clock worth persisting across a reload. */
+export interface ClockSnapshot {
+  remaining: ClockBanks;
+  active: Side | null;
+  started: boolean;
+  flagged: Side | null;
 }
 
 /**
@@ -37,6 +59,10 @@ export interface GameClock {
  * while a game is being set up), pauses whenever the game is not live at the tip
  * (game over, or reviewing history), and flags — calling `onFlag` — the moment a
  * bank hits zero.
+ *
+ * The banks it holds are always those of the live position: stepping the game
+ * back to an earlier position calls `restore` with that position's recorded
+ * banks (see game/clockLine), so the clocks rewind along with the board.
  *
  * `config` is the current time control (null switches the clock off). `liveGate`
  * should be true only while play is live at the latest position.
@@ -48,7 +74,7 @@ export function useGameClock(
 ): GameClock {
   const initialMs = (config?.initialSeconds ?? 0) * 1000;
 
-  const [remaining, setRemaining] = useState<Record<Side, number>>({
+  const [remaining, setRemaining] = useState<ClockBanks>({
     attackers: initialMs,
     defenders: initialMs,
   });
@@ -69,7 +95,7 @@ export function useGameClock(
 
   const reset = useCallback(() => {
     const ms = (configRef.current?.initialSeconds ?? 0) * 1000;
-    const fresh: Record<Side, number> = { attackers: ms, defenders: ms };
+    const fresh: ClockBanks = { attackers: ms, defenders: ms };
     remainingRef.current = fresh;
     setRemaining(fresh);
     setActive("attackers"); // attackers move first
@@ -84,11 +110,11 @@ export function useGameClock(
     reset();
   }, [config?.initialSeconds, config?.incrementSeconds, config === null, reset]);
 
-  const press = useCallback((mover: Side) => {
+  const press = useCallback((mover: Side): ClockBanks => {
     const cfg = configRef.current;
-    if (!cfg) return;
+    if (!cfg) return remainingRef.current;
     const cur = remainingRef.current;
-    const updated: Record<Side, number> = {
+    const updated: ClockBanks = {
       ...cur,
       [mover]: cur[mover] + cfg.incrementSeconds * 1000,
     };
@@ -98,12 +124,34 @@ export function useGameClock(
     setStarted(true);
     setPaused(false);
     lastRef.current = performance.now();
+    return updated;
   }, []);
 
   const togglePause = useCallback(() => setPaused((p) => !p), []);
 
-  const handTo = useCallback((side: Side) => {
-    setActive(side);
+  // Stepping the live game back to an earlier position: the banks that position
+  // was first offered with come back, and with them the right to play on, since
+  // a bank restored to a non-zero value is no longer flagged.
+  const resumeAt = useCallback((banks: ClockBanks, toMove: Side, hasStarted: boolean) => {
+    remainingRef.current = banks;
+    setRemaining(banks);
+    setActive(toMove);
+    setStarted(hasStarted);
+    setPaused(false);
+    setFlagged(null);
+    lastRef.current = performance.now();
+  }, []);
+
+  // Resuming a saved game puts the banks back exactly where they were left.
+  // The clock is frozen while the tab is away — there is no server to arbitrate
+  // time spent off the page — so no elapsed time is charged here.
+  const restore = useCallback((snapshot: ClockSnapshot) => {
+    remainingRef.current = snapshot.remaining;
+    setRemaining(snapshot.remaining);
+    setActive(snapshot.active);
+    setStarted(snapshot.started);
+    setPaused(false);
+    setFlagged(snapshot.flagged);
     lastRef.current = performance.now();
   }, []);
 
@@ -118,7 +166,7 @@ export function useGameClock(
       const dt = now - lastRef.current;
       lastRef.current = now;
       const next = Math.max(0, remainingRef.current[active] - dt);
-      const updated: Record<Side, number> = { ...remainingRef.current, [active]: next };
+      const updated: ClockBanks = { ...remainingRef.current, [active]: next };
       remainingRef.current = updated;
       setRemaining(updated);
       if (next <= 0) {
@@ -140,6 +188,7 @@ export function useGameClock(
     press,
     reset,
     togglePause,
-    handTo,
+    resumeAt,
+    restore,
   };
 }

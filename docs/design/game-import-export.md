@@ -108,8 +108,23 @@ Code: `src/game/gameFile.ts` (format), `src/game/replay.ts` (replay-and-validate
 
 The export format is deliberately **not** coupled to any storage encoding, the
 same split chess keeps between PGN and an engine's on-disk format. Session 1
-(localStorage resumability, `brandubh.game.v1`) had not landed on `main` when
-this shipped, so there was nothing to reuse from `persist.ts`; the replay-and-
-validate pattern it needs lives in `src/game/replay.ts` instead, format-agnostic
-and ready for the storage side to sit on. A test asserts the export carries no
-storage keys and is not JSON, so the two cannot drift into each other.
+(localStorage resumability, `brandubh.game.v1`) landed on `main` while this was
+being built, so the two were reconciled on merge rather than left to duplicate
+each other:
+
+- `src/game/replay.ts` holds the replay-and-validate loop and the definition of
+  the statuses a move list cannot imply (`isExternalStatus` — resign and flag).
+  Both `persist.restoreGame` and `gameFile.parseGame` go through it, so a save
+  and a pasted game are validated identically. They keep their own *policies* on
+  a disagreement — storage drops the save, the parser reports a reason — but not
+  their own copies of the rule.
+- `variants.rulesFor` / `variants.ruleFlags` are the single place a custom
+  `RuleSet` is built and taken apart, so the two serializations cannot drift
+  about what `"custom"` means.
+- What stays separate is the *encoding*: a compact JSON move list under a
+  versioned key on one side, human-readable PGN-style text on the other. A test
+  asserts the export carries no storage keys and is not JSON.
+
+An import is a new game, not an edit of the one on the board: it takes a fresh
+game id and clock line, so it autosaves as itself and resumes as itself after a
+refresh, and a rewind cannot hand out the replaced game's clock times.

@@ -29,9 +29,16 @@
 // through `applyMove`, never from anything asserted in the file).
 
 import { moveName, winnerOf } from "./engine";
-import { replayPlies, type PlyInput, type ReplayError } from "./replay";
+import { isExternalStatus, replayPlies, type PlyInput, type ReplayError } from "./replay";
 import { BOARD_SIZE, type GameState, type GameStatus, type Square } from "./types";
-import { CUSTOM_RULE_DEFAULTS, DEFAULT_VARIANT, VARIANTS, type RuleSet } from "./variants";
+import {
+  CUSTOM_RULE_DEFAULTS,
+  DEFAULT_VARIANT,
+  VARIANTS,
+  rulesFor,
+  type CustomRuleSet,
+  type RuleSet,
+} from "./variants";
 
 /** Bumped only on a breaking format change; the parser accepts older values. */
 export const FORMAT_VERSION = "brandubh-1";
@@ -59,33 +66,24 @@ export function resultToken(status: GameStatus): ResultToken {
   return "*";
 }
 
-// Most terminal statuses fall straight out of replaying the moves — an escape, a
-// king capture, an encirclement, a repetition, a block. Two do not: resigning
-// and flagging on time are decisions *about* a game rather than moves within it,
-// so replay always leaves those games "playing". They are the only statuses the
-// `Termination` tag is allowed to restore, and only onto a game that replay left
-// unfinished — which is what stops a doctored tag from inventing a win.
-const RESTORABLE_TERMINATIONS: readonly GameStatus[] = [
-  "attackers_win_resign",
-  "defenders_win_resign",
-  "attackers_win_time",
-  "defenders_win_time",
-];
+// A `Termination` tag may only restore a status the moves cannot imply — a
+// resignation or a flag (see `isExternalStatus` in replay.ts, shared with the
+// storage format) — and only onto a game the replay left unfinished, which is
+// what stops a doctored tag from inventing a win.
 
 // ── Custom rulesets ───────────────────────────────────────────────────────────
 // A named variant needs only its id. A custom ruleset has to travel with the
 // game or the moves are meaningless, so it rides in one flat `Rules` tag —
 // `key=value` pairs — keeping the header a plain PGN-style tag list.
-type CustomRules = Omit<RuleSet, "id" | "name" | "blurb">;
 /** The rule flags that are plain booleans — everything bar `repetitionResult`.
  *  Derived from the type so a new rule flag is carried by the format for free. */
 type BoolRuleKey = {
-  [K in keyof CustomRules]: CustomRules[K] extends boolean ? K : never;
-}[keyof CustomRules];
+  [K in keyof CustomRuleSet]: CustomRuleSet[K] extends boolean ? K : never;
+}[keyof CustomRuleSet];
 const BOOL_RULE_KEYS = Object.keys(CUSTOM_RULE_DEFAULTS).filter(
-  (k) => typeof CUSTOM_RULE_DEFAULTS[k as keyof CustomRules] === "boolean",
+  (k) => typeof CUSTOM_RULE_DEFAULTS[k as keyof CustomRuleSet] === "boolean",
 ) as BoolRuleKey[];
-const REPETITION_VALUES: ReadonlyArray<CustomRules["repetitionResult"]> = [
+const REPETITION_VALUES: ReadonlyArray<CustomRuleSet["repetitionResult"]> = [
   "none",
   "draw",
   "loss_for_defenders",
@@ -99,8 +97,8 @@ function serializeRules(rules: RuleSet): string {
 
 /** Parse a `Rules` tag body. Unknown keys are ignored; absent keys keep the WTF
  *  default, so a partial hand-written block still loads. */
-function parseRules(body: string): CustomRules {
-  const out: CustomRules = { ...CUSTOM_RULE_DEFAULTS };
+function parseRules(body: string): CustomRuleSet {
+  const out: CustomRuleSet = { ...CUSTOM_RULE_DEFAULTS };
   for (const pair of body.split(/[\s,;]+/).filter(Boolean)) {
     const eq = pair.indexOf("=");
     if (eq < 0) continue;
@@ -108,27 +106,13 @@ function parseRules(body: string): CustomRules {
     const value = pair.slice(eq + 1).trim();
     if (key === "repetitionResult") {
       if ((REPETITION_VALUES as readonly string[]).includes(value))
-        out.repetitionResult = value as CustomRules["repetitionResult"];
+        out.repetitionResult = value as CustomRuleSet["repetitionResult"];
       continue;
     }
     const boolKey = BOOL_RULE_KEYS.find((k) => k.toLowerCase() === key.toLowerCase());
     if (boolKey) out[boolKey] = /^(1|true|yes|on)$/i.test(value);
   }
   return out;
-}
-
-export const customRuleSet = (rules: CustomRules): RuleSet => ({
-  id: "custom",
-  name: "Custom",
-  blurb: "Your custom ruleset.",
-  ...rules,
-});
-
-/** The rule flags on their own — the shape the custom-rule editor holds, so an
- *  imported custom game can be dropped straight into it. */
-export function ruleFlags(rules: RuleSet): CustomRules {
-  const { id, name, blurb, ...flags } = rules;
-  return flags;
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
@@ -149,8 +133,7 @@ export function exportGame(state: GameState, rules: RuleSet, meta: GameFileMeta 
   tags.push(["Attackers", meta.attackers ?? "?"]);
   tags.push(["Defenders", meta.defenders ?? "?"]);
   tags.push(["Result", resultToken(state.status)]);
-  if ((RESTORABLE_TERMINATIONS as readonly string[]).includes(state.status))
-    tags.push(["Termination", state.status]);
+  if (isExternalStatus(state.status)) tags.push(["Termination", state.status]);
 
   const header = tags.map(([k, v]) => `[${k} "${escapeTag(v)}"]`).join("\n");
 
@@ -343,7 +326,7 @@ export function parseGame(text: string): ParseResult {
           detail: 'variant "custom" needs a [Rules "..."] tag',
         },
       };
-    rules = customRuleSet(parseRules(tags["Rules"]));
+    rules = rulesFor("custom", parseRules(tags["Rules"]));
   } else {
     rules = VARIANTS[variantId];
     if (tags["Rules"] !== undefined)
@@ -358,7 +341,7 @@ export function parseGame(text: string): ParseResult {
   // ── Terminations replay cannot know about (resign / flag) ────────────────────
   const termination = tags["Termination"] as GameStatus | undefined;
   const tipIndex = states.length - 1;
-  if (termination && (RESTORABLE_TERMINATIONS as readonly string[]).includes(termination)) {
+  if (termination && isExternalStatus(termination)) {
     if (states[tipIndex].status === "playing")
       states[tipIndex] = { ...states[tipIndex], status: termination };
     else warnings.push(`[Termination] ignored — the moves already decide this game.`);

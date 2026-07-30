@@ -124,8 +124,11 @@ export const VARIANTS: Record<string, RuleSet> = {
 
 export const DEFAULT_VARIANT = "wtf";
 
+/** A ruleset without its identity — what the custom rule editor edits. */
+export type CustomRuleSet = Omit<RuleSet, "id" | "name" | "blurb">;
+
 /** Starting point for the custom rule editor — mirrors WTF. */
-export const CUSTOM_RULE_DEFAULTS: Omit<RuleSet, "id" | "name" | "blurb"> = {
+export const CUSTOM_RULE_DEFAULTS: CustomRuleSet = {
   armedKing: true,
   throneHostileToSoldiers: true,
   throneHostileToKing: true,
@@ -137,3 +140,22 @@ export const CUSTOM_RULE_DEFAULTS: Omit<RuleSet, "id" | "name" | "blurb"> = {
   encirclementWin: true,
   repetitionResult: "loss_for_defenders",
 };
+
+// ── Resolving a ruleset ───────────────────────────────────────────────────────
+// Storage (persist.ts) and the export format (gameFile.ts) both have to turn a
+// variant id plus a set of custom flags back into the ruleset a game was played
+// under. Keeping that in one place is what stops the two serializations from
+// quietly disagreeing about what "custom" means.
+
+/** The ruleset for a variant id; `"custom"` is built from the flags given. */
+export function rulesFor(variantId: string, custom: CustomRuleSet): RuleSet {
+  return variantId === "custom"
+    ? { id: "custom", name: "Custom", blurb: "Your custom ruleset.", ...custom }
+    : VARIANTS[variantId];
+}
+
+/** The inverse: a ruleset stripped back to the flags the editor holds. */
+export function ruleFlags(rules: RuleSet): CustomRuleSet {
+  const { id, name, blurb, ...flags } = rules;
+  return flags;
+}

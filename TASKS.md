@@ -6,8 +6,8 @@ The remaining work is planned as sized, shippable **sessions** in
 [`docs/ROADMAP.md`](docs/ROADMAP.md), with design docs for the two big features.
 Ordered by value ÷ effort:
 
-1. **Game resumability** *(M)* — a refresh never loses a game in progress.
-2. **Play either side** *(S–M)* — choose raiders or king from the overlay.
+1. ~~**Game resumability** *(M)* — a refresh never loses a game in progress.~~ **Shipped** → [`docs/design/game-persistence.md`](docs/design/game-persistence.md).
+2. ~~**Play either side** *(S–M)* — choose raiders or king from the overlay.~~ **Shipped** → `src/game/sides.ts`.
 3. **Export / import games** *(L)* — PGN-style save/load → [`docs/design/game-import-export.md`](docs/design/game-import-export.md).
 4. **Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.
 5. **Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.
@@ -65,11 +65,15 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 - [ ] **Shieldwall capture** — Tournament rule extension. No code, no RuleSet flags.
 - [ ] **Exit-fort win** — King builds an impregnable formation. No code, no RuleSet flags.
 - [ ] **Game replay / opening book** — Import recorded games from aagenielsen.dk. Move notation is compatible but no replay UI or import mechanism exists.
-- [ ] **Game state persistence** — All state lost on page refresh. No localStorage/sessionStorage/URL params.
+- [x] **Game state persistence** — done. The live game (move list, cursor, clock
+  banks, match score) is written to the versioned `brandubh.game.v1` key and
+  replayed on load; the opening overlay offers **Resume / New**. See
+  `src/game/persist.ts` and [`docs/design/game-persistence.md`](docs/design/game-persistence.md).
+  URL-param sharing is still open, and belongs with the PGN-style import/export work.
 
 ## Minor UX
 
-- [ ] **"Play vs AI" overlay always picks defenders** — `App.tsx:457-459` hardcodes `onChoose("defenders")`. No way to choose attacker side from the overlay.
+- [x] **"Play vs AI" overlay always picks defenders** — fixed: the overlay now steps side → difficulty, and every derived side comes from `game/sides.ts`.
 - [ ] **Custom Rule Editor doesn't reset game** — Toggling rules mid-game creates inconsistent state. Variant dropdown resets correctly (`changeVariant()`) but custom rule toggles don't call `newGame()`.
 
 ## Docs

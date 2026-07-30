@@ -17,8 +17,29 @@
 // each other.
 
 import { allMoves, applyMove, initialState, isGameOver } from "./engine";
-import type { GameState, Move, Square } from "./types";
+import type { GameState, GameStatus, Move, Square } from "./types";
 import type { RuleSet } from "./variants";
+
+/**
+ * The terminal statuses **no move list can imply**. Resigning and flagging on
+ * time are decisions *about* a game rather than moves within it, so a replay
+ * always leaves those games "playing" — every other ending (escape, capture,
+ * encirclement, block, repetition) falls straight out of the moves.
+ *
+ * Both serializations need this same distinction, and for the same reason: it
+ * is the only claim about a result they may take on trust, and then only onto a
+ * game the replay left unfinished. A disagreement about any *other* status means
+ * the input does not describe the position it claims to.
+ */
+export const EXTERNAL_STATUSES: ReadonlySet<GameStatus> = new Set<GameStatus>([
+  "attackers_win_resign",
+  "defenders_win_resign",
+  "attackers_win_time",
+  "defenders_win_time",
+]);
+
+export const isExternalStatus = (status: GameStatus): boolean =>
+  EXTERNAL_STATUSES.has(status);
 
 /**
  * One ply as it arrives from untrusted input: the two squares, plus whatever the
