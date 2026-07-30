@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 import { isCorner, isThrone, movesFrom, sideOf } from "../game/engine";
 import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, type Square } from "../game/types";
+import {
+  fileLabel,
+  fromView,
+  isLabelledFileRow,
+  isLabelledRankCol,
+  rankLabel,
+  squareName,
+} from "../orientation";
 import type { RuleSet } from "../game/variants";
 import type { EmblemDef } from "../emblems";
 import { emblemCenter } from "../emblems";
@@ -88,6 +96,12 @@ interface BoardProps {
   interactive: boolean;
   /** The side the local human is allowed to move (null = both, hotseat). */
   controllable: Side | null;
+  /**
+   * Draw the board rotated 180° (view only — see src/orientation.ts). The
+   * squares keep their names: flipping changes which drawn edge carries the
+   * coordinate labels, never what a square is called.
+   */
+  flipped?: boolean;
   /** Chosen emblem for the attacker (raider) pieces. */
   attackerEmblem: EmblemDef;
   /** Chosen emblem for the king piece. */
@@ -108,6 +122,7 @@ export default function Board({
   fadingCaptures,
   interactive,
   controllable,
+  flipped = false,
   attackerEmblem,
   kingEmblem,
   defenderEmblem,
@@ -131,13 +146,17 @@ export default function Board({
     return s === turn && (controllable === null || controllable === turn);
   };
 
-  // Chessboard-style coordinates: files a–g across, ranks 1–7 up the side.
-  const FILES = "abcdefg";
-
+  // The cells are emitted in *view* order — left to right, top to bottom as
+  // drawn — and each one resolves back to the board square it stands for. A
+  // flipped board therefore reverses both axes together (a 180° rotation) while
+  // every square keeps its own identity: `d4` is the throne from either chair.
+  // See src/orientation.ts; the coordinate labels below move to whichever drawn
+  // edge is now the bottom/left, but they never rename a square.
   return (
     <div className="board" role="grid" aria-label="Brandubh board">
-      {Array.from({ length: BOARD_SIZE }, (_, r) =>
-        Array.from({ length: BOARD_SIZE }, (_, c) => {
+      {Array.from({ length: BOARD_SIZE }, (_, viewRow) =>
+        Array.from({ length: BOARD_SIZE }, (_, viewCol) => {
+          const { row: r, col: c } = fromView({ row: viewRow, col: viewCol }, flipped);
           const piece = board[r][c];
           const key = r * 10 + c;
           const special = isThrone(r, c) || isCorner(r, c);
@@ -148,13 +167,16 @@ export default function Board({
           const lastFrom = lastMove && lastMove.from.row === r && lastMove.from.col === c;
           const dark = (r + c) % 2 === 1;
           const pickable = canPick({ row: r, col: c }) || isLegal;
-          const fileLabel = r === BOARD_SIZE - 1 ? FILES[c] : null;
-          const rankLabel = c === 0 ? String(BOARD_SIZE - r) : null;
+          const file = isLabelledFileRow(r, flipped) ? fileLabel(c) : null;
+          const rank = isLabelledRankCol(c, flipped) ? rankLabel(r) : null;
 
           return (
             <div
               key={key}
               role="gridcell"
+              // The square's own name, so what a screen reader reads stays true
+              // under flip — the labels below are decorative duplicates of it.
+              aria-label={piece ? `${squareName({ row: r, col: c })} ${piece}` : squareName({ row: r, col: c })}
               className={[
                 "cell",
                 dark ? "dark" : "",
@@ -168,14 +190,14 @@ export default function Board({
                 .join(" ")}
               onClick={() => interactive && onSquareClick({ row: r, col: c })}
             >
-              {rankLabel && (
+              {rank && (
                 <span className="coord coord-rank" aria-hidden>
-                  {rankLabel}
+                  {rank}
                 </span>
               )}
-              {fileLabel && (
+              {file && (
                 <span className="coord coord-file" aria-hidden>
-                  {fileLabel}
+                  {file}
                 </span>
               )}
               {isCorner(r, c) && !piece && (
