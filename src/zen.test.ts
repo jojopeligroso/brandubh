@@ -1,11 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { ZEN_EXTRAS, defaultZenConfig, parseZenExtras } from "./zen";
+import {
+  ZEN_DEFAULT_EXTRAS,
+  ZEN_EXTRAS,
+  ZEN_EXTRAS_VERSION,
+  defaultZenConfig,
+  parseZenExtras,
+  upgradeZenExtras,
+} from "./zen";
 
 describe("zen config", () => {
-  it("defaults to off with every optional extra hidden", () => {
+  it("defaults to off, hiding every extra bar the ones Zen ships with", () => {
     const cfg = defaultZenConfig();
     expect(cfg.enabled).toBe(false);
-    for (const id of ZEN_EXTRAS) expect(cfg.extras[id]).toBe(false);
+    for (const id of ZEN_EXTRAS) {
+      expect(cfg.extras[id]).toBe(ZEN_DEFAULT_EXTRAS.includes(id));
+    }
+  });
+
+  it("keeps the move navigator on by default", () => {
+    // Stepping back through the moves just played is part of reading the board,
+    // and with everything else stripped away it is the only route back to a
+    // position already left behind. Still an extra, so it can be switched off.
+    expect(ZEN_DEFAULT_EXTRAS).toContain("nav");
+    expect(ZEN_EXTRAS).toContain("nav");
+    expect(defaultZenConfig().extras.nav).toBe(true);
   });
 
   it("treats the engine eval as an opt-in extra, so Zen hides it by default", () => {
@@ -24,17 +42,35 @@ describe("zen config", () => {
   });
 
   it("parses a stored extras map, keeping only known boolean flags", () => {
-    const extras = parseZenExtras(JSON.stringify({ nav: true, resign: true, bogus: true }));
-    expect(extras.nav).toBe(true);
+    const extras = parseZenExtras(JSON.stringify({ nav: false, resign: true, bogus: true }));
+    // A stored flag wins over the default, off as readily as on.
+    expect(extras.nav).toBe(false);
     expect(extras.resign).toBe(true);
     expect(extras.captured).toBe(false);
     expect((extras as Record<string, unknown>).bogus).toBeUndefined();
   });
 
-  it("falls back to all-hidden on null or malformed input", () => {
+  it("falls back to the defaults on null or malformed input", () => {
     for (const id of ZEN_EXTRAS) {
-      expect(parseZenExtras(null)[id]).toBe(false);
-      expect(parseZenExtras("not json")[id]).toBe(false);
+      const expected = ZEN_DEFAULT_EXTRAS.includes(id);
+      expect(parseZenExtras(null)[id]).toBe(expected);
+      expect(parseZenExtras("not json")[id]).toBe(expected);
     }
+  });
+
+  it("switches newly-defaulted extras on for a map written before they existed", () => {
+    // Old builds spelled out `false` for every extra they knew about, so without
+    // this a new default would never reach anyone who had already opened Zen.
+    const stored = parseZenExtras(JSON.stringify({ nav: false, resign: true }));
+    const upgraded = upgradeZenExtras(stored, null);
+    expect(upgraded.nav).toBe(true);
+    expect(upgraded.resign).toBe(true);
+    expect(upgraded.captured).toBe(false);
+  });
+
+  it("leaves a map already stamped with the current version alone", () => {
+    const stored = parseZenExtras(JSON.stringify({ nav: false }));
+    const kept = upgradeZenExtras(stored, String(ZEN_EXTRAS_VERSION));
+    expect(kept.nav).toBe(false);
   });
 });

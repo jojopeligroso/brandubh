@@ -1484,6 +1484,8 @@ export default function App() {
         t={t}
         lang={lang}
         onLang={setLang}
+        zenOn={zen.enabled}
+        onZen={setZenEnabled}
         onShowRules={() => setLearnView("menu")}
         onShowDesign={() => setShowDesign(true)}
       />
@@ -1635,8 +1637,9 @@ export default function App() {
       {/* The settings panels can themselves be hidden in Zen, and so can the
           export/import panel below. Everything Zen can hide that is *configuration*
           — Zen itself, the clock, the custom ruleset, the game file — is also
-          rendered in the always-reachable gear ⚙ modal, so no Zen setting can
-          ever lock you out of the control that would undo it. */}
+          rendered in the settings modal, which the header menu always reaches, so
+          no Zen setting can ever lock you out of the control that would undo it.
+          (Zen itself now has a second way back out: the header toggle.) */}
       {showExtra("settings") && (
         <>
           <Settings
@@ -1898,19 +1901,50 @@ export default function App() {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────────
+// The header carries two controls and no more: Zen mode, which is the one thing
+// you reach for *while* playing, and a menu holding everything you reach for
+// between games — the language toggle, the rules and the settings modal. The
+// three of those used to sit in the header as a row of their own, which put a
+// language segment and a "How to play" button beside the board on every move.
 function Header({
   t,
   lang,
   onLang,
+  zenOn,
+  onZen,
   onShowRules,
   onShowDesign,
 }: {
   t: Translations;
   lang: Lang;
   onLang: (l: Lang) => void;
+  zenOn: boolean;
+  onZen: (v: boolean) => void;
   onShowRules: () => void;
   onShowDesign: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Dismiss on a click outside the menu or on Escape — the two ways out anyone
+  // tries first. Bound only while it is open so the listeners cost nothing the
+  // rest of the time.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
@@ -1924,46 +1958,105 @@ function Header({
         </p>
       </div>
       <div className="flex items-center gap-2">
-        {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line change
-            there rather than a hand-edit here. */}
-        <div className="seg">
-          {VISIBLE_LANGS.map((l) => (
-            <button
-              key={l.code}
-              className={lang === l.code ? "on" : ""}
-              onClick={() => onLang(l.code)}
-              aria-pressed={lang === l.code}
-              lang={l.code}
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
-        <button className="btn" onClick={onShowRules}>
-          {t.howToPlay}
-        </button>
         <button
-          className="iconbtn"
-          onClick={onShowDesign}
-          aria-label={t.settings}
-          title={t.settings}
-          data-testid="gear"
+          className={`iconbtn${zenOn ? " on" : ""}`}
+          onClick={() => onZen(!zenOn)}
+          aria-pressed={zenOn}
+          aria-label={t.zenMode}
+          title={t.zenMode}
+          data-testid="zen-toggle"
         >
-          <GearIcon />
+          <ZenIcon />
         </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            className={`iconbtn${menuOpen ? " on" : ""}`}
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={t.menu}
+            title={t.menu}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            data-testid="menu-toggle"
+          >
+            <MenuIcon />
+          </button>
+          {menuOpen && (
+            <div className="card menu-panel" data-testid="header-menu">
+              {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line
+                  change there rather than a hand-edit here. */}
+              <div className="menu-row">
+                <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+                  {t.language}
+                </span>
+                <div className="seg">
+                  {VISIBLE_LANGS.map((l) => (
+                    <button
+                      key={l.code}
+                      className={lang === l.code ? "on" : ""}
+                      onClick={() => onLang(l.code)}
+                      aria-pressed={lang === l.code}
+                      lang={l.code}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                className="menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onShowRules();
+                }}
+              >
+                {t.howToPlay}
+              </button>
+              <button
+                className="menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onShowDesign();
+                }}
+                data-testid="gear"
+              >
+                {t.settings}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
 }
 
-function GearIcon() {
+// Ensō — the open brush circle. A calm mark rather than a gear, and it reads as
+// a state (gold when Zen is on) rather than a door into another panel.
+function ZenIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <circle cx="12" cy="12" r="3.2" />
-      <path
-        d="M12 2.5l1.4 2.6 2.9-.5.4 2.9 2.6 1.4-1.3 2.6 1.3 2.6-2.6 1.4-.4 2.9-2.9-.5L12 21.5l-1.4-2.6-2.9.5-.4-2.9-2.6-1.4 1.3-2.6-1.3-2.6 2.6-1.4.4-2.9 2.9.5z"
-        strokeLinejoin="round"
-      />
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M15.6 4.2a8.5 8.5 0 1 0 4.1 5.3" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
     </svg>
   );
 }
@@ -2838,9 +2931,10 @@ function ZenSettings({
   );
 }
 
-// The gear ⚙ modal. It is the *guaranteed* home for configuration: Zen mode can
-// hide the inline settings stack and the export/import panel, so every control
-// those carry is rendered here as well. The rule is simple — if Zen can hide it
+// The settings modal, opened from the header menu. It is the *guaranteed* home
+// for configuration: Zen mode can hide the inline settings stack and the
+// export/import panel, so every control those carry is rendered here as well.
+// The rule is simple — if Zen can hide it
 // and it configures the app, it lives here too, and no Zen setting can strand
 // you without the control that undoes it. Board design lives here as before.
 function SettingsModal({

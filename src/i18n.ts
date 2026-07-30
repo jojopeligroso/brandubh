@@ -64,6 +64,8 @@ export interface Translations {
   // Header
   subtitle: string;
   howToPlay: string;
+  menu: string;
+  language: string;
 
   // Side labels
   raiders: string;
@@ -430,6 +432,8 @@ export interface Translations {
 const en: Translations = {
   subtitle: "Irish Hnefatafl \u00b7 7\u00d77",
   howToPlay: "How to play",
+  menu: "Menu",
+  language: "Language",
 
   raiders: "Raiders",
   kingsSide: "King\u2019s side",
@@ -518,7 +522,7 @@ const en: Translations = {
 
   zenMode: "Zen mode",
   zenHint:
-    "A calm, over-the-board board — just the pieces, whose turn it is, the clock and the move log. Game controls appear only when a game ends.",
+    "A calm, over-the-board board — just the pieces, whose turn it is, the clock, the move log and the move navigator. Game controls appear only when a game ends.",
   zenShowExtras: "Also show in Zen",
   on: "On",
   off: "Off",
@@ -848,6 +852,8 @@ const en: Translations = {
 const es: Translations = {
   subtitle: "Hnefatafl Irland\u00e9s \u00b7 7\u00d77",
   howToPlay: "C\u00f3mo jugar",
+  menu: "Men\u00fa",
+  language: "Idioma",
 
   raiders: "Asaltantes",
   kingsSide: "Bando del Rey",
@@ -941,7 +947,7 @@ const es: Translations = {
 
   zenMode: "Modo zen",
   zenHint:
-    "Un tablero sereno \u2014 solo las piezas, el turno, el reloj y el registro de jugadas. Los controles aparecen solo cuando termina una partida.",
+    "Un tablero sereno \u2014 solo las piezas, el turno, el reloj, el registro de jugadas y la navegaci\u00f3n de jugadas. Los controles aparecen solo cuando termina una partida.",
   zenShowExtras: "Mostrar tambi\u00e9n en Zen",
   on: "Activado",
   off: "Apagado",
@@ -1279,6 +1285,9 @@ const es: Translations = {
 const ga: Translations = {
   subtitle: "Hnefatafl Gaelach \u00b7 7\u00d77",
   howToPlay: "Conas imirt",
+  // DRAFT — unreviewed, like the rest of this table.
+  menu: "Roghchlár",
+  language: "Teanga",
 
   raiders: "Foghlaithe",
   kingsSide: "Taobh an R\u00ed",
@@ -1372,7 +1381,8 @@ const ga: Translations = {
 
   zenMode: "Mód zen",
   zenHint:
-    "Clár ciúin — na píosaí, an seal, an clog agus an loga bogtha amháin. Ní thagann na rialuithe ach nuair a chríochnaíonn cluiche.",
+    // DRAFT — unreviewed, like the rest of this table.
+    "Clár ciúin — na píosaí, an seal, an clog, an loga bogtha agus an nascleanúint bogtha amháin. Ní thagann na rialuithe ach nuair a chríochnaíonn cluiche.",
   zenShowExtras: "Taispeáin freisin sa mhód Zen",
   on: "Ar si\u00fal",
   off: "As",
