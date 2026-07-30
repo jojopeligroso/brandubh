@@ -8,7 +8,7 @@
 // it is never persisted or exported, so the replay-from-initialState()
 // invariant (see game/replay.ts) is untouched.
 
-import { allMoves, applyMove } from "./engine";
+import { allMoves, applyMove, isGameOver, winnerOf } from "./engine";
 import {
   BOARD_SIZE,
   type Board,
@@ -20,13 +20,26 @@ import {
 } from "./types";
 import { VARIANTS, type RuleSet } from "./variants";
 
-/** One learner move; non-final steps carry the opponent's scripted riposte. */
+/**
+ * One learner move; non-final steps carry the opponent's scripted riposte.
+ *
+ * `solution` must list EVERY move that solves the position, not just the one
+ * the author had in mind — a drill that refuses an equally good answer teaches
+ * the learner that they were wrong when they were not. `tutorials.test.ts`
+ * enforces this: for the deciding step it enumerates the legal moves, and any
+ * move satisfying `goal` that is missing from `solution` fails the suite.
+ * Where several moves reach the goal but only some are actually sound, the
+ * position is rebuilt so the answer is unique rather than the extras listed.
+ */
 export interface TutorialStep {
-  /** Accepted move(s). Omitted → any legal move that satisfies the goal. */
+  /** Accepted move(s) — all of them. Omitted → any legal move satisfying the goal. */
   solution?: Move[];
   /** Scripted opponent reply, played after a correct non-final step. */
   reply?: Move;
 }
+
+/** Which family of "what you did wrong" copy a drill draws its refusals from. */
+export type TutorialLesson = "capture" | "escape" | "block" | "regicide";
 
 export interface TutorialScenario {
   id: string;
@@ -34,6 +47,8 @@ export interface TutorialScenario {
   side: Side;
   /** Rules the scenario is built for (all current scenarios use "wtf"). */
   rulesId: string;
+  /** What the drill teaches — picks the wording for a refused move. */
+  lesson: TutorialLesson;
   /** Board as 7 strings of 7 chars: "." empty, "a" raider, "d" defender, "k" king. */
   rows: string[];
   steps: TutorialStep[];
@@ -96,6 +111,59 @@ export function isAcceptedMove(
   return sc.goal(applyMove(state, move, rules));
 }
 
+/**
+ * Why a refused move was refused. The tutorial player turns this into a
+ * full-screen explanation, so a beginner is never left guessing what the game
+ * objected to — every value here names a concrete consequence on the board.
+ */
+export type TutorialMistake =
+  | "roadOpen" // block drill: the King still reaches a corner next move
+  | "losesGame" // the opponent wins outright, now or on their reply
+  | "noCapture" // capture drill: the move takes nothing
+  | "wrongCapture" // capture drill: it takes something, but not what was asked
+  | "kingStands" // king-hunt drill: the King is still free
+  | "noEscape" // escape drill, deciding move: the King is not in a corner
+  | "notForcing"; // escape drill, setup move: the threat can be answered
+
+const opposing = (side: Side): Side => (side === "attackers" ? "defenders" : "attackers");
+
+/** Can `side`, to move, win with its very next move? */
+const winsInOne = (s: GameState, side: Side, rules: RuleSet): boolean =>
+  allMoves(s.board, side, rules).some((m) => winnerOf(applyMove(s, m, rules).status) === side);
+
+/**
+ * Diagnose a legal-but-refused move. Called only for moves `isAcceptedMove`
+ * has already turned down, so it never has to explain a correct answer.
+ */
+export function explainMistake(
+  sc: TutorialScenario,
+  stepIndex: number,
+  state: GameState,
+  move: Move,
+  rules: RuleSet,
+): TutorialMistake {
+  // The blocking drill is a special case: there the opponent's escape-in-one is
+  // the whole point, so name the open road rather than the looming loss.
+  if (sc.lesson === "block") return "roadOpen";
+
+  const foe = opposing(sc.side);
+  const after = applyMove(state, move, rules);
+  // Handing the game straight to the other side outranks every other note.
+  if (winnerOf(after.status) === foe) return "losesGame";
+  if (!isGameOver(after.status) && winsInOne(after, foe, rules)) return "losesGame";
+
+  switch (sc.lesson) {
+    case "capture": {
+      const taken = sc.side === "attackers" ? after.captured.defenders : after.captured.attackers;
+      return taken === 0 ? "noCapture" : "wrongCapture";
+    }
+    case "regicide":
+      return "kingStands";
+    case "escape":
+      return stepIndex === sc.steps.length - 1 ? "noEscape" : "notForcing";
+  }
+}
+
 const wtf = VARIANTS.wtf;
 
 /** After this state, can the defenders reach an escape in a single move? */
@@ -110,6 +178,12 @@ export const TUTORIALS: TutorialScenario[] = [
   // within two of their moves, and the taught move never passes up an
   // immediate win of the learner's own — so each capture is genuinely the
   // right idea in the position, not a blunder dressed up as a lesson.
+  //
+  // The same suite also checks the converse: no legal move reaches a drill's
+  // goal without being listed as a solution. Positions are built so that the
+  // moves reaching the goal are exactly the sound ones — where a second, losing
+  // route to the same goal existed, the board was changed to remove it rather
+  // than the drill taught to accept it.
 
   // ── Captures ────────────────────────────────────────────────────────────────
   {
@@ -118,6 +192,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "pincer",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "capture",
     rows: [
       "...a...",
       "..a....",
@@ -133,10 +208,13 @@ export const TUTORIALS: TutorialScenario[] = [
   },
   {
     // A hostile corner is a second raider: the guard posted at b7 to watch
-    // the corner is exactly what the corner helps capture.
+    // the corner is exactly what the corner helps capture. Two raiders can
+    // close it — c3 up the file, or d7 along the rank — and both are equally
+    // sound, so both are answers.
     id: "corner-anvil",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "capture",
     rows: [
       ".d.a...",
       ".......",
@@ -146,21 +224,28 @@ export const TUTORIALS: TutorialScenario[] = [
       "....a..",
       "....a..",
     ],
-    steps: [{ solution: [mv("c3", "c7")] }],
+    steps: [{ solution: [mv("c3", "c7"), mv("d7", "c7")] }],
     goal: (s) => s.captured.defenders === 1,
     foils: [mv("c3", "c5"), mv("c3", "a3")],
   },
   {
     // The king has left his throne — and the empty throne turns hostile:
     // the guard at c4 beside it can be pinned flat against it.
+    //
+    // Only b1 can reach b4: c7 and a5 bar the king's roads but are cut off
+    // from the b-file, and the second guard stands on e6 where the throne
+    // cannot be used against him. That keeps the answer single — an earlier
+    // build of this position let three other raiders make the same capture
+    // while opening a road the king wins on.
     id: "throne-anvil",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "capture",
     rows: [
-      ".....a.",
-      ".a.....",
-      "...k.a.",
-      "a.d.d..",
+      "..a..a.",
+      "....d..",
+      "a..k.a.",
+      "..d....",
       ".......",
       ".......",
       ".a..a..",
@@ -172,13 +257,18 @@ export const TUTORIALS: TutorialScenario[] = [
   {
     // One slide across the empty throne takes two raiders at a stroke — the
     // f-file raiders have pressed too deep between the king's guards.
+    //
+    // The raider on b5 is what keeps the capture the right idea. Without it the
+    // king ran d5–a5, taking a6 against the a7 corner and reaching a7 next move
+    // whatever the raiders did — a won game the drill would have refused.
     id: "double-take",
     side: "defenders",
     rulesId: "wtf",
+    lesson: "capture",
     rows: [
       "...a...",
       "a....d.",
-      "...k.a.",
+      ".a.k.a.",
       ".d.....",
       ".....a.",
       "a....d.",
@@ -186,7 +276,9 @@ export const TUTORIALS: TutorialScenario[] = [
     ],
     steps: [{ solution: [mv("b4", "f4")] }],
     goal: (s) => s.captured.attackers === 2,
-    foils: [mv("b4", "b2"), mv("f6", "e6")],
+    // f6–b6 is the near miss: it takes b5 against the b4 guard, but one raider
+    // is not two, and it spends the guard the real answer needs.
+    foils: [mv("b4", "b2"), mv("f6", "b6")],
   },
   {
     // The armed king fights too: one step off his throne closes the trap on
@@ -194,6 +286,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "kings-blade",
     side: "defenders",
     rulesId: "wtf",
+    lesson: "capture",
     rows: [
       "...a...",
       ".......",
@@ -213,6 +306,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "road-to-corner",
     side: "defenders",
     rulesId: "wtf",
+    lesson: "escape",
     rows: [
       "...k.a.",
       ".a.....",
@@ -232,6 +326,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "royal-fork",
     side: "defenders",
     rulesId: "wtf",
+    lesson: "escape",
     rows: [
       ".......",
       "...k...",
@@ -255,6 +350,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "bar-the-door",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "block",
     rows: [
       "..a.k..",
       ".......",
@@ -276,6 +372,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "take-the-king",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "regicide",
     rows: [
       ".......",
       "....a..",
@@ -295,6 +392,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "wall-of-four",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "regicide",
     rows: [
       ".......",
       "......d",
@@ -314,6 +412,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "fourth-wall",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "regicide",
     rows: [
       ".....a.",
       ".d.....",
@@ -332,6 +431,7 @@ export const TUTORIALS: TutorialScenario[] = [
     id: "close-the-ring",
     side: "attackers",
     rulesId: "wtf",
+    lesson: "regicide",
     rows: [
       ".....a.",
       ".......",

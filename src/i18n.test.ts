@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { VISIBLE_LANGS, translations, type Lang, type Translations } from "./i18n";
 import { isGaelicLang, toSeanchloTable } from "./gaelic";
+import { TUTORIALS, type TutorialMistake } from "./game/tutorials";
 
 const LANGS = Object.keys(translations) as Lang[];
 
@@ -83,5 +84,33 @@ describe("every language table is complete", () => {
       // so a "bḟ" is correct and anything else is an unconverted séimhiú.
       expect(leftovers).toEqual([]);
     }
+  });
+});
+
+// The tutorial copy is keyed by data that lives in game/tutorials.ts, so key
+// parity between the tables is not enough — a new drill or a new kind of
+// refusal has to bring its wording with it, in every language.
+describe("tutorial copy covers the tutorial data", () => {
+  const MISTAKES: TutorialMistake[] = [
+    "roadOpen",
+    "losesGame",
+    "noCapture",
+    "wrongCapture",
+    "kingStands",
+    "noEscape",
+    "notForcing",
+  ];
+
+  it.each(LANGS)("%s names every drill and every mistake", (code) => {
+    const table = translations[code];
+    for (const sc of TUTORIALS) {
+      expect(table.tutorialTitles[sc.id], `${code} title for ${sc.id}`).toBeTruthy();
+      expect(table.tutorialGoals[sc.id], `${code} goal for ${sc.id}`).toBeTruthy();
+      expect(table.tutorialHints[sc.id], `${code} hint for ${sc.id}`).toBeTruthy();
+    }
+    for (const m of MISTAKES) {
+      expect(table.tutorialMistakes[m], `${code} wording for mistake "${m}"`).toBeTruthy();
+    }
+    expect(Object.keys(table.tutorialMistakes).sort()).toEqual([...MISTAKES].sort());
   });
 });

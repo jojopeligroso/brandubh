@@ -4,8 +4,10 @@ import LearnModal, { type LearnView } from "./components/LearnModal";
 import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
-import { DIFFICULTIES, type Difficulty } from "./game/ai";
+import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
 import { useAiWorker } from "./game/useAiWorker";
+import { useAnalysisWorker } from "./game/useAnalysisWorker";
+import EvalBar from "./components/EvalBar";
 import {
   allMoves,
   applyMove,
@@ -129,6 +131,30 @@ import {
   loadDefenderEmblem,
 } from "./defenderEmblems";
 import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
+import { BOARD_FLIP_H_KEY, BOARD_FLIP_V_KEY } from "./orientation";
+import MoveTreePanel from "./components/MoveTreePanel";
+import PositionPanel from "./components/PositionPanel";
+import {
+  addMove as treeAddMove,
+  createTree,
+  fromLine,
+  lineTo,
+  parentOf,
+  promote as treePromote,
+  remove as treeRemove,
+  statesTo,
+  tipOfLine,
+  type MoveTree,
+} from "./game/moveTree";
+import { aiMayReply, autosaveAllowed, boardIsInteractive, controllableIn } from "./analysis";
+import {
+  ANNOTATE_DIFFICULTY,
+  type Mark,
+  markGlyph,
+  marksFromScores,
+  tally,
+  terminalScore,
+} from "./game/annotate";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
 // Difficulty, variant and side survive a page refresh (a reload otherwise silently
@@ -141,6 +167,18 @@ function loadSetting<T extends string>(key: string, valid: readonly T[], fallbac
   try {
     const v = localStorage.getItem(key);
     return v && (valid as readonly string[]).includes(v) ? (v as T) : fallback;
+  } catch {
+    return fallback; // localStorage unavailable (private mode, etc.)
+  }
+}
+const EVAL_ON_KEY = "brandubh.evalBar";
+/** The on/off counterpart of loadSetting, for the "1"/"0" flags Zen and the
+ *  clock already store. Anything stored that is not "1" reads as off; a flag
+ *  that has never been stored takes `fallback`, so a feature can ship on. */
+function loadFlag(key: string, fallback = false): boolean {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v === "1";
   } catch {
     return fallback; // localStorage unavailable (private mode, etc.)
   }
@@ -321,6 +359,53 @@ export default function App() {
     setClockLine(initialClockLine(timeControl));
   }, [timeControl]);
 
+  // ── Board orientation (view only) ───────────────────────────────────────────
+  // Which way up the board is drawn. Purely a preference about the picture: it
+  // does not touch the position, the side you control or the saved game, and
+  // `game/sides.ts` still holds that orientation never follows the side you
+  // play. Two independent mirrors: east–west (left/right) and north–south
+  // (top/bottom) — see the clock note at the render for which one moves the
+  // clocks.
+  const [flippedH, setFlippedH] = useState<boolean>(() => loadFlag(BOARD_FLIP_H_KEY));
+  // The north–south flag falls back to the east–west one, which carries a
+  // pre-split save over intact: back then there was a single key meaning a full
+  // 180° rotation — *both* mirrors — and it is the key `BOARD_FLIP_H_KEY` still
+  // reads. So a returning player who left the board flipped gets both toggles
+  // on and sees the picture they left, rather than a half-applied east–west
+  // one. One-shot by construction: the effects below write the V key on mount,
+  // so the fallback only ever fires on the first load after the split.
+  const [flippedV, setFlippedV] = useState<boolean>(() =>
+    loadFlag(BOARD_FLIP_V_KEY, loadFlag(BOARD_FLIP_H_KEY)),
+  );
+  useEffect(() => {
+    try {
+      localStorage.setItem(BOARD_FLIP_H_KEY, flippedH ? "1" : "0");
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [flippedH]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(BOARD_FLIP_V_KEY, flippedV ? "1" : "0");
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [flippedV]);
+
+  // ── Engine eval (bar + best-move arrow) ─────────────────────────────────────
+  // Whether the analysis readout is switched on. Persisted like the flip
+  // preference beside it, and separate from the Zen extra that decides whether
+  // the *toggle* is on screen at all — the same two-layer arrangement the flip
+  // button has (`showExtra("eval")` shows the button, this holds the state).
+  const [evalOn, setEvalOn] = useState<boolean>(() => loadFlag(EVAL_ON_KEY, true));
+  useEffect(() => {
+    try {
+      localStorage.setItem(EVAL_ON_KEY, evalOn ? "1" : "0");
+    } catch {
+      /* ignore persistence failures */
+    }
+  }, [evalOn]);
+
   // ── Zen mode (calm, over-the-board board) ───────────────────────────────────
   // Off by default. When on, only the essentials show — board, turn, clock,
   // move log — plus any opted-in extras. Game-flow controls are contextual and
@@ -348,8 +433,37 @@ export default function App() {
   // currently on screen. Browsing with the arrows only moves the cursor — it
   // never discards moves, so you can cycle back and forth freely. "Play from
   // here" is the only action that branches (truncates) the timeline.
-  const [states, setStates] = useState<GameState[]>(() => [initialState()]);
-  const [cursor, setCursor] = useState(0);
+  // The *live* game. In analysis these are left untouched — see the tree below —
+  // so `states`/`cursor` are derived a few lines down rather than read directly.
+  const [liveStates, setStates] = useState<GameState[]>(() => [initialState()]);
+  const [liveCursor, setCursor] = useState(0);
+
+  // ── Analysis (free-move) mode ───────────────────────────────────────────────
+  // A scratch mode over the live game: the computer stops replying, both sides
+  // become pickable, the clock stops, and nothing is written to the save. The
+  // decisions that make that true are pure functions in analysis.ts (they are
+  // unit-tested there); this is the state they read.
+  //
+  // Deliberately *not* persisted, unlike the flip preference next to it. The
+  // snapshot below cannot survive a reload, so restoring the mode would put you
+  // in analysis with no live game to hand back — and since analysis never
+  // writes to storage, a reload already lands you safely on the real game.
+  const [analysis, setAnalysis] = useState(false);
+
+  // ── The analysis move tree (Session 7c) ─────────────────────────────────────
+  // Analysis no longer borrows the live timeline: it has its own structure, a
+  // *tree*, so a second idea from the same position becomes a sibling instead of
+  // destroying the first (`src/game/moveTree.ts`).
+  //
+  // Live play stays a single line. A game has one history, the save and the
+  // export encode one move list, and a takeback is meant to destroy moves — see
+  // docs/design/lichess-ui.md, where that decision is written down.
+  const [tree, setTree] = useState<MoveTree | null>(null);
+  const [nodeId, setNodeId] = useState(0);
+  // True when the tree was rooted on a *pasted position* rather than seeded from
+  // the live game (Session 7e). Such a tree has no path back to the opening, so
+  // its move list cannot be exported — see `positionRooted` at the export panel.
+  const [pastedRoot, setPastedRoot] = useState(false);
 
   // ── Resumable game ──────────────────────────────────────────────────────────
   // A game in progress is written to localStorage as it is played (see
@@ -395,6 +509,23 @@ export default function App() {
   const humanSide: Side | null = humanSideOf(playMode);
   const aiSide: Side | null = aiSideOf(playMode);
 
+  // ── What the board is actually showing ──────────────────────────────────────
+  // In analysis this is the line from the tree's root down to the selected node;
+  // otherwise it is the live game. Deriving it here is what lets the board, the
+  // move log, the captured tray and the review controls work inside a tree
+  // without any of them knowing a tree exists — they see a list of positions and
+  // an index, exactly as they always have.
+  //
+  // Note this makes `cursor` the end of the displayed line in analysis, so
+  // `atTip` is always true there: stepping "back" selects the parent *node*,
+  // which shortens the line, rather than moving an index along a fixed one.
+  const analysisLine = useMemo(
+    () => (analysis && tree ? statesTo(tree, nodeId) : null),
+    [analysis, tree, nodeId],
+  );
+  const states = analysisLine ?? liveStates;
+  const cursor = analysisLine ? analysisLine.length - 1 : liveCursor;
+
   const tip = states.length - 1;
   const atTip = cursor === tip;
   const reviewing = !atTip;
@@ -413,9 +544,13 @@ export default function App() {
   useEffect(() => {
     const prev = prevTipStatusRef.current;
     prevTipStatusRef.current = tipStatus;
+    // A line pushed to a win in analysis is a finding, not a result — no
+    // curtain. (The ref is still advanced, so leaving analysis, which restores
+    // it from the live timeline, cannot raise one either.)
+    if (analysis) return;
     if (prev === "playing" && isGameOver(tipStatus)) setShowVictory(true);
     else if (!isGameOver(tipStatus)) setShowVictory(false);
-  }, [tipStatus]);
+  }, [tipStatus, analysis]);
 
   const lastMove: Move | null = game.history.length
     ? game.history[game.history.length - 1].move
@@ -433,7 +568,11 @@ export default function App() {
       return copy;
     });
   }, []);
-  const clock = useGameClock(timeControl, atTip && !gameOver, onFlag);
+  // Analysis stops the clock through the same gate that stops it while you are
+  // reviewing history: the banks hold where they are, no flag can fall, and the
+  // *manual* pause is left alone — so leaving analysis hands back a clock in
+  // exactly the state it was put aside in.
+  const clock = useGameClock(timeControl, atTip && !gameOver && !analysis, onFlag);
 
   const aiTimer = useRef<number | null>(null);
   const { requestMove, cancel: cancelAi } = useAiWorker();
@@ -454,12 +593,23 @@ export default function App() {
         setFadingCaptures(caps);
         window.setTimeout(() => setFadingCaptures([]), 340);
       }
-      // A move is only ever committed from the tip, so append + advance cursor.
+      // In analysis a move extends the *tree* (Session 7c). Playing from a
+      // position that already has a continuation adds a sibling rather than
+      // replacing it, and replaying a move already tried navigates to the branch
+      // that exists instead of growing a second copy of it.
+      if (analysis && tree) {
+        const grown = treeAddMove(tree, nodeId, move, rules);
+        setTree(grown.tree);
+        setNodeId(grown.nodeId);
+        setSelected(null);
+        return;
+      }
+      // Live play only ever commits from the tip, so this appends.
       setStates((prev) => [...prev, applyMove(prev[prev.length - 1], move, rules)]);
       setCursor((c) => c + 1);
       setSelected(null);
     },
-    [rules],
+    [rules, analysis, tree, nodeId],
   );
 
   // ── AI turn (only while live at the tip, never while browsing) ───────────────
@@ -469,7 +619,17 @@ export default function App() {
   const AI_MIN_THINK_MS = 350;
   useEffect(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
-    if (!atTip || gameOver || clock.paused || aiSide === null || game.turn !== aiSide) {
+    // Analysis suppresses the auto-reply outright — see `aiMayReply`.
+    if (
+      !aiMayReply({
+        analysis,
+        atTip,
+        gameOver,
+        paused: clock.paused,
+        aiSide,
+        turn: game.turn,
+      })
+    ) {
       setThinking(false);
       cancelAi();
       return;
@@ -500,9 +660,59 @@ export default function App() {
     gameOver,
     commitMove,
     clock.paused,
+    analysis,
     requestMove,
     cancelAi,
   ]);
+
+  // ── Background analysis (eval bar + best-move arrow) ────────────────────────
+  //
+  // Evaluates the position **on screen** — `states[cursor]`, not the tip — so
+  // stepping back through the game shows what the engine made of each position
+  // as you pass it, which is the whole point of an eval bar on a timeline.
+  //
+  // It cannot interfere with the live game's search. The two run on separate
+  // worker threads (see useAnalysisWorker for why that is structural, not
+  // incidental), so neither one's cancellation touches the other and the AI's
+  // move is never delayed by a cursor step. The debounce below is about not
+  // *starting* work that is already stale: scrubbing quickly through a game
+  // fires one search at the end of the scrub rather than one per position.
+  const ANALYSIS_DEBOUNCE_MS = 220;
+  const { requestAnalysis, cancel: cancelAnalysis } = useAnalysisWorker();
+  const [evalInfo, setEvalInfo] = useState<{ score: number; move: Move | null } | null>(null);
+  const [evalPending, setEvalPending] = useState(false);
+  const showEval = evalOn && showExtra("eval");
+  useEffect(() => {
+    if (!showEval) {
+      // Switched off (or hidden by Zen): stop searching and drop the readout, so
+      // turning it back on cannot show a stale eval for a different position.
+      cancelAnalysis();
+      setEvalInfo(null);
+      setEvalPending(false);
+      return;
+    }
+    // A finished position has no best move and needs no search — its result is
+    // already on the board.
+    if (isGameOver(game.status)) {
+      cancelAnalysis();
+      setEvalPending(false);
+      setEvalInfo({ score: evaluate(game, ANALYSIS_WEIGHTS, rules), move: null });
+      return;
+    }
+    let cancelled = false;
+    setEvalPending(true);
+    const timer = window.setTimeout(() => {
+      requestAnalysis(game, rules).then((res) => {
+        if (cancelled) return; // the position moved on under us
+        setEvalInfo({ score: res.score, move: res.move });
+        setEvalPending(false);
+      });
+    }, ANALYSIS_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [showEval, game, rules, requestAnalysis, cancelAnalysis]);
 
   // ── Drive the clock from the move timeline ──────────────────────────────────
   // Each new move at the tip presses the mover's clock (banks their increment
@@ -514,6 +724,7 @@ export default function App() {
     const prev = prevTipRef.current;
     prevTipRef.current = tip;
     if (!clock.enabled) return;
+    if (analysis) return; // an explored move is not a played move — no press
     if (tip !== prev + 1) return; // stepping back is handled by rewindTo
     // After a move, the position's `turn` is the side *now* to move, so the
     // mover was the opposite side.
@@ -532,6 +743,7 @@ export default function App() {
   // resuming the position clears it too.
   const rewindTo = useCallback(
     (ply: number) => {
+      if (analysis) return; // analysis branches in the tree; it never cuts the live line
       setStates((prev) => {
         const next = prev.slice(0, ply + 1);
         if (isTimeLoss(next[ply].status)) next[ply] = { ...next[ply], status: "playing" };
@@ -543,16 +755,203 @@ export default function App() {
         clock.resumeAt(banksAt(clockLine, ply, timeControl), states[ply].turn, ply > 0);
       }
     },
-    [clock, clockLine, states, timeControl],
+    [clock, clockLine, states, timeControl, analysis],
   );
 
+  // ── Entering and leaving analysis ───────────────────────────────────────────
+  // Since 7c, analysis does not borrow the live timeline at all: entering seeds
+  // a move tree from the live line and every exploratory move goes into that,
+  // so `liveStates`/`liveCursor` are simply never written while analysing. The
+  // snapshot-and-restore 7b needed is gone with the borrowing that made it
+  // necessary — there is nothing left to put back.
+  //
+  // What still stands is the autosave guard (see `persistGame`): `states` is the
+  // *derived* line, so without it a page-hide mid-variation would happily write
+  // an explored position over the real game.
+  const enterAnalysis = useCallback(() => {
+    if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    cancelAi();
+    const seeded = fromLine(liveStates);
+    setTree(seeded);
+    setPastedRoot(false);
+    // Open on the position the player was looking at, not at the root.
+    setNodeId(lineTo(seeded, tipOfLine(seeded, seeded.rootId))[liveCursor] ?? seeded.rootId);
+    setAnalysis(true);
+    setThinking(false);
+    setSelected(null);
+    setFadingCaptures([]);
+    setShowTakeback(false);
+  }, [liveStates, liveCursor, cancelAi]);
+
+  const exitAnalysis = useCallback(() => {
+    if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    cancelAi();
+    setAnalysis(false);
+    setTree(null);
+    setPastedRoot(false);
+    setThinking(false);
+    setSelected(null);
+    setFadingCaptures([]);
+    // The live game was never touched, so it needs no restoring — but the board
+    // is about to jump from a variation back to it, and neither the clock nor
+    // the victory curtain may read that as something that just happened (the
+    // same guards the resume and import paths use).
+    prevTipRef.current = liveStates.length - 1;
+    prevTipStatusRef.current = liveStates[liveStates.length - 1].status;
+    setShowVictory(false);
+  }, [cancelAi, liveStates]);
+
+  const toggleAnalysis = useCallback(() => {
+    if (analysis) exitAnalysis();
+    else enterAnalysis();
+  }, [analysis, enterAnalysis, exitAnalysis]);
+
+  // ── Analysing a pasted position (Session 7e) ────────────────────────────────
+  // The tree already roots at any GameState, so a pasted position needs nothing
+  // new from it: `createTree(position)` and analysis works exactly as it does on
+  // the live game. The position lives only here, in component state — the same
+  // place the tutorial set-plays keep their hand-built boards — so the
+  // replay-from-opening invariant (CLAUDE.md) holds without a guard: analysis
+  // has never written to storage.
+  const loadPosition = useCallback(
+    (position: GameState) => {
+      if (aiTimer.current) window.clearTimeout(aiTimer.current);
+      cancelAi();
+      const seeded = createTree(position);
+      setTree(seeded);
+      setNodeId(seeded.rootId);
+      setPastedRoot(true);
+      setAnalysis(true);
+      setThinking(false);
+      setSelected(null);
+      setFadingCaptures([]);
+      setShowTakeback(false);
+      setShowVictory(false);
+    },
+    [cancelAi],
+  );
+
+  // Leaving analysis for the paths that install a whole new game of their own
+  // (new game, import, resume): the tree describes a game that is being
+  // replaced, so it is discarded rather than carried across.
+  const dropAnalysis = useCallback(() => {
+    setAnalysis(false);
+    setTree(null);
+    setPastedRoot(false);
+  }, []);
+
+  // ── Moving around the tree ──────────────────────────────────────────────────
+  // The review controls mean something slightly different in analysis: "back" is
+  // the parent node and "forward" is the first child, so stepping back and then
+  // playing something else branches instead of overwriting. Outside analysis
+  // they are the cursor moves they always were.
+  const selectNode = useCallback((id: number) => {
+    setSelected(null);
+    setNodeId(id);
+  }, []);
+
+  const promoteCurrent = useCallback(() => {
+    if (!tree) return;
+    setTree(treePromote(tree, nodeId));
+  }, [tree, nodeId]);
+
+  // Deleting the branch you are standing on has to move you somewhere that still
+  // exists — its parent, which is always the position it departed from.
+  const deleteCurrent = useCallback(() => {
+    if (!tree || nodeId === tree.rootId) return;
+    const parent = parentOf(tree, nodeId) ?? tree.rootId;
+    setTree(treeRemove(tree, nodeId));
+    setSelected(null);
+    setNodeId(parent);
+  }, [tree, nodeId]);
+
+  // ── Post-game annotations (Session 7d) ──────────────────────────────────────
+  // Re-search the displayed line position by position and mark the moves where
+  // the evaluation swung. The judgement is in `game/annotate.ts`, where it is
+  // unit-tested; what lives here is the walk, because it drives the worker.
+  //
+  // One search per *position*, not two per move: the value after ply k is the
+  // value before ply k+1, so an n-move game costs n+1 searches.
+  //
+  // The marks are stored against the exact line they were computed for, so
+  // stepping into a variation hides them rather than showing another line's
+  // verdicts, and stepping back shows them again.
+  const [annotation, setAnnotation] = useState<{ key: string; marks: (Mark | null)[] } | null>(null);
+  const [annotating, setAnnotating] = useState<{ done: number; total: number } | null>(null);
+  const annotateStopped = useRef(false);
+
+  const lineKey = useMemo(
+    () => states[states.length - 1].history.map((h) => moveName(h.move)).join(" "),
+    [states],
+  );
+  const marks = annotation?.key === lineKey ? annotation.marks : null;
+
+  // The real constraint is the single worker: the pass must not race the AI for
+  // it. So it is offered wherever the AI will not be wanting it — a finished
+  // game, analysis (which suppresses the AI), or over-the-board play (where
+  // there is no computer at all) — and never while a search is in flight.
+  const canAnnotate = tip >= 1 && !thinking && (gameOver || analysis || aiSide === null);
+
+  const stopAnnotating = useCallback(() => {
+    // The in-flight search is left to finish rather than terminating the worker:
+    // `cancel()` kills it mid-search and the promise waiting on it would never
+    // settle. At this depth that is one position's wait, ~50ms.
+    annotateStopped.current = true;
+  }, []);
+
+  const runAnnotation = useCallback(async () => {
+    const line = states; // judge the line as it stands now, not as it may become
+    if (line.length < 2) return;
+    const key = line[line.length - 1].history.map((h) => moveName(h.move)).join(" ");
+    annotateStopped.current = false;
+    setAnnotation(null);
+    setAnnotating({ done: 0, total: line.length });
+
+    const scores: number[] = [];
+    const onlyMoves: boolean[] = [];
+    for (let k = 0; k < line.length; k++) {
+      if (annotateStopped.current) {
+        setAnnotating(null);
+        return;
+      }
+      // A position the board has already settled is read from its result; with
+      // no legal moves a search reports 0, which would read as "level" in the
+      // very place the game was decided.
+      const settled = terminalScore(line[k].status);
+      scores.push(settled ?? (await requestMove(line[k], ANNOTATE_DIFFICULTY, rules)).score);
+      if (k < line.length - 1) {
+        onlyMoves.push(allMoves(line[k].board, line[k].turn, rules).length === 1);
+      }
+      setAnnotating({ done: k + 1, total: line.length });
+    }
+
+    if (annotateStopped.current) {
+      setAnnotating(null);
+      return;
+    }
+    const movers = line.slice(1).map((s) => s.history[s.history.length - 1].sideThatMoved);
+    setAnnotation({ key, marks: marksFromScores(scores, movers, onlyMoves) });
+    setAnnotating(null);
+  }, [states, rules, requestMove]);
+
+  // A pass judges one line; anything that replaces the game underneath it must
+  // stop it rather than let it finish and label a game that is no longer there.
+  useEffect(() => {
+    if (annotating) annotateStopped.current = true;
+    // Only on a change of game identity, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variantId, playMode]);
+
   // ── Human interaction ───────────────────────────────────────────────────────
-  const interactive =
-    atTip &&
-    !gameOver &&
-    !thinking &&
-    !clock.paused &&
-    (humanSide === null || game.turn === humanSide);
+  const interactive = boardIsInteractive({
+    analysis,
+    atTip,
+    gameOver,
+    thinking,
+    paused: clock.paused,
+    humanSide,
+    turn: game.turn,
+  });
 
   const legalTargets = useMemo(() => {
     if (!selected) return new Set<number>();
@@ -598,6 +997,7 @@ export default function App() {
   // game" path; it does not touch the set score.
   const resetBoard = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    dropAnalysis();
     recorded.current = false;
     // A fresh board is a new game, so it gets a new identity (see game/records.ts).
     gameId.current = newGameId();
@@ -611,7 +1011,7 @@ export default function App() {
     setShowTakeback(false);
     setClockLine(initialClockLine(timeControl));
     clock.reset();
-  }, [clock.reset, timeControl]);
+  }, [clock.reset, timeControl, dropAnalysis]);
 
   // Fresh board and, in hotseat play, a brand-new match (score reset to zero).
   // Starting over is also the moment a saved game stops being worth keeping.
@@ -641,6 +1041,7 @@ export default function App() {
     (imported: ParsedGame) => {
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
       cancelAi();
+      dropAnalysis();
       recorded.current = false;
       gameId.current = newGameId();
       gameStartedAt.current = Date.now();
@@ -664,7 +1065,7 @@ export default function App() {
       setClockLine(initialClockLine(timeControl));
       clock.reset();
     },
-    [cancelAi, clock.reset, timeControl],
+    [cancelAi, clock.reset, timeControl, dropAnalysis],
   );
 
   // Start the next game of the current set (sides already swapped on record).
@@ -681,11 +1082,12 @@ export default function App() {
   // ── Record a finished hotseat game into the current set (exactly once) ───────
   useEffect(() => {
     if (playMode !== "hotseat" || !match) return;
+    if (analysis) return; // an explored line never scores the set
     if (!atTip || !gameOver || recorded.current) return;
     if (match.set.results.length >= match.set.gamesPerSet) return;
     recorded.current = true;
     setMatch((m) => (m ? recordMatchGame(m, game.status, game.moveCount) : m));
-  }, [playMode, match, atTip, gameOver, game.status, game.moveCount]);
+  }, [playMode, match, analysis, atTip, gameOver, game.status, game.moveCount]);
 
   // ── Resume a saved game ─────────────────────────────────────────────────────
   // Put back the setup the game was played under, then the timeline itself.
@@ -695,6 +1097,7 @@ export default function App() {
     const r = pendingResume;
     if (!r) return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
+    dropAnalysis();
     setVariantId(r.variantId);
     setCustomRules(r.customRules);
     setPlayMode(r.playMode);
@@ -732,7 +1135,7 @@ export default function App() {
     }
     setPendingResume(null);
     setShowModeOverlay(false);
-  }, [pendingResume, timeControl, clock.restore]);
+  }, [pendingResume, timeControl, clock.restore, dropAnalysis]);
 
   // Declining the offer discards the save immediately, so the fresh game starts
   // from a clean slate however the player sets it up.
@@ -754,7 +1157,12 @@ export default function App() {
   const clockRef = useRef(clock);
   clockRef.current = clock;
   const persistGame = useCallback(() => {
-    if (showModeOverlay || pendingResume) return;
+    // Two reasons never to write: the opening overlay is still offering to
+    // restore a save (an empty board must not overwrite it), and analysis is on
+    // (a scratch line must not overwrite the game it branched from). See
+    // `autosaveAllowed` in analysis.ts.
+    if (!autosaveAllowed({ analysis, offeringResume: showModeOverlay || pendingResume !== null }))
+      return;
     if (tip < 1 && !hasMatchProgress(match)) {
       clearSavedGame(); // nothing worth resuming
       return;
@@ -790,6 +1198,7 @@ export default function App() {
       }),
     );
   }, [
+    analysis,
     showModeOverlay,
     pendingResume,
     tip,
@@ -828,20 +1237,35 @@ export default function App() {
 
   const goPrev = useCallback(() => {
     setSelected(null);
+    if (analysis && tree) {
+      setNodeId((id) => parentOf(tree, id) ?? id);
+      return;
+    }
     setCursor((c) => Math.max(0, c - 1));
-  }, []);
+  }, [analysis, tree]);
   const goNext = useCallback(() => {
     setSelected(null);
+    if (analysis && tree) {
+      // The first child is the mainline continuation of wherever you are; the
+      // other branches are reached from the tree panel.
+      setNodeId((id) => tree.nodes[id]?.children[0] ?? id);
+      return;
+    }
     setCursor((c) => Math.min(tip, c + 1));
-  }, [tip]);
+  }, [analysis, tree, tip]);
   const goLatest = useCallback(() => {
     setSelected(null);
+    if (analysis && tree) {
+      setNodeId((id) => tipOfLine(tree, id));
+      return;
+    }
     setCursor(tip);
-  }, [tip]);
+  }, [analysis, tree, tip]);
 
   // Branch the game at the currently-viewed position and resume play.
   const playFromHere = useCallback(
     (vsComputer: boolean) => {
+      if (analysis) return; // branching the live game is not an analysis action
       if (!resumable(states[cursor].status)) return; // nothing to play from a finished position
       if (aiTimer.current) window.clearTimeout(aiTimer.current);
       // A game already banked into the set is coming back to life (only a loss
@@ -859,7 +1283,7 @@ export default function App() {
         setPlayMode(sideToMove);
       }
     },
-    [cursor, states, rewindTo],
+    [cursor, states, rewindTo, analysis],
   );
 
   // Over the board, resuming from an earlier move discards every move that
@@ -877,17 +1301,18 @@ export default function App() {
 
   const doTakeback = useCallback(() => {
     setShowTakeback(false);
-    if (tip < 1) return;
+    if (analysis || tip < 1) return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     rewindTo(tip - 1);
     setCursor(tip - 1);
     setSelected(null);
     setFadingCaptures([]);
     setThinking(false);
-  }, [tip, rewindTo]);
+  }, [tip, rewindTo, analysis]);
 
   const resign = useCallback(() => {
     setShowResign(false);
+    if (analysis) return; // you cannot resign a position you are only exploring
     if (gameOver || !atTip) return;
     // In AI play the human resigns; over-the-board, the side to move resigns.
     const loser: Side = humanSide === null ? game.turn : humanSide;
@@ -901,7 +1326,7 @@ export default function App() {
       copy[copy.length - 1] = { ...copy[copy.length - 1], status };
       return copy;
     });
-  }, [gameOver, atTip, humanSide, game.turn]);
+  }, [gameOver, atTip, humanSide, game.turn, analysis]);
 
   // ── Changing the rules ──────────────────────────────────────────────────────
   // A ruleset change cannot be applied to a game already in progress: the board
@@ -998,7 +1423,18 @@ export default function App() {
   // Clock placement, Lichess-style: the away side rides above the board, the
   // near side below it. Vs the computer the human sits on the bottom, whichever
   // side they took.
+  //
+  // **Flipping the board north–south flips the clocks with it.** The clocks
+  // are the two players' chairs, seated above/below the board — only a
+  // top/bottom mirror (`flippedV`) moves them; the east–west mirror
+  // (`flippedH`) only swaps which side of the screen each column is drawn on
+  // and leaves top/bottom alone, so it leaves the clocks put. So the pair is
+  // swapped here, in the view, off `flippedV` alone, and `clockPlacement` in
+  // game/sides.ts keeps saying the same thing it always said about who is
+  // *actually* near and far.
   const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
+  const topClockSide = flippedV ? bottomSide : topSide;
+  const bottomClockSide = flippedV ? topSide : bottomSide;
   const showPause = clock.enabled && clock.started && atTip && !gameOver;
 
   // Who goes in the exported file's [Attackers] / [Defenders] tags: the AI's
@@ -1065,27 +1501,59 @@ export default function App() {
         />
       )}
 
-      {clock.enabled && <div className="mt-3">{renderClock(topSide)}</div>}
+      {clock.enabled && <div className="mt-3">{renderClock(topClockSide)}</div>}
 
-      <div className="mt-3">
-        <Board
-          board={game.board}
-          rules={rules}
-          turn={game.turn}
-          selected={selected}
-          lastMove={lastMove}
-          fadingCaptures={fadingCaptures}
-          interactive={interactive}
-          controllable={humanSide}
-          attackerEmblem={emblemSet.attackerEmblem}
-          kingEmblem={emblemSet.kingEmblem}
-          defenderEmblem={emblemSet.defenderEmblem}
-          cornerEmblem={emblemSet.cornerEmblem}
-          onSquareClick={onSquareClick}
-        />
+      {/* The eval bar stands beside the board and shares its row, so the two
+          line up top and bottom — see the orientation note in src/evalBar.ts
+          for why its ends are the same two chairs the clocks use. */}
+      <div className="mt-3 board-row">
+        {showEval && (
+          <EvalBar
+            t={t}
+            score={evalInfo?.score ?? null}
+            bottomSide={bottomClockSide}
+            pending={evalPending}
+          />
+        )}
+        <div className="board-col">
+          <Board
+            board={game.board}
+            rules={rules}
+            turn={game.turn}
+            selected={selected}
+            lastMove={lastMove}
+            fadingCaptures={fadingCaptures}
+            interactive={interactive}
+            controllable={controllableIn(analysis, humanSide)}
+            flippedH={flippedH}
+            flippedV={flippedV}
+            attackerEmblem={emblemSet.attackerEmblem}
+            kingEmblem={emblemSet.kingEmblem}
+            defenderEmblem={emblemSet.defenderEmblem}
+            cornerEmblem={emblemSet.cornerEmblem}
+            bestMove={showEval ? (evalInfo?.move ?? null) : null}
+            onSquareClick={onSquareClick}
+          />
+        </div>
       </div>
 
-      {clock.enabled && <div className="mt-3">{renderClock(bottomSide)}</div>}
+      {clock.enabled && <div className="mt-3">{renderClock(bottomClockSide)}</div>}
+
+      <BoardTools
+        t={t}
+        showFlip={showExtra("flip")}
+        showAnalysis={showExtra("analysis")}
+        showEvalToggle={showExtra("eval")}
+        flippedH={flippedH}
+        onFlipH={() => setFlippedH((f) => !f)}
+        flippedV={flippedV}
+        onFlipV={() => setFlippedV((f) => !f)}
+        analysis={analysis}
+        pastedRoot={pastedRoot}
+        onToggleAnalysis={toggleAnalysis}
+        evalOn={evalOn}
+        onToggleEval={() => setEvalOn((v) => !v)}
+      />
 
       {showExtra("captured") && <CapturedTray t={t} game={game} />}
 
@@ -1207,19 +1675,65 @@ export default function App() {
         </>
       )}
 
-      <MoveLog t={t} game={states[tip]} activeIndex={cursor - 1} onMoveClick={(i) => setCursor(i + 1)} />
-
-      {/* Export/import the whole mainline — always the tip, never the position
-          currently under review (see docs/design/game-import-export.md). */}
-      {showExtra("gamefile") && (
-        <GameFilePanel
+      <MoveLog
+        t={t}
+        game={states[tip]}
+        activeIndex={cursor - 1}
+        marks={marks}
+        onMoveClick={(i) => {
+          // In analysis the log shows the line to the current node, so clicking
+          // ply i selects that node rather than sliding an index.
+          if (analysis && tree) selectNode(lineTo(tree, nodeId)[i + 1] ?? nodeId);
+          else setCursor(i + 1);
+        }}
+      />
+      {showExtra("annotate") && canAnnotate && (
+        <AnnotatePanel
           t={t}
-          state={states[tip]}
-          rules={rules}
-          meta={exportMeta}
-          onImport={loadImportedGame}
+          running={annotating}
+          marks={marks}
+          movers={states[tip].history.map((h) => h.sideThatMoved)}
+          onRun={runAnnotation}
+          onStop={stopAnnotating}
         />
       )}
+
+      {analysis && tree && showExtra("tree") && (
+        <MoveTreePanel
+          t={t}
+          tree={tree}
+          currentId={nodeId}
+          onSelect={selectNode}
+          onPromote={promoteCurrent}
+          onDelete={deleteCurrent}
+        />
+      )}
+
+      {showExtra("position") && (
+        <PositionPanel t={t} state={game} onLoad={loadPosition} />
+      )}
+
+      {/* Export/import the whole mainline — always the tip, never the position
+          currently under review (see docs/design/game-import-export.md).
+
+          A pasted position (7e) is the one case this must refuse. The file
+          format records a move list replayed from `initialState()`; a tree
+          rooted on a pasted board has no path back to the opening, so exporting
+          its moves would write a file that replays into a completely different
+          game. The panel is replaced by the reason rather than silently
+          vanishing. */}
+      {showExtra("gamefile") &&
+        (pastedRoot ? (
+          <p className="card mt-4 p-4 text-xs text-parchment-dim">{t.positionExportBlocked}</p>
+        ) : (
+          <GameFilePanel
+            t={t}
+            state={states[tip]}
+            rules={rules}
+            meta={exportMeta}
+            onImport={loadImportedGame}
+          />
+        ))}
 
       {aiSide !== null && lastAiInfo && (
         <p className="mt-1 text-center font-mono text-[11px] text-parchment-dim/70 tabular-nums">
@@ -1683,6 +2197,226 @@ function SetScoreboard({
 }
 
 // Curved-arrow move navigator: cycle back and forth through the whole game.
+// ── Annotations — run the pass, show the tally ────────────────────────────────
+// Offered only where the engine is free (a finished game, or analysis), so the
+// pass never races the AI for the one worker. Progress is shown move by move and
+// can be stopped: a forty-move game is a couple of seconds, but a slow phone is
+// not, and a control that cannot be interrupted is a control that traps you.
+function AnnotatePanel({
+  t,
+  running,
+  marks,
+  movers,
+  onRun,
+  onStop,
+}: {
+  t: Translations;
+  running: { done: number; total: number } | null;
+  marks: (Mark | null)[] | null;
+  movers: Side[];
+  onRun: () => void;
+  onStop: () => void;
+}) {
+  const counts = marks ? tally(marks, movers) : null;
+  const line = (side: Side): string => {
+    const c = (counts as NonNullable<typeof counts>)[side];
+    return `${sideLabel(side, t)}: ${c.blunder} ${t.mark_blunder} · ${c.mistake} ${t.mark_mistake} · ${c.inaccuracy} ${t.mark_inaccuracy}`;
+  };
+
+  return (
+    <div className="card mt-4 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-parchment-dim">{t.annotateTitle}</span>
+        {running ? (
+          <button className="btn btn-sm" onClick={onStop}>
+            {t.annotateStop}
+          </button>
+        ) : (
+          <button className="btn btn-sm" onClick={onRun}>
+            {marks ? t.annotateAgain : t.annotateRun}
+          </button>
+        )}
+      </div>
+
+      {running && (
+        <div className="annotate-progress mt-2" role="status">
+          <div className="annotate-bar" aria-hidden>
+            <span style={{ width: `${Math.round((running.done / running.total) * 100)}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-parchment-dim">
+            {t.annotateProgress} {running.done}/{running.total}
+          </p>
+        </div>
+      )}
+
+      {!running && counts && (
+        <div className="annotate-summary mt-2 space-y-0.5 text-xs text-parchment-dim">
+          <p>{line("attackers")}</p>
+          <p>{line("defenders")}</p>
+        </div>
+      )}
+
+      {!running && !marks && <p className="mt-2 text-xs text-parchment-dim">{t.annotateHint}</p>}
+    </div>
+  );
+}
+
+// ── Board tools — flip + analysis ─────────────────────────────────────────────
+// The two view controls that sit with the board rather than with the game: which
+// way up it is drawn, and whether the position is live or being explored. Both
+// are opt-in Zen extras, so either can be hidden independently and the row
+// disappears entirely once both are.
+//
+// Analysis gets a labelled banner rather than just a lit-up button: a board that
+// has quietly stopped answering you is the kind of state you must never have to
+// deduce from the absence of a reply.
+function BoardTools({
+  t,
+  showFlip,
+  showAnalysis,
+  showEvalToggle,
+  flippedH,
+  onFlipH,
+  flippedV,
+  onFlipV,
+  analysis,
+  pastedRoot,
+  onToggleAnalysis,
+  evalOn,
+  onToggleEval,
+}: {
+  t: Translations;
+  showFlip: boolean;
+  showAnalysis: boolean;
+  showEvalToggle: boolean;
+  flippedH: boolean;
+  onFlipH: () => void;
+  flippedV: boolean;
+  onFlipV: () => void;
+  analysis: boolean;
+  /** The analysed position was pasted in, not reached from the live game. */
+  pastedRoot: boolean;
+  onToggleAnalysis: () => void;
+  evalOn: boolean;
+  onToggleEval: () => void;
+}) {
+  if (!showFlip && !showAnalysis && !showEvalToggle) return null;
+  return (
+    <div className="mt-3 flex flex-col items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
+        {showFlip && (
+          <button
+            className={`iconbtn${flippedH ? " on" : ""}`}
+            onClick={onFlipH}
+            aria-pressed={flippedH}
+            aria-label={t.flipBoardH}
+            title={t.flipBoardH}
+          >
+            <FlipIconH flipped={flippedH} />
+          </button>
+        )}
+        {showFlip && (
+          <button
+            className={`iconbtn${flippedV ? " on" : ""}`}
+            onClick={onFlipV}
+            aria-pressed={flippedV}
+            aria-label={t.flipBoardV}
+            title={t.flipBoardV}
+          >
+            <FlipIconV flipped={flippedV} />
+          </button>
+        )}
+        {showEvalToggle && (
+          <button
+            className={`iconbtn${evalOn ? " on" : ""}`}
+            onClick={onToggleEval}
+            aria-pressed={evalOn}
+            aria-label={evalOn ? t.evalHide : t.evalShow}
+            title={evalOn ? t.evalHide : t.evalShow}
+          >
+            <EvalIcon />
+          </button>
+        )}
+        {showAnalysis && (
+          <button
+            className={`btn${analysis ? " btn-primary" : ""}`}
+            onClick={onToggleAnalysis}
+            aria-pressed={analysis}
+          >
+            {analysis ? t.analysisExit : t.analysisMode}
+          </button>
+        )}
+      </div>
+      {showAnalysis && analysis && (
+        <div className="analysis-banner" role="status">
+          <span className="pill pill-analysis">{t.analysisMode}</span>
+          <span className="analysis-hint">{pastedRoot ? t.positionLoaded : t.analysisHint}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A miniature of the eval bar itself: a two-tone column with a line across the
+// middle. Static — the readout it toggles is the thing that moves.
+function EvalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <rect x="8" y="3" width="8" height="18" rx="1.5" />
+      <path d="M8 14h8" fill="none" />
+      <path d="M8 14h8v6.5a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+// Two side-by-side chevrons pointing at each other — the board mirroring
+// left-to-right (east–west). The icon itself rotates to show it has been
+// pressed; the transition is dropped under prefers-reduced-motion (see
+// .flip-icon in index.css).
+function FlipIconH({ flipped }: { flipped: boolean }) {
+  return (
+    <svg
+      className={`flip-icon${flipped ? " is-flipped" : ""}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 12h6" />
+      <path d="m6 8-3 4 3 4" />
+      <path d="M12 4v16" />
+      <path d="M21 12h-6" />
+      <path d="m18 16 3-4-3-4" />
+    </svg>
+  );
+}
+
+// Two stacked chevrons pointing at each other — the board mirroring
+// top-to-bottom (north–south).
+function FlipIconV({ flipped }: { flipped: boolean }) {
+  return (
+    <svg
+      className={`flip-icon${flipped ? " is-flipped" : ""}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 3v6" />
+      <path d="m8 6 4-3 4 3" />
+      <path d="M4 12h16" />
+      <path d="M12 21v-6" />
+      <path d="m16 18-4 3-4-3" />
+    </svg>
+  );
+}
+
 function MoveNav({
   t,
   cursor,
@@ -2058,6 +2792,12 @@ function ZenSettings({
     pause: t.pause,
     settings: t.zenElSettings,
     gamefile: t.zenElGameFile,
+    flip: t.flipBoard,
+    analysis: t.analysisMode,
+    eval: t.zenElEval,
+    tree: t.moveTree,
+    annotate: t.annotateTitle,
+    position: t.positionTitle,
   };
   return (
     <div>
@@ -2670,11 +3410,14 @@ function MoveLog({
   t,
   game,
   activeIndex,
+  marks,
   onMoveClick,
 }: {
   t: Translations;
   game: GameState;
   activeIndex: number;
+  /** Per-ply annotations, index-aligned with `game.history` (Session 7d). */
+  marks: (Mark | null)[] | null;
   onMoveClick: (i: number) => void;
 }) {
   if (game.history.length === 0) return null;
@@ -2696,6 +3439,14 @@ function MoveLog({
             <span className={h.sideThatMoved === "attackers" ? "text-blood/90" : "text-gold/90"}>
               {moveName(h.move)}
             </span>
+            {marks?.[i] && (
+              // The glyph carries the meaning for anyone reading it; the colour
+              // is a second channel, never the only one.
+              <span className={`mark mark-${marks[i]}`} title={t[`mark_${marks[i] as Mark}`]}>
+                {markGlyph(marks[i] as Mark)}
+                <span className="sr-only"> {t[`mark_${marks[i] as Mark}`]}</span>
+              </span>
+            )}
           </li>
         ))}
       </ol>

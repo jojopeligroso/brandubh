@@ -330,6 +330,51 @@ export interface Translations {
   importErrUnreadableFile: string;
   zenElGameFile: string;
 
+  // Board tools — flip + analysis (Session 7b)
+  flipBoard: string;
+  flipBoardH: string;
+  flipBoardV: string;
+  /** Engine eval (bar + best-move arrow) — Session 7a. */
+  evalLabel: string;
+  evalShow: string;
+  evalHide: string;
+  evalThinking: string;
+  evalAttackersWin: string;
+  evalDefendersWin: string;
+  zenElEval: string;
+  analysisMode: string;
+  analysisExit: string;
+  analysisHint: string;
+
+  // Move tree — variations (Session 7c)
+  moveTree: string;
+  moveTreeEmpty: string;
+  moveTreeNotSaved: string;
+  promoteVariation: string;
+  deleteVariation: string;
+
+  // Post-game annotations (Session 7d)
+  annotateTitle: string;
+  annotateRun: string;
+  annotateAgain: string;
+  annotateStop: string;
+  annotateProgress: string;
+  annotateHint: string;
+  mark_inaccuracy: string;
+  mark_mistake: string;
+  mark_blunder: string;
+
+  // Position setup (Session 7e)
+  positionTitle: string;
+  positionHint: string;
+  positionCurrent: string;
+  positionPaste: string;
+  positionLoad: string;
+  positionRejected: string;
+  positionRank: string;
+  positionLoaded: string;
+  positionExportBlocked: string;
+
   // Side picker (opening overlay)
   chooseSide: string;
   sideKingHint: string;
@@ -359,7 +404,12 @@ export interface Translations {
   tutorialProgress: string;
   tutorialYouPlayAs: string;
   tutorialShowHint: string;
-  tutorialWrongMove: string;
+  /** Heading of the full-screen refusal curtain. */
+  tutorialWrongTitle: string;
+  /** Label above the restated goal on that curtain. */
+  tutorialGoalLabel: string;
+  /** One line per TutorialMistake, keyed by its value (see game/tutorials.ts). */
+  tutorialMistakes: Record<string, string>;
   tutorialTryAgain: string;
   tutorialSolvedTitle: string;
   tutorialNext: string;
@@ -650,6 +700,48 @@ const en: Translations = {
   importErrUnreadableFile: "that file could not be read.",
   zenElGameFile: "Export / import",
 
+  flipBoard: "Flip board",
+  flipBoardH: "Flip board left-right",
+  flipBoardV: "Flip board top-bottom",
+  evalLabel: "Engine eval",
+  evalShow: "Show eval",
+  evalHide: "Hide eval",
+  evalThinking: "Evaluating\u2026",
+  evalAttackersWin: "Raiders win",
+  evalDefendersWin: "King wins",
+  zenElEval: "Engine eval",
+  analysisMode: "Analysis",
+  analysisExit: "Leave analysis",
+  analysisHint: "Move both sides freely \u00b7 the computer and the clock are paused \u00b7 nothing is saved",
+
+  moveTree: "Variations",
+  moveTreeEmpty: "Play a move to start a line. Going back and playing something else keeps both.",
+  moveTreeNotSaved: "Variations live for this session only \u2014 they are not saved with the game.",
+  promoteVariation: "Promote to main line",
+  deleteVariation: "Delete variation",
+
+  annotateTitle: "Game review",
+  annotateRun: "Analyse game",
+  annotateAgain: "Analyse again",
+  annotateStop: "Stop",
+  annotateProgress: "Analysing move",
+  annotateHint: "Re-searches every position and marks where the game swung.",
+  mark_inaccuracy: "inaccuracies",
+  mark_mistake: "mistakes",
+  mark_blunder: "blunders",
+
+  positionTitle: "Set up a position",
+  positionHint:
+    "One line per board: seven ranks top-first, A raider \u00b7 D defender \u00b7 K king \u00b7 a digit for empty squares, then the side to move (a or d). A pasted position opens in analysis and is never saved over your game.",
+  positionCurrent: "This position",
+  positionPaste: "Paste a position",
+  positionLoad: "Analyse this position",
+  positionRejected: "That position could not be read \u2014",
+  positionRank: "rank",
+  positionLoaded: "Analysing a pasted position",
+  positionExportBlocked:
+    "Export is off while you analyse a pasted position \u2014 a game file records moves from the opening, which this position has none of.",
+
   chooseSide: "Which side will you play?",
   sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
   sideRaidersHint: "Eight raiders · capture the king · you move first",
@@ -680,7 +772,18 @@ const en: Translations = {
   tutorialProgress: "solved",
   tutorialYouPlayAs: "You play:",
   tutorialShowHint: "Show a hint",
-  tutorialWrongMove: "Not that one — look again.",
+  tutorialWrongTitle: "Not that move",
+  tutorialGoalLabel: "This drill asks:",
+  tutorialMistakes: {
+    roadOpen: "The King can still reach a corner on his very next move. That is the road to bar.",
+    losesGame: "That gives the game away — the other side wins at once.",
+    noCapture:
+      "Nothing was taken. A piece only falls when your move closes it in between two hostile squares.",
+    wrongCapture: "That takes a piece, but not the capture this drill is about.",
+    kingStands: "The King still stands. He falls only when the closing move is yours.",
+    noEscape: "The King did not reach a corner — only the four corners count as escape.",
+    notForcing: "That does not force the win: the raiders can shut the road on their reply.",
+  },
   tutorialTryAgain: "Try again",
   tutorialSolvedTitle: "Solved!",
   tutorialNext: "Next drill",
@@ -1025,6 +1128,48 @@ const es: Translations = {
   importErrUnreadableFile: "no se pudo leer ese archivo.",
   zenElGameFile: "Exportar / importar",
 
+  flipBoard: "Girar el tablero",
+  flipBoardH: "Girar el tablero izquierda-derecha",
+  flipBoardV: "Girar el tablero arriba-abajo",
+  evalLabel: "Evaluaci\u00f3n",
+  evalShow: "Mostrar evaluaci\u00f3n",
+  evalHide: "Ocultar evaluaci\u00f3n",
+  evalThinking: "Evaluando\u2026",
+  evalAttackersWin: "Ganan los asaltantes",
+  evalDefendersWin: "Gana el rey",
+  zenElEval: "Evaluaci\u00f3n del motor",
+  analysisMode: "An\u00e1lisis",
+  analysisExit: "Salir del an\u00e1lisis",
+  analysisHint: "Mueve los dos bandos libremente \u00b7 la m\u00e1quina y el reloj est\u00e1n en pausa \u00b7 no se guarda nada",
+
+  moveTree: "Variantes",
+  moveTreeEmpty: "Haz una jugada para empezar una l\u00ednea. Si retrocedes y juegas otra cosa, se guardan las dos.",
+  moveTreeNotSaved: "Las variantes solo duran esta sesi\u00f3n \u2014 no se guardan con la partida.",
+  promoteVariation: "Convertir en l\u00ednea principal",
+  deleteVariation: "Borrar la variante",
+
+  annotateTitle: "Revisi\u00f3n de la partida",
+  annotateRun: "Analizar la partida",
+  annotateAgain: "Analizar otra vez",
+  annotateStop: "Detener",
+  annotateProgress: "Analizando la jugada",
+  annotateHint: "Vuelve a calcular cada posici\u00f3n y marca d\u00f3nde cambi\u00f3 la partida.",
+  mark_inaccuracy: "imprecisiones",
+  mark_mistake: "errores",
+  mark_blunder: "errores graves",
+
+  positionTitle: "Componer una posici\u00f3n",
+  positionHint:
+    "Una l\u00ednea por tablero: siete filas empezando por arriba, A asaltante \u00b7 D defensor \u00b7 K rey \u00b7 un d\u00edgito por casillas vac\u00edas, y luego el bando que mueve (a o d). Una posici\u00f3n pegada se abre en an\u00e1lisis y nunca se guarda sobre tu partida.",
+  positionCurrent: "Esta posici\u00f3n",
+  positionPaste: "Pega una posici\u00f3n",
+  positionLoad: "Analizar esta posici\u00f3n",
+  positionRejected: "No se pudo leer esa posici\u00f3n \u2014",
+  positionRank: "fila",
+  positionLoaded: "Analizando una posici\u00f3n pegada",
+  positionExportBlocked:
+    "La exportaci\u00f3n est\u00e1 desactivada mientras analizas una posici\u00f3n pegada: un archivo de partida guarda jugadas desde la apertura, y esta posici\u00f3n no tiene ninguna.",
+
   chooseSide: "¿Con qué bando jugarás?",
   sideKingHint:
     "El rey y cuatro guerreros · alcanza una esquina · los asaltantes mueven primero",
@@ -1056,7 +1201,20 @@ const es: Translations = {
   tutorialProgress: "resueltas",
   tutorialYouPlayAs: "Juegas con:",
   tutorialShowHint: "Ver una pista",
-  tutorialWrongMove: "Esa no es — mira de nuevo.",
+  tutorialWrongTitle: "Ese movimiento no",
+  tutorialGoalLabel: "Esta jugada pide:",
+  tutorialMistakes: {
+    roadOpen:
+      "El Rey todavía puede llegar a una esquina en su próximo movimiento. Ese es el camino que hay que cerrar.",
+    losesGame: "Eso entrega la partida: el otro bando gana de inmediato.",
+    noCapture:
+      "No capturaste nada. Una pieza solo cae cuando tu movimiento la encierra entre dos casillas hostiles.",
+    wrongCapture: "Eso captura una pieza, pero no es la captura de la que trata esta jugada.",
+    kingStands: "El Rey sigue en pie. Solo cae cuando el movimiento que cierra la trampa es tuyo.",
+    noEscape: "El Rey no llegó a una esquina: solo las cuatro esquinas cuentan como escape.",
+    notForcing:
+      "Eso no fuerza la victoria: los asaltantes pueden cerrar el camino en su respuesta.",
+  },
   tutorialTryAgain: "Inténtalo otra vez",
   tutorialSolvedTitle: "¡Resuelta!",
   tutorialNext: "Siguiente jugada",
@@ -1403,6 +1561,54 @@ const ga: Translations = {
   importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
   zenElGameFile: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il",
 
+  // DRAFT (Session 7b) \u2014 unreviewed, like the rest of this table. Present so
+  // the locale stays complete while it waits for review; `ga` is not offered.
+  flipBoard: "Iompaigh an cl\u00e1r",
+  flipBoardH: "Iompaigh an cl\u00e1r \u00f3 chl\u00e9 go deas",
+  flipBoardV: "Iompaigh an cl\u00e1r \u00f3 bharr go bun",
+  // DRAFT (unreviewed machine translation) \u2014 `ga` stays out of VISIBLE_LANGS.
+  evalLabel: "Luach\u00e1il an innill",
+  evalShow: "Taispe\u00e1in an luach\u00e1il",
+  evalHide: "Folaigh an luach\u00e1il",
+  evalThinking: "\u00c1 luach\u00e1il\u2026",
+  evalAttackersWin: "Buann na foghlaithe",
+  evalDefendersWin: "Buann an r\u00ed",
+  zenElEval: "Luach\u00e1il an innill",
+  analysisMode: "Anail\u00eds",
+  analysisExit: "F\u00e1g an anail\u00eds",
+  analysisHint: "Bog an d\u00e1 thaobh gan bhac \u00b7 t\u00e1 an r\u00edomhaire agus an clog ar sos \u00b7 n\u00ed sh\u00e1bh\u00e1iltear faic",
+
+  // DRAFT (Session 7c) — unreviewed, like the rest of this table.
+  moveTree: "Malairt\u00ed",
+  moveTreeEmpty: "Imir beart chun l\u00edne a thos\u00fa. M\u00e1 th\u00e9ann t\u00fa siar agus imirt rud eile, coime\u00e1dtar an dá cheann.",
+  moveTreeNotSaved: "N\u00ed mhaireann na malairt\u00ed ach don seisi\u00fan seo \u2014 n\u00ed sh\u00e1bh\u00e1iltear leis an gcluiche iad.",
+  promoteVariation: "D\u00e9an an phr\u00edomhl\u00edne de",
+  deleteVariation: "Scrios an mhalairt",
+
+  // DRAFT (Session 7d) — unreviewed, like the rest of this table.
+  annotateTitle: "Athbhreithni\u00fa ar an gcluiche",
+  annotateRun: "D\u00e9an anail\u00eds ar an gcluiche",
+  annotateAgain: "D\u00e9an anail\u00eds ar\u00eds",
+  annotateStop: "Stad",
+  annotateProgress: "Ag d\u00e9anamh anail\u00edse ar bheart",
+  annotateHint: "Cuardaítear gach su\u00edomh ar\u00eds agus marc\u00e1iltear na h\u00e1iteanna ar iompaigh an cluiche.",
+  mark_inaccuracy: "m\u00edchruinneas",
+  mark_mistake: "botúin",
+  mark_blunder: "botúin mh\u00f3ra",
+
+  // DRAFT (Session 7e) — unreviewed, like the rest of this table.
+  positionTitle: "Cum su\u00edomh",
+  positionHint:
+    "L\u00edne amh\u00e1in in aghaidh an chl\u00e1ir: seacht r\u00e9im\u00edr \u00f3 bharr, A foghlaí \u00b7 D cosant\u00f3ir \u00b7 K r\u00ed \u00b7 digit do ch\u00e9imeanna folmha, ansin an taobh a bhogann (a n\u00f3 d). Osclaítear su\u00edomh greamaithe san anail\u00eds agus n\u00ed sh\u00e1bh\u00e1iltear thar do chluiche \u00e9 riamh.",
+  positionCurrent: "An su\u00edomh seo",
+  positionPaste: "Greamaigh su\u00edomh",
+  positionLoad: "D\u00e9an anail\u00eds ar an su\u00edomh seo",
+  positionRejected: "N\u00edorbh fh\u00e9idir an su\u00edomh sin a l\u00e9amh \u2014",
+  positionRank: "r\u00e9im\u00edr",
+  positionLoaded: "Ag d\u00e9anamh anail\u00edse ar shu\u00edomh greamaithe",
+  positionExportBlocked:
+    "T\u00e1 an easp\u00f3rt\u00e1il m\u00fachta agus t\u00fa ag anail\u00edsiú su\u00edomh greamaithe \u2014 taifead\u00e1nn comhad cluiche bearta \u00f3n oscailt, agus n\u00edl aon cheann acu sin ag an su\u00edomh seo.",
+
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
   sideKingHint:
     "An r\u00ed agus ceathrar laoch \u00b7 sroich c\u00fainne \u00b7 bogann na foghlaithe ar dt\u00fas",
@@ -1437,7 +1643,23 @@ const ga: Translations = {
   tutorialProgress: "r\u00e9itithe",
   tutorialYouPlayAs: "Imr\u00edonn t\u00fa:",
   tutorialShowHint: "Taispe\u00e1in leid",
-  tutorialWrongMove: "N\u00ed h\u00e9 sin \u00e9 \u2014 f\u00e9ach ar\u00eds.",
+  // Draft, like the rest of this table \u2014 not signed off by an Irish speaker.
+  tutorialWrongTitle: "N\u00ed h\u00e9 sin an beart",
+  tutorialGoalLabel: "Iarrann an cleachtadh seo:",
+  tutorialMistakes: {
+    roadOpen:
+      "F\u00e9adann an R\u00ed c\u00fainne a bhaint amach lena ch\u00e9ad bheart eile f\u00f3s. Sin \u00e9 an b\u00f3thar le dh\u00fanadh.",
+    losesGame: "Tugann sin an cluiche uait \u2014 buann an taobh eile l\u00e1ithreach.",
+    noCapture:
+      "N\u00edor gabhadh aon rud. N\u00ed thiteann p\u00edosa ach nuair a dh\u00fanann do bheart isteach idir dh\u00e1 chearn\u00f3g naimhdeacha \u00e9.",
+    wrongCapture: "Gabhann sin p\u00edosa, ach n\u00ed h\u00ed sin an gabh\u00e1il at\u00e1 i gceist anseo.",
+    kingStands:
+      "T\u00e1 an R\u00ed ina sheasamh f\u00f3s. N\u00ed thiteann s\u00e9 ach nuair is leatsa an beart d\u00fanta.",
+    noEscape:
+      "N\u00edor bhain an R\u00ed c\u00fainne amach \u2014 n\u00ed chuntar mar \u00e9al\u00fa ach na ceithre ch\u00fainne.",
+    notForcing:
+      "N\u00ed chuireann sin iallach ar an mbua: f\u00e9adann na foghlaithe an b\u00f3thar a dh\u00fanadh ina bhfreagra.",
+  },
   tutorialTryAgain: "Bain triail eile as",
   tutorialSolvedTitle: "R\u00e9itithe!",
   tutorialNext: "An ch\u00e9ad chleachtadh eile",

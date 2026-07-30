@@ -23,9 +23,19 @@ export const DIFFICULTIES = ["easy", "medium", "hard", "ollamh"] as const;
 
 export type Difficulty = (typeof DIFFICULTIES)[number];
 
-const WIN = 1_000_000;
-/** Scores this close to ±WIN are decisive (a forced mate); deepening can stop. */
-const DECISIVE = WIN - 1000;
+/**
+ * The magnitude of a won position. Every score in this engine is
+ * **attacker-positive**: `+WIN` means the attackers (raiders) win, `−WIN` means
+ * the defenders (the king's side) win. Exported because the analysis UI has to
+ * render a decisive score as a *result* rather than as a number, and a second
+ * copy of this constant elsewhere is a copy that can drift.
+ */
+export const WIN = 1_000_000;
+/** Scores this close to ±WIN are decisive (a forced mate); deepening can stop.
+ *  Also the threshold the eval bar uses to switch from a fill to a verdict —
+ *  `RECOGNIZED_WIN` (a recognizer's forced result) sits above it, so one test
+ *  catches both. */
+export const DECISIVE = WIN - 1000;
 /** Absolute ceiling for reaching a difficulty's depth floor, so honouring the
  *  floor can never hang even on a pathological position. Far above any real
  *  floored search on the boards this game plays. */
@@ -1133,6 +1143,15 @@ const DIFFICULTY: Record<Difficulty, { limits: SearchLimits; config: SearchConfi
  *  observable. `depth`/`nodes` are 0 for a "no move" or a random blunder. */
 export interface MoveInfo {
   move: Move | null;
+  /**
+   * The position's value, **attacker-positive** (`+` favours the raiders, `−`
+   * the king's side) and on the same scale as {@link evaluate} — so `material`
+   * (40) is roughly one piece. This is the search's backed-up score when a
+   * search ran; when one did not (no legal move, an `easy` blunder, a book
+   * move) it is the static evaluation of the position handed in, which the
+   * `depth` beside it already distinguishes (0 = unsearched, −1 = from book).
+   */
+  score: number;
   depth: number;
   nodes: number;
   elapsedMs: number;
@@ -1151,21 +1170,104 @@ export function chooseMoveDetailed(
   rng: () => number = Math.random,
 ): MoveInfo {
   const moves = allMoves(state.board, state.turn, rules);
-  if (moves.length === 0) return { move: null, depth: 0, nodes: 0, elapsedMs: 0 };
+  // The unsearched paths below still report a score, because a caller that has
+  // an eval to show would otherwise have nothing at all on an `easy` blunder or
+  // a book move. It is the *static* evaluation, and `depth` says so.
+  if (moves.length === 0)
+    return { move: null, score: evaluate(state, DEFAULT_WEIGHTS, rules), depth: 0, nodes: 0, elapsedMs: 0 };
 
   const { limits, config, blunder } = DIFFICULTY[difficulty];
   if (blunder > 0 && rng() < blunder)
-    return { move: moves[Math.floor(rng() * moves.length)], depth: 0, nodes: 0, elapsedMs: 0 };
+    return {
+      move: moves[Math.floor(rng() * moves.length)],
+      score: evaluate(state, DEFAULT_WEIGHTS, rules),
+      depth: 0,
+      nodes: 0,
+      elapsedMs: 0,
+    };
 
   // ollamh plays deep-search book moves instantly (depth -1 flags "from book").
   if (difficulty === "ollamh") {
     const booked = bookMove(state, rules, rng);
-    if (booked) return { move: booked, depth: -1, nodes: 0, elapsedMs: 0 };
+    if (booked)
+      return {
+        move: booked,
+        score: evaluate(state, DEFAULT_WEIGHTS, rules),
+        depth: -1,
+        nodes: 0,
+        elapsedMs: 0,
+      };
   }
 
   const t0 = defaultNow();
   const r = pickMove(state, rules, limits, config, rng);
-  return { move: r.move, depth: r.depth, nodes: r.nodes, elapsedMs: defaultNow() - t0 };
+  return { move: r.move, score: r.score, depth: r.depth, nodes: r.nodes, elapsedMs: defaultNow() - t0 };
+}
+
+// ── Analysis search (the eval bar / best-move arrow, Session 7a) ──────────────
+//
+// Analysis is a *different question* from play: it asks "what is this position
+// worth and what is the best reply", for a position the user is looking at,
+// while the game may be waiting on the AI to move somewhere else entirely. So
+// it gets its own entry point, its own (shallow) limits and its own weights,
+// and — see `useAnalysisWorker` — its own worker thread.
+//
+// It must never make a move on anyone's behalf, so there is deliberately no
+// blunder roll and no opening-book shortcut here: those exist to shape how the
+// AI *plays*, and would put a move on screen that is not the engine's best.
+
+/**
+ * Shallow by design. Depth 3 with the full machinery is the `medium` tier's
+ * search — measured "effectively instant (~50ms)" — which is what makes it
+ * usable as a background job that re-runs on every cursor step. The deadline is
+ * a safety valve for a pathological position on a slow phone, not the budget:
+ * with no `minDepth` floor it is free to return a shallower result rather than
+ * make the user wait.
+ */
+export const ANALYSIS_LIMITS: SearchLimits = { maxDepth: 3, deadlineMs: 1000 };
+
+/**
+ * Analysis turns the attacker endgame recognizer ON.
+ *
+ * Session 4 shipped `attackerRecognizer` default-OFF for play: it is a proven,
+ * cross-validated tool but it is not free, and self-play measured it neutral,
+ * so the playing engine does not pay for it. Analysis is the case it was kept
+ * for — one search, on demand, where naming a forced attacker win exactly
+ * beats guessing at it with a heuristic. See the note above `RECOGNIZED_WIN`.
+ */
+export const ANALYSIS_WEIGHTS: EvalWeights = { ...DEFAULT_WEIGHTS, attackerRecognizer: true };
+
+/**
+ * Evaluate a position for the analysis UI: the best move found and its score.
+ *
+ * **Deterministic in the position alone** — the same position always draws the
+ * same arrow, no matter what was analysed before it. Two things buy that, and
+ * both are needed:
+ *
+ *  - the tie-break `rng` is pinned, so an equal-best set resolves the same way;
+ *  - the transposition table is cleared first, because it feeds move *ordering*
+ *    and so decides which of several equally-best moves comes out first.
+ *    Without it, stepping back to a position you had already passed through
+ *    could draw a different (equally good) arrow than it drew the first time —
+ *    which reads as the engine changing its mind when nothing has changed.
+ *    Caught in the driven-browser pass, not by reasoning. Cheap to give up:
+ *    this is a depth-3 search, and consecutive analyses are of *different*
+ *    positions anyway, so there was little cross-call reuse to lose.
+ *
+ * Clearing the table is safe precisely because analysis owns its worker thread
+ * (see `useAnalysisWorker`) — `TT` is module state, so this is never the
+ * playing engine's table.
+ */
+export function analysePosition(
+  state: GameState,
+  rules: RuleSet,
+  limits: SearchLimits = ANALYSIS_LIMITS,
+  weights: EvalWeights = ANALYSIS_WEIGHTS,
+): MoveInfo {
+  const t0 = defaultNow();
+  resetTT();
+  const r = pickMove(state, rules, limits, FULL_CONFIG, () => 0, weights);
+  return { move: r.move, score: r.score, depth: r.depth, nodes: r.nodes, elapsedMs: defaultNow() - t0 };
 }
 
 /** Back-compatible thin wrapper: the move only (used by tests and any caller that
