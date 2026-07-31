@@ -4,6 +4,14 @@ import LearnModal, { type LearnView } from "./components/LearnModal";
 import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
 import GameReview from "./components/GameReview";
+import PuzzlePanel from "./components/PuzzlePanel";
+import {
+  acceptsGuess,
+  hidesEngine,
+  isFinished as puzzleFinished,
+  judge,
+  type PuzzleState,
+} from "./game/puzzle";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
 import { useAiWorker } from "./game/useAiWorker";
@@ -634,6 +642,13 @@ export default function App() {
         setTree(grown.tree);
         setNodeId(grown.nodeId);
         setSelected(null);
+        // A move played while a guess is outstanding is an answer, not just
+        // exploration. It is still committed to the tree either way, so a wrong
+        // guess is on the board where you can see what it does — being told
+        // "no" without seeing why teaches nothing.
+        if (acceptsGuess(puzzleRef.current)) {
+          setPuzzle((p) => (p ? judge(p, move, solutionRef.current?.bestMoves ?? null) : p));
+        }
         return;
       }
       // Live play only ever commits from the tip, so this appends.
@@ -713,11 +728,16 @@ export default function App() {
   const { requestAnalysis, cancel: cancelAnalysis } = useAnalysisWorker();
   const [evalInfo, setEvalInfo] = useState<{
     score: number;
+    depth: number;
     move: Move | null;
     /** The equal-best set from the search — see `SearchResult.bestMoves`. */
     bestMoves: Move[];
   } | null>(null);
   const [evalPending, setEvalPending] = useState(false);
+  // A depth-8 answer for the position on screen, asked for rather than assumed.
+  // Cleared whenever the position changes, so the deep badge can never describe
+  // a board you have already left.
+  const [deepRequest, setDeepRequest] = useState(0);
 
   // Analysis is a post-game room, and the door is locked until the game is over
   // — see `analysisAvailable`. The gate is on the *room*, not on the furniture:
@@ -732,7 +752,23 @@ export default function App() {
   // own on/off toggle, which are preferences rather than permissions.
   const liveTipStatus = liveStates[liveStates.length - 1].status;
   const canAnalyse = analysisAvailable({ liveGameOver: isGameOver(liveTipStatus) });
-  const showEval = analysis && evalOn && showExtra("eval");
+  // ── Learn from your mistakes (Session 7f) ───────────────────────────────────
+  // Tapping a costliest move does not show you the better one: it puts you back
+  // in the position and asks you to find it. See game/puzzle.ts.
+  const [puzzle, setPuzzle] = useState<PuzzleState | null>(null);
+  // The answer, fetched when the puzzle opens and deliberately NOT rendered
+  // while a guess is outstanding.
+  const [puzzleSolution, setPuzzleSolution] = useState<{
+    bestMoves: Move[];
+    move: Move | null;
+  } | null>(null);
+
+  const showEval = analysis && evalOn && showExtra("eval") && !hidesEngine(puzzle);
+  // Read by `commitMove`, which must not be rebuilt on every stage change.
+  const puzzleRef = useRef<PuzzleState | null>(null);
+  const solutionRef = useRef<{ bestMoves: Move[]; move: Move | null } | null>(null);
+  puzzleRef.current = puzzle;
+  solutionRef.current = puzzleSolution;
 
   /**
    * The equal-best alternatives to draw beside the primary arrow.
@@ -778,15 +814,25 @@ export default function App() {
     if (isGameOver(game.status)) {
       cancelAnalysis();
       setEvalPending(false);
-      setEvalInfo({ score: evaluate(game, ANALYSIS_WEIGHTS, rules), move: null, bestMoves: [] });
+      setEvalInfo({
+        score: evaluate(game, ANALYSIS_WEIGHTS, rules),
+        depth: 0,
+        move: null,
+        bestMoves: [],
+      });
       return;
     }
     let cancelled = false;
     setEvalPending(true);
     const timer = window.setTimeout(() => {
-      requestAnalysis(game, rules).then((res) => {
+      requestAnalysis(game, rules, deepRequest > 0).then((res) => {
         if (cancelled) return; // the position moved on under us
-        setEvalInfo({ score: res.score, move: res.move, bestMoves: res.bestMoves });
+        setEvalInfo({
+          score: res.score,
+          depth: res.depth,
+          move: res.move,
+          bestMoves: res.bestMoves,
+        });
         setEvalPending(false);
       });
     }, ANALYSIS_DEBOUNCE_MS);
@@ -794,7 +840,11 @@ export default function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [showEval, game, rules, requestAnalysis, cancelAnalysis]);
+  }, [showEval, game, rules, requestAnalysis, cancelAnalysis, deepRequest]);
+
+  // A deep answer describes one position. Moving the board drops the request so
+  // the badge can never claim depth 8 for a board you have already left.
+  useEffect(() => setDeepRequest(0), [game]);
 
   // ── Drive the clock from the move timeline ──────────────────────────────────
   // Each new move at the tip presses the mover's clock (banks their increment
@@ -960,6 +1010,69 @@ export default function App() {
     },
     [analysis, tree, nodeId, liveStates.length],
   );
+
+  /**
+   * Open a mistake as a puzzle: sit at the position *before* it, with the
+   * engine's opinion hidden, and fetch the answer quietly in the background.
+   *
+   * The answer is searched deep. The shallow background pass is tuned for
+   * re-running on every cursor step; a question someone has stopped to think
+   * about deserves the better answer, and there is exactly one of them.
+   */
+  const startPuzzle = useCallback(
+    (ply: number, mover: Side) => {
+      if (ply < 1) return;
+      setPuzzleSolution(null);
+      setPuzzle({ ply, mover, stage: "guessing", attempts: 0 });
+      jumpToPly(ply - 1);
+    },
+    [jumpToPly],
+  );
+
+  const exitPuzzle = useCallback(() => {
+    setPuzzle(null);
+    setPuzzleSolution(null);
+  }, []);
+
+  /** Give up and be shown. A legitimate ending, not a lesser one. */
+  const revealSolution = useCallback(() => {
+    setPuzzle((p) => (p ? { ...p, stage: "revealed" } : p));
+  }, []);
+
+  /**
+   * Take the wrong move back and stand in the position again.
+   *
+   * The branch it created is removed rather than left behind: a tree littered
+   * with a learner's rejected guesses is noise, and they did not ask to keep
+   * them — they asked to try again.
+   */
+  const tryAgain = useCallback(() => {
+    if (!tree) return;
+    const parent = parentOf(tree, nodeId);
+    if (parent !== null) {
+      setTree(treeRemove(tree, nodeId));
+      setNodeId(parent);
+    }
+    setSelected(null);
+    setPuzzle((p) => (p ? { ...p, stage: "guessing" } : p));
+  }, [tree, nodeId]);
+
+  // Fetch the answer when a puzzle opens — deep, and quietly. The shallow pass
+  // is tuned to re-run on every cursor step; a question someone has stopped to
+  // think about deserves the better answer, and there is one of them.
+  useEffect(() => {
+    if (!puzzle || puzzleSolution) return;
+    const pos = lineStates[puzzle.ply - 1];
+    if (!pos) return;
+    let cancelled = false;
+    requestAnalysis(pos, rules, true).then((res) => {
+      if (cancelled) return;
+      setPuzzleSolution({ bestMoves: res.bestMoves, move: res.move });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [puzzle, puzzleSolution, lineStates, rules, requestAnalysis]);
 
   const promoteCurrent = useCallback(() => {
     if (!tree) return;
@@ -1687,8 +1800,14 @@ export default function App() {
             kingEmblem={emblemSet.kingEmblem}
             defenderEmblem={emblemSet.defenderEmblem}
             cornerEmblem={emblemSet.cornerEmblem}
-            bestMove={showEval ? (evalInfo?.move ?? null) : null}
-          alsoBest={showEval ? altBestMoves : []}
+            bestMove={
+            puzzle && puzzleFinished(puzzle)
+              ? (puzzleSolution?.move ?? null)
+              : showEval
+                ? (evalInfo?.move ?? null)
+                : null
+          }
+          alsoBest={puzzle ? [] : showEval ? altBestMoves : []}
             onSquareClick={onSquareClick}
           />
         </div>
@@ -1712,6 +1831,33 @@ export default function App() {
         onToggleEval={() => setEvalOn((v) => !v)}
       />
 
+      {showEval && evalInfo && (
+        <div className="deepline mt-2">
+          <span className="deepline-depth" title={t.evalLabel}>
+            d{evalInfo.depth}
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={() => setDeepRequest((n) => n + 1)}
+            disabled={evalPending}
+          >
+            {evalPending && deepRequest > 0 ? t.thinkingDeeper : t.thinkHarder}
+          </button>
+        </div>
+      )}
+
+      {analysis && puzzle && (
+        <PuzzlePanel
+          t={t}
+          puzzle={puzzle}
+          sideLabel={(side) => sideLabel(side, t)}
+          waiting={puzzleSolution === null}
+          onTryAgain={tryAgain}
+          onReveal={revealSolution}
+          onExit={exitPuzzle}
+        />
+      )}
+
       {/* "Where did I go wrong" — the front door of analysis, directly under
           the board rather than in a panel below the fold with a button on it.
           It runs itself on entry; see the auto-run effect above. */}
@@ -1726,7 +1872,11 @@ export default function App() {
           sideLabel={(side) => sideLabel(side, t)}
           cursor={cursor}
           running={annotating}
-          onJump={jumpToPly}
+          onJump={(ply) => {
+            exitPuzzle();
+            jumpToPly(ply);
+          }}
+          onPractise={startPuzzle}
           onRun={runAnnotation}
           onStop={stopAnnotating}
         />

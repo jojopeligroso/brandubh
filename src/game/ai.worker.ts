@@ -15,7 +15,7 @@
 // which would put entries scored under one evaluation function in front of a
 // search using the other. Separate instances mean separate module state and so
 // separate tables, with no cross-contamination to reason about.
-import { analysePosition, chooseMoveDetailed, type Difficulty } from "./ai";
+import { ANALYSIS_DEEP_LIMITS, analysePosition, chooseMoveDetailed, type Difficulty } from "./ai";
 import type { GameState, Move } from "./types";
 import type { RuleSet } from "./variants";
 
@@ -33,6 +33,8 @@ export interface AiAnalysisRequest {
   id: number;
   state: GameState;
   rules: RuleSet;
+  /** Spend the "think harder" budget rather than the background one. */
+  deep?: boolean;
 }
 export type AiRequest = AiMoveRequest | AiAnalysisRequest;
 
@@ -63,7 +65,7 @@ ctx.onmessage = (e) => {
   // by structured clone with no special handling.
   const info =
     req.kind === "analysis"
-      ? analysePosition(req.state, req.rules)
+      ? analysePosition(req.state, req.rules, req.deep ? ANALYSIS_DEEP_LIMITS : undefined)
       : chooseMoveDetailed(req.state, req.difficulty, req.rules);
   ctx.postMessage({
     id: req.id,

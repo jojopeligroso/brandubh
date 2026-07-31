@@ -34,6 +34,7 @@ export default function GameReview({
   cursor,
   running,
   onJump,
+  onPractise,
   onRun,
   onStop,
 }: {
@@ -49,6 +50,8 @@ export default function GameReview({
   cursor: number;
   running: { done: number; total: number } | null;
   onJump: (ply: number) => void;
+  /** Open a mistake as a puzzle rather than just navigating to it. */
+  onPractise: (ply: number, mover: Side) => void;
   onRun: () => void;
   onStop: () => void;
 }) {
@@ -127,7 +130,7 @@ export default function GameReview({
               <li key={w.index}>
                 <button
                   className={`review-item is-${w.mark}${w.ply === cursor ? " is-current" : ""}`}
-                  onClick={() => onJump(w.ply)}
+                  onClick={() => onPractise(w.ply, w.mover)}
                 >
                   <span className="review-glyph" aria-hidden>
                     {markGlyph(w.mark)}
@@ -136,6 +139,10 @@ export default function GameReview({
                     {t.moveWord} {w.ply}
                   </span>
                   <span className="review-mark">{label(w.mark)}</span>
+                  {/* Says what tapping does: this is practice, not a jump. */}
+                  <span className="review-practise" aria-hidden>
+                    {t.puzzlePractise}
+                  </span>
                 </button>
               </li>
             ))}

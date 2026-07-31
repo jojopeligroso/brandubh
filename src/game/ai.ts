@@ -1264,7 +1264,22 @@ export function chooseMoveDetailed(
  * with no `minDepth` floor it is free to return a shallower result rather than
  * make the user wait.
  */
-export const ANALYSIS_LIMITS: SearchLimits = { maxDepth: 3, deadlineMs: 1000 };
+export const ANALYSIS_LIMITS: SearchLimits = { maxDepth: 4, deadlineMs: 1200 };
+
+/**
+ * What "think harder" spends.
+ *
+ * Depth 8 with a 4s ceiling, on demand and never automatically. The split is
+ * deliberate and it is about batteries: the shallow pass above re-runs on every
+ * cursor step, so it has to be cheap enough to be invisible, while this one runs
+ * because somebody asked a question about *one* position and is willing to wait
+ * for the answer. A depth-8 search on every step would flatten a phone.
+ *
+ * `minDepth` guarantees 5 plies even on a slow device, so the deep answer is
+ * always meaningfully deeper than the shallow one it replaces — otherwise on a
+ * bad phone the button could appear to do nothing.
+ */
+export const ANALYSIS_DEEP_LIMITS: SearchLimits = { maxDepth: 8, deadlineMs: 4000, minDepth: 5 };
 
 /**
  * Analysis turns the attacker endgame recognizer ON.

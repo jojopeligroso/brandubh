@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { analysePosition } from "./ai";
+import { ANALYSIS_DEEP_LIMITS, analysePosition } from "./ai";
 import type { GameState } from "./types";
 import type { RuleSet } from "./variants";
 import type { AiRequest, AiResponse } from "./ai.worker";
@@ -28,7 +28,7 @@ import type { AiMove } from "./useAiWorker";
  * alternative for such an environment is no analysis at all.
  */
 export function useAnalysisWorker(): {
-  requestAnalysis: (state: GameState, rules: RuleSet) => Promise<AiMove>;
+  requestAnalysis: (state: GameState, rules: RuleSet, deep?: boolean) => Promise<AiMove>;
   cancel: () => void;
 } {
   const workerRef = useRef<Worker | null>(null);
@@ -51,8 +51,9 @@ export function useAnalysisWorker(): {
   }, []);
 
   const requestAnalysis = useCallback(
-    (state: GameState, rules: RuleSet): Promise<AiMove> => {
-      if (!supported) return Promise.resolve(analysePosition(state, rules));
+    (state: GameState, rules: RuleSet, deep = false): Promise<AiMove> => {
+      if (!supported)
+        return Promise.resolve(analysePosition(state, rules, deep ? ANALYSIS_DEEP_LIMITS : undefined));
 
       if (busyRef.current) kill();
       const worker = workerRef.current ?? spawn();
@@ -68,7 +69,7 @@ export function useAnalysisWorker(): {
           resolve(result);
         };
         worker.addEventListener("message", onMessage);
-        worker.postMessage({ kind: "analysis", id, state, rules } satisfies AiRequest);
+        worker.postMessage({ kind: "analysis", id, state, rules, deep } satisfies AiRequest);
       });
     },
     [supported, kill, spawn],

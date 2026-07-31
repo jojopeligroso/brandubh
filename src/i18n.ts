@@ -361,6 +361,20 @@ export interface Translations {
 
   // Post-game annotations (Session 7d)
   /** Game review (Session 7f) — the "where did I go wrong" front door. */
+  /** Learn-from-your-mistakes puzzle (Session 7f). */
+  puzzlePrompt: string;
+  puzzleHint: string;
+  puzzleThinking: string;
+  puzzleWrong: string;
+  puzzleTryAgain: string;
+  puzzleReveal: string;
+  puzzleSolved: string;
+  puzzleSolvedLate: string;
+  puzzleRevealed: string;
+  puzzleDone: string;
+  puzzlePractise: string;
+  thinkHarder: string;
+  thinkingDeeper: string;
   reviewTitle: string;
   reviewWorst: string;
   reviewYourWorst: string;
@@ -745,6 +759,19 @@ const en: Translations = {
   promoteVariation: "Promote to main line",
   deleteVariation: "Delete variation",
 
+  puzzlePrompt: "Find a better move",
+  puzzleHint: "Play the move you think was best here.",
+  puzzleThinking: "Working out the answer\u2026",
+  puzzleWrong: "Not quite.",
+  puzzleTryAgain: "Try again",
+  puzzleReveal: "View solution",
+  puzzleSolved: "Correct \u2014 that is the engine's move.",
+  puzzleSolvedLate: "Found it.",
+  puzzleRevealed: "The engine's move is shown on the board.",
+  puzzleDone: "Done",
+  puzzlePractise: "Practise",
+  thinkHarder: "Think harder",
+  thinkingDeeper: "Thinking\u2026",
   reviewTitle: "Game review",
   reviewWorst: "Costliest moves",
   reviewYourWorst: "Your costliest moves",
@@ -1188,6 +1215,19 @@ const es: Translations = {
   promoteVariation: "Convertir en l\u00ednea principal",
   deleteVariation: "Borrar la variante",
 
+  puzzlePrompt: "Encuentra una jugada mejor",
+  puzzleHint: "Juega la que creas que era la mejor aqu\u00ed.",
+  puzzleThinking: "Calculando la respuesta\u2026",
+  puzzleWrong: "No exactamente.",
+  puzzleTryAgain: "Int\u00e9ntalo de nuevo",
+  puzzleReveal: "Ver la soluci\u00f3n",
+  puzzleSolved: "Correcto \u2014 es la jugada del motor.",
+  puzzleSolvedLate: "La encontraste.",
+  puzzleRevealed: "La jugada del motor se muestra en el tablero.",
+  puzzleDone: "Listo",
+  puzzlePractise: "Practicar",
+  thinkHarder: "Pensar m\u00e1s",
+  thinkingDeeper: "Pensando\u2026",
   reviewTitle: "Revisi\u00f3n de la partida",
   reviewWorst: "Jugadas m\u00e1s costosas",
   reviewYourWorst: "Tus jugadas m\u00e1s costosas",
@@ -1646,6 +1686,20 @@ const ga: Translations = {
 
   // DRAFT (Session 7d) — unreviewed, like the rest of this table.
   // DRAFT (unreviewed) \u2014 like the rest of this table.
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  puzzlePrompt: "Aimsigh beart n\u00edos fearr",
+  puzzleHint: "Imir an beart a cheap t\u00fa ab fhearr anseo.",
+  puzzleThinking: "Ag oibri\u00fa amach an fhreagra\u2026",
+  puzzleWrong: "N\u00ed hea, go d\u00edreach.",
+  puzzleTryAgain: "Bain triail eile as",
+  puzzleReveal: "Taispe\u00e1in an r\u00e9iteach",
+  puzzleSolved: "Ceart \u2014 sin beart an innill.",
+  puzzleSolvedLate: "Fuair t\u00fa \u00e9.",
+  puzzleRevealed: "T\u00e1 beart an innill ar an gcl\u00e1r.",
+  puzzleDone: "Cr\u00edochnaithe",
+  puzzlePractise: "Cleachtadh",
+  thinkHarder: "Smaoinigh n\u00edos doimhne",
+  thinkingDeeper: "Ag smaoineamh\u2026",
   reviewTitle: "Athbhreithni\u00fa ar an gcluiche",
   reviewWorst: "Na bearta ba chostasa\u00ed",
   reviewYourWorst: "Do bhearta ba chostasa\u00ed",

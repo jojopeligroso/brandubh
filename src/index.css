@@ -2029,3 +2029,53 @@ body {
   color: var(--color-parchment);
   opacity: 0.6;
 }
+
+/* ── Think harder + puzzle (Session 7f) ────────────────────────────────────── */
+.deepline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.deepline-depth {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-parchment);
+  opacity: 0.6;
+}
+
+.puzzle {
+  border-left: 3px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+}
+.puzzle.is-wrong {
+  border-left-color: var(--color-blood, #c34043);
+}
+.puzzle.is-solved,
+.puzzle.is-revealed {
+  border-left-color: color-mix(in srgb, var(--color-gold) 90%, #fff 10%);
+}
+.puzzle-headline {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-parchment);
+}
+.puzzle-hint {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--color-parchment);
+  opacity: 0.7;
+}
+/* Names what tapping a costliest move does — it starts an exercise, it does
+   not just scroll the board there. */
+.review-practise {
+  margin-left: 0.5rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-gold) 45%, transparent);
+  color: var(--color-gold);
+  opacity: 0.85;
+}
