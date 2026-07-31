@@ -20,6 +20,33 @@
 import type { Side } from "./game/types";
 
 /**
+ * Whether analysis may be entered at all.
+ *
+ * **Analysis is a post-game room, and the door is locked until the game is
+ * over.** Everything the mode offers — moving both sides by hand, the engine's
+ * eval bar and best-move arrow, the annotation pass, a pasted position — is
+ * help with a position. Offered mid-game that is not analysis, it is assistance:
+ * against the computer it is cheating, and over the board it is cheating in
+ * front of the person you are playing.
+ *
+ * "Concluded" is any terminal result — escape, capture, resignation, a draw by
+ * repetition, a flag — since all of them mean the game is no longer being
+ * decided by the players.
+ *
+ * The test is the **live** game's result, never the position on screen, and
+ * that one choice settles the cases that otherwise need special handling:
+ *
+ *  - Reviewing back through an unfinished game lands on early positions that
+ *    are not themselves terminal. Still locked — the game is still on.
+ *  - Once inside, exploring a variation makes the displayed line unfinished
+ *    again. Still open — the game being asked about is the one that ended.
+ *
+ * This is the gate; the eval bar is not gated separately, because the eval bar
+ * *is* part of analysis. It appears when you are in the room.
+ */
+export const analysisAvailable = (o: { liveGameOver: boolean }): boolean => o.liveGameOver;
+
+/**
  * Whether the computer may take its turn.
  *
  * Analysis suppresses the auto-reply outright: exploring a line means moving

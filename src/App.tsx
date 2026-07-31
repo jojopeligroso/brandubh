@@ -5,7 +5,6 @@ import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
-import { evalAvailable } from "./evalBar";
 import { useAiWorker } from "./game/useAiWorker";
 import { useAnalysisWorker } from "./game/useAnalysisWorker";
 import EvalBar from "./components/EvalBar";
@@ -147,7 +146,13 @@ import {
   tipOfLine,
   type MoveTree,
 } from "./game/moveTree";
-import { aiMayReply, autosaveAllowed, boardIsInteractive, controllableIn } from "./analysis";
+import {
+  aiMayReply,
+  analysisAvailable,
+  autosaveAllowed,
+  boardIsInteractive,
+  controllableIn,
+} from "./analysis";
 import {
   ANNOTATE_DIFFICULTY,
   type Mark,
@@ -683,30 +688,20 @@ export default function App() {
   const [evalInfo, setEvalInfo] = useState<{ score: number; move: Move | null } | null>(null);
   const [evalPending, setEvalPending] = useState(false);
 
-  // The eval is a POST-GAME tool and nothing else — see `evalAvailable`. While a
-  // game is still being played, showing it would be an engine telling a player
-  // what to do, so it is not offered, not togglable, and not searched for.
+  // Analysis is a post-game room, and the door is locked until the game is over
+  // — see `analysisAvailable`. The gate is on the *room*, not on the furniture:
+  // the eval bar, the best-move arrow, the annotation pass and a pasted position
+  // are all things analysis offers, so gating each one separately would be four
+  // chances to miss a door. The live game's result is what unlocks it, and
+  // reading that is trivial since 7c: `liveStates` is the live game, and
+  // analysis never writes to it.
   //
-  // The result consulted is the **live game's**, never the position on screen,
-  // and reading it is trivial since 7c: `liveStates` is the live game and
-  // analysis never touches it. That one choice closes every route at once:
-  //
-  //  - reviewing back through an unfinished game lands on positions that are
-  //    not themselves terminal, and still gets nothing;
-  //  - analysis mode on an unfinished game gets nothing — it suppresses the AI
-  //    and never saves, so it looks harmless, but you can enter it mid-game,
-  //    read the engine, leave, and play on;
-  //  - a *pasted* position gets nothing while a game is unfinished. The
-  //    position panel shows the current board with a copy button, so keying the
-  //    eval off the pasted root instead would be a two-click bypass: copy the
-  //    live position, paste it back, read the engine. Pasting and exploring by
-  //    hand still works mid-game; only the engine's opinion waits.
-  //
-  // Analysing a *finished* game keeps the eval throughout, including down a
-  // variation, because the live result is what is being asked about.
+  // The eval bar therefore has no gate of its own. It is part of analysis, and
+  // it shows when you are in analysis — subject only to the Zen extra and its
+  // own on/off toggle, which are preferences rather than permissions.
   const liveTipStatus = liveStates[liveStates.length - 1].status;
-  const canShowEval = evalAvailable({ liveGameOver: isGameOver(liveTipStatus) });
-  const showEval = canShowEval && evalOn && showExtra("eval");
+  const canAnalyse = analysisAvailable({ liveGameOver: isGameOver(liveTipStatus) });
+  const showEval = analysis && evalOn && showExtra("eval");
   useEffect(() => {
     if (!showEval) {
       // Switched off (or hidden by Zen): stop searching and drop the readout, so
@@ -794,6 +789,13 @@ export default function App() {
   // *derived* line, so without it a page-hide mid-variation would happily write
   // an explored position over the real game.
   const enterAnalysis = useCallback(() => {
+    // The gate, enforced rather than merely displayed. Hiding the button is how
+    // the rule is *shown*; this is how it holds — a keyboard route, a stale
+    // render or a future caller cannot open the door on a game still being
+    // played. Every other way in (the position panel, the annotation pass)
+    // reads the same predicate.
+    if (!analysisAvailable({ liveGameOver: isGameOver(liveStates[liveStates.length - 1].status) }))
+      return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     cancelAi();
     const seeded = fromLine(liveStates);
@@ -927,7 +929,7 @@ export default function App() {
   // result. Annotations are what 7d always called them — post-game — and this is
   // the reading that matches the name. Analysis on a *finished* game still
   // annotates, since the gate reads the live result rather than the tip.
-  const canAnnotate = tip >= 1 && !thinking && canShowEval;
+  const canAnnotate = tip >= 1 && !thinking && canAnalyse;
 
   const stopAnnotating = useCallback(() => {
     // The in-flight search is left to finish rather than terminating the worker:
@@ -1581,8 +1583,8 @@ export default function App() {
       <BoardTools
         t={t}
         showFlip={showExtra("flip")}
-        showAnalysis={showExtra("analysis")}
-        showEvalToggle={canShowEval && showExtra("eval")}
+        showAnalysis={canAnalyse && showExtra("analysis")}
+        showEvalToggle={analysis && showExtra("eval")}
         flippedH={flippedH}
         onFlipH={() => setFlippedH((f) => !f)}
         flippedV={flippedV}
@@ -1749,7 +1751,7 @@ export default function App() {
         />
       )}
 
-      {showExtra("position") && (
+      {canAnalyse && showExtra("position") && (
         <PositionPanel t={t} state={game} onLoad={loadPosition} />
       )}
 
