@@ -881,6 +881,20 @@ export function foldRootMoves(moves: Move[], group: ReadonlyArray<(r: number, c:
 export interface SearchResult {
   move: Move | null;
   score: number;
+  /**
+   * Every root move that scored *exactly* the best score — the equal-best set.
+   *
+   * The root already collects this to randomise between equal moves, so it is
+   * free to report. It is exact rather than approximate: the shared root bound
+   * is `best ∓ 1`, so a move that ties or beats the best still returns its true
+   * score, and only strictly-worse moves fail low. That precision is the whole
+   * point for the analysis UI — "these three are the same" is a claim worth
+   * making only when it is true, and a near-miss dressed up as a tie would
+   * teach a learner the wrong thing.
+   *
+   * One element when the best move is genuinely best; `chosen` is always in it.
+   */
+  bestMoves: Move[];
   depth: number;
   nodes: number;
 }
@@ -903,7 +917,8 @@ export function pickMove(
   now: () => number = defaultNow,
 ): SearchResult {
   const rootMoves = allMoves(state.board, state.turn, rules);
-  if (rootMoves.length === 0) return { move: null, score: evaluate(state, weights, rules), depth: 0, nodes: 0 };
+  if (rootMoves.length === 0)
+    return { move: null, score: evaluate(state, weights, rules), bestMoves: [], depth: 0, nodes: 0 };
 
   TT_GEN++;
   if (TT.size > TT_MAX) TT.clear();
@@ -987,7 +1002,13 @@ export function pickMove(
   }
 
   const chosen = bestTies[Math.floor(rng() * bestTies.length)] ?? bestMove;
-  return { move: chosen, score: bestScore, depth: reached, nodes: ctx.nodes };
+  return {
+    move: chosen,
+    score: bestScore,
+    bestMoves: bestTies.length ? bestTies : [bestMove],
+    depth: reached,
+    nodes: ctx.nodes,
+  };
 }
 
 // ── Multi-PV root scoring (offline book generation) ───────────────────────────
@@ -1152,6 +1173,9 @@ export interface MoveInfo {
    * `depth` beside it already distinguishes (0 = unsearched, −1 = from book).
    */
   score: number;
+  /** The equal-best set — see `SearchResult.bestMoves`. Analysis draws these as
+   *  candidate arrows; play ignores them. */
+  bestMoves: Move[];
   depth: number;
   nodes: number;
   elapsedMs: number;
@@ -1174,13 +1198,21 @@ export function chooseMoveDetailed(
   // an eval to show would otherwise have nothing at all on an `easy` blunder or
   // a book move. It is the *static* evaluation, and `depth` says so.
   if (moves.length === 0)
-    return { move: null, score: evaluate(state, DEFAULT_WEIGHTS, rules), depth: 0, nodes: 0, elapsedMs: 0 };
+    return {
+      move: null,
+      score: evaluate(state, DEFAULT_WEIGHTS, rules),
+      bestMoves: [],
+      depth: 0,
+      nodes: 0,
+      elapsedMs: 0,
+    };
 
   const { limits, config, blunder } = DIFFICULTY[difficulty];
   if (blunder > 0 && rng() < blunder)
     return {
       move: moves[Math.floor(rng() * moves.length)],
       score: evaluate(state, DEFAULT_WEIGHTS, rules),
+      bestMoves: [],
       depth: 0,
       nodes: 0,
       elapsedMs: 0,
@@ -1193,6 +1225,7 @@ export function chooseMoveDetailed(
       return {
         move: booked,
         score: evaluate(state, DEFAULT_WEIGHTS, rules),
+        bestMoves: [booked],
         depth: -1,
         nodes: 0,
         elapsedMs: 0,
@@ -1201,7 +1234,14 @@ export function chooseMoveDetailed(
 
   const t0 = defaultNow();
   const r = pickMove(state, rules, limits, config, rng);
-  return { move: r.move, score: r.score, depth: r.depth, nodes: r.nodes, elapsedMs: defaultNow() - t0 };
+  return {
+    move: r.move,
+    score: r.score,
+    bestMoves: r.bestMoves,
+    depth: r.depth,
+    nodes: r.nodes,
+    elapsedMs: defaultNow() - t0,
+  };
 }
 
 // ── Analysis search (the eval bar / best-move arrow, Session 7a) ──────────────
@@ -1267,7 +1307,14 @@ export function analysePosition(
   const t0 = defaultNow();
   resetTT();
   const r = pickMove(state, rules, limits, FULL_CONFIG, () => 0, weights);
-  return { move: r.move, score: r.score, depth: r.depth, nodes: r.nodes, elapsedMs: defaultNow() - t0 };
+  return {
+    move: r.move,
+    score: r.score,
+    bestMoves: r.bestMoves,
+    depth: r.depth,
+    nodes: r.nodes,
+    elapsedMs: defaultNow() - t0,
+  };
 }
 
 /** Back-compatible thin wrapper: the move only (used by tests and any caller that

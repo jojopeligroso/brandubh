@@ -41,6 +41,8 @@ export interface AiResponse {
   move: Move | null;
   /** Attacker-positive position value — see `MoveInfo.score` in ai.ts. */
   score: number;
+  /** The equal-best move set — see `SearchResult.bestMoves` in ai.ts. */
+  bestMoves: Move[];
   /** Search stats for the on-screen readout (see App: AiInfoLine). */
   depth: number;
   nodes: number;
@@ -67,6 +69,7 @@ ctx.onmessage = (e) => {
     id: req.id,
     move: info.move,
     score: info.score,
+    bestMoves: info.bestMoves,
     depth: info.depth,
     nodes: info.nodes,
     elapsedMs: info.elapsedMs,

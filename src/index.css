@@ -1868,3 +1868,164 @@ body {
 .position-error {
   color: var(--color-blood);
 }
+
+/* ── Game review: eval graph + costliest moves (Session 7f) ────────────────── */
+
+/* An equal-best alternative. Fainter and thinner than the move the engine
+   returned, so "these are the same" reads as a hint rather than as three
+   competing instructions. */
+.best-move-arrow.is-alt {
+  opacity: 0.42;
+  stroke-width: 0.8;
+}
+.best-move-arrow.is-alt line {
+  stroke-width: 1.7;
+}
+
+.review {
+  /* Sits directly under the board, so it must not shout over it. */
+  background: color-mix(in srgb, var(--color-parchment) 4%, transparent);
+}
+
+/* ── Eval graph ───────────────────────────────────────────────────────────── */
+.evalgraph {
+  position: relative;
+  width: 100%;
+}
+.evalgraph-svg {
+  display: block;
+  width: 100%;
+  /* Short enough to sit under the board on a phone without pushing the
+     costliest-move list off screen, tall enough to read a swing. */
+  height: 3.1rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--motif-ink) 28%, transparent);
+  overflow: visible;
+}
+.evalgraph-mid {
+  stroke: color-mix(in srgb, var(--color-parchment) 22%, transparent);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+/* Filled to the midline: "who is ahead" is a question about which side of the
+   middle the curve is on, and a fill answers it without reading an axis. */
+.evalgraph-area {
+  fill: color-mix(in srgb, var(--def) 34%, transparent);
+}
+.evalgraph-line {
+  stroke: color-mix(in srgb, var(--def) 85%, #fff 15%);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.evalgraph.near-attackers .evalgraph-area {
+  fill: color-mix(in srgb, var(--atk) 34%, transparent);
+}
+.evalgraph.near-attackers .evalgraph-line {
+  stroke: color-mix(in srgb, var(--atk) 85%, #fff 15%);
+}
+.evalgraph-mark {
+  vector-effect: non-scaling-stroke;
+  stroke: color-mix(in srgb, var(--motif-ink) 70%, transparent);
+  stroke-width: 0.8;
+}
+.evalgraph-mark.is-blunder {
+  fill: var(--color-blood, #c34043);
+}
+.evalgraph-mark.is-mistake {
+  fill: var(--color-gold);
+}
+.evalgraph-cursor {
+  stroke: var(--color-gold);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.9;
+}
+
+/* One tap target per ply, laid over the strip. Buttons rather than pointer
+   arithmetic, so a keyboard reaches every position and a thumb hits one. */
+.evalgraph-hits {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.evalgraph-hit {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.evalgraph-hit:hover,
+.evalgraph-hit:focus-visible {
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  outline: none;
+}
+
+/* ── Costliest moves ──────────────────────────────────────────────────────── */
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.review-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
+  color: var(--color-parchment);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  /* A comfortable thumb target — this is the control the whole feature exists
+     to offer, and it is used on a phone. */
+  min-height: 2.25rem;
+  transition: background-color 120ms ease;
+}
+.review-item:hover,
+.review-item:focus-visible {
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  outline: none;
+}
+.review-item.is-current {
+  border-color: color-mix(in srgb, var(--color-gold) 60%, transparent);
+}
+.review-glyph {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  min-width: 1.4rem;
+}
+.review-item.is-blunder .review-glyph {
+  color: var(--color-blood, #c34043);
+}
+.review-item.is-mistake .review-glyph {
+  color: var(--color-gold);
+}
+.review-item.is-inaccuracy .review-glyph {
+  color: var(--color-parchment);
+  opacity: 0.75;
+}
+.review-move {
+  font-variant-numeric: tabular-nums;
+}
+.review-mark {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--color-parchment);
+  opacity: 0.65;
+}
+.review-tally {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-parchment);
+  opacity: 0.6;
+}

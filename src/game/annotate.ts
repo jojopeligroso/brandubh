@@ -193,3 +193,61 @@ export function marksFromScores(
   }
   return out;
 }
+
+/**
+ * A move worth showing someone who asked "where did I go wrong?" — the ply it
+ * was played at, how it was judged, and how much it gave up.
+ */
+export interface WorstMove {
+  /** Index into the *move* list: 0 is the first move played. */
+  index: number;
+  /** The ply to jump to — the position the move produced. */
+  ply: number;
+  mark: Mark;
+  /** How much the mover gave up, in the engine's units. */
+  loss: number;
+  mover: Side;
+}
+
+/**
+ * The moves that cost the most, worst first.
+ *
+ * This is the whole "where did I go wrong" answer, and it is a *ranking*, not a
+ * filter: a game with nine inaccuracies and one blunder should lead with the
+ * blunder, and a clean game should return an empty list rather than promoting
+ * the least-good move to a mistake it was not.
+ *
+ * Sorted by severity band first and by raw loss within it, so a 400-point
+ * blunder outranks a 130-point one, and every blunder outranks every mistake
+ * however close the numbers get. Inaccuracies are included last — they are
+ * marks, and someone reviewing a game with nothing worse still deserves a
+ * "here is the closest thing to a slip" rather than a blank panel.
+ *
+ * `side`, when given, restricts it to one player's moves — "*my* mistakes",
+ * which is what a learner reviewing their own game actually wants.
+ */
+export function worstMoves(
+  scores: number[],
+  movers: Side[],
+  marks: (Mark | null)[],
+  o: { limit?: number; side?: Side | null } = {},
+): WorstMove[] {
+  const rank: Record<Mark, number> = { blunder: 3, mistake: 2, inaccuracy: 1 };
+  const out: WorstMove[] = [];
+  for (let i = 0; i < marks.length; i++) {
+    const mark = marks[i];
+    if (!mark) continue;
+    const mover = movers[i];
+    if (o.side && mover !== o.side) continue;
+    // scores[i] is the position moved from, scores[i + 1] the one left behind.
+    out.push({
+      index: i,
+      ply: i + 1,
+      mark,
+      loss: lossFor(scores[i], scores[i + 1], mover),
+      mover,
+    });
+  }
+  out.sort((a, b) => rank[b.mark] - rank[a.mark] || b.loss - a.loss || a.index - b.index);
+  return o.limit != null ? out.slice(0, o.limit) : out;
+}
