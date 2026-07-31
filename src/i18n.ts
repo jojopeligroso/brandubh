@@ -66,6 +66,8 @@ export interface Translations {
   howToPlay: string;
   menu: string;
   language: string;
+  /** Short form for the header switch, where "Zen mode" will not fit. */
+  zenShort: string;
 
   // Side labels
   raiders: string;
@@ -434,6 +436,7 @@ const en: Translations = {
   howToPlay: "How to play",
   menu: "Menu",
   language: "Language",
+  zenShort: "Zen",
 
   raiders: "Raiders",
   kingsSide: "King\u2019s side",
@@ -854,6 +857,7 @@ const es: Translations = {
   howToPlay: "C\u00f3mo jugar",
   menu: "Men\u00fa",
   language: "Idioma",
+  zenShort: "Zen",
 
   raiders: "Asaltantes",
   kingsSide: "Bando del Rey",
@@ -1288,6 +1292,8 @@ const ga: Translations = {
   // DRAFT — unreviewed, like the rest of this table.
   menu: "Roghchlár",
   language: "Teanga",
+  // "Zen" is a name here, not translated interface — same in all three tables.
+  zenShort: "Zen",
 
   raiders: "Foghlaithe",
   kingsSide: "Taobh an R\u00ed",

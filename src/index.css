@@ -842,6 +842,93 @@ body {
   border-radius: 14px;
 }
 
+/* The wordmark's subtitle is the only thing competing with the header controls
+   for width, and the container is capped at `max-w-md` below the `sm` breakpoint.
+   On the narrowest phones it gives up letter-spacing rather than wrapping onto a
+   second line — 0.2em over 21 characters is ~25px, which is the whole overlap. */
+@media (max-width: 399px) {
+  .header-subtitle {
+    letter-spacing: 0.1em;
+  }
+}
+
+/* ── Switch — a labelled on/off control ───────────────────────────────────────
+   Sized to sit level with `.iconbtn` beside it. The label is what says *what*
+   is being switched; the track says which way it is set, at a glance and
+   without being pressed. Both states are drawn from the theme's own tokens, so
+   it follows light and dark with everything else. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  padding: 0 0.6rem 0 0.7rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
+  color: var(--color-parchment-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 80ms ease;
+}
+.switch:hover {
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+}
+.switch:active {
+  transform: translateY(1px);
+}
+.switch.on {
+  color: var(--color-gold);
+  border-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 14%, transparent);
+}
+.switch-track {
+  position: relative;
+  width: 1.9rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 20%, transparent);
+  background: color-mix(in srgb, var(--color-night) 70%, transparent);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+.switch.on .switch-track {
+  border-color: color-mix(in srgb, var(--color-gold) 60%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 55%, transparent);
+}
+.switch-knob {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  background: var(--color-parchment-dim);
+  transform: translateY(-50%);
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease;
+}
+.switch.on .switch-knob {
+  background: var(--on-accent);
+  transform: translateY(-50%) translateX(0.85rem);
+}
+@media (prefers-reduced-motion: reduce) {
+  .switch-track,
+  .switch-knob {
+    transition: none;
+  }
+}
+
 /* ── Header menu ──────────────────────────────────────────────────────────────
    The hamburger's drop-down: a card floated under the button, holding the
    between-games controls (language, rules, settings) that used to sit in the
