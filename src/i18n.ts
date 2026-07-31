@@ -130,6 +130,8 @@ export interface Translations {
   nextMove: string;
   reviewingLabel: string;
   liveLabel: string;
+  /** Standing at the end of a variation in analysis — not the live game. */
+  lineEndLabel: string;
   latest: string;
   playFromHere: string;
   playFromHereVsAi: string;
@@ -492,6 +494,7 @@ const en: Translations = {
   nextMove: "Next move",
   reviewingLabel: "Reviewing",
   liveLabel: "Live",
+  lineEndLabel: "End of line",
   latest: "Latest",
   playFromHere: "Play from here",
   playFromHereVsAi: "Play from here vs Computer",
@@ -918,6 +921,7 @@ const es: Translations = {
   nextMove: "Jugada siguiente",
   reviewingLabel: "Revisando",
   liveLabel: "En vivo",
+  lineEndLabel: "Fin de la l\u00ednea",
   latest: "\u00daltima",
   playFromHere: "Jugar desde aqu\u00ed",
   playFromHereVsAi: "Jugar desde aqu\u00ed vs Ordenador",
@@ -1354,6 +1358,8 @@ const ga: Translations = {
   nextMove: "An chéad bhogadh eile",
   reviewingLabel: "Ag athbhreithniú",
   liveLabel: "Beo",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  lineEndLabel: "Deireadh na l\u00edne",
   latest: "Is déanaí",
   playFromHere: "Imir as seo",
   playFromHereVsAi: "Imir as seo in aghaidh an ríomhaire",

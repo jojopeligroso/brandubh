@@ -533,6 +533,22 @@ export default function App() {
   const cursor = analysisLine ? analysisLine.length - 1 : liveCursor;
 
   const tip = states.length - 1;
+
+  // How far the *line through the current node* actually runs — which is not
+  // `tip` in analysis, and that discrepancy was a bug you could feel.
+  //
+  // `states` there is the line from the root down to the selected node, so it
+  // always ends where you are standing and `cursor === tip` unconditionally.
+  // The move navigator reads "can I go forward?" as `cursor < tip`, so forward
+  // was dead the entire time you were in analysis: you could walk back up the
+  // tree and never return, and the status pill claimed "Live" while you stood
+  // in the middle of a variation. Stepping back is not the end of the line, it
+  // is a position with a continuation — so the navigator is told where that
+  // line really ends.
+  const lineEnd = useMemo(() => {
+    if (!analysis || !tree) return tip;
+    return lineTo(tree, tipOfLine(tree, nodeId)).length - 1;
+  }, [analysis, tree, nodeId, tip]);
   const atTip = cursor === tip;
   const reviewing = !atTip;
   const game = states[cursor];
@@ -1602,7 +1618,8 @@ export default function App() {
         <MoveNav
           t={t}
           cursor={cursor}
-          tip={tip}
+          tip={lineEnd}
+          analysis={analysis}
           onPrev={goPrev}
           onNext={goNext}
           onLatest={goLatest}
@@ -2475,8 +2492,10 @@ function BoardTools({
         )}
       </div>
       {showAnalysis && analysis && (
+        // No status pill here: the button above already reads "Leave analysis",
+        // which says you are in it, and a gold pill beside it looked exactly
+        // like a second button that did nothing when pressed.
         <div className="analysis-banner" role="status">
-          <span className="pill pill-analysis">{t.analysisMode}</span>
           <span className="analysis-hint">{pastedRoot ? t.positionLoaded : t.analysisHint}</span>
         </div>
       )}
@@ -2548,13 +2567,17 @@ function MoveNav({
   t,
   cursor,
   tip,
+  analysis = false,
   onPrev,
   onNext,
   onLatest,
 }: {
   t: Translations;
   cursor: number;
+  /** The end of the line you are on — in analysis, of the variation through the
+   *  selected node, which is *not* the end of the displayed positions. */
   tip: number;
+  analysis?: boolean;
   onPrev: () => void;
   onNext: () => void;
   onLatest: () => void;
@@ -2564,7 +2587,10 @@ function MoveNav({
   const reviewing = cursor < tip;
 
   let statusLabel: string;
+  // "Live" is a claim about the game being played, and a variation is not it.
+  // Standing at the end of a scratch line says so instead.
   if (reviewing) statusLabel = `${t.reviewingLabel} · ${cursor}/${tip}`;
+  else if (analysis) statusLabel = t.lineEndLabel;
   else if (tip === 0) statusLabel = "—";
   else statusLabel = t.liveLabel;
 
@@ -2579,7 +2605,7 @@ function MoveNav({
         disabled={!reviewing}
         title={reviewing ? t.latest : t.liveLabel}
       >
-        {!reviewing && tip > 0 && <span className="live-dot" aria-hidden />}
+        {!reviewing && !analysis && tip > 0 && <span className="live-dot" aria-hidden />}
         {statusLabel}
       </button>
       <button className="iconbtn" onClick={onNext} disabled={!canNext} aria-label={t.nextMove}>
