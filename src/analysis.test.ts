@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { aiMayReply, autosaveAllowed, boardIsInteractive, controllableIn } from "./analysis";
+import {
+  aiMayReply,
+  analysisAvailable,
+  autosaveAllowed,
+  boardIsInteractive,
+  controllableIn,
+} from "./analysis";
 import type { Side } from "./game/types";
 
 // The live-play baseline every test below varies one field of: the computer
@@ -107,5 +113,38 @@ describe("analysis opens the board up", () => {
   it("still refuses a finished position and a search in flight", () => {
     expect(boardIsInteractive({ ...BASE, analysis: true, gameOver: true })).toBe(false);
     expect(boardIsInteractive({ ...BASE, analysis: true, thinking: true })).toBe(false);
+  });
+});
+
+describe("analysisAvailable — the door to the room", () => {
+  it("is locked while the game is still being played", () => {
+    // Everything analysis offers is help with a position: moving both sides by
+    // hand, the eval bar, the best-move arrow, the annotation pass, a pasted
+    // position. Offered mid-game that is not analysis, it is assistance.
+    expect(analysisAvailable({ liveGameOver: false })).toBe(false);
+  });
+
+  it("opens once the game has concluded, however it concluded", () => {
+    // Escape, capture, resignation, a draw, a flag — all of them mean the game
+    // is no longer being decided by the players, so all of them unlock it. The
+    // caller passes `isGameOver(...)`, which is already that whole set.
+    expect(analysisAvailable({ liveGameOver: true })).toBe(true);
+  });
+
+  it("gates the room, so nothing inside needs a second gate", () => {
+    // The eval bar is not gated separately — it is part of analysis and shows
+    // when you are in analysis. This is the property that makes that safe: one
+    // predicate, one door, nothing to forget to lock.
+    const duringPlay = { liveGameOver: false };
+    const afterPlay = { liveGameOver: true };
+    expect(analysisAvailable(duringPlay)).toBe(false);
+    expect(analysisAvailable(afterPlay)).toBe(true);
+  });
+
+  it("reads the LIVE result, so a variation cannot lock the door behind you", () => {
+    // Once inside, exploring makes the displayed line unfinished again. The
+    // game being asked about is still the one that ended, so the caller passes
+    // the live game's status and the room stays open.
+    expect(analysisAvailable({ liveGameOver: true })).toBe(true);
   });
 });

@@ -842,6 +842,93 @@ body {
   border-radius: 14px;
 }
 
+/* The wordmark's subtitle is the only thing competing with the header controls
+   for width, and the container is capped at `max-w-md` below the `sm` breakpoint.
+   On the narrowest phones it gives up letter-spacing rather than wrapping onto a
+   second line — 0.2em over 21 characters is ~25px, which is the whole overlap. */
+@media (max-width: 399px) {
+  .header-subtitle {
+    letter-spacing: 0.1em;
+  }
+}
+
+/* ── Switch — a labelled on/off control ───────────────────────────────────────
+   Sized to sit level with `.iconbtn` beside it. The label is what says *what*
+   is being switched; the track says which way it is set, at a glance and
+   without being pressed. Both states are drawn from the theme's own tokens, so
+   it follows light and dark with everything else. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  padding: 0 0.6rem 0 0.7rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 18%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
+  color: var(--color-parchment-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 80ms ease;
+}
+.switch:hover {
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+}
+.switch:active {
+  transform: translateY(1px);
+}
+.switch.on {
+  color: var(--color-gold);
+  border-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 14%, transparent);
+}
+.switch-track {
+  position: relative;
+  width: 1.9rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 20%, transparent);
+  background: color-mix(in srgb, var(--color-night) 70%, transparent);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+.switch.on .switch-track {
+  border-color: color-mix(in srgb, var(--color-gold) 60%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 55%, transparent);
+}
+.switch-knob {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  background: var(--color-parchment-dim);
+  transform: translateY(-50%);
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease;
+}
+.switch.on .switch-knob {
+  background: var(--on-accent);
+  transform: translateY(-50%) translateX(0.85rem);
+}
+@media (prefers-reduced-motion: reduce) {
+  .switch-track,
+  .switch-knob {
+    transition: none;
+  }
+}
+
 /* ── Header menu ──────────────────────────────────────────────────────────────
    The hamburger's drop-down: a card floated under the button, holding the
    between-games controls (language, rules, settings) that used to sit in the
@@ -1780,4 +1867,215 @@ body {
 /* Position setup (Session 7e) — a rejection has to read as a rejection. */
 .position-error {
   color: var(--color-blood);
+}
+
+/* ── Game review: eval graph + costliest moves (Session 7f) ────────────────── */
+
+/* An equal-best alternative. Fainter and thinner than the move the engine
+   returned, so "these are the same" reads as a hint rather than as three
+   competing instructions. */
+.best-move-arrow.is-alt {
+  opacity: 0.42;
+  stroke-width: 0.8;
+}
+.best-move-arrow.is-alt line {
+  stroke-width: 1.7;
+}
+
+.review {
+  /* Sits directly under the board, so it must not shout over it. */
+  background: color-mix(in srgb, var(--color-parchment) 4%, transparent);
+}
+
+/* ── Eval graph ───────────────────────────────────────────────────────────── */
+.evalgraph {
+  position: relative;
+  width: 100%;
+}
+.evalgraph-svg {
+  display: block;
+  width: 100%;
+  /* Short enough to sit under the board on a phone without pushing the
+     costliest-move list off screen, tall enough to read a swing. */
+  height: 3.1rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--motif-ink) 28%, transparent);
+  overflow: visible;
+}
+.evalgraph-mid {
+  stroke: color-mix(in srgb, var(--color-parchment) 22%, transparent);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+/* Filled to the midline: "who is ahead" is a question about which side of the
+   middle the curve is on, and a fill answers it without reading an axis. */
+.evalgraph-area {
+  fill: color-mix(in srgb, var(--def) 34%, transparent);
+}
+.evalgraph-line {
+  stroke: color-mix(in srgb, var(--def) 85%, #fff 15%);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.evalgraph.near-attackers .evalgraph-area {
+  fill: color-mix(in srgb, var(--atk) 34%, transparent);
+}
+.evalgraph.near-attackers .evalgraph-line {
+  stroke: color-mix(in srgb, var(--atk) 85%, #fff 15%);
+}
+.evalgraph-mark {
+  vector-effect: non-scaling-stroke;
+  stroke: color-mix(in srgb, var(--motif-ink) 70%, transparent);
+  stroke-width: 0.8;
+}
+.evalgraph-mark.is-blunder {
+  fill: var(--color-blood, #c34043);
+}
+.evalgraph-mark.is-mistake {
+  fill: var(--color-gold);
+}
+.evalgraph-cursor {
+  stroke: var(--color-gold);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.9;
+}
+
+/* One tap target per ply, laid over the strip. Buttons rather than pointer
+   arithmetic, so a keyboard reaches every position and a thumb hits one. */
+.evalgraph-hits {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.evalgraph-hit {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.evalgraph-hit:hover,
+.evalgraph-hit:focus-visible {
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  outline: none;
+}
+
+/* ── Costliest moves ──────────────────────────────────────────────────────── */
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.review-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
+  color: var(--color-parchment);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  /* A comfortable thumb target — this is the control the whole feature exists
+     to offer, and it is used on a phone. */
+  min-height: 2.25rem;
+  transition: background-color 120ms ease;
+}
+.review-item:hover,
+.review-item:focus-visible {
+  background: color-mix(in srgb, var(--color-parchment) 12%, transparent);
+  outline: none;
+}
+.review-item.is-current {
+  border-color: color-mix(in srgb, var(--color-gold) 60%, transparent);
+}
+.review-glyph {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  min-width: 1.4rem;
+}
+.review-item.is-blunder .review-glyph {
+  color: var(--color-blood, #c34043);
+}
+.review-item.is-mistake .review-glyph {
+  color: var(--color-gold);
+}
+.review-item.is-inaccuracy .review-glyph {
+  color: var(--color-parchment);
+  opacity: 0.75;
+}
+.review-move {
+  font-variant-numeric: tabular-nums;
+}
+.review-mark {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--color-parchment);
+  opacity: 0.65;
+}
+.review-tally {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-parchment);
+  opacity: 0.6;
+}
+
+/* ── Think harder + puzzle (Session 7f) ────────────────────────────────────── */
+.deepline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.deepline-depth {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-parchment);
+  opacity: 0.6;
+}
+
+.puzzle {
+  border-left: 3px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+}
+.puzzle.is-wrong {
+  border-left-color: var(--color-blood, #c34043);
+}
+.puzzle.is-solved,
+.puzzle.is-revealed {
+  border-left-color: color-mix(in srgb, var(--color-gold) 90%, #fff 10%);
+}
+.puzzle-headline {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-parchment);
+}
+.puzzle-hint {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--color-parchment);
+  opacity: 0.7;
+}
+/* Names what tapping a costliest move does — it starts an exercise, it does
+   not just scroll the board there. */
+.review-practise {
+  margin-left: 0.5rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-gold) 45%, transparent);
+  color: var(--color-gold);
+  opacity: 0.85;
 }

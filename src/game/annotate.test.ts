@@ -9,6 +9,7 @@ import {
   marksFromScores,
   tally,
   type Mark,
+  worstMoves,
 } from "./annotate";
 import { DECISIVE as DECISIVE_SCORE } from "./ai";
 import type { Side } from "./types";
@@ -201,5 +202,68 @@ describe("glyphs", () => {
   it("orders the bands from least to most severe", () => {
     expect(THRESHOLDS.inaccuracy).toBeLessThan(THRESHOLDS.mistake);
     expect(THRESHOLDS.mistake).toBeLessThan(THRESHOLDS.blunder);
+  });
+});
+
+describe("worstMoves — the 'where did I go wrong' ranking", () => {
+  // A five-move game (attackers move first, so movers alternate a, d, a, d, a).
+  // Scores are attacker-positive; a drop is a loss for the defenders, a rise a
+  // loss for the attackers.
+  const movers: Side[] = ["attackers", "defenders", "attackers", "defenders", "attackers"];
+  //             ply:  0    1     2     3     4     5
+  const scores = [0, -200, 100, 90, -60, -70];
+  const marks = marksFromScores(scores, movers);
+
+  it("ranks a blunder above a mistake even when the mistake lost more raw points", () => {
+    // Bands first, magnitude second: a blunder is a different kind of statement
+    // about a move than a mistake, and sorting purely by loss would let a big
+    // mistake bury a smaller blunder.
+    const ranked = worstMoves(scores, movers, marks);
+    const bands = ranked.map((w) => w.mark);
+    const firstMistake = bands.indexOf("mistake");
+    const lastBlunder = bands.lastIndexOf("blunder");
+    if (firstMistake !== -1 && lastBlunder !== -1) expect(lastBlunder).toBeLessThan(firstMistake);
+  });
+
+  it("orders by how much was given up inside a band", () => {
+    const ranked = worstMoves(scores, movers, marks);
+    for (let i = 1; i < ranked.length; i++) {
+      if (ranked[i].mark === ranked[i - 1].mark) {
+        expect(ranked[i - 1].loss).toBeGreaterThanOrEqual(ranked[i].loss);
+      }
+    }
+  });
+
+  it("reports a ply that jumps to the position the move produced", () => {
+    for (const w of worstMoves(scores, movers, marks)) {
+      expect(w.ply).toBe(w.index + 1);
+      expect(w.ply).toBeGreaterThan(0);
+      expect(w.ply).toBeLessThan(scores.length);
+      expect(w.mover).toBe(movers[w.index]);
+    }
+  });
+
+  it("reports a positive loss — the amount the mover actually gave up", () => {
+    for (const w of worstMoves(scores, movers, marks)) expect(w.loss).toBeGreaterThan(0);
+  });
+
+  it("can be narrowed to one player's own moves", () => {
+    const mine = worstMoves(scores, movers, marks, { side: "defenders" });
+    expect(mine.length).toBeGreaterThan(0);
+    for (const w of mine) expect(w.mover).toBe("defenders");
+  });
+
+  it("returns nothing for a clean game rather than inventing a worst move", () => {
+    // Every move perfect: no marks, so no ranking. A learner shown "your worst
+    // move" for a flawless game learns something false.
+    const flat = [0, 0, 0, 0];
+    const cleanMovers: Side[] = ["attackers", "defenders", "attackers"];
+    expect(worstMoves(flat, cleanMovers, marksFromScores(flat, cleanMovers))).toEqual([]);
+  });
+
+  it("honours a limit, keeping the worst", () => {
+    const all = worstMoves(scores, movers, marks);
+    const top = worstMoves(scores, movers, marks, { limit: 2 });
+    expect(top).toEqual(all.slice(0, 2));
   });
 });

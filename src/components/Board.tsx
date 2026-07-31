@@ -120,6 +120,13 @@ interface BoardProps {
    * are exactly what they were without it.
    */
   bestMove?: Move | null;
+  /**
+   * Further moves the engine rates **exactly equal** to `bestMove`, drawn as
+   * fainter arrows beside it. Empty when the best move is genuinely best —
+   * which is the point: a second arrow means "these are the same", and drawing
+   * one when they are not would teach a learner a distinction that isn't there.
+   */
+  alsoBest?: Move[];
   onSquareClick: (sq: Square) => void;
 }
 
@@ -136,10 +143,13 @@ function BestMoveArrow({
   move,
   flippedH,
   flippedV,
+  secondary = false,
 }: {
   move: Move;
   flippedH: boolean;
   flippedV: boolean;
+  /** An equal-best alternative rather than the move the engine returned. */
+  secondary?: boolean;
 }) {
   const { from, to } = viewArrow(move, flippedH, flippedV);
   const x1 = from.x * 100;
@@ -169,7 +179,12 @@ function BestMoveArrow({
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
 
   return (
-    <svg className="best-move-arrow" viewBox="0 0 100 100" aria-hidden focusable="false">
+    <svg
+      className={`best-move-arrow${secondary ? " is-alt" : ""}`}
+      viewBox="0 0 100 100"
+      aria-hidden
+      focusable="false"
+    >
       <line x1={sx} y1={sy} x2={ex} y2={ey} strokeWidth={2.6} strokeLinecap="butt" />
       <polygon
         points={`${-HEAD},${-3.4} ${-HEAD},${3.4} 0,0`}
@@ -195,6 +210,7 @@ export default function Board({
   defenderEmblem,
   cornerEmblem,
   bestMove = null,
+  alsoBest = [],
   onSquareClick,
 }: BoardProps) {
   const legal = useMemo<Square[]>(() => {
@@ -300,6 +316,16 @@ export default function Board({
           never becomes a grid item — the 7×7 auto-placement above is untouched.
           `aria-hidden` keeps it out of the accessibility tree entirely, so the
           grid's accessible children are still 49 gridcells and nothing else. */}
+      {/* Alternatives first, so the primary arrow is drawn over them. */}
+      {alsoBest.map((m, i) => (
+        <BestMoveArrow
+          key={`alt-${i}`}
+          move={m}
+          flippedH={flippedH}
+          flippedV={flippedV}
+          secondary
+        />
+      ))}
       {bestMove && <BestMoveArrow move={bestMove} flippedH={flippedH} flippedV={flippedV} />}
     </div>
   );

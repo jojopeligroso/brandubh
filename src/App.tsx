@@ -3,9 +3,17 @@ import Board from "./components/Board";
 import LearnModal, { type LearnView } from "./components/LearnModal";
 import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
+import GameReview from "./components/GameReview";
+import PuzzlePanel from "./components/PuzzlePanel";
+import {
+  acceptsGuess,
+  hidesEngine,
+  isFinished as puzzleFinished,
+  judge,
+  type PuzzleState,
+} from "./game/puzzle";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
-import { evalAvailable } from "./evalBar";
 import { useAiWorker } from "./game/useAiWorker";
 import { useAnalysisWorker } from "./game/useAnalysisWorker";
 import EvalBar from "./components/EvalBar";
@@ -147,13 +155,18 @@ import {
   tipOfLine,
   type MoveTree,
 } from "./game/moveTree";
-import { aiMayReply, autosaveAllowed, boardIsInteractive, controllableIn } from "./analysis";
+import {
+  aiMayReply,
+  analysisAvailable,
+  autosaveAllowed,
+  boardIsInteractive,
+  controllableIn,
+} from "./analysis";
 import {
   ANNOTATE_DIFFICULTY,
   type Mark,
   markGlyph,
   marksFromScores,
-  tally,
   terminalScore,
 } from "./game/annotate";
 
@@ -528,6 +541,32 @@ export default function App() {
   const cursor = analysisLine ? analysisLine.length - 1 : liveCursor;
 
   const tip = states.length - 1;
+
+  // ── The whole line you are standing on ──────────────────────────────────────
+  //
+  // `states` above is the line from the root down to the *selected node*, so in
+  // analysis it always ends where you are standing. That is right for the board
+  // — it shows one position — and wrong for everything that describes the LINE,
+  // and the difference was a cluster of bugs that all felt like one:
+  //
+  //  - the navigator reads "can I go forward?" as `cursor < tip`, which was
+  //    never true, so forward was dead at every node: you could walk back up
+  //    the tree and never return;
+  //  - the status pill therefore claimed "Live", green dot and all, while you
+  //    stood in the middle of a scratch variation;
+  //  - the move log listed only the moves up to the current node, so it could
+  //    jump back but never forward;
+  //  - and the game review is keyed on the line, so stepping back changed the
+  //    key and the whole review vanished until you walked to the end again.
+  //
+  // Stepping back is not the end of a line, it is a position with a
+  // continuation. This is that continuation, and it is what the navigator, the
+  // log, the review and the eval graph are all told about.
+  const lineStates = useMemo(
+    () => (analysis && tree ? statesTo(tree, tipOfLine(tree, nodeId)) : liveStates),
+    [analysis, tree, nodeId, liveStates],
+  );
+  const lineEnd = lineStates.length - 1;
   const atTip = cursor === tip;
   const reviewing = !atTip;
   const game = states[cursor];
@@ -603,6 +642,13 @@ export default function App() {
         setTree(grown.tree);
         setNodeId(grown.nodeId);
         setSelected(null);
+        // A move played while a guess is outstanding is an answer, not just
+        // exploration. It is still committed to the tree either way, so a wrong
+        // guess is on the board where you can see what it does — being told
+        // "no" without seeing why teaches nothing.
+        if (acceptsGuess(puzzleRef.current)) {
+          setPuzzle((p) => (p ? judge(p, move, solutionRef.current?.bestMoves ?? null) : p));
+        }
         return;
       }
       // Live play only ever commits from the tip, so this appends.
@@ -680,33 +726,80 @@ export default function App() {
   // fires one search at the end of the scrub rather than one per position.
   const ANALYSIS_DEBOUNCE_MS = 220;
   const { requestAnalysis, cancel: cancelAnalysis } = useAnalysisWorker();
-  const [evalInfo, setEvalInfo] = useState<{ score: number; move: Move | null } | null>(null);
+  const [evalInfo, setEvalInfo] = useState<{
+    score: number;
+    depth: number;
+    move: Move | null;
+    /** The equal-best set from the search — see `SearchResult.bestMoves`. */
+    bestMoves: Move[];
+  } | null>(null);
   const [evalPending, setEvalPending] = useState(false);
+  // A depth-8 answer for the position on screen, asked for rather than assumed.
+  // Cleared whenever the position changes, so the deep badge can never describe
+  // a board you have already left.
+  const [deepRequest, setDeepRequest] = useState(0);
 
-  // The eval is a POST-GAME tool and nothing else — see `evalAvailable`. While a
-  // game is still being played, showing it would be an engine telling a player
-  // what to do, so it is not offered, not togglable, and not searched for.
+  // Analysis is a post-game room, and the door is locked until the game is over
+  // — see `analysisAvailable`. The gate is on the *room*, not on the furniture:
+  // the eval bar, the best-move arrow, the annotation pass and a pasted position
+  // are all things analysis offers, so gating each one separately would be four
+  // chances to miss a door. The live game's result is what unlocks it, and
+  // reading that is trivial since 7c: `liveStates` is the live game, and
+  // analysis never writes to it.
   //
-  // The result consulted is the **live game's**, never the position on screen,
-  // and reading it is trivial since 7c: `liveStates` is the live game and
-  // analysis never touches it. That one choice closes every route at once:
-  //
-  //  - reviewing back through an unfinished game lands on positions that are
-  //    not themselves terminal, and still gets nothing;
-  //  - analysis mode on an unfinished game gets nothing — it suppresses the AI
-  //    and never saves, so it looks harmless, but you can enter it mid-game,
-  //    read the engine, leave, and play on;
-  //  - a *pasted* position gets nothing while a game is unfinished. The
-  //    position panel shows the current board with a copy button, so keying the
-  //    eval off the pasted root instead would be a two-click bypass: copy the
-  //    live position, paste it back, read the engine. Pasting and exploring by
-  //    hand still works mid-game; only the engine's opinion waits.
-  //
-  // Analysing a *finished* game keeps the eval throughout, including down a
-  // variation, because the live result is what is being asked about.
+  // The eval bar therefore has no gate of its own. It is part of analysis, and
+  // it shows when you are in analysis — subject only to the Zen extra and its
+  // own on/off toggle, which are preferences rather than permissions.
   const liveTipStatus = liveStates[liveStates.length - 1].status;
-  const canShowEval = evalAvailable({ liveGameOver: isGameOver(liveTipStatus) });
-  const showEval = canShowEval && evalOn && showExtra("eval");
+  const canAnalyse = analysisAvailable({ liveGameOver: isGameOver(liveTipStatus) });
+  // ── Learn from your mistakes (Session 7f) ───────────────────────────────────
+  // Tapping a costliest move does not show you the better one: it puts you back
+  // in the position and asks you to find it. See game/puzzle.ts.
+  const [puzzle, setPuzzle] = useState<PuzzleState | null>(null);
+  // The answer, fetched when the puzzle opens and deliberately NOT rendered
+  // while a guess is outstanding.
+  const [puzzleSolution, setPuzzleSolution] = useState<{
+    bestMoves: Move[];
+    move: Move | null;
+  } | null>(null);
+
+  const showEval = analysis && evalOn && showExtra("eval") && !hidesEngine(puzzle);
+  // Read by `commitMove`, which must not be rebuilt on every stage change.
+  const puzzleRef = useRef<PuzzleState | null>(null);
+  const solutionRef = useRef<{ bestMoves: Move[]; move: Move | null } | null>(null);
+  puzzleRef.current = puzzle;
+  solutionRef.current = puzzleSolution;
+
+  /**
+   * The equal-best alternatives to draw beside the primary arrow.
+   *
+   * Capped at two extra (three arrows total) because past that the board is a
+   * diagram of the engine rather than a picture of the position — and because
+   * a position with a dozen equally-good moves is telling you it does not
+   * matter, which three arrows say just as well as twelve.
+   *
+   * Empty whenever the engine has a single best move. That is the rule you
+   * asked for and it is worth stating plainly: a second arrow is a claim that
+   * two moves are *the same*, and the engine only makes that claim when their
+   * scores are exactly equal (see `SearchResult.bestMoves`).
+   */
+  const ALT_ARROW_CAP = 2;
+  const altBestMoves = useMemo(() => {
+    const all = evalInfo?.bestMoves ?? [];
+    const primary = evalInfo?.move;
+    if (!primary || all.length < 2) return [];
+    return all
+      .filter(
+        (m) =>
+          !(
+            m.from.row === primary.from.row &&
+            m.from.col === primary.from.col &&
+            m.to.row === primary.to.row &&
+            m.to.col === primary.to.col
+          ),
+      )
+      .slice(0, ALT_ARROW_CAP);
+  }, [evalInfo]);
   useEffect(() => {
     if (!showEval) {
       // Switched off (or hidden by Zen): stop searching and drop the readout, so
@@ -721,15 +814,25 @@ export default function App() {
     if (isGameOver(game.status)) {
       cancelAnalysis();
       setEvalPending(false);
-      setEvalInfo({ score: evaluate(game, ANALYSIS_WEIGHTS, rules), move: null });
+      setEvalInfo({
+        score: evaluate(game, ANALYSIS_WEIGHTS, rules),
+        depth: 0,
+        move: null,
+        bestMoves: [],
+      });
       return;
     }
     let cancelled = false;
     setEvalPending(true);
     const timer = window.setTimeout(() => {
-      requestAnalysis(game, rules).then((res) => {
+      requestAnalysis(game, rules, deepRequest > 0).then((res) => {
         if (cancelled) return; // the position moved on under us
-        setEvalInfo({ score: res.score, move: res.move });
+        setEvalInfo({
+          score: res.score,
+          depth: res.depth,
+          move: res.move,
+          bestMoves: res.bestMoves,
+        });
         setEvalPending(false);
       });
     }, ANALYSIS_DEBOUNCE_MS);
@@ -737,7 +840,11 @@ export default function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [showEval, game, rules, requestAnalysis, cancelAnalysis]);
+  }, [showEval, game, rules, requestAnalysis, cancelAnalysis, deepRequest]);
+
+  // A deep answer describes one position. Moving the board drops the request so
+  // the badge can never claim depth 8 for a board you have already left.
+  useEffect(() => setDeepRequest(0), [game]);
 
   // ── Drive the clock from the move timeline ──────────────────────────────────
   // Each new move at the tip presses the mover's clock (banks their increment
@@ -794,6 +901,13 @@ export default function App() {
   // *derived* line, so without it a page-hide mid-variation would happily write
   // an explored position over the real game.
   const enterAnalysis = useCallback(() => {
+    // The gate, enforced rather than merely displayed. Hiding the button is how
+    // the rule is *shown*; this is how it holds — a keyboard route, a stale
+    // render or a future caller cannot open the door on a game still being
+    // played. Every other way in (the position panel, the annotation pass)
+    // reads the same predicate.
+    if (!analysisAvailable({ liveGameOver: isGameOver(liveStates[liveStates.length - 1].status) }))
+      return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     cancelAi();
     const seeded = fromLine(liveStates);
@@ -875,6 +989,91 @@ export default function App() {
     setNodeId(id);
   }, []);
 
+  /**
+   * Jump to a ply of the line you are on — the graph, the costliest-move list
+   * and the move log all go through here.
+   *
+   * In analysis it resolves against the line to the *end* of the current
+   * variation, not to the selected node, so it can move forward as well as
+   * back. Resolving against the selected node is what made the move log a
+   * one-way trip.
+   */
+  const jumpToPly = useCallback(
+    (ply: number) => {
+      setSelected(null);
+      if (analysis && tree) {
+        const full = lineTo(tree, tipOfLine(tree, nodeId));
+        setNodeId(full[Math.max(0, Math.min(full.length - 1, ply))] ?? nodeId);
+        return;
+      }
+      setCursor(Math.max(0, Math.min(liveStates.length - 1, ply)));
+    },
+    [analysis, tree, nodeId, liveStates.length],
+  );
+
+  /**
+   * Open a mistake as a puzzle: sit at the position *before* it, with the
+   * engine's opinion hidden, and fetch the answer quietly in the background.
+   *
+   * The answer is searched deep. The shallow background pass is tuned for
+   * re-running on every cursor step; a question someone has stopped to think
+   * about deserves the better answer, and there is exactly one of them.
+   */
+  const startPuzzle = useCallback(
+    (ply: number, mover: Side) => {
+      if (ply < 1) return;
+      setPuzzleSolution(null);
+      setPuzzle({ ply, mover, stage: "guessing", attempts: 0 });
+      jumpToPly(ply - 1);
+    },
+    [jumpToPly],
+  );
+
+  const exitPuzzle = useCallback(() => {
+    setPuzzle(null);
+    setPuzzleSolution(null);
+  }, []);
+
+  /** Give up and be shown. A legitimate ending, not a lesser one. */
+  const revealSolution = useCallback(() => {
+    setPuzzle((p) => (p ? { ...p, stage: "revealed" } : p));
+  }, []);
+
+  /**
+   * Take the wrong move back and stand in the position again.
+   *
+   * The branch it created is removed rather than left behind: a tree littered
+   * with a learner's rejected guesses is noise, and they did not ask to keep
+   * them — they asked to try again.
+   */
+  const tryAgain = useCallback(() => {
+    if (!tree) return;
+    const parent = parentOf(tree, nodeId);
+    if (parent !== null) {
+      setTree(treeRemove(tree, nodeId));
+      setNodeId(parent);
+    }
+    setSelected(null);
+    setPuzzle((p) => (p ? { ...p, stage: "guessing" } : p));
+  }, [tree, nodeId]);
+
+  // Fetch the answer when a puzzle opens — deep, and quietly. The shallow pass
+  // is tuned to re-run on every cursor step; a question someone has stopped to
+  // think about deserves the better answer, and there is one of them.
+  useEffect(() => {
+    if (!puzzle || puzzleSolution) return;
+    const pos = lineStates[puzzle.ply - 1];
+    if (!pos) return;
+    let cancelled = false;
+    requestAnalysis(pos, rules, true).then((res) => {
+      if (cancelled) return;
+      setPuzzleSolution({ bestMoves: res.bestMoves, move: res.move });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [puzzle, puzzleSolution, lineStates, rules, requestAnalysis]);
+
   const promoteCurrent = useCallback(() => {
     if (!tree) return;
     setTree(treePromote(tree, nodeId));
@@ -901,13 +1100,19 @@ export default function App() {
   // The marks are stored against the exact line they were computed for, so
   // stepping into a variation hides them rather than showing another line's
   // verdicts, and stepping back shows them again.
-  const [annotation, setAnnotation] = useState<{ key: string; marks: (Mark | null)[] } | null>(null);
+  const [annotation, setAnnotation] = useState<{
+    key: string;
+    marks: (Mark | null)[];
+    /** Per-ply scores. The pass computed these all along and threw them away;
+     *  they are what the eval graph is drawn from. */
+    scores: number[];
+  } | null>(null);
   const [annotating, setAnnotating] = useState<{ done: number; total: number } | null>(null);
   const annotateStopped = useRef(false);
 
   const lineKey = useMemo(
-    () => states[states.length - 1].history.map((h) => moveName(h.move)).join(" "),
-    [states],
+    () => lineStates[lineEnd].history.map((h) => moveName(h.move)).join(" "),
+    [lineStates, lineEnd],
   );
   const marks = annotation?.key === lineKey ? annotation.marks : null;
 
@@ -927,7 +1132,26 @@ export default function App() {
   // result. Annotations are what 7d always called them — post-game — and this is
   // the reading that matches the name. Analysis on a *finished* game still
   // annotates, since the gate reads the live result rather than the tip.
-  const canAnnotate = tip >= 1 && !thinking && canShowEval;
+  const canAnnotate = tip >= 1 && !thinking && canAnalyse;
+
+  // Run it without being asked. The pass existed before this and went unused
+  // because it sat behind a button below the fold: a review you have to know
+  // about is a review most people never see. Entering analysis on a finished
+  // game *is* the request, so the answer is already being computed by the time
+  // the screen settles. Keyed on the line so it runs once per line, not once
+  // per render, and skipped while one is already in flight.
+  const autoRan = useRef<string | null>(null);
+  useEffect(() => {
+    if (!analysis || !canAnalyse) return;
+    if (annotating || lineStates.length < 2) return;
+    const key = lineKey;
+    if (autoRan.current === key || annotation?.key === key) return;
+    autoRan.current = key;
+    void runAnnotation();
+    // `runAnnotation` is stable enough for this: it is recreated when the line
+    // changes, which is exactly when a re-run is wanted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis, canAnalyse, lineStates, lineKey, annotating, annotation]);
 
   const stopAnnotating = useCallback(() => {
     // The in-flight search is left to finish rather than terminating the worker:
@@ -937,7 +1161,9 @@ export default function App() {
   }, []);
 
   const runAnnotation = useCallback(async () => {
-    const line = states; // judge the line as it stands now, not as it may become
+    // Judge the whole line, not the slice up to wherever the cursor happens to
+    // be — otherwise stepping back would re-key the review and throw it away.
+    const line = lineStates;
     if (line.length < 2) return;
     const key = line[line.length - 1].history.map((h) => moveName(h.move)).join(" ");
     annotateStopped.current = false;
@@ -967,9 +1193,9 @@ export default function App() {
       return;
     }
     const movers = line.slice(1).map((s) => s.history[s.history.length - 1].sideThatMoved);
-    setAnnotation({ key, marks: marksFromScores(scores, movers, onlyMoves) });
+    setAnnotation({ key, marks: marksFromScores(scores, movers, onlyMoves), scores });
     setAnnotating(null);
-  }, [states, rules, requestMove]);
+  }, [lineStates, rules, requestMove]);
 
   // A pass judges one line; anything that replaces the game underneath it must
   // stop it rather than let it finish and label a game that is no longer there.
@@ -1529,7 +1755,11 @@ export default function App() {
 
       <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
-      {otbMatch && showExtra("scoreboard") && (
+      {/* Not while analysing: a set scoreboard is about a series, and analysis
+          is about one game that has already finished. On a phone it cost ~600px
+          above the board, which pushed the review — the whole reason for being
+          here — below the fold. */}
+      {otbMatch && !analysis && showExtra("scoreboard") && (
         <SetScoreboard
           t={t}
           match={otbMatch}
@@ -1570,7 +1800,14 @@ export default function App() {
             kingEmblem={emblemSet.kingEmblem}
             defenderEmblem={emblemSet.defenderEmblem}
             cornerEmblem={emblemSet.cornerEmblem}
-            bestMove={showEval ? (evalInfo?.move ?? null) : null}
+            bestMove={
+            puzzle && puzzleFinished(puzzle)
+              ? (puzzleSolution?.move ?? null)
+              : showEval
+                ? (evalInfo?.move ?? null)
+                : null
+          }
+          alsoBest={puzzle ? [] : showEval ? altBestMoves : []}
             onSquareClick={onSquareClick}
           />
         </div>
@@ -1581,8 +1818,8 @@ export default function App() {
       <BoardTools
         t={t}
         showFlip={showExtra("flip")}
-        showAnalysis={showExtra("analysis")}
-        showEvalToggle={canShowEval && showExtra("eval")}
+        showAnalysis={canAnalyse && showExtra("analysis")}
+        showEvalToggle={analysis && showExtra("eval")}
         flippedH={flippedH}
         onFlipH={() => setFlippedH((f) => !f)}
         flippedV={flippedV}
@@ -1594,13 +1831,65 @@ export default function App() {
         onToggleEval={() => setEvalOn((v) => !v)}
       />
 
+      {showEval && evalInfo && (
+        <div className="deepline mt-2">
+          <span className="deepline-depth" title={t.evalLabel}>
+            d{evalInfo.depth}
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={() => setDeepRequest((n) => n + 1)}
+            disabled={evalPending}
+          >
+            {evalPending && deepRequest > 0 ? t.thinkingDeeper : t.thinkHarder}
+          </button>
+        </div>
+      )}
+
+      {analysis && puzzle && (
+        <PuzzlePanel
+          t={t}
+          puzzle={puzzle}
+          sideLabel={(side) => sideLabel(side, t)}
+          waiting={puzzleSolution === null}
+          onTryAgain={tryAgain}
+          onReveal={revealSolution}
+          onExit={exitPuzzle}
+        />
+      )}
+
+      {/* "Where did I go wrong" — the front door of analysis, directly under
+          the board rather than in a panel below the fold with a button on it.
+          It runs itself on entry; see the auto-run effect above. */}
+      {analysis && canAnnotate && showExtra("annotate") && (
+        <GameReview
+          t={t}
+          scores={annotation?.key === lineKey ? annotation.scores : null}
+          marks={marks}
+          movers={lineStates[lineEnd].history.map((h) => h.sideThatMoved)}
+          bottomSide={bottomClockSide}
+          humanSide={humanSide}
+          sideLabel={(side) => sideLabel(side, t)}
+          cursor={cursor}
+          running={annotating}
+          onJump={(ply) => {
+            exitPuzzle();
+            jumpToPly(ply);
+          }}
+          onPractise={startPuzzle}
+          onRun={runAnnotation}
+          onStop={stopAnnotating}
+        />
+      )}
+
       {showExtra("captured") && <CapturedTray t={t} game={game} />}
 
       {showExtra("nav") && (
         <MoveNav
           t={t}
           cursor={cursor}
-          tip={tip}
+          tip={lineEnd}
+          analysis={analysis}
           onPrev={goPrev}
           onNext={goNext}
           onLatest={goLatest}
@@ -1717,26 +2006,11 @@ export default function App() {
 
       <MoveLog
         t={t}
-        game={states[tip]}
+        game={lineStates[lineEnd]}
         activeIndex={cursor - 1}
         marks={marks}
-        onMoveClick={(i) => {
-          // In analysis the log shows the line to the current node, so clicking
-          // ply i selects that node rather than sliding an index.
-          if (analysis && tree) selectNode(lineTo(tree, nodeId)[i + 1] ?? nodeId);
-          else setCursor(i + 1);
-        }}
+        onMoveClick={(i) => jumpToPly(i + 1)}
       />
-      {showExtra("annotate") && canAnnotate && (
-        <AnnotatePanel
-          t={t}
-          running={annotating}
-          marks={marks}
-          movers={states[tip].history.map((h) => h.sideThatMoved)}
-          onRun={runAnnotation}
-          onStop={stopAnnotating}
-        />
-      )}
 
       {analysis && tree && showExtra("tree") && (
         <MoveTreePanel
@@ -1749,7 +2023,7 @@ export default function App() {
         />
       )}
 
-      {showExtra("position") && (
+      {canAnalyse && showExtra("position") && (
         <PositionPanel t={t} state={game} onLoad={loadPosition} />
       )}
 
@@ -1992,20 +2266,32 @@ function Header({
               "Brandubh" renders "Branduḃ". */}
           {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h1>
-        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
+        <p className="header-subtitle mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
           {t.subtitle}
         </p>
       </div>
       <div className="flex items-center gap-2">
+        {/* A switch, not an icon button: Zen is a state you leave turned on, so
+            the control has to show which way it is set without being pressed.
+            role="switch" + aria-checked is the same promise made to a screen
+            reader. The word carries the meaning, so there is no icon to decode
+            — and, where the icon button was a second gold circle a glance away
+            from the eval toggle in the board tools, this cannot be mistaken for
+            one. */}
         <button
-          className={`iconbtn${zenOn ? " on" : ""}`}
+          type="button"
+          role="switch"
+          aria-checked={zenOn}
+          className={`switch${zenOn ? " on" : ""}`}
           onClick={() => onZen(!zenOn)}
-          aria-pressed={zenOn}
           aria-label={t.zenMode}
           title={t.zenMode}
           data-testid="zen-toggle"
         >
-          <ZenIcon />
+          <span>{t.zenShort}</span>
+          <span className="switch-track" aria-hidden>
+            <span className="switch-knob" />
+          </span>
         </button>
         <div className="relative" ref={menuRef}>
           <button
@@ -2065,23 +2351,6 @@ function Header({
         </div>
       </div>
     </header>
-  );
-}
-
-// Ensō — the open brush circle. A calm mark rather than a gear, and it reads as
-// a state (gold when Zen is on) rather than a door into another panel.
-function ZenIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M15.6 4.2a8.5 8.5 0 1 0 4.1 5.3" />
-    </svg>
   );
 }
 
@@ -2331,75 +2600,6 @@ function SetScoreboard({
 // Offered only where the engine is free (a finished game, or analysis), so the
 // pass never races the AI for the one worker. Progress is shown move by move and
 // can be stopped: a forty-move game is a couple of seconds, but a slow phone is
-// not, and a control that cannot be interrupted is a control that traps you.
-function AnnotatePanel({
-  t,
-  running,
-  marks,
-  movers,
-  onRun,
-  onStop,
-}: {
-  t: Translations;
-  running: { done: number; total: number } | null;
-  marks: (Mark | null)[] | null;
-  movers: Side[];
-  onRun: () => void;
-  onStop: () => void;
-}) {
-  const counts = marks ? tally(marks, movers) : null;
-  const line = (side: Side): string => {
-    const c = (counts as NonNullable<typeof counts>)[side];
-    return `${sideLabel(side, t)}: ${c.blunder} ${t.mark_blunder} · ${c.mistake} ${t.mark_mistake} · ${c.inaccuracy} ${t.mark_inaccuracy}`;
-  };
-
-  return (
-    <div className="card mt-4 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-parchment-dim">{t.annotateTitle}</span>
-        {running ? (
-          <button className="btn btn-sm" onClick={onStop}>
-            {t.annotateStop}
-          </button>
-        ) : (
-          <button className="btn btn-sm" onClick={onRun}>
-            {marks ? t.annotateAgain : t.annotateRun}
-          </button>
-        )}
-      </div>
-
-      {running && (
-        <div className="annotate-progress mt-2" role="status">
-          <div className="annotate-bar" aria-hidden>
-            <span style={{ width: `${Math.round((running.done / running.total) * 100)}%` }} />
-          </div>
-          <p className="mt-1 text-xs text-parchment-dim">
-            {t.annotateProgress} {running.done}/{running.total}
-          </p>
-        </div>
-      )}
-
-      {!running && counts && (
-        <div className="annotate-summary mt-2 space-y-0.5 text-xs text-parchment-dim">
-          <p>{line("attackers")}</p>
-          <p>{line("defenders")}</p>
-        </div>
-      )}
-
-      {!running && !marks && <p className="mt-2 text-xs text-parchment-dim">{t.annotateHint}</p>}
-    </div>
-  );
-}
-
-// ── Board tools — flip + analysis ─────────────────────────────────────────────
-// The two view controls that sit with the board rather than with the game: which
-// way up it is drawn, and whether the position is live or being explored. Both
-// are opt-in Zen extras, so either can be hidden independently and the row
-// disappears entirely once both are.
-//
-// Analysis gets a labelled banner rather than just a lit-up button: a board that
-// has quietly stopped answering you is the kind of state you must never have to
-// deduce from the absence of a reply.
 function BoardTools({
   t,
   showFlip,
@@ -2478,8 +2678,10 @@ function BoardTools({
         )}
       </div>
       {showAnalysis && analysis && (
+        // No status pill here: the button above already reads "Leave analysis",
+        // which says you are in it, and a gold pill beside it looked exactly
+        // like a second button that did nothing when pressed.
         <div className="analysis-banner" role="status">
-          <span className="pill pill-analysis">{t.analysisMode}</span>
           <span className="analysis-hint">{pastedRoot ? t.positionLoaded : t.analysisHint}</span>
         </div>
       )}
@@ -2551,13 +2753,17 @@ function MoveNav({
   t,
   cursor,
   tip,
+  analysis = false,
   onPrev,
   onNext,
   onLatest,
 }: {
   t: Translations;
   cursor: number;
+  /** The end of the line you are on — in analysis, of the variation through the
+   *  selected node, which is *not* the end of the displayed positions. */
   tip: number;
+  analysis?: boolean;
   onPrev: () => void;
   onNext: () => void;
   onLatest: () => void;
@@ -2567,7 +2773,10 @@ function MoveNav({
   const reviewing = cursor < tip;
 
   let statusLabel: string;
+  // "Live" is a claim about the game being played, and a variation is not it.
+  // Standing at the end of a scratch line says so instead.
   if (reviewing) statusLabel = `${t.reviewingLabel} · ${cursor}/${tip}`;
+  else if (analysis) statusLabel = t.lineEndLabel;
   else if (tip === 0) statusLabel = "—";
   else statusLabel = t.liveLabel;
 
@@ -2582,7 +2791,7 @@ function MoveNav({
         disabled={!reviewing}
         title={reviewing ? t.latest : t.liveLabel}
       >
-        {!reviewing && tip > 0 && <span className="live-dot" aria-hidden />}
+        {!reviewing && !analysis && tip > 0 && <span className="live-dot" aria-hidden />}
         {statusLabel}
       </button>
       <button className="iconbtn" onClick={onNext} disabled={!canNext} aria-label={t.nextMove}>

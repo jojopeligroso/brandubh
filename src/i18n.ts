@@ -66,6 +66,8 @@ export interface Translations {
   howToPlay: string;
   menu: string;
   language: string;
+  /** Short form for the header switch, where "Zen mode" will not fit. */
+  zenShort: string;
 
   // Side labels
   raiders: string;
@@ -128,6 +130,8 @@ export interface Translations {
   nextMove: string;
   reviewingLabel: string;
   liveLabel: string;
+  /** Standing at the end of a variation in analysis — not the live game. */
+  lineEndLabel: string;
   latest: string;
   playFromHere: string;
   playFromHereVsAi: string;
@@ -356,12 +360,41 @@ export interface Translations {
   deleteVariation: string;
 
   // Post-game annotations (Session 7d)
+  /** Game review (Session 7f) — the "where did I go wrong" front door. */
+  /** Learn-from-your-mistakes puzzle (Session 7f). */
+  puzzlePrompt: string;
+  puzzleHint: string;
+  puzzleThinking: string;
+  puzzleWrong: string;
+  puzzleTryAgain: string;
+  puzzleReveal: string;
+  puzzleSolved: string;
+  puzzleSolvedLate: string;
+  puzzleRevealed: string;
+  puzzleDone: string;
+  puzzlePractise: string;
+  thinkHarder: string;
+  thinkingDeeper: string;
+  reviewTitle: string;
+  reviewWorst: string;
+  reviewYourWorst: string;
+  reviewClean: string;
+  evalGraphLabel: string;
+  evalGraphStart: string;
+  moveWord: string;
   annotateTitle: string;
   annotateRun: string;
   annotateAgain: string;
   annotateStop: string;
   annotateProgress: string;
   annotateHint: string;
+  /** Singular forms — the plural ones above are for the "3 mistakes" tally, and
+   *  read wrong on a single listed move. */
+  /** Explains the blunder·mistake·inaccuracy tally. */
+  reviewTallyHint: string;
+  markOne_inaccuracy: string;
+  markOne_mistake: string;
+  markOne_blunder: string;
   mark_inaccuracy: string;
   mark_mistake: string;
   mark_blunder: string;
@@ -434,6 +467,7 @@ const en: Translations = {
   howToPlay: "How to play",
   menu: "Menu",
   language: "Language",
+  zenShort: "Zen",
 
   raiders: "Raiders",
   kingsSide: "King\u2019s side",
@@ -489,6 +523,7 @@ const en: Translations = {
   nextMove: "Next move",
   reviewingLabel: "Reviewing",
   liveLabel: "Live",
+  lineEndLabel: "End of line",
   latest: "Latest",
   playFromHere: "Play from here",
   playFromHereVsAi: "Play from here vs Computer",
@@ -724,12 +759,36 @@ const en: Translations = {
   promoteVariation: "Promote to main line",
   deleteVariation: "Delete variation",
 
+  puzzlePrompt: "Find a better move",
+  puzzleHint: "Play the move you think was best here.",
+  puzzleThinking: "Working out the answer\u2026",
+  puzzleWrong: "Not quite.",
+  puzzleTryAgain: "Try again",
+  puzzleReveal: "View solution",
+  puzzleSolved: "Correct \u2014 that is the engine's move.",
+  puzzleSolvedLate: "Found it.",
+  puzzleRevealed: "The engine's move is shown on the board.",
+  puzzleDone: "Done",
+  puzzlePractise: "Practise",
+  thinkHarder: "Think harder",
+  thinkingDeeper: "Thinking\u2026",
+  reviewTitle: "Game review",
+  reviewWorst: "Costliest moves",
+  reviewYourWorst: "Your costliest moves",
+  reviewClean: "No mistakes worth flagging \u2014 a clean game.",
+  evalGraphLabel: "How the game swung, move by move",
+  evalGraphStart: "Starting position",
+  moveWord: "Move",
   annotateTitle: "Game review",
   annotateRun: "Analyse game",
   annotateAgain: "Analyse again",
   annotateStop: "Stop",
   annotateProgress: "Analysing move",
   annotateHint: "Re-searches every position and marks where the game swung.",
+  reviewTallyHint: "blunders \u00b7 mistakes \u00b7 inaccuracies",
+  markOne_inaccuracy: "Inaccuracy",
+  markOne_mistake: "Mistake",
+  markOne_blunder: "Blunder",
   mark_inaccuracy: "inaccuracies",
   mark_mistake: "mistakes",
   mark_blunder: "blunders",
@@ -854,6 +913,7 @@ const es: Translations = {
   howToPlay: "C\u00f3mo jugar",
   menu: "Men\u00fa",
   language: "Idioma",
+  zenShort: "Zen",
 
   raiders: "Asaltantes",
   kingsSide: "Bando del Rey",
@@ -914,6 +974,7 @@ const es: Translations = {
   nextMove: "Jugada siguiente",
   reviewingLabel: "Revisando",
   liveLabel: "En vivo",
+  lineEndLabel: "Fin de la l\u00ednea",
   latest: "\u00daltima",
   playFromHere: "Jugar desde aqu\u00ed",
   playFromHereVsAi: "Jugar desde aqu\u00ed vs Ordenador",
@@ -1154,12 +1215,36 @@ const es: Translations = {
   promoteVariation: "Convertir en l\u00ednea principal",
   deleteVariation: "Borrar la variante",
 
+  puzzlePrompt: "Encuentra una jugada mejor",
+  puzzleHint: "Juega la que creas que era la mejor aqu\u00ed.",
+  puzzleThinking: "Calculando la respuesta\u2026",
+  puzzleWrong: "No exactamente.",
+  puzzleTryAgain: "Int\u00e9ntalo de nuevo",
+  puzzleReveal: "Ver la soluci\u00f3n",
+  puzzleSolved: "Correcto \u2014 es la jugada del motor.",
+  puzzleSolvedLate: "La encontraste.",
+  puzzleRevealed: "La jugada del motor se muestra en el tablero.",
+  puzzleDone: "Listo",
+  puzzlePractise: "Practicar",
+  thinkHarder: "Pensar m\u00e1s",
+  thinkingDeeper: "Pensando\u2026",
+  reviewTitle: "Revisi\u00f3n de la partida",
+  reviewWorst: "Jugadas m\u00e1s costosas",
+  reviewYourWorst: "Tus jugadas m\u00e1s costosas",
+  reviewClean: "Sin errores rese\u00f1ables \u2014 partida limpia.",
+  evalGraphLabel: "C\u00f3mo cambi\u00f3 la partida, jugada a jugada",
+  evalGraphStart: "Posici\u00f3n inicial",
+  moveWord: "Jugada",
   annotateTitle: "Revisi\u00f3n de la partida",
   annotateRun: "Analizar la partida",
   annotateAgain: "Analizar otra vez",
   annotateStop: "Detener",
   annotateProgress: "Analizando la jugada",
   annotateHint: "Vuelve a calcular cada posici\u00f3n y marca d\u00f3nde cambi\u00f3 la partida.",
+  reviewTallyHint: "errores graves \u00b7 errores \u00b7 imprecisiones",
+  markOne_inaccuracy: "Imprecisi\u00f3n",
+  markOne_mistake: "Error",
+  markOne_blunder: "Error grave",
   mark_inaccuracy: "imprecisiones",
   mark_mistake: "errores",
   mark_blunder: "errores graves",
@@ -1288,6 +1373,8 @@ const ga: Translations = {
   // DRAFT — unreviewed, like the rest of this table.
   menu: "Roghchlár",
   language: "Teanga",
+  // "Zen" is a name here, not translated interface — same in all three tables.
+  zenShort: "Zen",
 
   raiders: "Foghlaithe",
   kingsSide: "Taobh an R\u00ed",
@@ -1348,6 +1435,8 @@ const ga: Translations = {
   nextMove: "An chéad bhogadh eile",
   reviewingLabel: "Ag athbhreithniú",
   liveLabel: "Beo",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  lineEndLabel: "Deireadh na l\u00edne",
   latest: "Is déanaí",
   playFromHere: "Imir as seo",
   playFromHereVsAi: "Imir as seo in aghaidh an ríomhaire",
@@ -1596,12 +1685,39 @@ const ga: Translations = {
   deleteVariation: "Scrios an mhalairt",
 
   // DRAFT (Session 7d) — unreviewed, like the rest of this table.
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  puzzlePrompt: "Aimsigh beart n\u00edos fearr",
+  puzzleHint: "Imir an beart a cheap t\u00fa ab fhearr anseo.",
+  puzzleThinking: "Ag oibri\u00fa amach an fhreagra\u2026",
+  puzzleWrong: "N\u00ed hea, go d\u00edreach.",
+  puzzleTryAgain: "Bain triail eile as",
+  puzzleReveal: "Taispe\u00e1in an r\u00e9iteach",
+  puzzleSolved: "Ceart \u2014 sin beart an innill.",
+  puzzleSolvedLate: "Fuair t\u00fa \u00e9.",
+  puzzleRevealed: "T\u00e1 beart an innill ar an gcl\u00e1r.",
+  puzzleDone: "Cr\u00edochnaithe",
+  puzzlePractise: "Cleachtadh",
+  thinkHarder: "Smaoinigh n\u00edos doimhne",
+  thinkingDeeper: "Ag smaoineamh\u2026",
+  reviewTitle: "Athbhreithni\u00fa ar an gcluiche",
+  reviewWorst: "Na bearta ba chostasa\u00ed",
+  reviewYourWorst: "Do bhearta ba chostasa\u00ed",
+  reviewClean: "Gan both\u00fan is fi\u00fa a lua \u2014 cluiche glan.",
+  evalGraphLabel: "Mar a luaigh an cluiche, beart ar bheart",
+  evalGraphStart: "Su\u00edomh tosaigh",
+  moveWord: "Beart",
   annotateTitle: "Athbhreithni\u00fa ar an gcluiche",
   annotateRun: "D\u00e9an anail\u00eds ar an gcluiche",
   annotateAgain: "D\u00e9an anail\u00eds ar\u00eds",
   annotateStop: "Stad",
   annotateProgress: "Ag d\u00e9anamh anail\u00edse ar bheart",
   annotateHint: "Cuardaítear gach su\u00edomh ar\u00eds agus marc\u00e1iltear na h\u00e1iteanna ar iompaigh an cluiche.",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  reviewTallyHint: "droch-bhoth\u00fain \u00b7 both\u00fain \u00b7 m\u00edchruinneas",
+  markOne_inaccuracy: "M\u00edchruinneas",
+  markOne_mistake: "Both\u00fan",
+  markOne_blunder: "Droch-bhoth\u00fan",
   mark_inaccuracy: "m\u00edchruinneas",
   mark_mistake: "botúin",
   mark_blunder: "botúin mh\u00f3ra",

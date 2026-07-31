@@ -145,8 +145,9 @@ overlay; `useAnalysisWorker` runs the search.
   with the board under it. It is absolutely positioned (so the 7×7 grid
   auto-placement is untouched) and `aria-hidden` (so the accessible grid is
   still 49 gridcells).
-- **Post-game only — availability is not a preference.** The eval does not
-  exist while a game is unfinished, whatever the toggle says. The test is the
+- **Post-game only, and gated at the room rather than the furniture.** Analysis
+  cannot be entered until the game has concluded; the eval bar is part of
+  analysis and simply appears inside it, with no gate of its own. The test is the
   *live* game's result, so analysing a finished game keeps the eval down a
   variation (which truncates the timeline and would otherwise revoke it), while
   analysis mode entered on an unfinished game gets nothing — that path was a way
