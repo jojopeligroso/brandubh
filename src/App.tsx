@@ -1244,7 +1244,7 @@ export default function App() {
           return;
         }
         if (mine) {
-          setSelected(sq);
+          setSelected(sq.row === selected.row && sq.col === selected.col ? null : sq);
           return;
         }
         setSelected(null);
