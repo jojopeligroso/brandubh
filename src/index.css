@@ -175,12 +175,12 @@
   --cell-dark: rgba(0, 0, 0, 0.12);
   --motif-ink: #191f21;
 
-  --atk: #1b1e20;
+  --atk: #1a1c1e;
   --atk-ink: #d3c6aa;
-  --def: #d3c6aa;
-  --def-ink: #3d484d;
-  --king: #dbbc7f;
-  --king-ink: #3a2c12;
+  --def: #e8e4dc;
+  --def-ink: #2d353b;
+  --king: #f0ece4;
+  --king-ink: #2d353b;
 }
 
 /* Carved Wood — the original warm oak-and-parchment board. */

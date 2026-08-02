@@ -920,11 +920,12 @@ export default function App() {
     // Open on the position the player was looking at, not at the root.
     setNodeId(lineTo(seeded, tipOfLine(seeded, seeded.rootId))[liveCursor] ?? seeded.rootId);
     setAnalysis(true);
+    setZenEnabled(false);
     setThinking(false);
     setSelected(null);
     setFadingCaptures([]);
     setShowTakeback(false);
-  }, [liveStates, liveCursor, cancelAi]);
+  }, [liveStates, liveCursor, cancelAi, setZenEnabled]);
 
   const exitAnalysis = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);

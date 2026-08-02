@@ -8,7 +8,7 @@ and do not fold 7d into it.
 
 Session 7c of the Brandubh roadmap: analysis UI slice — the move tree.
 
-Repo: jojopeligroso/branndubh. Start from latest main. Read
+Repo: jojopeligroso/brandubh. Start from latest main. Read
 `docs/design/lichess-ui.md` (the "Anchors for 7c" section is written for you) and the
 Session 7 block of `docs/ROADMAP.md`. Your job is 7c ONLY: turn the linear timeline
 into a real **variation tree** with a panel to see and navigate it. Do NOT build the

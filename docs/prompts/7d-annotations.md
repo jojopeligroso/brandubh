@@ -7,7 +7,7 @@
 
 Session 7d of the Brandubh roadmap: analysis UI slice — post-game annotations.
 
-Repo: jojopeligroso/branndubh. Start from latest main. Read
+Repo: jojopeligroso/brandubh. Start from latest main. Read
 `docs/design/lichess-ui.md` and the Session 7 block of `docs/ROADMAP.md`. Your job is
 7d ONLY: re-search a finished game ply by ply and mark the moves where the evaluation
 swung. Do NOT build the eval bar or hint arrow (7a) or extend the move tree (7c).

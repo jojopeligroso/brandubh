@@ -9,7 +9,7 @@ Kept as the record of what was asked for. See "How it actually went" at the end.
 
 Session 7b of the Brandubh roadmap: analysis UI slice — board flip + free-move.
 
-Repo: jojopeligroso/branndubh. Start from latest main. Read docs/design/lichess-ui.md
+Repo: jojopeligroso/brandubh. Start from latest main. Read docs/design/lichess-ui.md
 and the Session 7 roadmap section. DEPENDS ON 7a (eval bar + best-move arrow) being
 merged — the arrow overlay must become orientation-aware here. Your job is 7b ONLY:
 (1) a user board-flip toggle, and (2) a read/explore "analysis" (free-move) toggle. Do
