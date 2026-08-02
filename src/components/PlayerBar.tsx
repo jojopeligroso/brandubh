@@ -20,6 +20,8 @@ export default function PlayerBar({
   flagged,
   increment,
   flagLabel,
+  thinking,
+  moveCount,
 }: {
   /** Who is sitting here — a player's name, or the AI tier. */
   name: string;
@@ -39,6 +41,10 @@ export default function PlayerBar({
   /** Fischer increment, seconds — shown as a "+2" badge. */
   increment: number;
   flagLabel: string;
+  /** This side's AI is currently searching. */
+  thinking?: boolean;
+  /** Total game moves so far — shown on the bottom bar only. */
+  moveCount?: number;
 }) {
   const low = clockEnabled && isLowTime(ms) && !flagged;
   const classes = [
@@ -60,10 +66,16 @@ export default function PlayerBar({
     >
       <span className={`playerbar-dot playerbar-dot-${side}`} aria-hidden />
       <span className="playerbar-id">
-        <span className="playerbar-name">{name}</span>
+        <span className="playerbar-name">
+          {name}
+          {thinking && <span className="playerbar-thinking" aria-label="thinking">...</span>}
+        </span>
         <span className="playerbar-sub">
           {sub}
-          {captures > 0 && <span className="playerbar-caps">×{captures}</span>}
+          {captures > 0 && <span className="playerbar-caps">{"\u00d7"}{captures}</span>}
+          {moveCount != null && moveCount > 0 && (
+            <span className="playerbar-movecount">{moveCount}</span>
+          )}
         </span>
       </span>
       {clockEnabled && (

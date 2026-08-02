@@ -1736,7 +1736,7 @@ export default function App() {
   // Lichess seats each player against their board edge: name and material on
   // the left, the boxed clock on the right. With no clock the bar still names
   // who sits where — the seat exists whether or not it is timed.
-  const renderPlayerBar = (side: Side) => (
+  const renderPlayerBar = (side: Side, position: "top" | "bottom") => (
     <PlayerBar
       name={participantName(side)}
       sub={sideLabel(side, t)}
@@ -1752,11 +1752,13 @@ export default function App() {
       flagged={!reviewing && clock.flagged === side}
       increment={timeControl?.incrementSeconds ?? 0}
       flagLabel={t.flagLabel}
+      thinking={thinking && side === aiSide}
+      moveCount={position === "bottom" ? game.moveCount : undefined}
     />
   );
 
   return (
-    <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-24 pt-5 sm:max-w-lg">
+    <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-24 pt-3 sm:max-w-lg">
       <Header
         t={t}
         lang={lang}
@@ -1765,9 +1767,8 @@ export default function App() {
         onZen={setZenEnabled}
         onShowRules={() => setLearnView("menu")}
         onShowDesign={() => setShowDesign(true)}
+        compact={!showModeOverlay}
       />
-
-      <StatusBar t={t} game={game} thinking={thinking} humanSide={humanSide} aiSide={aiSide} />
 
       {/* Not while analysing: a set scoreboard is about a series, and analysis
           is about one game that has already finished. On a phone it cost ~600px
@@ -1784,7 +1785,7 @@ export default function App() {
         />
       )}
 
-      <div className="mt-3">{renderPlayerBar(topClockSide)}</div>
+      <div className="mt-3">{renderPlayerBar(topClockSide, "top")}</div>
 
       {/* The eval bar stands beside the board and shares its row, so the two
           line up top and bottom — see the orientation note in src/evalBar.ts
@@ -1827,22 +1828,7 @@ export default function App() {
         </div>
       </div>
 
-      <div className="mt-3">{renderPlayerBar(bottomClockSide)}</div>
-
-      <BoardTools
-        t={t}
-        showFlip={showExtra("flip")}
-        showAnalysis={canAnalyse && showExtra("analysis")}
-        showEvalToggle={analysis && showExtra("eval")}
-        flippedH={flippedH}
-        onFlipH={() => setFlippedH((f) => !f)}
-        flippedV={flippedV}
-        onFlipV={() => setFlippedV((f) => !f)}
-        analysis={analysis}
-        pastedRoot={pastedRoot}
-        evalOn={evalOn}
-        onToggleEval={() => setEvalOn((v) => !v)}
-      />
+      <div className="mt-3">{renderPlayerBar(bottomClockSide, "bottom")}</div>
 
       {showEval && evalInfo && (
         // Lichess's ceval strip: the score reads big on the left, the engine's
@@ -1932,6 +1918,15 @@ export default function App() {
             : []),
           ...(showExtra("resign") && atTip && !gameOver
             ? [{ label: t.resign, danger: true, onClick: () => setShowResign(true) }]
+            : []),
+          ...(showExtra("flip")
+            ? [
+                { label: t.flipBoardH, onClick: () => setFlippedH((f) => !f) },
+                { label: t.flipBoardV, onClick: () => setFlippedV((f) => !f) },
+              ]
+            : []),
+          ...(analysis && showExtra("eval")
+            ? [{ label: evalOn ? t.evalHide : t.evalShow, onClick: () => setEvalOn((v) => !v) }]
             : []),
           { label: t.settings, onClick: () => setShowDesign(true) },
         ];
@@ -2091,15 +2086,11 @@ export default function App() {
             setShowVictory(false);
             primaryAction();
           }}
-          onAnalyse={
-            canAnalyse && !analysis
-              ? () => {
-                  setShowVictory(false);
-                  toggleAnalysis();
-                }
-              : null
-          }
-          onReview={() => setShowVictory(false)}
+          onDismiss={() => setShowVictory(false)}
+          onReview={() => {
+            setShowVictory(false);
+            if (canAnalyse && !analysis) toggleAnalysis();
+          }}
         />
       )}
 
@@ -2256,6 +2247,7 @@ function Header({
   onZen,
   onShowRules,
   onShowDesign,
+  compact,
 }: {
   t: Translations;
   lang: Lang;
@@ -2264,6 +2256,8 @@ function Header({
   onZen: (v: boolean) => void;
   onShowRules: () => void;
   onShowDesign: () => void;
+  /** Shrink during gameplay so the board gets more vertical space. */
+  compact: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -2290,14 +2284,16 @@ function Header({
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
-        <h1 className="gaelic text-3xl leading-none text-parchment">
+        <h1 className={`gaelic leading-none text-parchment ${compact ? "text-xl" : "text-3xl"}`}>
           {/* Gaelic word → cló face + overdot orthography (see gaelic.ts):
               "Brandubh" renders "Branduḃ". */}
           {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
         </h1>
-        <p className="header-subtitle mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
-          {t.subtitle}
-        </p>
+        {!compact && (
+          <p className="header-subtitle mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
+            {t.subtitle}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-2">
         {/* A switch, not an icon button: Zen is a state you leave turned on, so
@@ -2395,50 +2391,6 @@ function MenuIcon() {
     >
       <path d="M4 7h16M4 12h16M4 17h16" />
     </svg>
-  );
-}
-
-function StatusBar({
-  t,
-  game,
-  thinking,
-  humanSide,
-  aiSide,
-}: {
-  t: Translations;
-  game: GameState;
-  thinking: boolean;
-  humanSide: Side | null;
-  aiSide: Side | null;
-}) {
-  let text: string;
-  let tone = "text-parchment";
-  if (isGameOver(game.status)) {
-    const w = winnerOf(game.status);
-    text = gameOverText(game.status, t);
-    if (w !== "draw") tone = w === "defenders" ? "text-gold" : "text-blood";
-  } else {
-    const toMove = sideLabel(game.turn, t);
-    const who =
-      humanSide === null
-        ? `${toMove} ${t.toMove}`
-        : game.turn === humanSide
-          ? `${t.yourMove} · ${toMove}`
-          : thinking
-            ? `${toMove} ${t.thinkingSuffix}`
-            : `${toMove} ${t.toMove}`;
-    text = who;
-    if (aiSide && game.turn === aiSide) tone = "text-parchment-dim";
-  }
-
-  const live = !isGameOver(game.status);
-  const turnGlow = live ? ` turn-glow turn-glow-${game.turn}` : "";
-
-  return (
-    <div className={`card mt-4 flex items-center justify-between px-4 py-2.5${turnGlow}`}>
-      <span className={`font-display text-lg ${tone}`}>{text}</span>
-      <span className="font-mono text-xs text-parchment-dim">{t.moveLabel} {game.moveCount}</span>
-    </div>
   );
 }
 
@@ -2629,144 +2581,6 @@ function SetScoreboard({
 // Offered only where the engine is free (a finished game, or analysis), so the
 // pass never races the AI for the one worker. Progress is shown move by move and
 // can be stopped: a forty-move game is a couple of seconds, but a slow phone is
-function BoardTools({
-  t,
-  showFlip,
-  showAnalysis,
-  showEvalToggle,
-  flippedH,
-  onFlipH,
-  flippedV,
-  onFlipV,
-  analysis,
-  pastedRoot,
-  evalOn,
-  onToggleEval,
-}: {
-  t: Translations;
-  showFlip: boolean;
-  showAnalysis: boolean;
-  showEvalToggle: boolean;
-  flippedH: boolean;
-  onFlipH: () => void;
-  flippedV: boolean;
-  onFlipV: () => void;
-  analysis: boolean;
-  /** The analysed position was pasted in, not reached from the live game. */
-  pastedRoot: boolean;
-  evalOn: boolean;
-  onToggleEval: () => void;
-}) {
-  if (!showFlip && !showAnalysis && !showEvalToggle) return null;
-  return (
-    <div className="mt-3 flex flex-col items-center gap-2">
-      <div className="flex items-center justify-center gap-2">
-        {showFlip && (
-          <button
-            className={`iconbtn${flippedH ? " on" : ""}`}
-            onClick={onFlipH}
-            aria-pressed={flippedH}
-            aria-label={t.flipBoardH}
-            title={t.flipBoardH}
-          >
-            <FlipIconH flipped={flippedH} />
-          </button>
-        )}
-        {showFlip && (
-          <button
-            className={`iconbtn${flippedV ? " on" : ""}`}
-            onClick={onFlipV}
-            aria-pressed={flippedV}
-            aria-label={t.flipBoardV}
-            title={t.flipBoardV}
-          >
-            <FlipIconV flipped={flippedV} />
-          </button>
-        )}
-        {showEvalToggle && (
-          <button
-            className={`iconbtn${evalOn ? " on" : ""}`}
-            onClick={onToggleEval}
-            aria-pressed={evalOn}
-            aria-label={evalOn ? t.evalHide : t.evalShow}
-            title={evalOn ? t.evalHide : t.evalShow}
-          >
-            <EvalIcon />
-          </button>
-        )}
-      </div>
-      {showAnalysis && analysis && (
-        // No status pill here: the button above already reads "Leave analysis",
-        // which says you are in it, and a gold pill beside it looked exactly
-        // like a second button that did nothing when pressed.
-        <div className="analysis-banner" role="status">
-          <span className="analysis-hint">{pastedRoot ? t.positionLoaded : t.analysisHint}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// A miniature of the eval bar itself: a two-tone column with a line across the
-// middle. Static — the readout it toggles is the thing that moves.
-function EvalIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <rect x="8" y="3" width="8" height="18" rx="1.5" />
-      <path d="M8 14h8" fill="none" />
-      <path d="M8 14h8v6.5a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-// Two side-by-side chevrons pointing at each other — the board mirroring
-// left-to-right (east–west). The icon itself rotates to show it has been
-// pressed; the transition is dropped under prefers-reduced-motion (see
-// .flip-icon in index.css).
-function FlipIconH({ flipped }: { flipped: boolean }) {
-  return (
-    <svg
-      className={`flip-icon${flipped ? " is-flipped" : ""}`}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 12h6" />
-      <path d="m6 8-3 4 3 4" />
-      <path d="M12 4v16" />
-      <path d="M21 12h-6" />
-      <path d="m18 16 3-4-3-4" />
-    </svg>
-  );
-}
-
-// Two stacked chevrons pointing at each other — the board mirroring
-// top-to-bottom (north–south).
-function FlipIconV({ flipped }: { flipped: boolean }) {
-  return (
-    <svg
-      className={`flip-icon${flipped ? " is-flipped" : ""}`}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M12 3v6" />
-      <path d="m8 6 4-3 4 3" />
-      <path d="M4 12h16" />
-      <path d="M12 21v-6" />
-      <path d="m16 18-4 3-4-3" />
-    </svg>
-  );
-}
-
 function ReviewBar({
   t,
   reviewing,
@@ -3215,11 +3029,11 @@ function SettingsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+      className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+        className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -3479,7 +3293,7 @@ function ModeOverlay({
   const [chosenSide, setChosenSide] = useState<Side>(side);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
+      <div className="mode-card card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
         {/* The language choice lives on the landing card itself: the first
             words a new player reads should already be in their language, not
             behind the overlay in the header. */}
