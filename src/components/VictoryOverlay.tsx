@@ -19,6 +19,7 @@ export default function VictoryOverlay({
   emblems,
   primaryLabel,
   onPrimary,
+  onAnalyse,
   onReview,
 }: {
   t: Translations;
@@ -28,6 +29,8 @@ export default function VictoryOverlay({
   emblems: Emblems;
   primaryLabel: string;
   onPrimary: () => void;
+  /** Jump straight into analysis of the finished game — lichess's second row. */
+  onAnalyse: (() => void) | null;
   onReview: () => void;
 }) {
   useEffect(() => {
@@ -72,15 +75,22 @@ export default function VictoryOverlay({
         <h2 id="victory-title" className={`font-display text-4xl leading-tight ${tone}`}>
           {title}
         </h2>
-        <p className="text-sm text-parchment">{reason}</p>
+        <p className="text-sm italic text-parchment">{reason}</p>
         <p className="font-mono text-xs tabular-nums text-parchment-dim">
           {moveCount} {t.movesWord}
         </p>
-        <div className="flex flex-col gap-3">
-          <button className="btn btn-primary py-3 text-base" onClick={onPrimary}>
+        {/* Lichess's game-over card: a stack of full-width labelled rows —
+            rematch first, analysis second, review to dismiss. */}
+        <div className="victory-actions">
+          <button className="victory-action victory-action-primary" onClick={onPrimary}>
             {primaryLabel}
           </button>
-          <button className="btn py-3 text-base" onClick={onReview}>
+          {onAnalyse && (
+            <button className="victory-action" onClick={onAnalyse}>
+              {t.analysisMode}
+            </button>
+          )}
+          <button className="victory-action" onClick={onReview}>
             {t.victoryReview}
           </button>
         </div>

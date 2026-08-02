@@ -55,7 +55,9 @@ import {
   type CustomRuleSet,
   type RuleSet,
 } from "./game/variants";
-import GameClock from "./components/GameClock";
+import PlayerBar from "./components/PlayerBar";
+import { GameToolbar, GameMenuSheet } from "./components/GameToolbar";
+import { decisiveWinner, formatEvalScore } from "./evalBar";
 import { useGameClock } from "./useGameClock";
 import {
   CLOCK_CONTROL_KEY,
@@ -507,6 +509,8 @@ export default function App() {
   const [showNewMatchConfirm, setShowNewMatchConfirm] = useState(false);
   const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
+  // The lichess-style toolbar's action sheet (new game / resign / settings…).
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
 
   const rules: RuleSet =
     variantId === "custom"
@@ -1728,12 +1732,21 @@ export default function App() {
     defenderEmblem: defenderEmblemById(defenderEmblem),
     cornerEmblem: cornerEmblemById(cornerEmblem),
   };
-  const renderClock = (side: Side) => (
-    <GameClock
-      name={sideLabel(side, t)}
+  // Lichess seats each player against their board edge: name and material on
+  // the left, the boxed clock on the right. With no clock the bar still names
+  // who sits where — the seat exists whether or not it is timed.
+  const renderPlayerBar = (side: Side) => (
+    <PlayerBar
+      name={participantName(side)}
+      sub={sideLabel(side, t)}
       side={side}
+      captures={side === "attackers" ? game.captured.defenders : game.captured.attackers}
+      clockEnabled={clock.enabled}
       ms={viewedBanks[side]}
-      active={reviewing ? game.turn === side : clock.active === side}
+      active={
+        !isGameOver(game.status) &&
+        (reviewing || !clock.enabled ? game.turn === side : clock.active === side)
+      }
       running={clock.running}
       flagged={!reviewing && clock.flagged === side}
       increment={timeControl?.incrementSeconds ?? 0}
@@ -1742,7 +1755,7 @@ export default function App() {
   );
 
   return (
-    <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-10 pt-5 sm:max-w-lg">
+    <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-24 pt-5 sm:max-w-lg">
       <Header
         t={t}
         lang={lang}
@@ -1770,7 +1783,7 @@ export default function App() {
         />
       )}
 
-      {clock.enabled && <div className="mt-3">{renderClock(topClockSide)}</div>}
+      <div className="mt-3">{renderPlayerBar(topClockSide)}</div>
 
       {/* The eval bar stands beside the board and shares its row, so the two
           line up top and bottom — see the orientation note in src/evalBar.ts
@@ -1813,7 +1826,7 @@ export default function App() {
         </div>
       </div>
 
-      {clock.enabled && <div className="mt-3">{renderClock(bottomClockSide)}</div>}
+      <div className="mt-3">{renderPlayerBar(bottomClockSide)}</div>
 
       <BoardTools
         t={t}
@@ -1826,18 +1839,26 @@ export default function App() {
         onFlipV={() => setFlippedV((f) => !f)}
         analysis={analysis}
         pastedRoot={pastedRoot}
-        onToggleAnalysis={toggleAnalysis}
         evalOn={evalOn}
         onToggleEval={() => setEvalOn((v) => !v)}
       />
 
       {showEval && evalInfo && (
-        <div className="deepline mt-2">
-          <span className="deepline-depth" title={t.evalLabel}>
-            d{evalInfo.depth}
+        // Lichess's ceval strip: the score reads big on the left, the engine's
+        // depth beside it, and the deepen control on the right.
+        <div className="ceval mt-2">
+          <span className="ceval-score font-mono" title={t.evalLabel}>
+            {/* A decided position reads as the verdict, not a huge number —
+                the same rule the eval bar's readout follows. */}
+            {decisiveWinner(evalInfo.score)
+              ? decisiveWinner(evalInfo.score) === "attackers"
+                ? t.evalAttackersWin
+                : t.evalDefendersWin
+              : formatEvalScore(evalInfo.score, bottomClockSide)}
           </span>
+          <span className="ceval-depth font-mono">d{evalInfo.depth}</span>
           <button
-            className="btn btn-sm"
+            className="btn btn-sm ceval-deeper"
             onClick={() => setDeepRequest((n) => n + 1)}
             disabled={evalPending}
           >
@@ -1884,65 +1905,64 @@ export default function App() {
 
       {showExtra("captured") && <CapturedTray t={t} game={game} />}
 
-      {showExtra("nav") && (
-        <MoveNav
-          t={t}
-          cursor={cursor}
-          tip={lineEnd}
-          analysis={analysis}
-          onPrev={goPrev}
-          onNext={goNext}
-          onLatest={goLatest}
-        />
-      )}
-
       {(() => {
-        // Game-flow controls are contextual. Outside Zen they show as usual; in
-        // Zen they surface only when a game ends — a minimal "Next game" /
-        // "Next set" prompt — never as a persistent button mid-play. The action
-        // buttons (rules / takeback / resign / pause) are opt-in Zen extras.
+        // Lichess's bottom toolbar replaces the old nav row and button strip:
+        // menu · new-game cycle · analysis · step back · step forward. In Zen
+        // it obeys the same "nav" extra the old row did, but always surfaces
+        // once a game ends so the next game is never out of reach.
+        const showToolbar = showExtra("nav") || gameOver;
+        if (!showToolbar) return null;
+        // Everything wordy lives behind the list icon, exactly as on lichess.
+        // Rows are contextual, under the same conditions the old buttons used.
         const progression = !zen.enabled || gameOver;
-        const showRulesBtn = showExtra("rules");
-        const showTakebackBtn =
-          showExtra("takeback") && humanSide === null && atTip && !gameOver && tip >= 1;
-        const showResignBtn = showExtra("resign") && atTip && !gameOver;
-        const showPauseBtn = showExtra("pause") && showPause;
-        const anyControls =
-          progression || showRulesBtn || showTakebackBtn || showResignBtn || showPauseBtn;
-        if (!anyControls) return null;
+        const menuItems = [
+          ...(progression ? [{ label: primaryLabel, onClick: primaryAction }] : []),
+          ...(progression && showNewMatch
+            ? [{ label: t.newMatch, onClick: requestNewMatch }]
+            : []),
+          ...(showExtra("rules")
+            ? [{ label: t.rules, onClick: () => setLearnView("rules") }]
+            : []),
+          ...(showExtra("takeback") && humanSide === null && atTip && !gameOver && tip >= 1
+            ? [{ label: t.proposeTakeback, onClick: () => setShowTakeback(true) }]
+            : []),
+          ...(showExtra("pause") && showPause
+            ? [{ label: clock.paused ? t.resume : t.pause, onClick: clock.togglePause }]
+            : []),
+          ...(showExtra("resign") && atTip && !gameOver
+            ? [{ label: t.resign, danger: true, onClick: () => setShowResign(true) }]
+            : []),
+          { label: t.settings, onClick: () => setShowDesign(true) },
+        ];
         return (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {progression && (
-              <button className="btn btn-primary" onClick={primaryAction}>
-                {primaryLabel}
-              </button>
+          <>
+            <GameToolbar
+              menuOpen={gameMenuOpen}
+              menuLabel={t.menu}
+              onMenu={() => setGameMenuOpen((v) => !v)}
+              cycleLabel={primaryLabel}
+              cycleEnabled={gameOver}
+              onCycle={primaryAction}
+              analysisShown={showExtra("analysis")}
+              analysisOn={analysis}
+              analysisEnabled={canAnalyse || analysis}
+              analysisLabel={analysis ? t.analysisExit : t.analysisMode}
+              onAnalysis={toggleAnalysis}
+              canPrev={cursor > 0}
+              canNext={cursor < lineEnd}
+              prevLabel={t.prevMove}
+              nextLabel={t.nextMove}
+              onPrev={goPrev}
+              onNext={goNext}
+            />
+            {gameMenuOpen && (
+              <GameMenuSheet
+                title={t.menu}
+                items={menuItems}
+                onClose={() => setGameMenuOpen(false)}
+              />
             )}
-            {progression && showNewMatch && (
-              <button className="btn" onClick={requestNewMatch}>
-                {t.newMatch}
-              </button>
-            )}
-            {showRulesBtn && (
-              <button className="btn" onClick={() => setLearnView("rules")}>
-                {t.rules}
-              </button>
-            )}
-            {showTakebackBtn && (
-              <button className="btn" onClick={() => setShowTakeback(true)}>
-                {t.proposeTakeback}
-              </button>
-            )}
-            {showResignBtn && (
-              <button className="btn" onClick={() => setShowResign(true)}>
-                {t.resign}
-              </button>
-            )}
-            {showPauseBtn && (
-              <button className="btn" onClick={clock.togglePause} aria-pressed={clock.paused}>
-                {clock.paused ? t.resume : t.pause}
-              </button>
-            )}
-          </div>
+          </>
         );
       })()}
 
@@ -2070,6 +2090,14 @@ export default function App() {
             setShowVictory(false);
             primaryAction();
           }}
+          onAnalyse={
+            canAnalyse && !analysis
+              ? () => {
+                  setShowVictory(false);
+                  toggleAnalysis();
+                }
+              : null
+          }
           onReview={() => setShowVictory(false)}
         />
       )}
@@ -2611,7 +2639,6 @@ function BoardTools({
   onFlipV,
   analysis,
   pastedRoot,
-  onToggleAnalysis,
   evalOn,
   onToggleEval,
 }: {
@@ -2626,7 +2653,6 @@ function BoardTools({
   analysis: boolean;
   /** The analysed position was pasted in, not reached from the live game. */
   pastedRoot: boolean;
-  onToggleAnalysis: () => void;
   evalOn: boolean;
   onToggleEval: () => void;
 }) {
@@ -2665,15 +2691,6 @@ function BoardTools({
             title={evalOn ? t.evalHide : t.evalShow}
           >
             <EvalIcon />
-          </button>
-        )}
-        {showAnalysis && (
-          <button
-            className={`btn${analysis ? " btn-primary" : ""}`}
-            onClick={onToggleAnalysis}
-            aria-pressed={analysis}
-          >
-            {analysis ? t.analysisExit : t.analysisMode}
           </button>
         )}
       </div>
@@ -2745,76 +2762,6 @@ function FlipIconV({ flipped }: { flipped: boolean }) {
       <path d="M4 12h16" />
       <path d="M12 21v-6" />
       <path d="m16 18-4 3-4-3" />
-    </svg>
-  );
-}
-
-function MoveNav({
-  t,
-  cursor,
-  tip,
-  analysis = false,
-  onPrev,
-  onNext,
-  onLatest,
-}: {
-  t: Translations;
-  cursor: number;
-  /** The end of the line you are on — in analysis, of the variation through the
-   *  selected node, which is *not* the end of the displayed positions. */
-  tip: number;
-  analysis?: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-  onLatest: () => void;
-}) {
-  const canPrev = cursor > 0;
-  const canNext = cursor < tip;
-  const reviewing = cursor < tip;
-
-  let statusLabel: string;
-  // "Live" is a claim about the game being played, and a variation is not it.
-  // Standing at the end of a scratch line says so instead.
-  if (reviewing) statusLabel = `${t.reviewingLabel} · ${cursor}/${tip}`;
-  else if (analysis) statusLabel = t.lineEndLabel;
-  else if (tip === 0) statusLabel = "—";
-  else statusLabel = t.liveLabel;
-
-  return (
-    <div className="mt-3 flex items-center justify-center gap-2">
-      <button className="iconbtn" onClick={onPrev} disabled={!canPrev} aria-label={t.prevMove}>
-        <UndoArrow />
-      </button>
-      <button
-        className={`pill ${reviewing ? "pill-review" : ""}`}
-        onClick={reviewing ? onLatest : undefined}
-        disabled={!reviewing}
-        title={reviewing ? t.latest : t.liveLabel}
-      >
-        {!reviewing && !analysis && tip > 0 && <span className="live-dot" aria-hidden />}
-        {statusLabel}
-      </button>
-      <button className="iconbtn" onClick={onNext} disabled={!canNext} aria-label={t.nextMove}>
-        <RedoArrow />
-      </button>
-    </div>
-  );
-}
-
-function UndoArrow() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M9 7 4 12l5 5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4 12h9a6 6 0 0 1 6 6v1" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function RedoArrow() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M15 7l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M20 12h-9a6 6 0 0 0-6 6v1" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
