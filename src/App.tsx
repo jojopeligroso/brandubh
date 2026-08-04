@@ -318,7 +318,7 @@ export default function App() {
     loadSetting(PLAYMODE_KEY, ["attackers", "defenders", "hotseat"], "defenders"),
   );
   const [difficulty, setDifficulty] = useState<Difficulty>(() =>
-    loadSetting(DIFFICULTY_KEY, DIFFICULTIES, "medium"),
+    loadSetting(DIFFICULTY_KEY, DIFFICULTIES, "easy"),
   );
   // Remember the match setup across refreshes.
   useEffect(() => {
@@ -1919,7 +1919,7 @@ export default function App() {
           ...(showExtra("resign") && atTip && !gameOver
             ? [{ label: t.resign, danger: true, onClick: () => setShowResign(true) }]
             : []),
-          ...(showExtra("flip")
+          ...(analysis && showExtra("flip")
             ? [
                 { label: t.flipBoardH, onClick: () => setFlippedH((f) => !f) },
                 { label: t.flipBoardV, onClick: () => setFlippedV((f) => !f) },
@@ -2215,6 +2215,7 @@ export default function App() {
           clockControls={clockControls}
           customRules={variantId === "custom" ? customRules : null}
           onCustomRules={changeCustomRules}
+          gameInProgress={tip >= 1 && !showModeOverlay}
           gameFile={{
             state: states[tip],
             rules,
@@ -2968,6 +2969,7 @@ function SettingsModal({
   clockControls,
   customRules,
   onCustomRules,
+  gameInProgress,
   gameFile,
   onClose,
 }: {
@@ -2992,6 +2994,8 @@ function SettingsModal({
   /** Null unless the "custom" variant is selected — nothing to edit otherwise. */
   customRules: CustomRuleSet | null;
   onCustomRules: (r: CustomRuleSet) => void;
+  /** True while a game is live — clock/rules sections are hidden. */
+  gameInProgress: boolean;
   gameFile: Omit<React.ComponentProps<typeof GameFilePanel>, "t">;
   onClose: () => void;
 }) {
@@ -3052,15 +3056,18 @@ function SettingsModal({
           />
         </section>
 
-        {/* The time control — the panel Zen used to take with it. */}
-        <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-clock">
-          <ClockControls {...clockControls} />
-        </section>
-
-        {customRules && (
-          <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-rules">
-            <CustomRuleControls t={t} rules={customRules} onChange={onCustomRules} />
-          </section>
+        {/* Clock and custom rules: only relevant before/after a game, not during. */}
+        {!gameInProgress && (
+          <>
+            <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-clock">
+              <ClockControls {...clockControls} />
+            </section>
+            {customRules && (
+              <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-rules">
+                <CustomRuleControls t={t} rules={customRules} onChange={onCustomRules} />
+              </section>
+            )}
+          </>
         )}
 
         {/* Export/import: a Zen extra too, so it needs the same guarantee. */}
@@ -3292,8 +3299,8 @@ function ModeOverlay({
   // the game (and starting it resets the board, so it must happen once).
   const [chosenSide, setChosenSide] = useState<Side>(side);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="mode-card card mx-4 w-full max-w-sm space-y-6 p-8 text-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+      <div className="mode-card card w-full max-w-sm space-y-5 rounded-b-none p-6 text-center sm:mx-4 sm:rounded-2xl">
         {/* The language choice lives on the landing card itself: the first
             words a new player reads should already be in their language, not
             behind the overlay in the header. */}
@@ -3316,8 +3323,8 @@ function ModeOverlay({
         {resume ? (
           <>
             <div className="space-y-1">
-              <p className="text-sm text-parchment-dim">{t.resumeBody}</p>
-              <p className="font-mono text-xs text-parchment-dim/80 tabular-nums">
+              <p className="text-base text-parchment-dim">{t.resumeBody}</p>
+              <p className="font-mono text-sm text-parchment-dim/80 tabular-nums">
                 {resume.states.length - 1} {t.movesWord} ·{" "}
                 {resume.playMode === "hotseat" ? t.otbOverlay : t.playVsAi}
               </p>
@@ -3333,30 +3340,32 @@ function ModeOverlay({
           </>
         ) : step === "side" ? (
           <>
-            <p className="text-sm text-parchment-dim">{t.chooseSide}</p>
+            <p className="text-xl font-semibold text-parchment">{t.chooseSide}</p>
             <div className="flex flex-col gap-3">
               {(
                 [
-                  ["defenders", t.kingsSide, t.sideKingHint],
-                  ["attackers", t.raiders, t.sideRaidersHint],
-                ] as [Side, string, string][]
-              ).map(([s, label, hint]) => (
+                  ["defenders", t.kingsSide, t.sideKingHint, t.sideKingVerb],
+                  ["attackers", t.raiders, t.sideRaidersHint, t.sideRaidersVerb],
+                ] as [Side, string, string, string][]
+              ).map(([s, label, hint, verb]) => (
                 <button
                   key={s}
-                  className={`btn py-3 text-base ${chosenSide === s ? "btn-primary" : ""}`}
+                  className={`btn py-4 text-base ${chosenSide === s ? "btn-primary" : ""}`}
                   onClick={() => {
                     setChosenSide(s);
                     setStep("difficulty");
                   }}
                 >
-                  {label}
-                  {/* Inherit the button's ink so the hint reads on gold too. */}
-                  <span className="block text-xs font-normal opacity-70">{hint}</span>
+                  <span className="flex items-baseline justify-center gap-2">
+                    {label}
+                    <span className="side-verb">{verb}</span>
+                  </span>
+                  <span className="block text-sm font-normal opacity-70 mt-0.5">{hint}</span>
                 </button>
               ))}
             </div>
             <button
-              className="text-xs text-parchment-dim underline"
+              className="text-sm text-parchment-dim underline"
               onClick={() => setStep("mode")}
             >
               {t.back}
@@ -3364,7 +3373,7 @@ function ModeOverlay({
           </>
         ) : step === "difficulty" ? (
           <>
-            <p className="text-sm text-parchment-dim">{t.chooseDifficulty}</p>
+            <p className="text-lg font-semibold text-parchment">{t.chooseDifficulty}</p>
             <div className="flex flex-col gap-3">
               {(
                 [
@@ -3388,7 +3397,7 @@ function ModeOverlay({
               ))}
             </div>
             <button
-              className="text-xs text-parchment-dim underline"
+              className="text-sm text-parchment-dim underline"
               onClick={() => setStep("side")}
             >
               {t.back}
@@ -3396,10 +3405,25 @@ function ModeOverlay({
           </>
         ) : (
           <>
-            <p className="text-sm text-parchment-dim">{t.chooseGame}</p>
+            {/* "Show me how" is the primary CTA — new players see it first. */}
+            <button
+              type="button"
+              onClick={onShowDemo}
+              className="btn btn-primary flex w-full items-center justify-center gap-2 py-4 text-lg font-semibold"
+            >
+              <span aria-hidden className="text-xl leading-none opacity-80">
+                ⓘ
+              </span>
+              {t.demoCta}
+            </button>
+            <div className="relative flex items-center gap-3">
+              <span className="h-px flex-1 bg-parchment/15" />
+              <span className="text-sm text-parchment-dim">{t.chooseGame}</span>
+              <span className="h-px flex-1 bg-parchment/15" />
+            </div>
             <div className="flex flex-col gap-3">
               <button
-                className="btn btn-primary py-3 text-base"
+                className="btn py-3 text-base"
                 onClick={() => setStep("side")}
               >
                 {t.playVsAi}
@@ -3409,19 +3433,9 @@ function ModeOverlay({
                 onClick={() => onChoose("hotseat")}
               >
                 {t.otbOverlay}
-                <span className="block text-xs font-normal text-parchment-dim">{t.withFriend}</span>
+                <span className="block text-sm font-normal text-parchment-dim">{t.withFriend}</span>
               </button>
             </div>
-            <button
-              type="button"
-              onClick={onShowDemo}
-              className="btn flex w-full items-center justify-center gap-2 py-3 text-base font-semibold text-gold"
-            >
-              <span aria-hidden className="text-lg leading-none">
-                ⓘ
-              </span>
-              {t.demoCta}
-            </button>
           </>
         )}
       </div>

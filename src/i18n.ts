@@ -412,7 +412,9 @@ export interface Translations {
 
   // Side picker (opening overlay)
   chooseSide: string;
+  sideKingVerb: string;
   sideKingHint: string;
+  sideRaidersVerb: string;
   sideRaidersHint: string;
 
   // Learn hub ("Show me how")
@@ -806,8 +808,10 @@ const en: Translations = {
     "Export is off while you analyse a pasted position \u2014 a game file records moves from the opening, which this position has none of.",
 
   chooseSide: "Which side will you play?",
-  sideKingHint: "The king and four warriors · reach a corner · the raiders move first",
-  sideRaidersHint: "Eight raiders · capture the king · you move first",
+  sideKingVerb: "ESCAPE",
+  sideKingHint: "King + 4 warriors — guide the king to a corner",
+  sideRaidersVerb: "CAPTURE",
+  sideRaidersHint: "8 raiders — surround and capture the king",
 
   learnTitle: "Learn Brandubh",
   learnObjectives: "The goal",
@@ -1262,9 +1266,10 @@ const es: Translations = {
     "La exportaci\u00f3n est\u00e1 desactivada mientras analizas una posici\u00f3n pegada: un archivo de partida guarda jugadas desde la apertura, y esta posici\u00f3n no tiene ninguna.",
 
   chooseSide: "¿Con qué bando jugarás?",
-  sideKingHint:
-    "El rey y cuatro guerreros · alcanza una esquina · los asaltantes mueven primero",
-  sideRaidersHint: "Ocho asaltantes · captura al rey · mueves primero",
+  sideKingVerb: "ESCAPAR",
+  sideKingHint: "Rey + 4 guerreros — lleva al rey hasta una esquina",
+  sideRaidersVerb: "CAPTURAR",
+  sideRaidersHint: "8 asaltantes — rodea y captura al rey",
 
   learnTitle: "Aprende Brandubh",
   learnObjectives: "El objetivo",
@@ -1736,9 +1741,10 @@ const ga: Translations = {
     "T\u00e1 an easp\u00f3rt\u00e1il m\u00fachta agus t\u00fa ag anail\u00edsiú su\u00edomh greamaithe \u2014 taifead\u00e1nn comhad cluiche bearta \u00f3n oscailt, agus n\u00edl aon cheann acu sin ag an su\u00edomh seo.",
 
   chooseSide: "C\u00e9n taobh a imreoidh t\u00fa?",
-  sideKingHint:
-    "An r\u00ed agus ceathrar laoch \u00b7 sroich c\u00fainne \u00b7 bogann na foghlaithe ar dt\u00fas",
-  sideRaidersHint: "Ochtar foghlaithe \u00b7 gabh an r\u00ed \u00b7 bogann t\u00fa ar dt\u00fas",
+  sideKingVerb: "ÉALAIGH",
+  sideKingHint: "An rí + 4 laoch — treoraigh an rí go cúinne",
+  sideRaidersVerb: "GABH",
+  sideRaidersHint: "8 foghlaithe — iadh timpeall ar an rí agus gabh é",
 
   // \u2500\u2500 MACHINE DRAFT \u2014 pending human review \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   // Everything below (like the rest of this ga table) is an unreviewed draft;
