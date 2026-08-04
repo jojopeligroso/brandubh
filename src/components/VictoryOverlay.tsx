@@ -19,7 +19,7 @@ export default function VictoryOverlay({
   emblems,
   primaryLabel,
   onPrimary,
-  onAnalyse,
+  onDismiss,
   onReview,
 }: {
   t: Translations;
@@ -29,17 +29,16 @@ export default function VictoryOverlay({
   emblems: Emblems;
   primaryLabel: string;
   onPrimary: () => void;
-  /** Jump straight into analysis of the finished game — lichess's second row. */
-  onAnalyse: (() => void) | null;
+  onDismiss: () => void;
   onReview: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onReview();
+      if (e.key === "Escape") onDismiss();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onReview]);
+  }, [onDismiss]);
 
   const title =
     winner === "attackers" ? t.victoryRaiders : winner === "defenders" ? t.victoryKing : t.victoryDraw;
@@ -49,15 +48,25 @@ export default function VictoryOverlay({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm"
-      onClick={onReview}
+      onClick={onDismiss}
     >
       <div
-        className={`card victory-card mx-4 w-full max-w-sm space-y-5 p-8 text-center victory-${winner}`}
+        className={`card victory-card relative mx-4 w-full max-w-sm space-y-5 p-8 text-center victory-${winner}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="victory-title"
       >
+        <button
+          className="absolute right-3 top-3 text-parchment-dim hover:text-parchment"
+          onClick={onDismiss}
+          aria-label={t.close}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="5" y1="5" x2="15" y2="15" />
+            <line x1="15" y1="5" x2="5" y2="15" />
+          </svg>
+        </button>
         {winner !== "draw" && (
           <div className="flex justify-center">
             <div className="victory-emblem">
@@ -79,17 +88,10 @@ export default function VictoryOverlay({
         <p className="font-mono text-xs tabular-nums text-parchment-dim">
           {moveCount} {t.movesWord}
         </p>
-        {/* Lichess's game-over card: a stack of full-width labelled rows —
-            rematch first, analysis second, review to dismiss. */}
         <div className="victory-actions">
           <button className="victory-action victory-action-primary" onClick={onPrimary}>
             {primaryLabel}
           </button>
-          {onAnalyse && (
-            <button className="victory-action" onClick={onAnalyse}>
-              {t.analysisMode}
-            </button>
-          )}
           <button className="victory-action" onClick={onReview}>
             {t.victoryReview}
           </button>
