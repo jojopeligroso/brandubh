@@ -105,6 +105,7 @@ import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
 import {
   applyPieceColors,
   applyTheme,
+  DEFAULT_PIECE_COLORS,
   loadPieceColors,
   loadTheme,
   THEMES,
@@ -141,6 +142,7 @@ import {
   type DefenderEmblemId,
   defenderEmblemById,
   loadDefenderEmblem,
+  VISIBLE_DEFENDER_EMBLEMS,
 } from "./defenderEmblems";
 import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
 import { BOARD_FLIP_H_KEY, BOARD_FLIP_V_KEY } from "./orientation";
@@ -3116,32 +3118,6 @@ function SettingsModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [page, onClose]);
 
-  // The colour a piece has under the current theme, with any custom override
-  // stripped — this seeds the picker when a side is still "follow theme". Read
-  // straight from the applied CSS so it always tracks index.css, then restore
-  // the live overrides so the board itself isn't disturbed.
-  const [themeStones, setThemeStones] = useState<Record<PieceKey, string>>({
-    atk: "#888888",
-    def: "#888888",
-    king: "#888888",
-  });
-  useEffect(() => {
-    const root = document.documentElement;
-    const keys: PieceKey[] = ["atk", "def", "king"];
-    const saved = keys.map((k) => [k, root.style.getPropertyValue(`--${k}`)] as const);
-    keys.forEach((k) => root.style.removeProperty(`--${k}`));
-    const cs = getComputedStyle(root);
-    const next = {} as Record<PieceKey, string>;
-    keys.forEach((k) => {
-      const v = cs.getPropertyValue(`--${k}`).trim();
-      next[k] = /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#888888";
-    });
-    saved.forEach(([k, v]) => {
-      if (v) root.style.setProperty(`--${k}`, v);
-    });
-    setThemeStones(next);
-  }, [theme]);
-
   const stoneRows: { key: PieceKey; label: string }[] = [
     { key: "atk", label: t.raiders },
     { key: "def", label: t.defenders },
@@ -3226,7 +3202,10 @@ function SettingsModal({
                 "pieces",
                 <span className="row-chips">
                   {stoneRows.map(({ key }) => (
-                    <i key={key} style={{ background: pieceColors[key] ?? themeStones[key] }} />
+                    <i
+                      key={key}
+                      style={{ background: pieceColors[key] ?? DEFAULT_PIECE_COLORS[key] }}
+                    />
                   ))}
                 </span>,
               )}
@@ -3311,7 +3290,7 @@ function SettingsModal({
             <ul className="settings-list">
               {stoneRows.map(({ key, label }) => {
                 const custom = pieceColors[key];
-                const value = custom ?? themeStones[key];
+                const value = custom ?? DEFAULT_PIECE_COLORS[key];
                 return (
                   <li key={key} className="settings-row">
                     <span className="row-name">{label}</span>
@@ -3322,7 +3301,7 @@ function SettingsModal({
                         onClick={() => onPieceColor(key, null)}
                         disabled={!custom}
                       >
-                        {t.themeDefault}
+                        {t.pieceColourDefault}
                       </button>
                       <label className="color-swatch" style={{ background: value }}>
                         <input
@@ -3371,7 +3350,7 @@ function SettingsModal({
 
           {page === "def" && (
             <ul className="settings-list">
-              {DEFENDER_EMBLEMS.map((e) => (
+              {VISIBLE_DEFENDER_EMBLEMS.map((e) => (
                 <PickerRow
                   key={e.id}
                   name={e.name}
@@ -3512,7 +3491,8 @@ function EmblemGlyph({
   );
 }
 
-// The current theme's four chips — lichobile's board_thumbnail equivalent.
+// A theme's two board tones, light then dark — lichobile's board_thumbnail
+// equivalent. Piece colours are not themed, so they are not shown here.
 function ThemeChips({ chips }: { chips: readonly string[] }) {
   return (
     <span className="row-chips">

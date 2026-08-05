@@ -19,25 +19,31 @@ export type ThemeId =
 export interface ThemeMeta {
   id: ThemeId;
   name: string;
-  /** Four representative colours shown as a swatch in the picker. */
-  chips: [string, string, string, string];
+  /**
+   * The two board square tones, light first — the only thing a theme decides
+   * about the board that a picker swatch can honestly show. Piece colours are
+   * deliberately NOT part of a theme (see DEFAULT_PIECE_COLORS below), so they
+   * never appear here. Each pair mirrors `--board-c2` and the tone `--cell-dark`
+   * composites to over it in index.css; keep them in step when a theme changes.
+   */
+  chips: [string, string];
 }
 
 // Softer, earthier themes lead; the more saturated ones follow.
 export const THEMES: ThemeMeta[] = [
-  { id: "everforest", name: "Everforest", chips: ["#3d484d", "#e8e4dc", "#a7c080", "#1a1c1e"] },
-  { id: "carved-wood", name: "Carved Wood", chips: ["#a9793f", "#e0a83a", "#e6b849", "#b23a48"] },
-  { id: "rose-pine", name: "Rosé Pine", chips: ["#232135", "#f6c177", "#c4a7e7", "#eb6f92"] },
-  { id: "kanagawa", name: "Kanagawa", chips: ["#2a2a37", "#e6c384", "#98bb6c", "#c34043"] },
-  { id: "catppuccin", name: "Catppuccin", chips: ["#2a2b3d", "#f9e2af", "#cba6f7", "#f38ba8"] },
-  { id: "nord", name: "Nord", chips: ["#3b4252", "#88c0d0", "#a3be8c", "#bf616a"] },
-  { id: "tokyo-night", name: "Tokyo Night", chips: ["#22273c", "#7aa2f7", "#bb9af7", "#f7768e"] },
-  { id: "gruvbox", name: "Gruvbox", chips: ["#3c3836", "#fabd2f", "#b8bb26", "#fb4934"] },
+  { id: "everforest", name: "Everforest", chips: ["#475258", "#3e484d"] },
+  { id: "carved-wood", name: "Carved Wood", chips: ["#b6864e", "#a77a46"] },
+  { id: "rose-pine", name: "Rosé Pine", chips: ["#232135", "#2c2a3f"] },
+  { id: "kanagawa", name: "Kanagawa", chips: ["#2a2a37", "#33333e"] },
+  { id: "catppuccin", name: "Catppuccin", chips: ["#2a2b3d", "#333247"] },
+  { id: "nord", name: "Nord", chips: ["#434c5e", "#4a5365"] },
+  { id: "tokyo-night", name: "Tokyo Night", chips: ["#22273c", "#272e46"] },
+  { id: "gruvbox", name: "Gruvbox", chips: ["#504945", "#453f3b"] },
   // Classic chess-board palettes (light boards, à la Lichess).
-  { id: "lichess-brown", name: "Lichess Brown", chips: ["#b58863", "#f0d9b5", "#e0a83a", "#c34043"] },
-  { id: "lichess-blue", name: "Lichess Blue", chips: ["#8ca2ad", "#dee3e6", "#e6c384", "#bf616a"] },
-  { id: "lichess-green", name: "Lichess Green", chips: ["#779952", "#edeed1", "#d9a441", "#c34043"] },
-  { id: "lichess-purple", name: "Lichess Purple", chips: ["#9a6bbd", "#e0d3ec", "#e6c384", "#c34043"] },
+  { id: "lichess-brown", name: "Lichess Brown", chips: ["#f0d9b5", "#b58863"] },
+  { id: "lichess-blue", name: "Lichess Blue", chips: ["#dee3e6", "#8ca2ad"] },
+  { id: "lichess-green", name: "Lichess Green", chips: ["#edeed1", "#779952"] },
+  { id: "lichess-purple", name: "Lichess Purple", chips: ["#e0d3ec", "#9a6bbd"] },
 ];
 
 /** Ultimate fallback if a random default cannot be chosen. */
@@ -67,12 +73,22 @@ export function loadTheme(): ThemeId {
 }
 
 // ── Custom piece colours ─────────────────────────────────────────────────────
-// Optional per-side overrides for the stone colours. A `null` means "follow the
-// current theme"; a hex value overrides it. The pieces read `--atk` / `--def` /
-// `--king` (and matching `-ink` for the emblem on top), which each theme sets in
-// index.css — an inline value on the document root wins over the theme.
+// Piece colours are decoupled from the board theme: black raiders, white
+// defenders, a gold king, on every theme. A `null` here means "use that
+// default"; a hex value overrides it. The pieces read `--atk` / `--def` /
+// `--king` (and matching `-ink` for the emblem on top), which index.css sets
+// once on `:root` — no `[data-theme]` block may set them, or switching board
+// colours would silently move the pieces too. An inline value on the document
+// root wins over both.
 
 export type PieceKey = "atk" | "def" | "king";
+
+/** The stone colours every theme starts from; mirrors `:root` in index.css. */
+export const DEFAULT_PIECE_COLORS: Record<PieceKey, string> = {
+  atk: "#1a1c1e",
+  def: "#f0ece4",
+  king: "#e8b13a",
+};
 
 export interface PieceColors {
   atk: string | null;

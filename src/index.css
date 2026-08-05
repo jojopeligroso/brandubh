@@ -35,7 +35,14 @@
   font-display: swap;
 }
 
-/* Board / piece variables — base (Tokyo Night). Themes override the same names. */
+/* Board variables — base (Tokyo Night). Themes override the same names.
+
+   The piece variables at the end of this block are the exception: they are
+   deliberately NOT themed. A board theme repaints the board only; the stones
+   stay black / white / gold everywhere, and a player who wants other stones
+   sets them in Settings → Piece colours (an inline value on the root element,
+   see applyPieceColors in src/theme.ts). Do not add `--atk` / `--def` /
+   `--king` to a `[data-theme]` block. */
 :root {
   --on-accent: #12131c;
 
@@ -49,12 +56,13 @@
   --cell-dark: rgba(130, 170, 255, 0.05);
   --motif-ink: #0d0e18;
 
-  --atk: #f7768e;
-  --atk-ink: #3a1420;
-  --def: #a9b1d6;
-  --def-ink: #24283b;
-  --king: #bb9af7;
-  --king-ink: #241a3d;
+  /* Unthemed piece defaults — keep in step with DEFAULT_PIECE_COLORS. */
+  --atk: #1a1c1e;
+  --atk-ink: #e8e4dc;
+  --def: #f0ece4;
+  --def-ink: #24272b;
+  --king: #e8b13a;
+  --king-ink: #3a2600;
 }
 
 /* ── Themes (Omarchy-inspired) ─────────────────────────────────────────────── */
@@ -81,13 +89,6 @@
   --board-c3: #222232;
   --cell-dark: rgba(203, 166, 247, 0.055);
   --motif-ink: #11111b;
-
-  --atk: #f38ba8;
-  --atk-ink: #3a1622;
-  --def: #bac2de;
-  --def-ink: #292a3a;
-  --king: #cba6f7;
-  --king-ink: #2a1f45;
 }
 
 /* Gruvbox — warm retro amber, red and green. */
@@ -112,13 +113,6 @@
   --board-c3: #3c3836;
   --cell-dark: rgba(0, 0, 0, 0.14);
   --motif-ink: #1d2021;
-
-  --atk: #fb4934;
-  --atk-ink: #2a0d07;
-  --def: #ebdbb2;
-  --def-ink: #3c3836;
-  --king: #fabd2f;
-  --king-ink: #3a2600;
 }
 
 /* Nord — cool arctic slate and frost. */
@@ -143,13 +137,6 @@
   --board-c3: #3b4252;
   --cell-dark: rgba(216, 222, 233, 0.05);
   --motif-ink: #232833;
-
-  --atk: #bf616a;
-  --atk-ink: #f3dcde;
-  --def: #e5e9f0;
-  --def-ink: #3b4252;
-  --king: #ebcb8b;
-  --king-ink: #3a2e12;
 }
 
 /* Everforest — muted forest greens and warm cream. */
@@ -174,13 +161,6 @@
   --board-c3: #3d484d;
   --cell-dark: rgba(0, 0, 0, 0.12);
   --motif-ink: #191f21;
-
-  --atk: #1a1c1e;
-  --atk-ink: #d3c6aa;
-  --def: #e8e4dc;
-  --def-ink: #2d353b;
-  --king: #f0ece4;
-  --king-ink: #2d353b;
 }
 
 /* Carved Wood — the original warm oak-and-parchment board. */
@@ -205,13 +185,6 @@
   --board-c3: #a9793f;
   --cell-dark: rgba(90, 58, 26, 0.16);
   --motif-ink: #3c260e;
-
-  --atk: #33303a;
-  --atk-ink: #d7b3b7;
-  --def: #e6d5b3;
-  --def-ink: #7a5a2c;
-  --king: #e6b849;
-  --king-ink: #6b4611;
 }
 
 /* Rosé Pine — soft, muted dusk of rose, gold and iris. */
@@ -236,13 +209,6 @@
   --board-c3: #1c1a2b;
   --cell-dark: rgba(224, 222, 244, 0.05);
   --motif-ink: #12111c;
-
-  --atk: #eb6f92;
-  --atk-ink: #f4dbe4;
-  --def: #e0def4;
-  --def-ink: #26233a;
-  --king: #c4a7e7;
-  --king-ink: #2a1f45;
 }
 
 /* Kanagawa — soft, warm paper-and-ink with autumn accents. */
@@ -267,13 +233,6 @@
   --board-c3: #223249;
   --cell-dark: rgba(220, 215, 186, 0.05);
   --motif-ink: #16161d;
-
-  --atk: #c34043;
-  --atk-ink: #f3dcda;
-  --def: #dcd7ba;
-  --def-ink: #2a2a37;
-  --king: #e6c384;
-  --king-ink: #3a2a0c;
 }
 
 /* Lichess Brown — the classic cream-and-brown chessboard on a dark frame. */
@@ -298,13 +257,6 @@
   --board-c3: #ecd3ac;
   --cell-dark: #b58863;
   --motif-ink: #6b4a2e;
-
-  --atk: #3a3733;
-  --atk-ink: #e8e2d3;
-  --def: #f7f3ea;
-  --def-ink: #6b4a2e;
-  --king: #e0a83a;
-  --king-ink: #5a3d0e;
 }
 
 /* Lichess Blue — cool blue-grey board. */
@@ -329,13 +281,6 @@
   --board-c3: #d6dce0;
   --cell-dark: #8ca2ad;
   --motif-ink: #4a5a63;
-
-  --atk: #33383d;
-  --atk-ink: #e2e8ec;
-  --def: #f4f7f9;
-  --def-ink: #4a5a63;
-  --king: #e6c384;
-  --king-ink: #3a2a0c;
 }
 
 /* Lichess Green — pale board with olive-green squares. */
@@ -360,13 +305,6 @@
   --board-c3: #e6e8c6;
   --cell-dark: #779952;
   --motif-ink: #4a5f2f;
-
-  --atk: #34382f;
-  --atk-ink: #e8ecd8;
-  --def: #f5f6ea;
-  --def-ink: #4a5f2f;
-  --king: #d9a441;
-  --king-ink: #3a2a0c;
 }
 
 /* Lichess Purple — soft lilac board. */
@@ -391,13 +329,6 @@
   --board-c3: #d8c8e6;
   --cell-dark: #9a6bbd;
   --motif-ink: #5f3f77;
-
-  --atk: #363040;
-  --atk-ink: #ece2f4;
-  --def: #f4eff8;
-  --def-ink: #5f3f77;
-  --king: #e6c384;
-  --king-ink: #3a2a0c;
 }
 
 /* ── Base layout ───────────────────────────────────────────────────────────── */
@@ -1603,9 +1534,10 @@ button.settings-row:hover {
   border-radius: 3px;
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.4);
 }
+/* Two board tones, so each half is wide enough to read as a square. */
 .row-chips i {
   display: block;
-  width: 15px;
+  width: 22px;
   height: 26px;
 }
 /* Sub-pages that aren't lists (zen / clock / rules) get plain page padding. */

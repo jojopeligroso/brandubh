@@ -125,7 +125,8 @@ export interface Translations {
   colourTheme: string;
   pieceColours: string;
   defenders: string;
-  themeDefault: string;
+  /** Reset a piece colour back to the built-in default (not theme-derived). */
+  pieceColourDefault: string;
   design: string;
   done: string;
   close: string;
@@ -542,7 +543,7 @@ const en: Translations = {
   colourTheme: "Colour theme",
   pieceColours: "Piece colours",
   defenders: "Defenders",
-  themeDefault: "Theme default",
+  pieceColourDefault: "Default",
   design: "Design your board",
   done: "Done",
   close: "Close",
@@ -1012,7 +1013,7 @@ const es: Translations = {
   colourTheme: "Tema de color",
   pieceColours: "Colores de las piezas",
   defenders: "Defensores",
-  themeDefault: "Color del tema",
+  pieceColourDefault: "Predeterminado",
   design: "Diseña tu tablero",
   done: "Listo",
   close: "Cerrar",
@@ -1492,7 +1493,7 @@ const ga: Translations = {
   colourTheme: "Téama datha",
   pieceColours: "Dathanna na bhfear",
   defenders: "Cosantóirí",
-  themeDefault: "Dath an téama",
+  pieceColourDefault: "Réamhshocrú",
   design: "Dear do chlár",
   done: "Déanta",
   close: "Dún",
