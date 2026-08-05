@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board from "./components/Board";
+import AppDrawer from "./components/AppDrawer";
 import LearnModal, { type LearnView } from "./components/LearnModal";
 import VictoryOverlay from "./components/VictoryOverlay";
 import GameFilePanel from "./components/GameFilePanel";
@@ -503,6 +504,10 @@ export default function App() {
     difficulty: Difficulty;
   } | null>(null);
   const [showModeOverlay, setShowModeOverlay] = useState(true);
+  // True when the setup overlay was *reopened* (drawer → New game) over a live
+  // board, so it grows a way back out. The boot-time overlay has nothing behind
+  // it worth returning to and keeps its original no-exit shape.
+  const [modeOverlayCancelable, setModeOverlayCancelable] = useState(false);
   const [showTakeback, setShowTakeback] = useState(false);
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
   const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
@@ -512,6 +517,11 @@ export default function App() {
   const [showDesign, setShowDesign] = useState(false);
   // The lichess-style toolbar's action sheet (new game / resign / settings…).
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  // The hamburger's slide-out drawer (see AppDrawer) and the two destinations
+  // only it reaches: the standalone game-file modal and the about card.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showGameFile, setShowGameFile] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   const rules: RuleSet =
     variantId === "custom"
@@ -1689,6 +1699,22 @@ export default function App() {
   // fumble — so a mid-set reset goes through Settings. Between sets it stays.
   const showNewMatch = matchHasProgress && !midSet;
 
+  // The drawer head's one line of live state: mode (· strength) · variant —
+  // the lichess drawer-head idea (who you are, how the connection feels)
+  // translated to a game with no account: what you're set up to play.
+  const difficultyLabels: Record<Difficulty, string> = {
+    easy: t.easy,
+    medium: t.medium,
+    hard: t.hard,
+    ollamh: t.ollamh,
+  };
+  const drawerStatus = [
+    playMode === "hotseat"
+      ? t.otbOverlay
+      : `${t.playVsAi} · ${difficultyLabels[difficulty]}`,
+    t.variantNames[variantId] ?? rules.name,
+  ].join(" · ");
+
   // Clock placement, Lichess-style: the away side rides above the board, the
   // near side below it. Vs the computer the human sits on the bottom, whichever
   // side they took.
@@ -1762,12 +1788,10 @@ export default function App() {
     <div className="mx-auto flex min-h-full max-w-md flex-col px-4 pb-24 pt-3 sm:max-w-lg">
       <Header
         t={t}
-        lang={lang}
-        onLang={setLang}
         zenOn={zen.enabled}
         onZen={setZenEnabled}
-        onShowRules={() => setLearnView("menu")}
-        onShowDesign={() => setShowDesign(true)}
+        menuOpen={drawerOpen}
+        onMenu={() => setDrawerOpen(true)}
         compact={!showModeOverlay}
       />
 
@@ -1979,10 +2003,11 @@ export default function App() {
 
       {/* The settings panels can themselves be hidden in Zen, and so can the
           export/import panel below. Everything Zen can hide that is *configuration*
-          — Zen itself, the clock, the custom ruleset, the game file — is also
-          rendered in the settings modal, which the header menu always reaches, so
-          no Zen setting can ever lock you out of the control that would undo it.
-          (Zen itself now has a second way back out: the header toggle.)
+          stays reachable through the header's drawer regardless: Zen, the clock
+          and the custom ruleset via the settings modal, the game file via the
+          drawer's own Tools row. No Zen setting can ever lock you out of the
+          control that would undo it. (Zen itself has a second way back out: the
+          header toggle.)
 
           Analysis hides the stack too: analysis reads the game just played, and
           next-game configuration has no business in it — see settingsStackVisible. */}
@@ -2110,11 +2135,109 @@ export default function App() {
           resume={pendingResume}
           onResume={resumeSavedGame}
           onDiscardResume={discardSavedGame}
+          onCancel={
+            modeOverlayCancelable
+              ? () => {
+                  setShowModeOverlay(false);
+                  setModeOverlayCancelable(false);
+                }
+              : null
+          }
           onChoose={(m) => {
             changeMode(m);
             setShowModeOverlay(false);
+            setModeOverlayCancelable(false);
           }}
         />
+      )}
+
+      {drawerOpen && (
+        <AppDrawer
+          t={t}
+          lang={lang}
+          onLang={setLang}
+          status={drawerStatus}
+          onClose={() => setDrawerOpen(false)}
+          onNewGame={() => {
+            // Reopen the setup overlay rather than resetting on the spot: the
+            // full chooser (opponent → side → strength) is the "create a game"
+            // screen here, and — opened over a live board — it can be backed
+            // out of without losing anything.
+            setModeOverlayCancelable(true);
+            setShowModeOverlay(true);
+          }}
+          onObjectives={() => setLearnView("objectives")}
+          onRules={() => setLearnView("rules")}
+          onTutorials={() => setLearnView("tutorials")}
+          onGameFile={() => setShowGameFile(true)}
+          onSettings={() => setShowDesign(true)}
+          onAbout={() => setShowAbout(true)}
+        />
+      )}
+
+      {/* The game file, reached from the drawer's Tools section — configuration
+          moved out of the gear ⚙ modal, where import/export never quite
+          belonged. Same refusal as the in-page panel: a tree rooted on a
+          pasted position has no move list back to the opening to export. */}
+      {showGameFile && (
+        <div
+          className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => setShowGameFile(false)}
+        >
+          <div
+            className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="gamefile-modal"
+          >
+            <div className="flex justify-end">
+              <button className="btn" onClick={() => setShowGameFile(false)} aria-label={t.close}>
+                ✕
+              </button>
+            </div>
+            {pastedRoot ? (
+              <p className="mt-4 text-xs text-parchment-dim">{t.positionExportBlocked}</p>
+            ) : (
+              <GameFilePanel
+                t={t}
+                state={states[tip]}
+                rules={rules}
+                meta={exportMeta}
+                onImport={(g) => {
+                  // An import replaces the board, so the modal has no reason
+                  // to stay open.
+                  loadImportedGame(g);
+                  setShowGameFile(false);
+                }}
+                placement="modal"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {showAbout && (
+        <div
+          className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => setShowAbout(false)}
+        >
+          <div
+            className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="about-modal"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <h2 className="font-display text-2xl text-gold">{t.aboutTitle}</h2>
+              <button className="btn" onClick={() => setShowAbout(false)} aria-label={t.close}>
+                ✕
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-sm text-parchment-dim">
+              <p>{t.aboutBody1}</p>
+              <p>{t.aboutBody2}</p>
+              <p>{t.aboutBody3}</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {learnView !== null && (
@@ -2220,17 +2343,6 @@ export default function App() {
           customRules={variantId === "custom" ? customRules : null}
           onCustomRules={changeCustomRules}
           gameInProgress={tip >= 1 && !showModeOverlay}
-          gameFile={{
-            state: states[tip],
-            rules,
-            meta: exportMeta,
-            // An import replaces the board, so the modal has no reason to stay open.
-            onImport: (g) => {
-              loadImportedGame(g);
-              setShowDesign(false);
-            },
-            placement: "modal",
-          }}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -2240,52 +2352,26 @@ export default function App() {
 
 // ── Sub-components ──────────────────────────────────────────────────────────────
 // The header carries two controls and no more: Zen mode, which is the one thing
-// you reach for *while* playing, and a menu holding everything you reach for
-// between games — the language toggle, the rules and the settings modal. The
-// three of those used to sit in the header as a row of their own, which put a
-// language segment and a "How to play" button beside the board on every move.
+// you reach for *while* playing, and the hamburger opening the app drawer —
+// where everything you reach for between games now lives (language, learning,
+// game file, settings, about). The drawer itself is rendered by App, so the
+// header only reports the button; see AppDrawer for what is behind it.
 function Header({
   t,
-  lang,
-  onLang,
   zenOn,
   onZen,
-  onShowRules,
-  onShowDesign,
+  menuOpen,
+  onMenu,
   compact,
 }: {
   t: Translations;
-  lang: Lang;
-  onLang: (l: Lang) => void;
   zenOn: boolean;
   onZen: (v: boolean) => void;
-  onShowRules: () => void;
-  onShowDesign: () => void;
+  menuOpen: boolean;
+  onMenu: () => void;
   /** Shrink during gameplay so the board gets more vertical space. */
   compact: boolean;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  // Dismiss on a click outside the menu or on Escape — the two ways out anyone
-  // tries first. Bound only while it is open so the listeners cost nothing the
-  // rest of the time.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [menuOpen]);
-
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
@@ -2323,62 +2409,17 @@ function Header({
             <span className="switch-knob" />
           </span>
         </button>
-        <div className="relative" ref={menuRef}>
-          <button
-            className={`iconbtn${menuOpen ? " on" : ""}`}
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label={t.menu}
-            title={t.menu}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            data-testid="menu-toggle"
-          >
-            <MenuIcon />
-          </button>
-          {menuOpen && (
-            <div className="card menu-panel" data-testid="header-menu">
-              {/* Driven by VISIBLE_LANGS, so revealing a locale is a one-line
-                  change there rather than a hand-edit here. */}
-              <div className="menu-row">
-                <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">
-                  {t.language}
-                </span>
-                <div className="seg">
-                  {VISIBLE_LANGS.map((l) => (
-                    <button
-                      key={l.code}
-                      className={lang === l.code ? "on" : ""}
-                      onClick={() => onLang(l.code)}
-                      aria-pressed={lang === l.code}
-                      lang={l.code}
-                    >
-                      {l.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button
-                className="menu-item"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onShowRules();
-                }}
-              >
-                {t.howToPlay}
-              </button>
-              <button
-                className="menu-item"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onShowDesign();
-                }}
-                data-testid="gear"
-              >
-                {t.settings}
-              </button>
-            </div>
-          )}
-        </div>
+        <button
+          className={`iconbtn${menuOpen ? " on" : ""}`}
+          onClick={onMenu}
+          aria-label={t.menu}
+          title={t.menu}
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          data-testid="menu-toggle"
+        >
+          <MenuIcon />
+        </button>
       </div>
     </header>
   );
@@ -2974,7 +3015,6 @@ function SettingsModal({
   customRules,
   onCustomRules,
   gameInProgress,
-  gameFile,
   onClose,
 }: {
   t: Translations;
@@ -3000,7 +3040,6 @@ function SettingsModal({
   onCustomRules: (r: CustomRuleSet) => void;
   /** True while a game is live — clock/rules sections are hidden. */
   gameInProgress: boolean;
-  gameFile: Omit<React.ComponentProps<typeof GameFilePanel>, "t">;
   onClose: () => void;
 }) {
   // The colour a piece has under the current theme, with any custom override
@@ -3073,11 +3112,6 @@ function SettingsModal({
             )}
           </>
         )}
-
-        {/* Export/import: a Zen extra too, so it needs the same guarantee. */}
-        <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-gamefile">
-          <GameFilePanel t={t} {...gameFile} />
-        </section>
 
         <section className="mt-5 border-t border-parchment/10 pt-4">
           <span className="text-sm font-semibold text-parchment-dim">{t.colourTheme}</span>
@@ -3278,6 +3312,7 @@ function ModeOverlay({
   resume,
   onResume,
   onDiscardResume,
+  onCancel,
   onChoose,
 }: {
   t: Translations;
@@ -3292,6 +3327,12 @@ function ModeOverlay({
   resume: RestoredGame | null;
   onResume: () => void;
   onDiscardResume: () => void;
+  /**
+   * Non-null when the overlay was reopened over a live board (drawer → New
+   * game): a way back out that keeps the game untouched. Null at boot, where
+   * there is nothing behind the overlay to return to.
+   */
+  onCancel: (() => void) | null;
   onChoose: (m: PlayMode) => void;
 }) {
   // Three-step overlay: pick opponent (AI or a friend), then — for the AI —
@@ -3302,9 +3343,30 @@ function ModeOverlay({
   // Held here until a difficulty is picked, since that's the step that starts
   // the game (and starting it resets the board, so it must happen once).
   const [chosenSide, setChosenSide] = useState<Side>(side);
+
+  // Escape backs out only when there is somewhere to back out to.
+  useEffect(() => {
+    if (!onCancel) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
-      <div className="mode-card card w-full max-w-sm space-y-5 rounded-b-none p-6 text-center sm:mx-4 sm:rounded-2xl">
+      <div className="mode-card card relative w-full max-w-sm space-y-5 rounded-b-none p-6 text-center sm:mx-4 sm:rounded-2xl">
+        {onCancel && (
+          <button
+            className="btn absolute right-3 top-3"
+            onClick={onCancel}
+            aria-label={t.close}
+            data-testid="mode-overlay-close"
+          >
+            ✕
+          </button>
+        )}
         {/* The language choice lives on the landing card itself: the first
             words a new player reads should already be in their language, not
             behind the overlay in the header. */}

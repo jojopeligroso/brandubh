@@ -69,6 +69,16 @@ export interface Translations {
   /** Short form for the header switch, where "Zen mode" will not fit. */
   zenShort: string;
 
+  // App drawer (the hamburger's slide-out navigation)
+  drawerPlay: string;
+  drawerLearn: string;
+  drawerTools: string;
+  about: string;
+  aboutTitle: string;
+  aboutBody1: string;
+  aboutBody2: string;
+  aboutBody3: string;
+
   // Side labels
   raiders: string;
   kingsSide: string;
@@ -470,6 +480,17 @@ const en: Translations = {
   menu: "Menu",
   language: "Language",
   zenShort: "Zen",
+  drawerPlay: "Play",
+  drawerLearn: "Learn",
+  drawerTools: "Tools",
+  about: "About",
+  aboutTitle: "About Brandubh",
+  aboutBody1:
+    "Brandubh (“black raven”) is the Irish member of the tafl family: an uneven fight on a 7×7 board. The king's side breaks for the corners while the raiders, twice as many, try to close every road.",
+  aboutBody2:
+    "No complete medieval rulebook survives, so every published ruleset is a reconstruction. The variants here follow the common modern readings; where sources genuinely disagree, the custom ruleset lets you pick a side of the argument.",
+  aboutBody3:
+    "Everything is free and runs in your browser — games, settings and progress stay on this device. Nothing is sent anywhere.",
 
   raiders: "Raiders",
   kingsSide: "King\u2019s side",
@@ -918,6 +939,17 @@ const es: Translations = {
   menu: "Men\u00fa",
   language: "Idioma",
   zenShort: "Zen",
+  drawerPlay: "Jugar",
+  drawerLearn: "Aprender",
+  drawerTools: "Herramientas",
+  about: "Acerca de",
+  aboutTitle: "Acerca de Brandubh",
+  aboutBody1:
+    "Brandubh (\u201ccuervo negro\u201d) es el miembro irland\u00e9s de la familia tafl: una lucha desigual en un tablero de 7\u00d77. El bando del rey corre hacia las esquinas mientras los asaltantes, el doble en n\u00famero, intentan cerrar todos los caminos.",
+  aboutBody2:
+    "No sobrevive ning\u00fan reglamento medieval completo, as\u00ed que todo reglamento publicado es una reconstrucci\u00f3n. Las variantes de aqu\u00ed siguen las lecturas modernas m\u00e1s comunes; donde las fuentes discrepan de verdad, el reglamento personalizado te deja elegir un lado de la discusi\u00f3n.",
+  aboutBody3:
+    "Todo es gratuito y funciona en tu navegador: partidas, ajustes y progreso se quedan en este dispositivo. No se env\u00eda nada a ninguna parte.",
 
   raiders: "Asaltantes",
   kingsSide: "Bando del Rey",
@@ -1380,6 +1412,18 @@ const ga: Translations = {
   language: "Teanga",
   // "Zen" is a name here, not translated interface — same in all three tables.
   zenShort: "Zen",
+  // DRAFT (app drawer) — unreviewed, like the rest of this table.
+  drawerPlay: "Imir",
+  drawerLearn: "Foghlaim",
+  drawerTools: "Uirlisí",
+  about: "Maidir leis",
+  aboutTitle: "Maidir le Brandubh",
+  aboutBody1:
+    "Is é Brandubh (“fiach dubh”) ball Éireannach an teaghlaigh tafl: troid éagothrom ar chlár 7×7. Briseann taobh an rí i dtreo na gcúinní agus déanann na creachadóirí, dhá oiread acu, iarracht gach bóthar a dhúnadh.",
+  aboutBody2:
+    "Ní mhaireann aon leabhar rialacha meánaoiseach iomlán, mar sin is atógáil gach riail fhoilsithe. Leanann na leaganacha anseo na léamha nua-aimseartha is coitianta; nuair a easaontaíonn na foinsí dáiríre, ligeann na rialacha saincheaptha duit taobh a roghnú.",
+  aboutBody3:
+    "Tá gach rud saor in aisce agus ritheann sé i do bhrabhsálaí — fanann cluichí, socruithe agus dul chun cinn ar an ngléas seo. Ní sheoltar aon rud áit ar bith.",
 
   raiders: "Foghlaithe",
   kingsSide: "Taobh an R\u00ed",

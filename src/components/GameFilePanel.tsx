@@ -169,6 +169,11 @@ export default function GameFilePanel({
     <details
       className={placement === "modal" ? "" : "card mt-4 p-4"}
       data-testid={placement === "modal" ? "gamefile-panel-modal" : "gamefile-panel"}
+      // In the drawer's modal the panel *is* the destination, so it arrives
+      // unfolded; in the page it stays a collapsed card among the others.
+      // (Initial state only: React leaves the attribute alone on re-render,
+      // so the summary toggle still works.)
+      open={placement === "modal"}
     >
       <summary className="cursor-pointer text-sm font-semibold text-parchment-dim">
         {t.gameFileTitle}
