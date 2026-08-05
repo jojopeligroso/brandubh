@@ -36,6 +36,17 @@
  *     done; wait
  *     npx tsx scripts/genpuzzles.ts --merge
  *
+ *   Adding a position to data/puzzle-handadds.txt and regenerating:
+ *     npx tsx scripts/genpuzzles.ts --shard --from 0 --to 0
+ *     npx tsx scripts/genpuzzles.ts --merge
+ *
+ *   The empty range is deliberate: hand-adds are mined by whichever shard holds
+ *   game 0, once, recorded as `handAdds: true`, so re-running that shard's real
+ *   range never opens the file again, and `--merge` never mines at all. A fresh
+ *   0-0 shard reads the file and mines no games. Every one of those three
+ *   commands now says what it is skipping (`scripts/handadds.ts`), because the
+ *   two wrong ones used to say nothing whatsoever.
+ *
  * Shards are checked in. They are the mined evidence and the data module is the
  * shipped subset of it, so a refit in 8f is reproducible from the repo by anyone
  * who cannot spend an afternoon re-mining.
@@ -150,6 +161,13 @@ import {
 import { BOARD_SIZE, type GameState, type Move, type Side, type Square } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 import { CORNERS, isCorner } from "../src/game/engine";
+import {
+  handAddProblemReport,
+  mergeHandAddWarning,
+  readHandAdds,
+  shardHandAddWarning,
+  type HandAddFile,
+} from "./handadds";
 
 const rules = VARIANTS.wtf; // the shipping default; the bank is fingerprint-gated to it
 
@@ -739,29 +757,35 @@ function gameCandidates(g: number): Candidate[] {
  *  through every filter above exactly as a mined position does.
  *
  *  A hand-add is written as the position *before* the lead-in plus the lead-in
- *  move, `<position> <frfctrtc>`, because that is what a puzzle is. */
-function* handAddCandidates(): Generator<Candidate> {
-  if (!existsSync(HANDADDS)) return;
-  for (const raw of readFileSync(HANDADDS, "utf8").split("\n")) {
-    const text = raw.trim();
-    if (!text || text.startsWith("#")) continue;
-    const at = text.lastIndexOf(" ");
-    const parsed = parsePosition(text.slice(0, at));
-    if (!parsed.ok) {
-      console.warn(`\nhand-add skipped (${parsed.error.code}): ${text}`);
-      continue;
-    }
-    const leadIn = { from: { row: 0, col: 0 }, to: { row: 0, col: 0 } };
-    const code = text.slice(at + 1);
-    leadIn.from = { row: Number(code[0]), col: Number(code[1]) };
-    leadIn.to = { row: Number(code[2]), col: Number(code[3]) };
-    const legal = allMoves(parsed.state.board, parsed.state.turn, rules).find((m) => sameMove(m, leadIn));
-    if (!legal) {
-      console.warn(`\nhand-add skipped (illegal lead-in): ${text}`);
-      continue;
-    }
-    yield { before: parsed.state, leadIn: legal, start: applyMove(parsed.state, legal, rules) };
-  }
+ *  move, `<position> <frfctrtc>`, because that is what a puzzle is.
+ *
+ *  The reading lives in `scripts/handadds.ts` so that the two commands which do
+ *  *not* mine can still tell the owner what they are skipping; see the header
+ *  there. A `HandAdd` is a `Candidate` with a line number and a key attached. */
+const readHandAddFile = (): HandAddFile => readHandAdds(HANDADDS, rules);
+
+/** Unreadable lines, said once and counted, rather than one stray `console.warn`
+ *  per line from inside a loop. Every mode that opens the file asks; a one-shot
+ *  run opens it twice (mining, then emitting) and the flag keeps the answer to
+ *  one telling, because a warning repeated is a warning discounted. */
+let handAddProblemsSaid = false;
+function reportHandAddProblems(file: HandAddFile): void {
+  if (handAddProblemsSaid) return;
+  const problems = handAddProblemReport(file);
+  if (!problems) return;
+  console.warn(`\n${problems}`);
+  handAddProblemsSaid = true;
+}
+
+/** Say what a shard that will not open the hand-adds file is skipping by not
+ *  opening it. Only the range holding game 0 owns them, so no other range is
+ *  entitled to an opinion; see the note on `Shard.handAdds`. */
+function reportSkippedHandAdds(seen: ReadonlySet<string>): void {
+  if (FROM !== 0) return;
+  const file = readHandAddFile();
+  reportHandAddProblems(file);
+  const stale = shardHandAddWarning(file, seen);
+  if (stale) console.warn(`\n${stale}`);
 }
 
 // ── Ledger ────────────────────────────────────────────────────────────────────
@@ -879,6 +903,20 @@ function writeShard(s: Shard): void {
   renameSync(tmp, path);
 }
 
+/**
+ * Every position key a shard has already decided about, the kept ones and the
+ * thrown-away ones alike.
+ *
+ * This is the set a hand-add has to be measured against, not `found`: a
+ * hand-add that went through every filter and was rejected has been *looked
+ * at*, and a report that told its owner to mine it again would be crying wolf
+ * about the one outcome the pipeline is entitled to reach.
+ *
+ * `?? found` only for a shard written before `seen` was recorded; it under-reads
+ * by the rejected keys, which costs time on one resume and nothing after.
+ */
+const shardSeen = (s: Shard): Set<string> => new Set(s.seen ?? s.found.map((f) => f.key));
+
 /** Every shard on disk, in game order — which is the order the merge needs, and
  *  the only reason the range is in the filename. */
 function readShards(): Shard[] {
@@ -927,6 +965,12 @@ function mine(): Shard {
     shard.nextInGame ??= 0;
     if (shard.next >= shard.to && shard.handAdds) {
       console.log(`${shard.found.length} puzzles already mined in games ${FROM}-${TO}; nothing to do.`);
+      // "Nothing to do in this range" and "nothing to do" are different claims,
+      // and this return has only ever made the second one. The hand-adds flag is
+      // checked before the file is opened, so a position appended since this
+      // shard was mined is skipped here without the file being read at all,
+      // which is exactly the case in which the owner is waiting to hear about it.
+      reportSkippedHandAdds(shardSeen(shard));
       return shard;
     }
     console.log(
@@ -973,12 +1017,19 @@ function mine(): Shard {
   const enough = (): boolean => !MINE_ONLY && shard.found.length >= TARGET;
 
   if (FROM === 0 && !shard.handAdds) {
-    for (const c of handAddCandidates()) {
+    const file = readHandAddFile();
+    reportHandAddProblems(file);
+    if (file.entries.length) console.log(`hand-adds: assessing ${file.entries.length} before game 0`);
+    for (const c of file.entries) {
       if (enough()) break;
       take(c);
     }
     shard.handAdds = true;
     checkpoint();
+  } else if (FROM === 0) {
+    // Resuming a shard that already did the hand-add pass. It did it against
+    // whatever the file said then, which is not necessarily what it says now.
+    reportSkippedHandAdds(seen);
   }
 
   const progress = (g: number, i: number, of: number): void => {
@@ -1170,6 +1221,27 @@ function emit(shards: Shard[]): void {
         `\n   does not exist. That is a finding about the cuts, not a shrug — see BAND_CUTS.`,
     );
   }
+
+  // ── Hand-adds ───────────────────────────────────────────────────────────────
+  // Read here as well as in `mine()`, because `--merge` is the command a person
+  // types after appending a position to the file and it never calls `mine()`. A
+  // hand-add no shard has assessed is not in any number printed above and will
+  // not be in the module written below; without this the run reports yesterday's
+  // count, writes a byte-identical file, and looks exactly like a success.
+  const handAdds = readHandAddFile();
+  reportHandAddProblems(handAdds);
+  const minedKeys = new Set(shards.flatMap((s) => [...shardSeen(s)]));
+  if (handAdds.entries.length) {
+    const assessed = handAdds.entries.filter((e) => minedKeys.has(e.key)).length;
+    const inBank = handAdds.entries.filter((e) => seen.has(e.key)).length;
+    console.log(
+      `\nhand-adds: ${handAdds.entries.length} live in ${handAdds.path}` +
+        `: ${assessed} assessed, ${inBank} in this bank`,
+    );
+  }
+  const gap = mergeHandAddWarning(handAdds, minedKeys);
+  if (gap) console.log(`\n${gap}`);
+
   console.log(`\ntotal: ${((performance.now() - t0) / 1000 / 60).toFixed(1)} min`);
 
   if (DRY) {
