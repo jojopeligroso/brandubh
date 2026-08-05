@@ -1,22 +1,27 @@
-import { isFinished, type PuzzleState } from "../game/puzzle";
+import { isFinished, type Attempt } from "../game/attempt";
 import type { Side } from "../game/types";
 import type { Translations } from "../i18n";
 
 /**
- * The prompt and the two offers, for a mistake you have been put back into.
+ * The prompt and the offers, for an **Attempt** you have been put into.
  *
  * Deliberately small and deliberately loud: it replaces the engine's opinion on
  * screen while a guess is outstanding, so it has to carry the whole state of the
  * exercise — what you are being asked, what just happened, and what you may do
  * next — in about two lines on a phone.
  *
- * The two offers after a wrong guess are *try again* and *see it*, and neither
- * is framed as the failure. Someone stuck learns nothing from being made to keep
- * guessing, and someone who wants another go should not have to scroll for it.
+ * The offers after a wrong guess are *try again*, *see it* and (in a lesson) out,
+ * and none is framed as the failure. Someone stuck learns nothing from being made
+ * to keep guessing, and someone who wants another go — or wants out — should not
+ * have to scroll for it.
+ *
+ * It reads the Attempt and never its source: a bank puzzle and a review mistake
+ * render identically here, which is why `mover` sits top-level on the Attempt
+ * rather than inside the review variant of `AttemptSource`.
  */
 export default function PuzzlePanel({
   t,
-  puzzle,
+  attempt,
   sideLabel,
   waiting,
   lesson,
@@ -27,7 +32,7 @@ export default function PuzzlePanel({
   onExit,
 }: {
   t: Translations;
-  puzzle: PuzzleState;
+  attempt: Attempt;
   sideLabel: (side: Side) => string;
   /** The answer has not come back yet — a guess cannot be judged. */
   waiting: boolean;
@@ -45,17 +50,17 @@ export default function PuzzlePanel({
   onNext: () => void;
   onExit: () => void;
 }) {
-  const done = isFinished(puzzle);
+  const done = isFinished(attempt);
   const lastOfLesson = lesson !== null && lesson.index + 1 >= lesson.total;
 
   let headline: string;
-  if (puzzle.stage === "solved") headline = t.puzzleSolved;
-  else if (puzzle.stage === "revealed") headline = t.puzzleRevealed;
-  else if (puzzle.stage === "wrong") headline = t.puzzleWrong;
-  else headline = `${t.puzzlePrompt} · ${sideLabel(puzzle.mover)}`;
+  if (attempt.stage === "solved") headline = t.puzzleSolved;
+  else if (attempt.stage === "revealed") headline = t.puzzleRevealed;
+  else if (attempt.stage === "wrong") headline = t.puzzleWrong;
+  else headline = `${t.puzzlePrompt} · ${sideLabel(attempt.mover)}`;
 
   return (
-    <section className={`puzzle card mt-3 p-3 is-${puzzle.stage}`} role="status" aria-live="polite">
+    <section className={`puzzle card mt-3 p-3 is-${attempt.stage}`} role="status" aria-live="polite">
       <div className="flex items-baseline justify-between gap-2">
         <p className="puzzle-headline">{headline}</p>
         {lesson && (
@@ -65,10 +70,10 @@ export default function PuzzlePanel({
           </span>
         )}
       </div>
-      {puzzle.stage === "guessing" && (
+      {attempt.stage === "guessing" && (
         <p className="puzzle-hint">{waiting ? t.puzzleThinking : t.puzzleHint}</p>
       )}
-      {puzzle.stage === "solved" && puzzle.attempts > 0 && (
+      {attempt.stage === "solved" && attempt.attempts > 0 && (
         // Getting there late is still getting there — said plainly, not scored.
         <p className="puzzle-hint">{t.puzzleSolvedLate}</p>
       )}
@@ -77,7 +82,7 @@ export default function PuzzlePanel({
         <p className="puzzle-hint">{t.puzzleLessonDone}</p>
       )}
       <div className="mt-2 flex flex-wrap gap-2">
-        {puzzle.stage === "wrong" && (
+        {attempt.stage === "wrong" && (
           <>
             <button className="btn btn-sm btn-primary" onClick={onTryAgain}>
               {t.puzzleTryAgain}
@@ -85,6 +90,15 @@ export default function PuzzlePanel({
             <button className="btn btn-sm" onClick={onReveal}>
               {t.puzzleReveal}
             </button>
+            {lesson && (
+              // Skip belongs here more than anywhere: someone who has just
+              // guessed wrong is *more* likely to want out than someone who has
+              // not guessed at all, and this was the one stage that withdrew the
+              // offer.
+              <button className="btn btn-sm" onClick={onSkip}>
+                {t.puzzleSkip}
+              </button>
+            )}
           </>
         )}
         {done &&
@@ -97,7 +111,7 @@ export default function PuzzlePanel({
               {t.puzzleDone}
             </button>
           ))}
-        {puzzle.stage === "guessing" && (
+        {attempt.stage === "guessing" && (
           <>
             <button className="btn btn-sm" onClick={onReveal}>
               {t.puzzleReveal}

@@ -9,10 +9,11 @@ import PuzzlePanel from "./components/PuzzlePanel";
 import {
   acceptsGuess,
   hidesEngine,
-  isFinished as puzzleFinished,
+  isFinished as attemptFinished,
   judge,
-  type PuzzleState,
-} from "./game/puzzle";
+  retryStep,
+  type Attempt,
+} from "./game/attempt";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
 import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
 import { useAiWorker } from "./game/useAiWorker";
@@ -670,8 +671,17 @@ export default function App() {
         // exploration. It is still committed to the tree either way, so a wrong
         // guess is on the board where you can see what it does — being told
         // "no" without seeing why teaches nothing.
-        if (acceptsGuess(puzzleRef.current)) {
-          setPuzzle((p) => (p ? judge(p, move, solutionRef.current?.bestMoves ?? null) : p));
+        if (acceptsGuess(attemptRef.current)) {
+          // A review mistake is one step, and its accepted answer is the
+          // worker's whole equal-best set with no scripted reply — so `isLast`
+          // is always true and the returned `play` is just the move, which the
+          // tree above has already taken.
+          setAttempt((a) =>
+            a
+              ? judge(a, move, { accepted: solutionRef.current?.bestMoves ?? null, reply: null }, true)
+                  .attempt
+              : a,
+          );
         }
         return;
       }
@@ -778,25 +788,28 @@ export default function App() {
   const canAnalyse = analysisAvailable({ liveGameOver: isGameOver(liveTipStatus) });
   // ── Learn from your mistakes (Session 7f) ───────────────────────────────────
   // Tapping a costliest move does not show you the better one: it puts you back
-  // in the position and asks you to find it. See game/puzzle.ts.
-  const [puzzle, setPuzzle] = useState<PuzzleState | null>(null);
-  // The answer, fetched when the puzzle opens and deliberately NOT rendered
-  // while a guess is outstanding.
-  const [puzzleSolution, setPuzzleSolution] = useState<{
+  // in the position and asks you to find it. See game/attempt.ts.
+  // Review mistakes are one source of an Attempt; the bank is the other, and it
+  // renders its own panel rather than this one (see the plan's 8d).
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
+  // The answer, fetched when the Attempt opens and deliberately NOT rendered
+  // while a guess is outstanding. A review mistake's answer is the worker's
+  // equal-best set, which is why it arrives late and may hold several moves.
+  const [attemptAnswer, setAttemptAnswer] = useState<{
     bestMoves: Move[];
     move: Move | null;
   } | null>(null);
   // The sequential lesson (lichess's "Learn from your mistakes"): one side's
-  // mistakes and blunders in game order, each opened as the puzzle above. Null
-  // when a puzzle was opened on its own from the costliest-moves list.
+  // mistakes and blunders in game order, each opened as the Attempt above. Null
+  // when one was opened on its own from the costliest-moves list.
   const [lesson, setLesson] = useState<{ queue: WorstMove[]; index: number } | null>(null);
 
-  const showEval = analysis && evalOn && showExtra("eval") && !hidesEngine(puzzle);
+  const showEval = analysis && evalOn && showExtra("eval") && !hidesEngine(attempt);
   // Read by `commitMove`, which must not be rebuilt on every stage change.
-  const puzzleRef = useRef<PuzzleState | null>(null);
+  const attemptRef = useRef<Attempt | null>(null);
   const solutionRef = useRef<{ bestMoves: Move[]; move: Move | null } | null>(null);
-  puzzleRef.current = puzzle;
-  solutionRef.current = puzzleSolution;
+  attemptRef.current = attempt;
+  solutionRef.current = attemptAnswer;
 
   /**
    * The equal-best alternatives to draw beside the primary arrow.
@@ -1041,37 +1054,39 @@ export default function App() {
   );
 
   /**
-   * Open a mistake as a puzzle: sit at the position *before* it, with the
+   * Open a mistake as an Attempt: sit at the position *before* it, with the
    * engine's opinion hidden, and fetch the answer quietly in the background.
    *
    * The answer is searched deep. The shallow background pass is tuned for
    * re-running on every cursor step; a question someone has stopped to think
    * about deserves the better answer, and there is exactly one of them.
+   *
+   * A review mistake is a one-step Line, so `step` opens at 0 and stays there.
    */
-  const startPuzzle = useCallback(
+  const startAttempt = useCallback(
     (ply: number, mover: Side) => {
       if (ply < 1) return;
-      setPuzzleSolution(null);
-      setPuzzle({ ply, mover, stage: "guessing", attempts: 0 });
+      setAttemptAnswer(null);
+      setAttempt({ source: { kind: "review", ply }, mover, stage: "guessing", step: 0, attempts: 0 });
       jumpToPly(ply - 1);
     },
     [jumpToPly],
   );
 
-  const exitPuzzle = useCallback(() => {
-    setPuzzle(null);
-    setPuzzleSolution(null);
+  const exitAttempt = useCallback(() => {
+    setAttempt(null);
+    setAttemptAnswer(null);
     setLesson(null);
   }, []);
 
-  /** Begin the lesson: the first queued mistake opens as a puzzle. */
+  /** Begin the lesson: the first queued mistake opens as an Attempt. */
   const startLesson = useCallback(
     (queue: WorstMove[]) => {
       if (queue.length === 0) return;
       setLesson({ queue, index: 0 });
-      startPuzzle(queue[0].ply, queue[0].mover);
+      startAttempt(queue[0].ply, queue[0].mover);
     },
-    [startPuzzle],
+    [startAttempt],
   );
 
   /**
@@ -1081,21 +1096,21 @@ export default function App() {
    */
   const advanceLesson = useCallback(() => {
     if (!lesson) {
-      exitPuzzle();
+      exitAttempt();
       return;
     }
     const next = lesson.index + 1;
     if (next >= lesson.queue.length) {
-      exitPuzzle();
+      exitAttempt();
       return;
     }
     setLesson({ queue: lesson.queue, index: next });
-    startPuzzle(lesson.queue[next].ply, lesson.queue[next].mover);
-  }, [lesson, startPuzzle, exitPuzzle]);
+    startAttempt(lesson.queue[next].ply, lesson.queue[next].mover);
+  }, [lesson, startAttempt, exitAttempt]);
 
   /** Give up and be shown. A legitimate ending, not a lesser one. */
   const revealSolution = useCallback(() => {
-    setPuzzle((p) => (p ? { ...p, stage: "revealed" } : p));
+    setAttempt((a) => (a ? { ...a, stage: "revealed" } : a));
   }, []);
 
   /**
@@ -1113,25 +1128,30 @@ export default function App() {
       setNodeId(parent);
     }
     setSelected(null);
-    setPuzzle((p) => (p ? { ...p, stage: "guessing" } : p));
+    // Back to the *same* step. Removing the branch is this caller's half of it;
+    // a bank puzzle rewinds differently and `retryStep` is blind to which.
+    setAttempt((a) => (a ? retryStep(a) : a));
   }, [tree, nodeId]);
 
-  // Fetch the answer when a puzzle opens — deep, and quietly. The shallow pass
+  // Fetch the answer when an Attempt opens — deep, and quietly. The shallow pass
   // is tuned to re-run on every cursor step; a question someone has stopped to
   // think about deserves the better answer, and there is one of them.
+  //
+  // Review only: a bank puzzle's answer is stored, so there is nothing to fetch.
   useEffect(() => {
-    if (!puzzle || puzzleSolution) return;
-    const pos = lineStates[puzzle.ply - 1];
+    if (!attempt || attemptAnswer) return;
+    if (attempt.source.kind !== "review") return;
+    const pos = lineStates[attempt.source.ply - 1];
     if (!pos) return;
     let cancelled = false;
     requestAnalysis(pos, rules, true).then((res) => {
       if (cancelled) return;
-      setPuzzleSolution({ bestMoves: res.bestMoves, move: res.move });
+      setAttemptAnswer({ bestMoves: res.bestMoves, move: res.move });
     });
     return () => {
       cancelled = true;
     };
-  }, [puzzle, puzzleSolution, lineStates, rules, requestAnalysis]);
+  }, [attempt, attemptAnswer, lineStates, rules, requestAnalysis]);
 
   const promoteCurrent = useCallback(() => {
     if (!tree) return;
@@ -1916,18 +1936,18 @@ export default function App() {
             defenderEmblem={emblemSet.defenderEmblem}
             cornerEmblem={emblemSet.cornerEmblem}
             bestMove={
-            puzzle && puzzleFinished(puzzle)
-              ? (puzzleSolution?.move ?? null)
+            attempt && attemptFinished(attempt)
+              ? (attemptAnswer?.move ?? null)
               : showEval
                 ? (evalInfo?.move ?? null)
                 : null
           }
-          alsoBest={puzzle ? [] : showEval ? altBestMoves : []}
+          alsoBest={attempt ? [] : showEval ? altBestMoves : []}
             markBadge={
               // Lichess's on-board judgement glyph: ?!/?/?? on the square the
               // marked move landed on. Never while a guess is outstanding —
-              // the badge names the mistake the puzzle is asking about.
-              analysis && marks && lastMove && !hidesEngine(puzzle) && marks[cursor - 1]
+              // the badge names the mistake the attempt is asking about.
+              analysis && marks && lastMove && !hidesEngine(attempt) && marks[cursor - 1]
                 ? { square: lastMove.to, mark: marks[cursor - 1] as Mark }
                 : null
             }
@@ -1962,18 +1982,18 @@ export default function App() {
         </div>
       )}
 
-      {analysis && puzzle && (
+      {analysis && attempt && (
         <PuzzlePanel
           t={t}
-          puzzle={puzzle}
+          attempt={attempt}
           sideLabel={(side) => sideLabel(side, t)}
-          waiting={puzzleSolution === null}
+          waiting={attemptAnswer === null}
           lesson={lesson ? { index: lesson.index, total: lesson.queue.length } : null}
           onTryAgain={tryAgain}
           onReveal={revealSolution}
           onSkip={advanceLesson}
           onNext={advanceLesson}
-          onExit={exitPuzzle}
+          onExit={exitAttempt}
         />
       )}
 
@@ -1992,14 +2012,14 @@ export default function App() {
           cursor={cursor}
           running={annotating}
           onJump={(ply) => {
-            exitPuzzle();
+            exitAttempt();
             jumpToPly(ply);
           }}
           onPractise={(ply, mover) => {
             // A one-off exercise, not a lesson step — drop any running lesson
-            // so the panel doesn't show its progress over the wrong puzzle.
+            // so the panel doesn't show its progress over the wrong attempt.
             setLesson(null);
-            startPuzzle(ply, mover);
+            startAttempt(ply, mover);
           }}
           onLesson={startLesson}
           onRun={runAnnotation}
