@@ -8,6 +8,59 @@
  * fixed depths, no deadline, no rng outside the seeded one, a regeneration
  * command in the emitted header, and a printed summary.
  *
+ * ## Mining and emitting are separate jobs
+ *
+ * Mining is hours; emitting is a second. Run as one command they were also one
+ * transaction, and a run interrupted at 95% delivered 0% — which is exactly what
+ * happened. Three properties fix that, and they are the reason for the mode
+ * flags:
+ *
+ *   • **Checkpointed.** A **Shard** on disk is rewritten after every game, so an
+ *     interruption costs one game and re-running the same command resumes.
+ *   • **Shardable.** `--from`/`--to` mine a range of games. Ranges are
+ *     independent (see the seeding note below), so they run in parallel on as
+ *     many cores as there are, and `--merge` combines them.
+ *   • **Re-gradable.** A shard holds *assessed* puzzles: the measurements, not
+ *     the grade. `--merge` alone re-bands the whole bank from shards already on
+ *     disk, without re-mining. Since `BAND_CUTS` is explicitly a guess until 8f
+ *     fits it, that turns a cut-tuning iteration from hours into a second.
+ *
+ *   Modes:
+ *     (neither flag)  mine [--from, --to) and emit         — the one-shot run
+ *     --shard         mine [--from, --to) into a shard, no emit
+ *     --merge         emit from every shard on disk, no mining
+ *
+ *   A full parallel run over 8 cores, then the emit:
+ *     for i in 0 1 2 3 4 5 6 7; do
+ *       npx tsx scripts/genpuzzles.ts --shard --from $((i*20)) --to $((i*20+20)) &
+ *     done; wait
+ *     npx tsx scripts/genpuzzles.ts --merge
+ *
+ * Shards are checked in. They are the mined evidence and the data module is the
+ * shipped subset of it, so a refit in 8f is reproducible from the repo by anyone
+ * who cannot spend an afternoon re-mining.
+ *
+ * ## Why a game is reproducible from its own seed alone
+ *
+ * Sharding and resuming are both the same bet: that game *g* plays out the same
+ * way whatever did or did not happen before it. Two things had to change for
+ * that to be true, and neither is cosmetic.
+ *
+ *   • **The rng reseeds per game** from `SEED` and the game index, instead of
+ *     one stream running through all of them. `chooseMove` draws a
+ *     data-dependent number of times, so under a single stream game 100's
+ *     position in it depended on all 99 games before it and no range could start
+ *     anywhere but 0.
+ *   • **The assessor no longer perturbs the trajectory it samples.** Assessment
+ *     used to run *between* the plies of the game it was mining, and it writes
+ *     to the shared transposition table that `chooseMove` reads for move
+ *     *ordering* — so whether a position got assessed at all, which depended on
+ *     the global duplicate set and on the target being reached, changed which
+ *     moves the game went on to play. A game is now played to completion first
+ *     and its candidates assessed after, which removes the coupling
+ *     structurally rather than defending against it. `analysePosition`
+ *     (`ai.ts:1295-1315`) records the same hazard found the same way.
+ *
  * ## What "verified" means here, and what it does not
  *
  * Two kinds of evidence, never confused with each other (ADR-0002). `regicide`
@@ -59,7 +112,7 @@
  * never reused. A hand-written **Note** in the ledger outranks anything computed
  * and this generator does not argue with it. Checked in, never bundled.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chooseMove, resetTT, scoreRootMoves } from "../src/game/ai";
 import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "../src/game/engine";
@@ -67,7 +120,13 @@ import { encodeMove, rulesFingerprint } from "../src/game/openingBook";
 import { encodePosition, parsePosition } from "../src/game/position";
 import { canonicalKey, solve } from "../src/game/solver";
 import { THRESHOLDS } from "../src/game/annotate";
-import { bandOf, gradeOf, type GradeMeasurements, type Salience } from "../src/game/grade";
+import {
+  bandOf,
+  gradeOf,
+  GRADE_WEIGHTS,
+  type GradeMeasurements,
+  type Salience,
+} from "../src/game/grade";
 import {
   encodePuzzle,
   evalGoal,
@@ -92,14 +151,41 @@ const flag = (name: string, def: number): number => {
 const GAMES = flag("games", 120);
 const DEPTH = flag("depth", 6); // generation depth for the evaluation goals
 const VERIFY = flag("verify", 4); // the cheap depth the suite re-checks at
+/**
+ * When a one-shot run has mined enough to stop. A **floor, not a ceiling**:
+ * everything a shard found ships, because there is no reason to throw away a
+ * verified puzzle that cost an hour to find. The bank is a few bytes per record
+ * in a bundle already measured in hundreds of kilobytes, and a larger pool is
+ * what gives the **Bands** something to be cut from.
+ *
+ * `--shard` ignores it entirely: a shard cannot see what the others have found,
+ * so it mines its whole range and lets the merge take everything.
+ */
 const TARGET = flag("target", 80);
 const SEED = flag("seed", 12345);
 const NODES = flag("nodes", 400_000); // solver budget per candidate
 const MAX_PLIES = 70;
 const DRY = argv.includes("--dry");
+
+// ── Mode and range ────────────────────────────────────────────────────────────
+/** Mine this half-open range of games, `[FROM, TO)`. Hand-adds belong to the
+ *  range that contains game 0, so exactly one shard of a parallel run assesses
+ *  them and the merge does not have to dedupe them against each other. */
+const FROM = flag("from", 0);
+const TO = flag("to", GAMES);
+const MINE_ONLY = argv.includes("--shard");
+const MERGE_ONLY = argv.includes("--merge");
+/** Discard an existing shard instead of resuming it. Resuming is the default
+ *  precisely because the failure this is here for is an interruption, and after
+ *  one the obvious thing to type is the command you typed before. */
+const RESTART = argv.includes("--restart");
+
 const OUT = join(import.meta.dirname, "../src/game/puzzleBank.data.ts");
 const LEDGER = join(import.meta.dirname, "../data/puzzle-ledger.json");
 const HANDADDS = join(import.meta.dirname, "../data/puzzle-handadds.txt");
+const SHARD_DIR = join(import.meta.dirname, "../data/puzzle-shards");
+const shardPath = (from: number, to: number): string =>
+  join(SHARD_DIR, `games-${String(from).padStart(4, "0")}-${String(to).padStart(4, "0")}.json`);
 
 /** At most four solver moves — a learner playing out a proven guillotine is
  *  being tested on patience, not recognition (ADR-0002). */
@@ -112,10 +198,25 @@ const MAX_SOLVER_MOVES = 4;
 const BLUNDER = THRESHOLDS.blunder;
 
 // ── Seeded rng ────────────────────────────────────────────────────────────────
+//
+// One stream per *game*, not one per run. Under a single stream, how far into it
+// game `g` began depended on how many draws every game before it happened to
+// make, so a range could only ever start at 0 and a resume had to replay
+// everything it had already done. Reseeding from the game index is what makes
+// `--from`/`--to` and the checkpoint exact rather than approximate: the whole
+// state of the generator between games is the integer below, and it is a pure
+// function of the run seed and the index.
 let seed = SEED;
 const rng = (): number => {
   seed = (seed * 1103515245 + 12345) & 0x7fffffff;
   return seed / 0x7fffffff;
+};
+
+/** Knuth's multiplicative constant, to spread adjacent game indices to distant
+ *  seeds — consecutive seeds in an LCG this small give correlated first draws,
+ *  which would make neighbouring games open alike. */
+const seedGame = (g: number): void => {
+  seed = (SEED + Math.imul(g + 1, 2654435761)) & 0x7fffffff;
 };
 
 const other = (s: Side): Side => (s === "attackers" ? "defenders" : "attackers");
@@ -132,13 +233,35 @@ const REASONS = [
   "verify_depth_tie",
   "line_too_short",
   "reproof_failed",
+  "budget_exceeded",
 ] as const;
 type Reason = (typeof REASONS)[number];
-const rejected: Record<Reason, number> = Object.fromEntries(REASONS.map((r) => [r, 0])) as Record<
-  Reason,
-  number
->;
+const zeroReasons = (): Record<Reason, number> =>
+  Object.fromEntries(REASONS.map((r) => [r, 0])) as Record<Reason, number>;
+const rejected: Record<Reason, number> = zeroReasons();
 let candidates = 0;
+
+// ── The per-candidate budget ──────────────────────────────────────────────────
+//
+// `solve()` is bounded by `maxNodes`, but the three places that call it in a
+// *loop* are not bounded by anything: `winningMoves` runs one solve per root
+// move, `provenLine` runs `winningMoves` at up to four steps, and `provenGoal`
+// walks the whole proof at one solve per ply. A candidate deep enough to be
+// interesting to all three can therefore run for as long as it likes, and one
+// measured here ran past twenty minutes with a whole shard waiting behind it —
+// and, worse, would have been re-entered on every resume, because a checkpoint
+// faithfully records where you were stuck.
+//
+// Abandoning a candidate is always safe in the direction that matters. The whole
+// pipeline only ever *drops* material, so a budget cannot put a wrong puzzle in
+// the bank; it can only leave a right one out. That asymmetry is why this is a
+// budget and not a deadline that ships what it has.
+//
+// It is counted like every other door out (`budget_exceeded`), because a filter
+// nobody can see the cost of is a filter nobody can argue with.
+const BUDGET_MS = flag("budget", 180_000);
+let candidateStart = 0;
+const overBudget = (): boolean => performance.now() - candidateStart > BUDGET_MS;
 
 // ── The moves the solver would play, and whether it has a choice ──────────────
 
@@ -169,6 +292,13 @@ function winningMoves(
     if (r.value === side) wins.push({ move: m, dtm: r.dtm + 1 });
     else if (r.value === "unknown") uncertain = true;
     if (wins.length > 1) break; // a second winner is already the whole answer
+    // Out of budget with root moves left unexamined is the same state of
+    // knowledge as a child that ran out of nodes: one of the moves we did not
+    // look at might be a rival, so we do not get to say there was only one.
+    if (overBudget()) {
+      uncertain = true;
+      break;
+    }
   }
   wins.sort((a, b) => a.dtm - b.dtm || byEncoding(a.move, b.move));
   return { wins, uncertain };
@@ -271,6 +401,7 @@ function provenLine(start: GameState, solver: Side, rootDtm: number): Built | Re
 function provenGoal(start: GameState, solver: Side): PuzzleGoal | null {
   let state = start;
   for (let ply = 0; ply < 128 && !isGameOver(state.status); ply++) {
+    if (overBudget()) return null; // unnamed ending; the caller rejects it
     const r = solve(state, rules, { maxNodes: NODES });
     if (r.value !== solver || r.bestMove === null) return null;
     state = applyMove(state, r.bestMove, rules);
@@ -378,6 +509,7 @@ type Assessed = Omit<Puzzle, "id" | "grade" | "band">;
 
 function assess(c: Candidate): Assessed | Reason {
   const solver = c.start.turn;
+  candidateStart = performance.now();
 
   // A position nobody is winning has nothing to ask about. Gated at the verify
   // depth rather than shallower, and deliberately not on uniqueness:
@@ -394,7 +526,11 @@ function assess(c: Candidate): Assessed | Reason {
 
   const proved = solve(c.start, rules, { maxNodes: NODES });
   const built = proved.value === solver ? provenLine(c.start, solver, proved.dtm) : evaluatedLine(c.start, solver);
-  if (typeof built === "string") return built;
+  // A rejection that coincides with the budget running out is attributed to the
+  // budget, not to the door it happened to leave by: reporting it as
+  // `solver_tie` would claim the position was examined and found ambiguous when
+  // in fact it was abandoned half-examined.
+  if (typeof built === "string") return overBudget() ? "budget_exceeded" : built;
 
   // The fast-suite invariant, enforced here so it is true of what ships.
   let state = c.start;
@@ -462,27 +598,30 @@ function reproof(p: Assessed): boolean {
  * solver nodes, and it is why the lead-in is stored at all: a puzzle should
  * arrive as a position someone just moved into.
  */
-function* selfPlayCandidates(): Generator<Candidate> {
-  for (let g = 0; g < GAMES; g++) {
-    resetTT();
-    let state = initialState();
-    let before = bestAt(state, 3).best;
-    for (let p = 0; p < MAX_PLIES && !isGameOver(state.status); p++) {
-      const legal = allMoves(state.board, state.turn, rules);
-      if (!legal.length) break;
-      const mover = state.turn;
-      const move =
-        rng() < 0.35 ? legal[Math.floor(rng() * legal.length)] : chooseMove(state, "medium", rules, rng);
-      if (!move) break;
-      const from = state;
-      state = applyMove(state, move, rules);
-      const after = isGameOver(state.status) ? before : bestAt(state, 3).best;
-      const loss = mover === "attackers" ? before - after : after - before;
-      before = after;
-      if (!isGameOver(state.status) && loss >= BLUNDER) yield { before: from, leadIn: move, start: state };
-    }
-    process.stdout.write(`\rself-play game ${g + 1}/${GAMES} · ${candidates} candidates`);
+function gameCandidates(g: number): Candidate[] {
+  const out: Candidate[] = [];
+  seedGame(g);
+  resetTT();
+  let state = initialState();
+  let before = bestAt(state, 3).best;
+  for (let p = 0; p < MAX_PLIES && !isGameOver(state.status); p++) {
+    const legal = allMoves(state.board, state.turn, rules);
+    if (!legal.length) break;
+    const mover = state.turn;
+    const move =
+      rng() < 0.35 ? legal[Math.floor(rng() * legal.length)] : chooseMove(state, "medium", rules, rng);
+    if (!move) break;
+    const from = state;
+    state = applyMove(state, move, rules);
+    const after = isGameOver(state.status) ? before : bestAt(state, 3).best;
+    const loss = mover === "attackers" ? before - after : after - before;
+    before = after;
+    // Collected, not assessed: the whole game is played before any of these are
+    // looked at, so nothing the assessor does to the transposition table can
+    // reach the moves still to be played. See the header.
+    if (!isGameOver(state.status) && loss >= BLUNDER) out.push({ before: from, leadIn: move, start: state });
   }
+  return out;
 }
 
 /** Hand-added positions, in `position.ts` format, one per line, `#` for a
@@ -532,53 +671,305 @@ const readLedger = (): Ledger => (existsSync(LEDGER) ? JSON.parse(readFileSync(L
 const nextNumber = (ledger: Ledger): number =>
   Object.values(ledger).reduce((n, e) => Math.max(n, Number(e.id)), 0) + 1;
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Shards ────────────────────────────────────────────────────────────────────
 
-function main(): void {
-  console.log(
-    `genpuzzles: games ${GAMES}, depth ${DEPTH}, verify ${VERIFY}, target ${TARGET}, seed ${SEED}, nodes ${NODES}`,
-  );
-  const t0 = performance.now();
-  const ledger = readLedger();
-  let number = nextNumber(ledger);
+/**
+ * `Assessed` as it travels on disk.
+ *
+ * `dtm` is `Infinity` for an evaluation goal and JSON has no such number, so it
+ * goes as null and comes back as `Infinity`. `key` rides along because the merge
+ * dedupes on it and re-deriving it would mean re-parsing and re-folding every
+ * position to learn something the miner already knew.
+ */
+type StoredAssessed = Omit<Assessed, "dtm"> & { dtm: number | null; key: string };
 
-  const seen = new Set<string>();
-  const found: Array<Assessed & { id: string; key: string }> = [];
+const toStored = (a: Assessed, key: string): StoredAssessed => ({
+  ...a,
+  dtm: Number.isFinite(a.dtm) ? a.dtm : null,
+  key,
+});
+const fromStored = (s: StoredAssessed): Assessed & { key: string } => ({
+  ...s,
+  dtm: s.dtm === null ? Infinity : s.dtm,
+});
 
-  const take = (c: Candidate): boolean => {
+/**
+ * One mined range of games. The unit of both parallelism and crash-safety: a
+ * shard is rewritten after every game, so an interruption costs the game in
+ * flight and nothing else.
+ *
+ * It holds *assessed* puzzles and no ids. Numbering is "order of first
+ * appearance" over the whole bank, which only the merge is in a position to
+ * know, so a shard that assigned numbers would be asserting something it cannot
+ * see. The ledger is written by the merge and by nothing else, for the same
+ * reason.
+ */
+interface Shard {
+  /** What it was mined under. The merge refuses to mix shards that disagree: a
+   *  bank half-mined at depth 6 and half at depth 8 is not a bank. */
+  params: { depth: number; verify: number; seed: number; nodes: number };
+  from: number;
+  to: number;
+  /** The next game to mine, `=== to` when the shard is complete. The resume
+   *  cursor and the done flag are deliberately one field, so there is no way to
+   *  be finished and wrong about it. */
+  next: number;
+  /**
+   * How many of game `next`'s candidates are already assessed.
+   *
+   * The checkpoint is per *candidate*, not per game, because the cost is per
+   * candidate and wildly uneven: a candidate whose position the solver can prove
+   * runs `winningMoves` (a full `solve` for every root move) at up to four steps
+   * and then walks the whole proof in `provenGoal`, which is minutes, while a
+   * candidate rejected as `not_decisive` is one shallow search. A per-game
+   * checkpoint would happily throw away twenty minutes.
+   *
+   * Resuming re-plays the game to recover its candidate list and skips this many.
+   * Replaying self-play is seconds against assessment's minutes, which is what
+   * makes storing an index cheaper than storing the positions.
+   */
+  nextInGame: number;
+  /** Whether the hand-adds have been through. They belong to the range holding
+   *  game 0 and are assessed before it, which is a boundary `next` cannot
+   *  express. */
+  handAdds: boolean;
+  candidates: number;
+  rejected: Record<Reason, number>;
+  found: StoredAssessed[];
+  /**
+   * Every position key this shard has already looked at, including the ones it
+   * threw away.
+   *
+   * Rebuilding this from `found` alone would be the cheap-looking mistake: the
+   * keys it would lose are exactly the *rejected* ones, and a rejected candidate
+   * is not a cheap candidate — `solver_tie` is returned by `winningMoves` after
+   * a full `solve()` on every root move. A resume would then spend ten minutes
+   * re-deciding something this shard had already decided, which is the failure
+   * the checkpoint exists to prevent.
+   */
+  seen: string[];
+}
+
+const paramsNow = (): Shard["params"] => ({ depth: DEPTH, verify: VERIFY, seed: SEED, nodes: NODES });
+
+/**
+ * Write a shard so that losing power during the write cannot lose the shard.
+ *
+ * Write-then-rename, because `rename` within a filesystem is atomic and a
+ * half-finished `writeFileSync` is not: a shard truncated mid-JSON would fail to
+ * parse on the next run and take every game in it down with it. That would be a
+ * peculiar way for a checkpoint to fail — only ever during the one event it was
+ * built for.
+ */
+function writeShard(s: Shard): void {
+  mkdirSync(SHARD_DIR, { recursive: true });
+  const path = shardPath(s.from, s.to);
+  const tmp = `${path}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(s)}\n`);
+  renameSync(tmp, path);
+}
+
+/** Every shard on disk, in game order — which is the order the merge needs, and
+ *  the only reason the range is in the filename. */
+function readShards(): Shard[] {
+  if (!existsSync(SHARD_DIR)) return [];
+  return readdirSync(SHARD_DIR)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => JSON.parse(readFileSync(join(SHARD_DIR, f), "utf8")) as Shard)
+    .sort((a, b) => a.from - b.from);
+}
+
+// ── Mining ────────────────────────────────────────────────────────────────────
+
+/**
+ * Assess the candidates in `[FROM, TO)`, resuming an existing shard unless
+ * `--restart`.
+ *
+ * The target only stops a one-shot run. A shard cannot honour it, because it
+ * cannot see how many the other shards have found; it mines its whole range and
+ * everything it found ships. That costs some assessment a smaller bank would not
+ * have paid for, and buys ranges that do not have to talk to each other.
+ */
+function mine(): Shard {
+  const path = shardPath(FROM, TO);
+  let shard: Shard = {
+    params: paramsNow(),
+    from: FROM,
+    to: TO,
+    next: FROM,
+    nextInGame: 0,
+    handAdds: false,
+    candidates: 0,
+    rejected: zeroReasons(),
+    found: [],
+    seen: [],
+  };
+
+  if (!RESTART && existsSync(path)) {
+    const prior = JSON.parse(readFileSync(path, "utf8")) as Shard;
+    if (JSON.stringify(prior.params) !== JSON.stringify(shard.params)) {
+      throw new Error(
+        `${path}\n  was mined under ${JSON.stringify(prior.params)}\n  but this run is ${JSON.stringify(shard.params)}.\n` +
+          `  Re-run with matching flags, or --restart to discard it.`,
+      );
+    }
+    shard = prior;
+    shard.nextInGame ??= 0;
+    if (shard.next >= shard.to && shard.handAdds) {
+      console.log(`${shard.found.length} puzzles already mined in games ${FROM}-${TO}; nothing to do.`);
+      return shard;
+    }
+    console.log(
+      `resuming games ${FROM}-${TO} at game ${shard.next}` +
+        (shard.nextInGame ? ` candidate ${shard.nextInGame}` : "") +
+        `, ${shard.found.length} already found`,
+    );
+  }
+
+  // Restored so a resumed run's report reads as if it had never stopped.
+  candidates = shard.candidates;
+  for (const r of REASONS) rejected[r] = shard.rejected[r] ?? 0;
+  // `?? found` only for a shard written before `seen` was recorded; it under-
+  // reads by the rejected keys, which costs time on one resume and nothing after.
+  const seen = new Set(shard.seen ?? shard.found.map((f) => f.key));
+
+  const take = (c: Candidate): void => {
     candidates++;
     const key = canonicalKey(c.start);
     if (seen.has(key)) {
       rejected.duplicate_position++;
-      return false;
+      return;
     }
     seen.add(key);
     const result = assess(c);
     if (typeof result === "string") {
       rejected[result]++;
-      return false;
+      return;
     }
     if (!reproof(result)) {
       rejected.reproof_failed++;
-      return false;
+      return;
     }
-    // Numbers are assigned in order of first appearance and never reused, keyed
-    // on the position alone — so a re-run that reaches this position again gives
-    // it back the same number even if the answer has changed.
-    const entry = (ledger[key] ??= { id: String(number++).padStart(5, "0") });
-    found.push({ ...result, id: entry.id, key });
-    return true;
+    shard.found.push(toStored(result, key));
   };
 
-  for (const c of handAddCandidates()) {
-    if (found.length >= TARGET) break;
-    take(c);
+  const checkpoint = (): void => {
+    shard.candidates = candidates;
+    shard.rejected = { ...rejected };
+    shard.seen = [...seen];
+    if (!DRY) writeShard(shard);
+  };
+
+  const enough = (): boolean => !MINE_ONLY && shard.found.length >= TARGET;
+
+  if (FROM === 0 && !shard.handAdds) {
+    for (const c of handAddCandidates()) {
+      if (enough()) break;
+      take(c);
+    }
+    shard.handAdds = true;
+    checkpoint();
   }
-  for (const c of selfPlayCandidates()) {
-    if (found.length >= TARGET) break;
-    take(c);
+
+  const progress = (g: number, i: number, of: number): void => {
+    process.stdout.write(
+      `\rgame ${g + 1}/${TO} · candidate ${i}/${of} · ${candidates} assessed · ${shard.found.length} found   `,
+    );
+  };
+
+  for (let g = shard.next; g < TO && !enough(); g++) {
+    shard.next = g; // so an interruption inside the loop below resumes in this game
+    const cs = gameCandidates(g);
+    progress(g, shard.nextInGame, cs.length);
+    for (let i = shard.nextInGame; i < cs.length && !enough(); i++) {
+      take(cs[i]);
+      shard.nextInGame = i + 1;
+      checkpoint();
+      progress(g, i + 1, cs.length);
+    }
+    // Only past the game when every candidate in it was assessed. A run stopped
+    // early by the target must not leave the game marked done, or a later run
+    // with a larger target would skip candidates it never looked at.
+    if (shard.nextInGame >= cs.length) {
+      shard.next = g + 1;
+      shard.nextInGame = 0;
+    }
+    checkpoint();
   }
   process.stdout.write("\n");
+  return shard;
+}
+
+// ── Merge and emit ────────────────────────────────────────────────────────────
+
+/**
+ * Turn shards into the data module and the ledger.
+ *
+ * Cheap, and separate from mining so it can be re-run on its own: `--merge`
+ * re-bands the whole bank from what is already on disk. `BAND_CUTS` is
+ * explicitly a guess until 8f fits it, so the difference between tuning it in a
+ * second and tuning it in an afternoon is the difference between tuning it and
+ * not.
+ */
+function emit(shards: Shard[]): void {
+  const t0 = performance.now();
+  const disagreeing = shards.filter(
+    (s) => JSON.stringify(s.params) !== JSON.stringify(shards[0].params),
+  );
+  if (disagreeing.length) {
+    throw new Error(
+      `shards disagree about how they were mined:\n` +
+        shards.map((s) => `  ${s.from}-${s.to}: ${JSON.stringify(s.params)}`).join("\n"),
+    );
+  }
+  const incomplete = shards.filter((s) => s.next < s.to);
+  if (incomplete.length) {
+    console.log(
+      `note: ${incomplete.length} shard(s) still mid-range (${incomplete
+        .map((s) => `${s.from}-${s.to} at ${s.next}`)
+        .join(", ")}). Merging what they have.`,
+    );
+  }
+  for (let i = 1; i < shards.length; i++) {
+    if (shards[i].from !== shards[i - 1].to) {
+      console.log(
+        `note: game coverage is not contiguous between ${shards[i - 1].from}-${shards[i - 1].to} and ${shards[i].from}-${shards[i].to}.`,
+      );
+    }
+  }
+
+  const ledger = readLedger();
+  let number = nextNumber(ledger);
+  const seen = new Set<string>();
+  const found: Array<Assessed & { id: string; key: string }> = [];
+  let cands = 0;
+  const rej = zeroReasons();
+
+  for (const s of shards) {
+    cands += s.candidates;
+    for (const r of REASONS) rej[r] += s.rejected[r] ?? 0;
+    for (const st of s.found) {
+      // A position two shards both reached is not two puzzles. The miner already
+      // rejected duplicates within its own range; this is the same rule applied
+      // across ranges, and the only place it can be.
+      if (seen.has(st.key)) {
+        rej.duplicate_position++;
+        continue;
+      }
+      seen.add(st.key);
+      // Numbers are assigned in order of first appearance and never reused, keyed
+      // on the position alone — so a re-run that reaches this position again gives
+      // it back the same number even if the answer has changed.
+      const entry = (ledger[st.key] ??= { id: String(number++).padStart(5, "0") });
+      found.push({ ...fromStored(st), id: entry.id });
+    }
+  }
+  const candidates = cands;
+  for (const r of REASONS) rejected[r] = rej[r];
+
+  console.log(
+    `merging ${shards.length} shard(s) covering games ${shards[0].from}-${shards[shards.length - 1].to}`,
+  );
 
   // Stable output order: by puzzle number, which is order of first appearance.
   found.sort((a, b) => a.id.localeCompare(b.id));
@@ -603,6 +994,17 @@ function main(): void {
   console.log(`  line length: ${[1, 2, 3, 4].map((n) => `${n}: ${graded.filter((p) => solverMoves(p.line) === n).length}`).join(", ")}`);
   console.log(`  depthToFind: ${Array.from({ length: VERIFY }, (_, i) => `${i + 1}: ${graded.filter((p) => p.measurements.depthToFind === i + 1).length}`).join(", ")}`);
   console.log(`  grade range: ${Math.min(...graded.map((p) => p.grade))}–${Math.max(...graded.map((p) => p.grade))}`);
+  // The distribution the band cuts are calibrated against, in the shape
+  // `puzzleBank.ts`'s EVAL_CUTS comment records for its own. Cuts are set on
+  // *this*, not guessed: a cut outside the observed range names an empty band,
+  // and `depthToFind` is capped at BANK_VERIFY_DEPTH by construction, so the
+  // reachable range is narrower than a reading of GRADE_WEIGHTS suggests.
+  const sorted = graded.map((p) => p.grade).sort((a, b) => a - b);
+  const pct = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor((q / 100) * sorted.length))];
+  console.log(
+    `  grades:   ${[10, 25, 50, 75, 90].map((q) => `p${q} ${pct(q)}`).join("    ")}` +
+      `   (reachable max ${VERIFY * GRADE_WEIGHTS.depthToFind + 3 * GRADE_WEIGHTS.linePastFirst})`,
+  );
   console.log(`  motifs:   (none — the recognisers arrive in 8c)`);
   console.log(`\nrejected:`);
   for (const r of REASONS) console.log(`  ${r.padEnd(20)} ${rejected[r]}`);
@@ -628,8 +1030,11 @@ function main(): void {
     `${graded.length} puzzles (${count(PUZZLE_GOALS, (p) => p.goal)}), ` +
     `${graded.filter((p) => p.truncated).length} truncated, ` +
     `${((100 * graded.length) / Math.max(1, candidates)).toFixed(1)}% of ${candidates} candidates`;
+  const covered = shards[shards.length - 1].to;
   const file = `// AUTO-GENERATED by scripts/genpuzzles.ts — do not edit by hand.
-// Regenerate: npx tsx scripts/genpuzzles.ts --games ${GAMES} --depth ${DEPTH} --verify ${VERIFY} --target ${TARGET} --seed ${SEED}
+// Regenerate: npx tsx scripts/genpuzzles.ts --games ${covered} --depth ${DEPTH} --verify ${VERIFY} --target ${TARGET} --seed ${SEED}
+// Or, from the checked-in shards in data/puzzle-shards/ and without re-mining:
+//   npx tsx scripts/genpuzzles.ts --merge
 // ${summary}.
 // By band: ${count(["easy", "medium", "hard", "ollamh"] as const, (p) => p.band)}.
 // Format: one line per puzzle, \`id|pos|leadIn|line|goal|flags|dtm|depthToFind|salience|motif|tags\`
@@ -667,6 +1072,39 @@ export const BANK_DATA: string = \`${lines}\`;
 function solverOf(p: Assessed): Side {
   const parsed = parsePosition(p.position);
   return parsed.ok ? other(parsed.state.turn) : "attackers";
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+function main(): void {
+  if (MERGE_ONLY && MINE_ONLY) throw new Error("--shard and --merge are different jobs; pick one.");
+
+  if (MERGE_ONLY) {
+    const shards = readShards();
+    if (!shards.length) throw new Error(`no shards in ${SHARD_DIR}. Mine some first.`);
+    console.log(`genpuzzles --merge: every puzzle every shard found`);
+    emit(shards);
+    return;
+  }
+
+  console.log(
+    `genpuzzles: games ${FROM}-${TO}, depth ${DEPTH}, verify ${VERIFY}, target ${TARGET}, seed ${SEED}, nodes ${NODES}` +
+      (MINE_ONLY ? " (shard only)" : ""),
+  );
+  const t0 = performance.now();
+  const shard = mine();
+  console.log(`mined in ${((performance.now() - t0) / 1000 / 60).toFixed(1)} min`);
+
+  // A shard alone is not a bank, and saying "wrote" of something the app cannot
+  // read would be the script claiming more than it has.
+  if (MINE_ONLY) {
+    console.log(
+      `${shard.found.length} assessed puzzles in ${DRY ? "(nothing: --dry)" : shardPath(FROM, TO)}\n` +
+        `Emit the bank once every shard is in: npx tsx scripts/genpuzzles.ts --merge`,
+    );
+    return;
+  }
+  emit([shard]);
 }
 
 main();

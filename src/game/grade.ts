@@ -88,11 +88,54 @@ export const GRADE_WEIGHTS = {
  * says so rather than shrugging.
  *
  * A grade below the first cut is `easy`; at or above the last is `ollamh`.
+ *
+ * ## Calibrated against the bank, not guessed
+ *
+ * The first attempt (250 / 420 / 600) was written before a bank existed and was
+ * wrong in a way only data could show: `ollamh` at 600 was **unreachable**.
+ * `depthToFind` cannot exceed `BANK_VERIFY_DEPTH` by construction — the
+ * generator rejects a move that is not uniquely best at that depth — so with a
+ * verify depth of 4 the formula maxes at `4·100 + 3·60 = 580`. Two of the four
+ * bands named a region no puzzle could enter.
+ *
+ * The 161-puzzle bank grades in four tight clusters, one per `depthToFind`,
+ * with real gaps between them:
+ *
+ * ```
+ *   dtf 1   n=126   0–100        dtf 3   n= 29   220–290
+ *   dtf 2   n=  2   120          dtf 4   n=  4   330–370
+ * ```
+ *
+ * The cuts sit in those gaps (30→50, 120→220, 290→330), giving **106 / 22 / 29
+ * / 4**. Percentiles were not usable and the reason is worth recording: 92 of
+ * 161 puzzles grade at exactly 30, so p25, p50 and p75 cannot separate them. A
+ * distribution with a spike that large is not cut by quantiles, it is cut by
+ * where it stops being flat.
+ *
+ * ## What these counts are actually telling us, which is not about the cuts
+ *
+ * `easy` holds two thirds of the bank and `ollamh` holds four puzzles. That is a
+ * finding about `GRADE_WEIGHTS`, not something to fix by moving the cuts until
+ * the bands look even — that would be tuning the ruler to flatter the thing
+ * being measured. Two measurements are barely varying:
+ *
+ *  - **`depthToFind` is 1 for 126 of 161.** The dominant term is nearly a
+ *    constant. `assess()` already moved its decisiveness gate deeper once for
+ *    this exact reason and it was not enough.
+ *  - **`lineLength` is 1 for 160 of 161**, so `linePastFirst` contributes
+ *    nothing at all. ADR-0001's uniqueness requirement is what does it: a line
+ *    can only continue while every solver move stays uniquely best, and in
+ *    practice the second step almost always has a rival. A four-move bank puzzle
+ *    is rarer than the format anticipated.
+ *
+ * Both are 8f's business — it fits the weights against blind human comparisons,
+ * and may well conclude that a term which never varies should not be weighted at
+ * all. These cuts are what keeps the four bands honest until then.
  */
 export const BAND_CUTS = {
-  medium: 250,
-  hard: 420,
-  ollamh: 600,
+  medium: 40,
+  hard: 210,
+  ollamh: 310,
 } as const;
 
 /** The grade: depth to find, corrected for salience, plus line length. */

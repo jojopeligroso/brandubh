@@ -38,7 +38,7 @@ shippable, per the roadmap's sizing rule.
 | Slice | Theme | Size | Depends on | Contract it leaves behind |
 | --- | --- | --- | --- | --- |
 | **8a** | Attempt state machine: rename, step cursor, source | S | - | `src/game/attempt.ts`, tested before it has a bank caller |
-| **8b** | Stored format, offline generator, data module, grade formula | L | 8a (format only, not runtime) | `src/game/puzzleBank.ts` + a real ~80-puzzle bank |
+| **8b** | Stored format, offline generator, data module, grade formula | L | 8a (format only, not runtime) | `src/game/puzzleBank.ts` + a real, verified bank |
 | **8c** | Tagger and the guillotine recogniser | M | 8b | `src/game/motifs.ts`; bank regenerated with motifs and tags |
 | **8d** | Learn screen: bands, pool, named sets, playing a bank puzzle | L | 8a, 8b, 8c | `BankPuzzlePlayer`, `src/game/puzzleProgress.ts` |
 | **8e** | Proving ground and the calibration script | M-L | 8d | `src/game/proving.ts`, `scripts/calibrate-grades.ts` |
@@ -161,8 +161,14 @@ Skip now survives a wrong guess.
 
 ## 8b - stored format, generator, data module, grade formula *(L)*
 
-**Goal:** a real bank of ~80 verified puzzles in a generated data module, plus
-the offline script that produces it. No motifs, no UI.
+**Goal:** a real bank of verified puzzles in a generated data module, plus the
+offline script that produces it. No motifs, no UI.
+
+`--target` is a **floor, not a ceiling**: it says when a one-shot run has mined
+enough to stop, and everything the shards found ships. There is no reason to
+discard a verified puzzle that cost an hour to find, the payload is a few bytes
+per record, and a larger pool is what gives the **Bands** something to be cut
+from. The 80 in the roadmap is the number worth stopping at, not a cap.
 
 ### What exists
 
@@ -281,7 +287,53 @@ the offline script that produces it. No motifs, no UI.
       motif including zeros. No band may be empty; if one is, the cuts are
       wrong and that is a finding, not a shrug.
 
-4. **Fast invariants** in `src/game/puzzleBank.test.ts`, all pure, all cheap:
+4. **Mining and emitting are separate jobs.** Not in the original plan; added
+   after the first full run was interrupted by a power cut at roughly 95% and
+   delivered nothing, because the script held everything in memory and wrote
+   once at the end.
+
+   The cost is not evenly spread, which is what dictates the shape. A candidate
+   rejected as `not_decisive` is one shallow search; a candidate the solver can
+   *prove* runs `winningMoves` - a full `solve()` for every root move - at up to
+   four steps and then walks the whole proof in `provenGoal`. One such candidate
+   was measured at ten minutes. So the checkpoint is per **candidate**, not per
+   game: a per-game checkpoint would cheerfully discard twenty minutes.
+
+   Three properties, one flag each:
+
+   | Mode | What it does |
+   | --- | --- |
+   | *(neither)* | mine `[--from, --to)` and emit - the one-shot run |
+   | `--shard` | mine a range into `data/puzzle-shards/`, no emit |
+   | `--merge` | emit from every shard on disk, no mining |
+
+   Ranges are independent, so they run in parallel and a merge combines them.
+   Two things had to change to make a game mean the same thing inside a shard as
+   in a whole run, and both were latent coupling worth naming:
+
+   - **The rng reseeds per game.** One stream through all games meant `chooseMove`
+     drew a data-dependent number of times, so game 100's position in the stream
+     depended on the 99 before it. No range could start anywhere but 0.
+   - **Assessment moved out of the self-play loop.** It ran *between* the plies
+     of the game it was mining and writes to the shared transposition table that
+     `chooseMove` reads for move *ordering* - so whether a position got assessed,
+     which depended on the global duplicate set and on the target being reached,
+     changed which moves the game went on to play. The observer was perturbing
+     what it observed. A game is now played to completion and its candidates
+     assessed after. `analysePosition` (`ai.ts:1295-1315`) records the same
+     hazard, found the same way.
+
+   A shard holds **assessed** puzzles and no ids: numbering is order of first
+   appearance over the whole bank, which only the merge can see, so a shard that
+   assigned numbers would be asserting something it cannot know. The ledger is
+   written by the merge and by nothing else, for the same reason.
+
+   Shards are **checked in**. They are the mined evidence and the data module is
+   the shipped subset of it. That also makes `--merge` a re-grade: since
+   `BAND_CUTS` is explicitly a guess until 8f fits it, this is the difference
+   between a cut-tuning iteration costing a second and costing an afternoon.
+
+5. **Fast invariants** in `src/game/puzzleBank.test.ts`, all pure, all cheap:
 
    - every line is legal from its position (apply the lead-in, then each move,
      each checked for membership in `allMoves`);
@@ -298,8 +350,9 @@ the offline script that produces it. No motifs, no UI.
 
 `npm test` green and still fast (time it, and record the number in the commit -
 the whole point of the verification split is that this suite does not creep).
-`npx tsx scripts/genpuzzles.ts` reproducible: run it twice, the data module is
-byte-identical. Build clean. No UI, so no browser pass.
+Reproducible in the sense that now matters: `--merge` over the same shards is
+byte-identical, and a shard re-mined over the same game range with the same
+params reproduces itself. Build clean. No UI, so no browser pass.
 
 ---
 
