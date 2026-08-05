@@ -775,6 +775,73 @@ test` green, build clean.
 **Deferred here, explicitly:** any backend endpoint. The blob is already shaped
 to become a request body if manual collection ever proves too lossy.
 
+### Built
+
+`src/game/proving.ts` (the instrument), `src/components/ProvingGround.tsx` (the
+shell over it), `scripts/calibrate-grades.ts` (the ingest and the fit), mounted
+by `main.tsx` at `PROVING_PATH`. 65 pure tests. `BankPuzzlePlayer` is reused and
+gains two optional props, both defaulting to what the Learn screen already did:
+`blind` hides the **Band**, and `onFinish` fires when the **Attempt** ends
+however it ends, because a surrender is an ending and it is the clock that has
+to stop.
+
+**The blob is positional against a seeded schedule and carries no puzzle ids.**
+Four characters an entry: two base-36 digits of seconds, one outcome letter, one
+octal digit of three answers, or `-` for an **Anchor**. A nineteen-entry session
+is 124 characters and an eighty-puzzle run about 400, against the 1800 ceiling.
+Two consequences worth naming. The reader rebuilds the schedule from the seed,
+so a blob is *meaningless without the bank it was recorded against* — and a
+payload that disagrees with its own schedule about which positions are anchors
+is refused, which catches a shifted or foreign blob structurally rather than by
+a fingerprint. And the entry-count guard is what it was always for: a truncated
+`mailto:` yields a shorter payload against an unchanged `n`, and the blob is
+refused rather than trimmed to what survived.
+
+### What running it found
+
+**1. The plan's holdout is wrong, and fails silently.** "Weights fitted on part
+of the data and scored on a holdout of 15-20" reads as a puzzle-level split, and
+would be right if the comparison graph were dense. It is a **star with eight
+centres**: every comparison is against an anchor. Holding a puzzle out drops its
+three edges; holding an *anchor* out drops an edge from every puzzle in the
+session, and a fit that drops pairs with a held-out endpoint then drops all of
+them. Measured on a sixty-puzzle session: eighteen items held out of the
+sixty-eight it touched took six anchors, and 198 comparisons became 7. Nothing
+errored. The fit ran on seven pairs among eight items and reported `depthToFind`
+as **negative**. `holdoutSplit` now takes an exclusion set and the anchors are
+always in it: an anchor is the ruler, not an item being measured.
+
+**2. Ties are the binding constraint, not the fit.** A held-out comparison the
+candidate table scores as a tie is counted wrong, because a table that cannot
+separate two puzzles has not said which is harder. Under the shipped weights 92
+of 161 puzzles grade at exactly 30, so this is not a rounding detail: a
+perfectly consistent synthetic grader produced 43 ties in 66 held-out
+comparisons, and the same fit scored **0.33 overall and 0.96 on what it did not
+tie**. Both numbers are true and only the second is about ordering. So
+`holdoutAccuracy` returns correct, tied and scored, and the report prints three
+numbers rather than a rate that will be misread.
+
+**3. `BankPuzzlePlayer` crashed on an immediate surrender**, and it was 8d's bug
+all along. *See it* is offered from the moment the puzzle mounts and the lead-in
+lands a beat later, so anyone who takes the offer inside that beat asks to rewind
+to a position the history does not hold — `states` has one entry and `anchor` is
+1. A human on the Learn screen never clicks that fast; the proving ground does it
+every time, because surrendering at once is a legitimate answer there. `reveal`
+now plays the cancelled lead-in rather than reading past the end.
+
+Two smaller ones: re-presenting the *same* `Puzzle` object resets nothing, since
+the reset runs off the prop's identity — which the silent repeats need, so the
+page keys the player on the schedule position; and that key also closes the frame
+in which a fresh puzzle sat beside the previous puzzle's finished Attempt, firing
+`onFinish` spuriously and recording a solve as a surrender in no time at all.
+
+**Not built, and deliberately:** no `linePastFirst` evidence. `grade.ts` records
+`lineLength` as 1 on 160 of 161 puzzles, so the column is nearly constant and no
+amount of human comparison can weigh it. The fit is ridge-regularised so it
+answers "no evidence" with a coefficient near zero instead of an enormous one
+fitted to a single puzzle, and that is the honest answer rather than a
+workaround.
+
 ---
 
 ## 8f - fit the weights *(operational)*

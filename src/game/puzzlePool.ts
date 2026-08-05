@@ -13,31 +13,48 @@
 
 import type { Translations } from "../i18n";
 import type { Difficulty } from "./ai";
-import type { Motif, Tag } from "./motifs";
+import { MOTIF_SET_THRESHOLD, type Motif, type Tag } from "./motifs";
 import type { Puzzle } from "./puzzleBank";
 
 /**
  * How many puzzles a recogniser-found **Motif** needs before it earns a **Named
  * set** row.
  *
- * Four, from the glossary. A motif that turns up three times is a coincidence
- * with a name; a row promises a body of puzzles that rewards working through it
- * together, and three does not.
+ * Four, from the glossary, and now 8c's constant rather than a second copy of
+ * the number. Re-exported under the name this file's callers already use.
  *
- * The glossary's other half — that *a motif assigned by a hand-written **Note**
+ * ## The Note exemption, and why it cannot be enforced here
+ *
+ * The glossary's other half is that *a motif assigned by a hand-written **Note**
  * earns a row at any size, because a person deciding it matters is better
- * evidence than a count* — is still not enforceable from here, and it is worth
- * being exact about why, because this comment used to say 8c would fix it.
+ * evidence than a count*. This comment used to say the exemption would become
+ * enforceable once 8c shipped the provenance. 8c shipped the provenance, and not
+ * to a place this file can reach.
  *
- * 8c landed and did not. The generator knows the answer (`tagOf` sets a
- * `byHand` flag when a ledger Note names the motif, and the merge report prints
- * it), but the stored format ends at `motif`, so the flag dies in the report and
- * `Puzzle.motif` reaches this file as a bare `Motif | null` with a recogniser's
- * verdict and a person's indistinguishable. So the exemption is unimplemented,
- * and that is a gap in the bank format rather than a slice that has not happened
- * yet.
+ * The mechanism, exactly. A Note lives in `data/puzzle-ledger.json`, which
+ * `scripts/genpuzzles.ts` reads at merge time: `tagOf` prefers a ledger motif
+ * over the recogniser's and sets a `byHand` flag, and the merge report hands
+ * that flag straight to 8c's `namedSets(counts, byHandSet)`, so the generator
+ * applies the exemption correctly. But the emitted record ends at `motif`
+ * (`id|pos|leadIn|line|goal|flags|dtm|depthToFind|salience|motif|tags`), and the
+ * ledger is checked in and never bundled. `byHand` therefore dies in the report,
+ * and `Puzzle.motif` arrives here as a bare `Motif | null` in which a
+ * recogniser's verdict and a person's are the same field holding the same value.
+ * The exemption is unimplemented, and that is a gap in the bank format rather
+ * than a slice that has not happened yet.
+ *
+ * It is also the right split rather than a gap to rush. Bundling 161 ledger
+ * entries so the Learn screen could apply an exemption that fires on nothing
+ * would pay bundle for a distinction no shipped puzzle draws:
+ * `data/puzzle-handadds.txt` holds no live entries, no ledger entry carries a
+ * `motif` key, and the one motif in the bank is `cornerFight`, found by a
+ * recogniser on seven puzzles and so already clear of the threshold. The
+ * generator is where a Note is honoured and it honours it. The single case that
+ * would make this screen and the generator's report disagree is a Note on a
+ * motif with fewer than four puzzles, and that is the day the record grows a
+ * provenance flag.
  */
-export const SET_THRESHOLD = 4;
+export const SET_THRESHOLD = MOTIF_SET_THRESHOLD;
 
 /**
  * A **Named set**: a **Primary motif** and the puzzles filed under it, in pool
@@ -164,36 +181,84 @@ export const tagLabel = (t: Translations, tag: Tag): string => t[TAG_LABEL_KEYS[
 export const setLabel = (t: Translations, set: NamedSet): string => tagLabel(t, set.motif);
 
 /**
- * The Pool as the screen shows it: only the bands that are open, in pool order,
- * narrowed by at most one band and at most one tag.
+ * Which question a **Tag** answers. Chips in the same facet are alternatives;
+ * chips in different facets are conditions.
  *
- * **One tag at a time, deliberately.** Combining chips needs an answer to
- * whether two tags mean "and" or "or", and the vocabulary 8c shipped makes
- * neither answer safe: `attackers` and `defenders` partition the bank, so "and"
- * over that pair is guaranteed to yield nothing and "or" is guaranteed to yield
- * everything. A single active tag is a filter under either reading. That was
- * written as a reason to wait for the vocabulary; the vocabulary is here, and it
- * turns out to be a reason to keep waiting for a design.
+ * The four facets are the glossary's four tags, one each: side to move, line
+ * length, whether a soldier is given up, and a carried **Motif**. Anything
+ * unrecognised falls in `motif`, which is where a vocabulary extension would
+ * land and is the facet whose members genuinely co-occur.
+ */
+export type TagFacet = "side" | "length" | "sacrifice" | "motif";
+
+export function tagFacet(tag: string): TagFacet {
+  if (tag === "attackers" || tag === "defenders") return "side";
+  if (/^moves[1-9]$/.test(tag)) return "length";
+  if (tag === "soldierGivenUp") return "sacrifice";
+  return "motif";
+}
+
+/**
+ * The Pool as the screen shows it: only the bands that are open, in pool order,
+ * narrowed by at most one band, by any number of tags, and by a set's ids.
+ *
+ * ## "And" within a facet is "or"; "and" across facets is "and"
+ *
+ * 8d left this open because the answer depended on a vocabulary that did not
+ * exist, and named the trap exactly: `attackers` and `defenders` are mutually
+ * exclusive, so a flat "and" over every chip returns nothing and a flat "or"
+ * returns everything. The vocabulary landed and the trap is not an edge case in
+ * it — it is its **shape**. Every puzzle in the bank carries exactly two tags,
+ * one side and one length, and both facets are single-valued by construction:
+ * `computeTags` pushes one side tag and one `moves*` tag. So there is no global
+ * reading that works. "And" is right *between* the two questions and wrong
+ * *within* either of them.
+ *
+ * Hence the faceted reading, which is not a compromise between the two but the
+ * only one that answers a question anybody would ask. `attackers` + `defenders`
+ * means "either side", which is the whole pool and reads as such. `attackers` +
+ * `moves2` means "raiders to move, in two moves". A single chip behaves exactly
+ * as it did in 8d, so nothing that worked stops working.
+ *
+ * The `sacrifice` and `motif` facets are shipped-empty and shipped-nearly-empty
+ * respectively (`soldierGivenUp` 0, and the only motif in the bank is primary on
+ * its seven puzzles and therefore carried by none), so those branches are
+ * exercised by the suite rather than by the bank. That is the honest state of
+ * it: the semantics are written for the vocabulary, not for the counts, because
+ * the counts move when 8f refits and the vocabulary does not.
  */
 export function pool(
   puzzles: readonly Puzzle[],
   opts: {
     unlocked: ReadonlySet<Difficulty>;
     band?: Difficulty | null;
-    tag?: string | null;
+    tags?: readonly string[] | null;
     ids?: ReadonlySet<string> | null;
   },
 ): Puzzle[] {
+  const wanted = new Map<TagFacet, string[]>();
+  for (const tag of opts.tags ?? []) {
+    const facet = tagFacet(tag);
+    const list = wanted.get(facet);
+    if (list) list.push(tag);
+    else wanted.set(facet, [tag]);
+  }
+  // Compared rather than `includes`d because the two slices met here: 8c
+  // narrowed `Puzzle.tags` from `string[]` to the `Tag` union, and this filter
+  // is deliberately vocabulary-agnostic — it takes whatever the screen was
+  // handed. Neither branch could see the mismatch alone.
+  const matchesTags = (p: Puzzle): boolean => {
+    for (const [, alternatives] of wanted) {
+      if (!alternatives.some((tag) => p.tags.some((x) => (x as string) === tag))) return false;
+    }
+    return true;
+  };
   return poolOrder(
     puzzles.filter(
       (p) =>
         opts.unlocked.has(p.band) &&
         (!opts.band || p.band === opts.band) &&
-        // Compared rather than `includes`d because the two slices met here: 8c
-        // narrowed `Puzzle.tags` from `string[]` to the `Tag` union, and this
-        // filter is deliberately vocabulary-agnostic — it takes whatever the
-        // screen was handed. Neither branch could see the mismatch alone.
-        (!opts.tag || p.tags.some((x) => x === opts.tag)) &&
+        matchesTags(p) &&
         (!opts.ids || opts.ids.has(p.id)),
     ),
   );

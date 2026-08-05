@@ -2003,6 +2003,22 @@ button.settings-row:hover {
   font-size: 0.75rem;
 }
 
+/* A pressed toggle looks pressed. The `aria-pressed` attribute was already
+   there and carried the state to a screen reader, and to nobody looking at the
+   screen — survivable while the Pool's tag chips were one-at-a-time, and not
+   once several can be on at once, because the only way to read the filter is
+   then to read the list it produced. The border does the work rather than a
+   fill, so a row of chips with two on still reads as a row of chips; `.seg`
+   fills because a segmented control has exactly one on. */
+.btn[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--color-gold) 65%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 16%, transparent);
+  color: var(--color-gold);
+}
+.btn[aria-pressed="true"]:hover {
+  background: color-mix(in srgb, var(--color-gold) 24%, transparent);
+}
+
 /* ── Annotations (Session 7d) ────────────────────────────────────────────────
    The glyph carries the meaning — ?! / ? / ?? is notation everyone reading a
    game already knows — and colour is a second channel on top of it, never the

@@ -60,7 +60,9 @@ export default function LearnModal({
   );
   const [bandFilter, setBandFilter] = useState<Difficulty | null>(null);
   const [motifFilter, setMotifFilter] = useState<string | null>(null);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  // Several at once, read as "and" between facets and "or" within one — see
+  // `pool`, which is where that reading is argued and tested.
+  const [tagFilter, setTagFilter] = useState<readonly string[]>([]);
   const [shown, setShown] = useState(PAGE);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
@@ -71,7 +73,7 @@ export default function LearnModal({
   const listed = pool(bank, {
     unlocked,
     band: bandFilter,
-    tag: tagFilter,
+    tags: tagFilter,
     ids: motifFilter ? new Set(sets.find((s) => s.motif === motifFilter)?.ids ?? []) : null,
   });
   const playingIndex = playingId ? listed.findIndex((p) => p.id === playingId) : -1;
@@ -88,14 +90,26 @@ export default function LearnModal({
   };
 
   /** Every way into the **Pool** is a filter on the one list, never a second
-   *  collection. Choosing one clears the others so the narrowing is always
-   *  legible from the screen. */
-  const narrow = (next: { band?: Difficulty | null; motif?: string | null; tag?: string | null }) => {
+   *  collection. A band row and a set row are each one choice and clear
+   *  everything else, so the narrowing stays legible from the screen. */
+  const narrow = (next: {
+    band?: Difficulty | null;
+    motif?: string | null;
+    tags?: readonly string[];
+  }) => {
     setBandFilter(next.band ?? null);
     setMotifFilter(next.motif ?? null);
-    setTagFilter(next.tag ?? null);
+    setTagFilter(next.tags ?? []);
     setShown(PAGE);
   };
+
+  /** Chips accumulate; a band or a set row does not. Toggling a chip therefore
+   *  drops the band and the set — those are one-choice rows — and keeps the
+   *  other chips, which are the half of the filter that composes. */
+  const toggleTag = (tag: string) =>
+    narrow({
+      tags: tagFilter.includes(tag) ? tagFilter.filter((x) => x !== tag) : [...tagFilter, tag],
+    });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -347,7 +361,7 @@ export default function LearnModal({
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     className="btn btn-sm"
-                    aria-pressed={tagFilter === null}
+                    aria-pressed={tagFilter.length === 0}
                     onClick={() => narrow({})}
                   >
                     {t.learnAllTags}
@@ -360,8 +374,8 @@ export default function LearnModal({
                     <button
                       key={tag}
                       className="btn btn-sm"
-                      aria-pressed={tagFilter === tag}
-                      onClick={() => narrow({ tag: tagFilter === tag ? null : tag })}
+                      aria-pressed={tagFilter.includes(tag)}
+                      onClick={() => toggleTag(tag)}
                     >
                       {tagLabel(t, tag)}
                     </button>
