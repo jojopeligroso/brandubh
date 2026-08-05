@@ -169,6 +169,37 @@ export function tally(marks: (Mark | null)[], movers: Side[]): Record<Side, Side
 }
 
 /**
+ * One move's counted loss is capped here, the way lichess clamps evaluations to
+ * ±1000cp before computing average centipawn loss: a thrown game is one huge
+ * swing, and uncapped it would drown every other move in the average. Three
+ * blunders' worth mirrors lichess's cap (~3.3× their blunder threshold).
+ */
+export const AVG_LOSS_CAP = 3 * THRESHOLDS.blunder;
+
+/**
+ * Mean loss per move for each side, in the engine's own units — this game's
+ * analogue of lichess's "average centipawn loss". Moves that held or improved
+ * the position count 0, and plies played after the game was already decided are
+ * skipped for the same reason `classify` refuses to mark them: winning more
+ * slowly is not an error.
+ */
+export function averageLosses(scores: number[], movers: Side[]): Record<Side, number> {
+  const sum: Record<Side, number> = { attackers: 0, defenders: 0 };
+  const n: Record<Side, number> = { attackers: 0, defenders: 0 };
+  for (let k = 1; k < scores.length; k++) {
+    const mover = movers[k - 1];
+    if (!mover) continue;
+    if (Math.abs(scores[k - 1]) >= DECISIVE_SCORE) continue;
+    sum[mover] += Math.min(AVG_LOSS_CAP, Math.max(0, lossFor(scores[k - 1], scores[k], mover)));
+    n[mover] += 1;
+  }
+  return {
+    attackers: n.attackers ? Math.round(sum.attackers / n.attackers) : 0,
+    defenders: n.defenders ? Math.round(sum.defenders / n.defenders) : 0,
+  };
+}
+
+/**
  * Turn a walk of per-position scores into per-move marks.
  *
  * `scores[k]` is the value of the position after k plies, so one search per
@@ -250,4 +281,21 @@ export function worstMoves(
   }
   out.sort((a, b) => rank[b.mark] - rank[a.mark] || b.loss - a.loss || a.index - b.index);
   return o.limit != null ? out.slice(0, o.limit) : out;
+}
+
+/**
+ * The queue "learn from your mistakes" steps through: one side's mistakes and
+ * blunders — not inaccuracies, the same line lichess's retrospector draws — in
+ * *game order*, not severity order. A lesson replays the game as it was lived;
+ * the ranking above answers a different question ("what cost the most?").
+ */
+export function lessonMoves(
+  scores: number[],
+  movers: Side[],
+  marks: (Mark | null)[],
+  side: Side | null,
+): WorstMove[] {
+  return worstMoves(scores, movers, marks, { side })
+    .filter((w) => w.mark !== "inaccuracy")
+    .sort((a, b) => a.index - b.index);
 }

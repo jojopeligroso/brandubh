@@ -385,6 +385,10 @@ export interface Translations {
   puzzleRevealed: string;
   puzzleDone: string;
   puzzlePractise: string;
+  /** The sequential lesson (lichess's "Learn from your mistakes"). */
+  puzzleSkip: string;
+  puzzleNext: string;
+  puzzleLessonDone: string;
   thinkHarder: string;
   thinkingDeeper: string;
   reviewTitle: string;
@@ -402,8 +406,11 @@ export interface Translations {
   annotateHint: string;
   /** Singular forms — the plural ones above are for the "3 mistakes" tally, and
    *  read wrong on a single listed move. */
-  /** Explains the blunder·mistake·inaccuracy tally. */
-  reviewTallyHint: string;
+  /** The per-side analysis summary: mean loss per move, in the engine's own
+   *  units — this game's "average centipawn loss". */
+  reviewAvgLoss: string;
+  /** Starts the lesson stepping through one side's mistakes in game order. */
+  reviewLearn: string;
   markOne_inaccuracy: string;
   markOne_mistake: string;
   markOne_blunder: string;
@@ -797,6 +804,9 @@ const en: Translations = {
   puzzleRevealed: "The engine's move is shown on the board.",
   puzzleDone: "Done",
   puzzlePractise: "Practise",
+  puzzleSkip: "Skip",
+  puzzleNext: "Next",
+  puzzleLessonDone: "That was the last one — lesson complete.",
   thinkHarder: "Think harder",
   thinkingDeeper: "Thinking\u2026",
   reviewTitle: "Game review",
@@ -812,7 +822,8 @@ const en: Translations = {
   annotateStop: "Stop",
   annotateProgress: "Analysing move",
   annotateHint: "Re-searches every position and marks where the game swung.",
-  reviewTallyHint: "blunders \u00b7 mistakes \u00b7 inaccuracies",
+  reviewAvgLoss: "Average loss",
+  reviewLearn: "Learn from your mistakes",
   markOne_inaccuracy: "Inaccuracy",
   markOne_mistake: "Mistake",
   markOne_blunder: "Blunder",
@@ -1268,6 +1279,9 @@ const es: Translations = {
   puzzleRevealed: "La jugada del motor se muestra en el tablero.",
   puzzleDone: "Listo",
   puzzlePractise: "Practicar",
+  puzzleSkip: "Saltar",
+  puzzleNext: "Siguiente",
+  puzzleLessonDone: "Era el último — lección completada.",
   thinkHarder: "Pensar m\u00e1s",
   thinkingDeeper: "Pensando\u2026",
   reviewTitle: "Revisi\u00f3n de la partida",
@@ -1283,7 +1297,8 @@ const es: Translations = {
   annotateStop: "Detener",
   annotateProgress: "Analizando la jugada",
   annotateHint: "Vuelve a calcular cada posici\u00f3n y marca d\u00f3nde cambi\u00f3 la partida.",
-  reviewTallyHint: "errores graves \u00b7 errores \u00b7 imprecisiones",
+  reviewAvgLoss: "P\u00e9rdida media",
+  reviewLearn: "Aprende de tus errores",
   markOne_inaccuracy: "Imprecisi\u00f3n",
   markOne_mistake: "Error",
   markOne_blunder: "Error grave",
@@ -1756,6 +1771,10 @@ const ga: Translations = {
   puzzleRevealed: "T\u00e1 beart an innill ar an gcl\u00e1r.",
   puzzleDone: "Cr\u00edochnaithe",
   puzzlePractise: "Cleachtadh",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  puzzleSkip: "L\u00e9im thairis",
+  puzzleNext: "Ar aghaidh",
+  puzzleLessonDone: "B'in an ceann deireanach \u2014 ceacht cr\u00edochnaithe.",
   thinkHarder: "Smaoinigh n\u00edos doimhne",
   thinkingDeeper: "Ag smaoineamh\u2026",
   reviewTitle: "Athbhreithni\u00fa ar an gcluiche",
@@ -1772,7 +1791,8 @@ const ga: Translations = {
   annotateProgress: "Ag d\u00e9anamh anail\u00edse ar bheart",
   annotateHint: "Cuardaítear gach su\u00edomh ar\u00eds agus marc\u00e1iltear na h\u00e1iteanna ar iompaigh an cluiche.",
   // DRAFT (unreviewed) \u2014 like the rest of this table.
-  reviewTallyHint: "droch-bhoth\u00fain \u00b7 both\u00fain \u00b7 m\u00edchruinneas",
+  reviewAvgLoss: "Me\u00e1nchaillteanas",
+  reviewLearn: "Foghlaim \u00f3 do bhot\u00fain",
   markOne_inaccuracy: "M\u00edchruinneas",
   markOne_mistake: "Both\u00fan",
   markOne_blunder: "Droch-bhoth\u00fan",

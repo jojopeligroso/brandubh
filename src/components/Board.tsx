@@ -11,6 +11,7 @@ import {
   viewArrow,
 } from "../orientation";
 import type { RuleSet } from "../game/variants";
+import { markGlyph, type Mark } from "../game/annotate";
 import type { EmblemDef } from "../emblems";
 import { emblemCenter } from "../emblems";
 import type { CornerEmblemDef } from "../cornerEmblems";
@@ -127,6 +128,13 @@ interface BoardProps {
    * one when they are not would teach a learner a distinction that isn't there.
    */
   alsoBest?: Move[];
+  /**
+   * The review's judgement on the move that produced the position on screen,
+   * pinned to the square it landed on — lichess's on-board ?!/?/?? glyph. The
+   * glyph names the mark and the colour differentiates severity; like the
+   * arrows it is decoration, `aria-hidden` and click-through.
+   */
+  markBadge?: { square: Square; mark: Mark } | null;
   onSquareClick: (sq: Square) => void;
 }
 
@@ -211,6 +219,7 @@ export default function Board({
   cornerEmblem,
   bestMove = null,
   alsoBest = [],
+  markBadge = null,
   onSquareClick,
 }: BoardProps) {
   const legal = useMemo<Square[]>(() => {
@@ -304,6 +313,11 @@ export default function Board({
                     defenderEmblem={defenderEmblem}
                   />
                 </div>
+              )}
+              {markBadge && markBadge.square.row === r && markBadge.square.col === c && (
+                <span className={`mark-badge is-${markBadge.mark}`} aria-hidden>
+                  {markGlyph(markBadge.mark)}
+                </span>
               )}
               {/* fading captured-piece flash */}
               {!piece && fadeSet.has(key) && <span className="dot capture" style={{ animation: "capture 320ms ease-in forwards" }} />}

@@ -1,5 +1,13 @@
 import EvalGraph from "./EvalGraph";
-import { markGlyph, tally, worstMoves, type Mark } from "../game/annotate";
+import {
+  averageLosses,
+  lessonMoves,
+  markGlyph,
+  tally,
+  worstMoves,
+  type Mark,
+  type WorstMove,
+} from "../game/annotate";
 import type { Side } from "../game/types";
 import type { Translations } from "../i18n";
 
@@ -35,6 +43,7 @@ export default function GameReview({
   running,
   onJump,
   onPractise,
+  onLesson,
   onRun,
   onStop,
 }: {
@@ -52,6 +61,8 @@ export default function GameReview({
   onJump: (ply: number) => void;
   /** Open a mistake as a puzzle rather than just navigating to it. */
   onPractise: (ply: number, mover: Side) => void;
+  /** Start the sequential lesson through one side's mistakes, in game order. */
+  onLesson: (queue: WorstMove[]) => void;
   onRun: () => void;
   onStop: () => void;
 }) {
@@ -73,13 +84,14 @@ export default function GameReview({
         ? t.markOne_mistake
         : t.markOne_inaccuracy;
 
-  // The per-side tally the old panel carried, kept as one compact line rather
-  // than two — the ranking above is the answer, this is the context for it.
+  // The per-side summary, presented lichess-style: a column per player with
+  // the mark counts and the average loss per move under a side dot and name.
   const counts = ready && marks ? tally(marks, movers) : null;
-  const tallyLine = (side: Side): string => {
-    const c = (counts as NonNullable<typeof counts>)[side];
-    return `${sideLabel(side)}  ${c.blunder}·${c.mistake}·${c.inaccuracy}`;
-  };
+  const avg = ready && scores ? averageLosses(scores, movers) : null;
+
+  // Singular counts read "1 mistake", so the capitalised one-move label is
+  // lowered to sit after a number. Safe for the shipped Latin-script locales.
+  const lowerFirst = (s: string): string => s.charAt(0).toLocaleLowerCase() + s.slice(1);
 
   return (
     <section className="review card mt-3 p-3">
@@ -120,6 +132,44 @@ export default function GameReview({
         </div>
       )}
 
+      {/* Lichess's post-game analysis summary: one column per player — side
+          dot, name, then "n inaccuracies / n mistakes / n blunders / average
+          loss". The lesson starts from here, one button per human player. */}
+      {ready && scores && marks && counts && avg && (
+        <div className="review-summary mt-3">
+          {(["attackers", "defenders"] as Side[]).map((side) => {
+            const c = counts[side];
+            const queue = lessonMoves(scores, movers, marks, side);
+            const rows: [number, string][] = [
+              [c.inaccuracy, c.inaccuracy === 1 ? lowerFirst(t.markOne_inaccuracy) : t.mark_inaccuracy],
+              [c.mistake, c.mistake === 1 ? lowerFirst(t.markOne_mistake) : t.mark_mistake],
+              [c.blunder, c.blunder === 1 ? lowerFirst(t.markOne_blunder) : t.mark_blunder],
+              [avg[side], t.reviewAvgLoss],
+            ];
+            return (
+              <div key={side} className="review-col">
+                <p className="review-player">
+                  <span className={`review-dot is-${side}`} aria-hidden />
+                  {sideLabel(side)}
+                </p>
+                <ul className="review-stats">
+                  {rows.map(([n, label]) => (
+                    <li key={label}>
+                      <b>{n}</b> {label}
+                    </li>
+                  ))}
+                </ul>
+                {(humanSide === null || humanSide === side) && queue.length > 0 && (
+                  <button className="btn btn-sm review-learn" onClick={() => onLesson(queue)}>
+                    {t.reviewLearn}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {ready && worst.length > 0 && (
         <>
           <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-parchment-dim">
@@ -148,13 +198,6 @@ export default function GameReview({
             ))}
           </ul>
         </>
-      )}
-
-      {ready && counts && (
-        <p className="review-tally mt-2" title={t.reviewTallyHint}>
-          <span>{tallyLine("attackers")}</span>
-          <span>{tallyLine("defenders")}</span>
-        </p>
       )}
 
       {/* A clean game is a result, not an empty state. Saying so is the whole

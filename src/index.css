@@ -1041,12 +1041,6 @@ body {
   content: "\00b7\00a0";
 }
 
-/* ── Theme picker swatches ─────────────────────────────────────────────────── */
-.theme-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
 /* Custom piece-colour picker: a round well showing the chosen stone colour,
    with the native colour input laid over it and hidden. */
 .color-swatch {
@@ -1071,44 +1065,6 @@ body {
   border: none;
   padding: 0;
   cursor: pointer;
-}
-
-.theme-swatch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.55rem 0.3rem 0.4rem;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-parchment) 14%, transparent);
-  background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
-  color: var(--color-parchment-dim);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
-}
-.theme-swatch:hover {
-  background: color-mix(in srgb, var(--color-parchment) 10%, transparent);
-}
-.theme-swatch.on {
-  border-color: var(--color-gold);
-  color: var(--color-parchment);
-  background: color-mix(in srgb, var(--color-gold) 12%, transparent);
-}
-.theme-swatch .chips {
-  display: inline-flex;
-  border-radius: 999px;
-  overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-}
-.theme-swatch .chips i {
-  display: block;
-  width: 10px;
-  height: 16px;
 }
 
 /* ── Move navigator ────────────────────────────────────────────────────────── */
@@ -1164,48 +1120,6 @@ body {
     transition: none;
   }
 }
-/* ── Emblem (raider icon) picker ───────────────────────────────────────────── */
-.emblem-swatches {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr));
-  gap: 0.5rem;
-}
-.emblem-swatch {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.5rem 0.35rem 0.4rem;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-parchment) 14%, transparent);
-  background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
-  color: var(--color-parchment-dim);
-  cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
-}
-.emblem-swatch:hover {
-  background: color-mix(in srgb, var(--color-parchment) 10%, transparent);
-}
-.emblem-swatch.on {
-  border-color: var(--color-gold);
-  color: var(--color-parchment);
-  background: color-mix(in srgb, var(--color-gold) 12%, transparent);
-}
-.emblem-swatch svg {
-  width: 2.2rem;
-  height: 2.2rem;
-  color: var(--color-parchment);
-}
-.emblem-swatch .emblem-name {
-  font-size: 0.68rem;
-  font-weight: 600;
-  line-height: 1.1;
-  text-align: center;
-}
-
 /* ── Player bars (lichess-style) ─────────────────────────────────────────────
    Each player sits against their board edge: side dot + name + captures on the
    left, the boxed clock on the right. The bar brightens on the move; the clock
@@ -1580,6 +1494,171 @@ body {
 .tc-field b {
   color: var(--color-parchment);
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Settings navigator (gear modal) ─────────────────────────────────────────
+   Structure lifted from lichess mobile v8 (lichobile): a root list of
+   categories, each row a `.list_item.nav` with a chevron pinned right; picker
+   sub-pages are the same rows with the choice's name on the left, a ✓ on the
+   active row and a preview flush right (their board_thumbnail); enumerated
+   settings render as `.form-multipleChoice` — a full-width strip of joined,
+   equal-width buttons under a plain label, the chosen one emphasised. Colours
+   are ours, geometry is theirs. */
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
+}
+.settings-head h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-parchment);
+}
+.settings-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  color: var(--color-parchment);
+  transition: background-color 120ms ease;
+}
+.settings-back:hover {
+  background: color-mix(in srgb, var(--color-parchment) 9%, transparent);
+}
+.settings-back svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.settings-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 3.4rem;
+  padding: 0.55rem 1.05rem;
+  text-align: left;
+  font-size: 0.95rem;
+  color: var(--color-parchment);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-parchment) 8%, transparent);
+  transition: background-color 120ms ease;
+}
+button.settings-row {
+  cursor: pointer;
+}
+button.settings-row:hover {
+  background: color-mix(in srgb, var(--color-parchment) 6%, transparent);
+}
+.settings-row.selected {
+  background: color-mix(in srgb, var(--color-parchment) 7%, transparent);
+}
+/* lichobile: .list_item.nav:after — fa-chevron-right at 60% opacity, pinned. */
+.settings-row.nav {
+  padding-right: 2.1rem;
+}
+.settings-row.nav::after {
+  content: "\203A";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-54%);
+  font-size: 1.3rem;
+  line-height: 1;
+  opacity: 0.55;
+}
+.settings-row .row-check {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-parchment-dim);
+}
+.settings-row .row-check svg {
+  width: 1rem;
+  height: 1rem;
+}
+/* The current choice's preview, flush right (lichobile's board_thumbnail). */
+.settings-row .row-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--color-parchment);
+}
+.settings-row .row-preview svg {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+.row-chips {
+  display: flex;
+  overflow: hidden;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.4);
+}
+.row-chips i {
+  display: block;
+  width: 15px;
+  height: 26px;
+}
+/* Sub-pages that aren't lists (zen / clock / rules) get plain page padding. */
+.settings-page {
+  padding: 1rem 1.05rem 1.3rem;
+}
+
+/* lichobile's .form-multipleChoice: label above, joined equal-width buttons. */
+.choice-block + .choice-block {
+  margin-top: 1.35rem;
+}
+.choice-label {
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--color-parchment-dim);
+}
+.choice {
+  display: flex;
+  flex-flow: row wrap;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow: 0 2px 3px rgb(0 0 0 / 0.25);
+}
+.choice button {
+  flex: 1 1 auto;
+  padding: 0.68rem 0.5rem;
+  border: none;
+  border-right: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-night-2) 94%, transparent),
+    color-mix(in srgb, var(--color-night) 94%, transparent)
+  );
+  color: var(--color-parchment-dim);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  opacity: 0.72;
+  cursor: pointer;
+  transition:
+    background-color 130ms ease,
+    opacity 130ms ease;
+}
+.choice button:last-child {
+  border-right: 0;
+}
+.choice button.on {
+  opacity: 1;
+  font-weight: 700;
+  color: var(--color-parchment);
+  background: color-mix(in srgb, var(--color-parchment) 13%, var(--color-night));
+  box-shadow: inset 0 3px 4px rgb(0 0 0 / 0.18);
 }
 
 /* ── Corner-square ward (Tree of Life) ─────────────────────────────────────── */
@@ -2233,15 +2312,107 @@ body {
   color: var(--color-parchment);
   opacity: 0.65;
 }
-.review-tally {
+/* ── Analysis summary (lichess-style) ────────────────────────────────────────
+   One column per player: side dot + name, then "n inaccuracies / n mistakes /
+   n blunders / average loss" with the numbers in a right-aligned rail, and the
+   learn-from-your-mistakes button under the column it belongs to. */
+.review-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+.review-player {
   display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.68rem;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-parchment);
+}
+.review-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.35),
+    0 0 0 1px rgb(0 0 0 / 0.3);
+}
+.review-dot.is-attackers {
+  background: var(--atk);
+}
+.review-dot.is-defenders {
+  background: var(--def);
+}
+.review-stats {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+  color: var(--color-parchment-dim);
+}
+.review-stats li {
+  display: flex;
+  gap: 0.5rem;
+}
+.review-stats b {
+  min-width: 1.5rem;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--color-parchment);
-  opacity: 0.6;
+}
+.review-learn {
+  margin-top: 0.55rem;
+  color: var(--color-gold);
+}
+
+/* Where you are in the lesson — lichess's "2/6". */
+.puzzle-progress {
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-parchment);
+  opacity: 0.65;
+}
+
+/* ── On-board judgement glyph ────────────────────────────────────────────────
+   Lichess's ?!/?/?? roundel, pinned to the corner of the square the marked
+   move landed on. The glyph names the mark; the colour ranks it. Decoration
+   only: aria-hidden and click-through. */
+.mark-badge {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.15rem;
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(0 0 0 / 0.25);
+}
+.mark-badge.is-blunder {
+  background: var(--color-blood, #c34043);
+  color: #f4f1e8;
+}
+.mark-badge.is-mistake {
+  background: var(--color-gold);
+  color: var(--on-accent);
+}
+.mark-badge.is-inaccuracy {
+  background: color-mix(in srgb, var(--color-parchment) 88%, #000 12%);
+  color: #1b1b22;
 }
 
 /* ── Engine strip (lichess ceval) + puzzle ───────────────────────────────────
