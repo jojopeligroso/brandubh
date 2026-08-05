@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   ANNOTATE_DIFFICULTY,
+  AVG_LOSS_CAP,
   THRESHOLDS,
+  averageLosses,
   classify,
   terminalScore,
+  lessonMoves,
   lossFor,
   markGlyph,
   marksFromScores,
@@ -265,5 +268,69 @@ describe("worstMoves — the 'where did I go wrong' ranking", () => {
     const all = worstMoves(scores, movers, marks);
     const top = worstMoves(scores, movers, marks, { limit: 2 });
     expect(top).toEqual(all.slice(0, 2));
+  });
+});
+
+describe("averageLosses — the average-centipawn-loss analogue", () => {
+  it("averages what each side gave up, counting held or improved moves as 0", () => {
+    // Attackers drop 60 then hold; defenders hold both times.
+    const scores = [0, -60, -60, -60, -60];
+    const movers: Side[] = ["attackers", "defenders", "attackers", "defenders"];
+    const avg = averageLosses(scores, movers);
+    expect(avg.attackers).toBe(30); // (60 + 0) / 2
+    expect(avg.defenders).toBe(0);
+  });
+
+  it("obeys the same sign convention as lossFor", () => {
+    // The same rising walk is free for the raiders and costly for the king's side.
+    const scores = [0, 100];
+    expect(averageLosses(scores, ["attackers"]).attackers).toBe(0);
+    expect(averageLosses(scores, ["defenders"]).defenders).toBe(100);
+  });
+
+  it("skips plies played after the game was already decided", () => {
+    // classify() refuses to mark these; the average must not count them either,
+    // or the tail of a decided game (huge engine numbers) drowns the real play.
+    const scores = [DECISIVE_SCORE + 10, DECISIVE_SCORE - 500];
+    expect(averageLosses(scores, ["attackers"]).attackers).toBe(0);
+  });
+
+  it("caps a thrown game at AVG_LOSS_CAP rather than letting it drown the rest", () => {
+    const scores = [0, -(DECISIVE_SCORE + 1000)];
+    expect(averageLosses(scores, ["attackers"]).attackers).toBe(AVG_LOSS_CAP);
+  });
+
+  it("returns 0 for a side that never moved rather than dividing by zero", () => {
+    expect(averageLosses([0, -50], ["attackers"]).defenders).toBe(0);
+  });
+});
+
+describe("lessonMoves — the learn-from-your-mistakes queue", () => {
+  // Defenders err twice — a mistake at ply 1, a worse blunder at ply 3 — with a
+  // clean attacker move between. Scores are attacker-positive, so rising hurts
+  // the king's side.
+  const scores = [0, THRESHOLDS.mistake, THRESHOLDS.mistake, THRESHOLDS.mistake + 150];
+  const movers: Side[] = ["defenders", "attackers", "defenders"];
+  const marks = marksFromScores(scores, movers);
+
+  it("keeps game order, even when severity order disagrees", () => {
+    // worstMoves leads with the blunder; a lesson replays the game as lived.
+    const queue = lessonMoves(scores, movers, marks, "defenders");
+    expect(queue.map((w) => w.ply)).toEqual([1, 3]);
+    expect(queue.map((w) => w.mark)).toEqual(["mistake", "blunder"]);
+    expect(worstMoves(scores, movers, marks, { side: "defenders" })[0].mark).toBe("blunder");
+  });
+
+  it("is one player's lesson, not the game's", () => {
+    for (const w of lessonMoves(scores, movers, marks, "defenders"))
+      expect(w.mover).toBe("defenders");
+  });
+
+  it("leaves inaccuracies out — the same line lichess's retrospector draws", () => {
+    const slight = [0, THRESHOLDS.inaccuracy]; // enough to mark, not enough to teach
+    const slightMovers: Side[] = ["defenders"];
+    const slightMarks = marksFromScores(slight, slightMovers);
+    expect(slightMarks).toEqual(["inaccuracy"]);
+    expect(lessonMoves(slight, slightMovers, slightMarks, "defenders")).toEqual([]);
   });
 });

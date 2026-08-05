@@ -172,6 +172,7 @@ import {
   markGlyph,
   marksFromScores,
   terminalScore,
+  type WorstMove,
 } from "./game/annotate";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
@@ -777,6 +778,10 @@ export default function App() {
     bestMoves: Move[];
     move: Move | null;
   } | null>(null);
+  // The sequential lesson (lichess's "Learn from your mistakes"): one side's
+  // mistakes and blunders in game order, each opened as the puzzle above. Null
+  // when a puzzle was opened on its own from the costliest-moves list.
+  const [lesson, setLesson] = useState<{ queue: WorstMove[]; index: number } | null>(null);
 
   const showEval = analysis && evalOn && showExtra("eval") && !hidesEngine(puzzle);
   // Read by `commitMove`, which must not be rebuilt on every stage change.
@@ -1048,7 +1053,37 @@ export default function App() {
   const exitPuzzle = useCallback(() => {
     setPuzzle(null);
     setPuzzleSolution(null);
+    setLesson(null);
   }, []);
+
+  /** Begin the lesson: the first queued mistake opens as a puzzle. */
+  const startLesson = useCallback(
+    (queue: WorstMove[]) => {
+      if (queue.length === 0) return;
+      setLesson({ queue, index: 0 });
+      startPuzzle(queue[0].ply, queue[0].mover);
+    },
+    [startPuzzle],
+  );
+
+  /**
+   * Move to the next queued mistake — the Skip button while guessing and the
+   * Next button once finished are the same step. Past the end, the lesson is
+   * over and the panel closes.
+   */
+  const advanceLesson = useCallback(() => {
+    if (!lesson) {
+      exitPuzzle();
+      return;
+    }
+    const next = lesson.index + 1;
+    if (next >= lesson.queue.length) {
+      exitPuzzle();
+      return;
+    }
+    setLesson({ queue: lesson.queue, index: next });
+    startPuzzle(lesson.queue[next].ply, lesson.queue[next].mover);
+  }, [lesson, startPuzzle, exitPuzzle]);
 
   /** Give up and be shown. A legitimate ending, not a lesser one. */
   const revealSolution = useCallback(() => {
@@ -1848,6 +1883,14 @@ export default function App() {
                 : null
           }
           alsoBest={puzzle ? [] : showEval ? altBestMoves : []}
+            markBadge={
+              // Lichess's on-board judgement glyph: ?!/?/?? on the square the
+              // marked move landed on. Never while a guess is outstanding —
+              // the badge names the mistake the puzzle is asking about.
+              analysis && marks && lastMove && !hidesEngine(puzzle) && marks[cursor - 1]
+                ? { square: lastMove.to, mark: marks[cursor - 1] as Mark }
+                : null
+            }
             onSquareClick={onSquareClick}
           />
         </div>
@@ -1885,8 +1928,11 @@ export default function App() {
           puzzle={puzzle}
           sideLabel={(side) => sideLabel(side, t)}
           waiting={puzzleSolution === null}
+          lesson={lesson ? { index: lesson.index, total: lesson.queue.length } : null}
           onTryAgain={tryAgain}
           onReveal={revealSolution}
+          onSkip={advanceLesson}
+          onNext={advanceLesson}
           onExit={exitPuzzle}
         />
       )}
@@ -1909,7 +1955,13 @@ export default function App() {
             exitPuzzle();
             jumpToPly(ply);
           }}
-          onPractise={startPuzzle}
+          onPractise={(ply, mover) => {
+            // A one-off exercise, not a lesson step — drop any running lesson
+            // so the panel doesn't show its progress over the wrong puzzle.
+            setLesson(null);
+            startPuzzle(ply, mover);
+          }}
+          onLesson={startLesson}
           onRun={runAnnotation}
           onStop={stopAnnotating}
         />
