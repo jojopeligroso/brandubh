@@ -1,21 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import BankPuzzlePlayer from "./BankPuzzlePlayer";
 import ObjectivesContent, { type Emblems } from "./ObjectivesContent";
 import RulesContent from "./RulesContent";
 import TutorialPlayer from "./TutorialPlayer";
 import type { Translations } from "../i18n";
 import type { RuleSet } from "../game/variants";
+import type { Difficulty } from "../game/ai";
+import type { Side } from "../game/types";
+import { loadBank } from "../game/puzzleBank";
+import { namedSets, pool, poolTags } from "../game/puzzlePool";
+import {
+  bandProgress,
+  loadPuzzleProgress,
+  savePuzzleProgress,
+} from "../game/puzzleProgress";
 import {
   TUTORIALS,
   loadTutorialProgress,
   saveTutorialProgress,
 } from "../game/tutorials";
 
-export type LearnView = "menu" | "objectives" | "rules" | "tutorials";
+export type LearnView = "menu" | "objectives" | "rules" | "tutorials" | "puzzles";
+
+/** How much of the **Pool** is listed at once. 161 rows in a phone-height modal
+ *  is a wall rather than a list, and the order is meaningful, so the tail is
+ *  asked for rather than scrolled past. */
+const PAGE = 24;
 
 /**
- * The Learn hub behind "Show me how" / "How to play": a menu of three doors —
- * the animated objectives demo, the rules (quick + full), and the interactive
- * tutorial set plays — in one modal with its own back navigation.
+ * The Learn hub behind "Show me how" / "How to play": a menu of four doors —
+ * the animated objectives demo, the rules (quick + full), the interactive
+ * tutorial set plays, and the **Puzzle Bank** — in one modal with its own back
+ * navigation.
  */
 export default function LearnModal({
   t,
@@ -33,6 +49,52 @@ export default function LearnModal({
   const [view, setView] = useState<LearnView>(initialView);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [done, setDone] = useState<Set<string>>(loadTutorialProgress);
+
+  // The bank, or an empty one under any ruleset it was not verified for. A
+  // **Puzzle** belongs to exactly one **Ruleset**, so this gate is not a
+  // convenience: a differing flag can change whether the solving move even wins.
+  const bank = useMemo(() => loadBank(rules), [rules]);
+  const [solved, setSolved] = useState<Set<string>>(() =>
+    loadPuzzleProgress(new Set(bank.map((p) => p.id))),
+  );
+  const [bandFilter, setBandFilter] = useState<Difficulty | null>(null);
+  const [motifFilter, setMotifFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [shown, setShown] = useState(PAGE);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+
+  const bands = bandProgress(bank, solved);
+  const unlocked = new Set(bands.filter((b) => b.unlocked).map((b) => b.band));
+  const sets = useMemo(() => namedSets(bank), [bank]);
+  const tags = useMemo(() => poolTags(bank), [bank]);
+  const listed = pool(bank, {
+    unlocked,
+    band: bandFilter,
+    tag: tagFilter,
+    ids: motifFilter ? new Set(sets.find((s) => s.motif === motifFilter)?.ids ?? []) : null,
+  });
+  const playingIndex = playingId ? listed.findIndex((p) => p.id === playingId) : -1;
+  const playing = playingIndex >= 0 ? listed[playingIndex] : null;
+
+  const markPuzzleSolved = (id: string) => {
+    setSolved((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      savePuzzleProgress(next);
+      return next;
+    });
+  };
+
+  /** Every way into the **Pool** is a filter on the one list, never a second
+   *  collection. Choosing one clears the others so the narrowing is always
+   *  legible from the screen. */
+  const narrow = (next: { band?: Difficulty | null; motif?: string | null; tag?: string | null }) => {
+    setBandFilter(next.band ?? null);
+    setMotifFilter(next.motif ?? null);
+    setTagFilter(next.tag ?? null);
+    setShown(PAGE);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -62,16 +124,22 @@ export default function LearnModal({
         ? t.learnObjectives
         : view === "rules"
           ? t.learnRules
-          : active
-            ? t.tutorialTitles[active.id]
-            : t.learnTutorials;
+          : view === "puzzles"
+            ? // The **Puzzle number** belongs to the player, which carries it for
+              // 8e too; repeating it in the modal's title would say it twice.
+              t.learnPuzzles
+            : active
+              ? t.tutorialTitles[active.id]
+              : t.learnTutorials;
 
   const goBack =
     view === "menu"
       ? null
-      : active
-        ? () => setActiveId(null)
-        : () => setView("menu");
+      : playing
+        ? () => setPlayingId(null)
+        : active
+          ? () => setActiveId(null)
+          : () => setView("menu");
 
   return (
     <div
@@ -118,6 +186,12 @@ export default function LearnModal({
               hint={t.learnTutorialsHint}
               badge={`${done.size} / ${TUTORIALS.length}`}
               onClick={() => setView("tutorials")}
+            />
+            <MenuCard
+              label={t.learnPuzzles}
+              hint={t.learnPuzzlesHint}
+              badge={bank.length ? `${solved.size} / ${bank.length}` : undefined}
+              onClick={() => setView("puzzles")}
             />
           </div>
         )}
@@ -178,6 +252,157 @@ export default function LearnModal({
                 ? () => setActiveId(TUTORIALS[activeIndex + 1].id)
                 : null
             }
+          />
+        )}
+
+        {view === "puzzles" && bank.length === 0 && (
+          // Not a failure and not an empty state: the bank was proved under one
+          // ruleset and says nothing about this one.
+          <p className="mt-4 text-sm text-parchment-dim">{t.learnPuzzlesUnavailable}</p>
+        )}
+
+        {view === "puzzles" && bank.length > 0 && !playing && (
+          <div className="mt-4 flex flex-col gap-5">
+            <section>
+              <h3 className="text-sm font-semibold text-parchment">{t.learnBands}</h3>
+              <ul className="mt-2 flex flex-col gap-2">
+                {bands.map((b) => (
+                  <li key={b.band}>
+                    <button
+                      className={`btn w-full justify-between text-left ${b.unlocked ? "" : "opacity-50"}`}
+                      // A lock that is a visual state only is a lock a screen
+                      // reader cannot report, so the row says it in words as
+                      // well as in colour, and stays in the tab order so the
+                      // reason for it can be read.
+                      aria-disabled={!b.unlocked}
+                      aria-pressed={b.unlocked ? bandFilter === b.band : undefined}
+                      onClick={() =>
+                        b.unlocked && narrow({ band: bandFilter === b.band ? null : b.band })
+                      }
+                    >
+                      <span className="flex w-full items-center justify-between gap-3">
+                        <span>{t[b.band]}</span>
+                        <span className="font-mono text-xs text-parchment-dim">
+                          {b.unlocked
+                            ? `${b.solved} / ${b.total} ${t.learnSolved}`
+                            : `${t.learnBandLocked} · ${b.needed} ${t.learnMoreToUnlock}`}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-semibold text-parchment">{t.learnSets}</h3>
+              {sets.length === 0 ? (
+                // The normal case, not a degraded one: most puzzles carry no
+                // motif and live in the Pool.
+                <p className="mt-2 text-sm text-parchment-dim">{t.learnNoSets}</p>
+              ) : (
+                <ul className="mt-2 flex flex-col gap-2">
+                  {sets.map((s) => (
+                    <li key={s.motif}>
+                      <button
+                        className="btn w-full justify-between text-left"
+                        aria-pressed={motifFilter === s.motif}
+                        onClick={() =>
+                          narrow({ motif: motifFilter === s.motif ? null : s.motif })
+                        }
+                      >
+                        <span className="flex w-full items-center justify-between gap-3">
+                          <span>{t.puzzleNoteMotifs[s.motif] ?? s.motif}</span>
+                          <span className="font-mono text-xs text-parchment-dim">
+                            {s.ids.length}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <h3 className="text-sm font-semibold text-parchment">{t.learnPool}</h3>
+              {tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    className="btn btn-sm"
+                    aria-pressed={tagFilter === null}
+                    onClick={() => narrow({})}
+                  >
+                    {t.learnAllTags}
+                  </button>
+                  {tags.map((tag) => (
+                    // The chip is the raw **Tag**. 8c owns the tag vocabulary
+                    // and the copy that names it; until that lands, showing the
+                    // identifier is honest and inventing a label would not be.
+                    <button
+                      key={tag}
+                      className="btn btn-sm"
+                      aria-pressed={tagFilter === tag}
+                      onClick={() => narrow({ tag: tagFilter === tag ? null : tag })}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {listed.length === 0 ? (
+                <p className="mt-2 text-sm text-parchment-dim">{t.learnPoolEmpty}</p>
+              ) : (
+                <>
+                  <ol className="mt-2 flex flex-col gap-2">
+                    {listed.slice(0, shown).map((p) => (
+                      <li key={p.id}>
+                        <button
+                          className="btn w-full justify-between text-left"
+                          onClick={() => setPlayingId(p.id)}
+                        >
+                          <span className="flex w-full items-center justify-between gap-3">
+                            <span className="font-mono">
+                              <span className="sr-only">{t.learnPuzzleLabel} </span>#{p.id}
+                            </span>
+                            <span className="text-xs text-parchment-dim">
+                              {t[p.band]}
+                              {solved.has(p.id) && <span className="ml-2 text-gold">✓</span>}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                  {shown < listed.length && (
+                    <button
+                      className="btn btn-sm mt-2"
+                      onClick={() => setShown((n) => n + PAGE)}
+                    >
+                      {t.learnShowMore}
+                    </button>
+                  )}
+                </>
+              )}
+            </section>
+          </div>
+        )}
+
+        {view === "puzzles" && playing && (
+          <BankPuzzlePlayer
+            t={t}
+            puzzle={playing}
+            rules={rules}
+            emblems={emblems}
+            sideLabel={(side: Side) => (side === "attackers" ? t.raiders : t.kingsSide)}
+            queue={{ index: playingIndex, total: listed.length }}
+            onSolved={markPuzzleSolved}
+            onNext={
+              playingIndex < listed.length - 1
+                ? () => setPlayingId(listed[playingIndex + 1].id)
+                : null
+            }
+            onExit={() => setPlayingId(null)}
           />
         )}
 

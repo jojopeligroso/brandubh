@@ -2273,6 +2273,7 @@ export default function App() {
           onObjectives={() => setLearnView("objectives")}
           onRules={() => setLearnView("rules")}
           onTutorials={() => setLearnView("tutorials")}
+          onPuzzles={() => setLearnView("puzzles")}
           onGameFile={() => setShowGameFile(true)}
           onSettings={() => setShowDesign(true)}
           onAbout={() => setShowAbout(true)}

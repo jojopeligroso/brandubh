@@ -25,6 +25,7 @@ export default function PuzzlePanel({
   sideLabel,
   waiting,
   lesson,
+  prompt,
   onTryAgain,
   onReveal,
   onSkip,
@@ -36,6 +37,12 @@ export default function PuzzlePanel({
   sideLabel: (side: Side) => string;
   /** The answer has not come back yet — a guess cannot be judged. */
   waiting: boolean;
+  /**
+   * The headline while a guess is outstanding. Defaults to `t.puzzlePrompt`,
+   * which says "find a *better* move" — right for a **Review Mistake**, where
+   * you played something, and wrong for a bank **Puzzle**, where nobody has.
+   */
+  prompt?: string;
   /**
    * Set while this puzzle is one step of the sequential lesson ("learn from
    * your mistakes"): where we are in the queue, so the panel can show "2/6"
@@ -57,7 +64,7 @@ export default function PuzzlePanel({
   if (attempt.stage === "solved") headline = t.puzzleSolved;
   else if (attempt.stage === "revealed") headline = t.puzzleRevealed;
   else if (attempt.stage === "wrong") headline = t.puzzleWrong;
-  else headline = `${t.puzzlePrompt} · ${sideLabel(attempt.mover)}`;
+  else headline = `${prompt ?? t.puzzlePrompt} · ${sideLabel(attempt.mover)}`;
 
   return (
     <section className={`puzzle card mt-3 p-3 is-${attempt.stage}`} role="status" aria-live="polite">

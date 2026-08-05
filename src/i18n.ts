@@ -484,6 +484,40 @@ export interface Translations {
   victoryKing: string;
   victoryDraw: string;
   victoryReview: string;
+
+  // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
+  /** The fourth door on the Learn menu. */
+  learnPuzzles: string;
+  learnPuzzlesHint: string;
+  /** The bank is verified under one **Ruleset** and served under no other, so
+   *  under any other variant the door opens on this line instead. */
+  learnPuzzlesUnavailable: string;
+  learnBands: string;
+  learnBandLocked: string;
+  /** Composed after a count: "3 more to unlock". */
+  learnMoreToUnlock: string;
+  learnSets: string;
+  /** Shown when no motif has earned a row — the state of the bank today. */
+  learnNoSets: string;
+  learnPool: string;
+  learnPoolEmpty: string;
+  /** The "no tag filter" chip. */
+  learnAllTags: string;
+  learnShowMore: string;
+  /** Composed after a count: "12 / 106 solved". */
+  learnSolved: string;
+  /** Names a puzzle by its **Puzzle number** for a screen reader. */
+  learnPuzzleLabel: string;
+  /** The bank's prompt. `puzzlePrompt` says "find a *better* move", which is
+   *  right for a Review Mistake and wrong for a puzzle nobody has moved in. */
+  puzzleFindMove: string;
+  /** Completion note, layer 1: keyed by **Motif** (see game/completionNote.ts). */
+  puzzleNoteMotifs: Record<string, string>;
+  /** Layer 2: keyed by `<evaluation term>.<solver side>`. */
+  puzzleNoteTerms: Record<string, string>;
+  /** Layer 3: keyed by **Goal**, or `<goal>.<solver side>` for the evaluation
+   *  goals, whose side is not fixed by the goal. */
+  puzzleNoteGoals: Record<string, string>;
 }
 
 const en: Translations = {
@@ -950,6 +984,54 @@ const en: Translations = {
   victoryKing: "The King prevails",
   victoryDraw: "A draw",
   victoryReview: "Review the board",
+
+  // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
+  learnPuzzles: "Puzzles",
+  learnPuzzlesHint: "Positions from real games. Find the move that wins.",
+  learnPuzzlesUnavailable:
+    "The puzzle bank was verified under one set of rules, and is not offered under this variant.",
+  learnBands: "Difficulty",
+  learnBandLocked: "Locked",
+  learnMoreToUnlock: "more to unlock",
+  learnSets: "Named sets",
+  learnNoSets:
+    "A set appears here once a named tactic turns up often enough to be worth working through together.",
+  learnPool: "All puzzles",
+  learnPoolEmpty: "Nothing here yet.",
+  learnAllTags: "All",
+  learnShowMore: "Show more",
+  learnSolved: "solved",
+  learnPuzzleLabel: "Puzzle",
+  puzzleFindMove: "Find the move",
+  puzzleNoteMotifs: {
+    guillotine: "A guillotine: the King works side to side, cutting down each blocker in turn.",
+    snapTrap: "A snap trap: two raiders flanking a square, so stepping into it is capture.",
+    clamp: "A clamp: two of the King's soldiers pinned, each holding the other in place.",
+    spring:
+      "A spring: a raider formation held under tension, closing the moment the King's side moves.",
+    balling: "Balling: the King cut off from his own soldiers by a swarm of raiders.",
+    cordon: "A cordon: a raider barrier drawn around the King.",
+    cornerFight: "A corner fight: the corner is the King's goal and a hostile anvil at once.",
+    twinTowers: "Twin towers: two raider strongpoints that simply wait the King's side out.",
+  },
+  puzzleNoteTerms: {
+    "material:attackers": "The raiders come out ahead in soldiers.",
+    "material:defenders": "The King's side comes out ahead in soldiers.",
+    "escapeLane:attackers": "The King's road to the corner is shut.",
+    "escapeLane:defenders": "The King's road to the corner is open.",
+    "kingCorner:attackers": "The King is driven back from the corners.",
+    "kingCorner:defenders": "The King closes on a corner.",
+    "hug:attackers": "The raiders close in around the King.",
+    "hug:defenders": "The King breaks the raiders' grip.",
+  },
+  puzzleNoteGoals: {
+    regicide: "The raiders take the King.",
+    escape: "The King gets away.",
+    "crushing:attackers": "The raiders have a crushing advantage.",
+    "crushing:defenders": "The King's side has a crushing advantage.",
+    "advantage:attackers": "The raiders have a clear advantage.",
+    "advantage:defenders": "The King's side has a clear advantage.",
+  },
 };
 
 const es: Translations = {
@@ -1428,6 +1510,58 @@ const es: Translations = {
   victoryKing: "El Rey prevalece",
   victoryDraw: "Tablas",
   victoryReview: "Revisar el tablero",
+
+  // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
+  learnPuzzles: "Problemas",
+  learnPuzzlesHint: "Posiciones de partidas reales. Encuentra la jugada que gana.",
+  learnPuzzlesUnavailable:
+    "El banco de problemas se verificó con un único reglamento y no se ofrece en esta variante.",
+  learnBands: "Dificultad",
+  learnBandLocked: "Bloqueado",
+  learnMoreToUnlock: "más para desbloquear",
+  learnSets: "Series con nombre",
+  learnNoSets:
+    "Aquí aparece una serie cuando una táctica con nombre sale lo bastante a menudo como para trabajarla junta.",
+  learnPool: "Todos los problemas",
+  learnPoolEmpty: "Aquí no hay nada todavía.",
+  learnAllTags: "Todos",
+  learnShowMore: "Ver más",
+  learnSolved: "resueltos",
+  learnPuzzleLabel: "Problema",
+  puzzleFindMove: "Encuentra la jugada",
+  puzzleNoteMotifs: {
+    guillotine: "Una guillotina: el Rey va de lado a lado y derriba a cada bloqueador por turno.",
+    snapTrap:
+      "Una trampa de cepo: dos asaltantes flanquean una casilla, así que entrar en ella es ser capturado.",
+    clamp: "Una mordaza: dos soldados del Rey clavados, cada uno sujetando al otro.",
+    spring:
+      "Un resorte: una formación de asaltantes en tensión que se cierra en cuanto se mueve el bando del Rey.",
+    balling:
+      "Cerco interior: el Rey queda separado de sus propios soldados por un enjambre de asaltantes.",
+    cordon: "Un cordón: una barrera de asaltantes trazada alrededor del Rey.",
+    cornerFight:
+      "Una lucha de esquina: la esquina es a la vez la meta del Rey y un yunque hostil.",
+    twinTowers:
+      "Torres gemelas: dos bastiones de asaltantes que sencillamente esperan a que el bando del Rey se agote.",
+  },
+  puzzleNoteTerms: {
+    "material:attackers": "Los asaltantes salen ganando en soldados.",
+    "material:defenders": "El bando del Rey sale ganando en soldados.",
+    "escapeLane:attackers": "El camino del Rey a la esquina queda cerrado.",
+    "escapeLane:defenders": "El camino del Rey a la esquina queda abierto.",
+    "kingCorner:attackers": "El Rey es alejado de las esquinas.",
+    "kingCorner:defenders": "El Rey se acerca a una esquina.",
+    "hug:attackers": "Los asaltantes se cierran en torno al Rey.",
+    "hug:defenders": "El Rey se zafa de los asaltantes.",
+  },
+  puzzleNoteGoals: {
+    regicide: "Los asaltantes capturan al Rey.",
+    escape: "El Rey escapa.",
+    "crushing:attackers": "Los asaltantes tienen una ventaja aplastante.",
+    "crushing:defenders": "El bando del Rey tiene una ventaja aplastante.",
+    "advantage:attackers": "Los asaltantes tienen una ventaja clara.",
+    "advantage:defenders": "El bando del Rey tiene una ventaja clara.",
+  },
 };
 
 const ga: Translations = {
@@ -1932,6 +2066,57 @@ const ga: Translations = {
   victoryKing: "An R\u00ed i r\u00e9im",
   victoryDraw: "Cluiche cothrom",
   victoryReview: "Athbhreithnigh an cl\u00e1r",
+
+  // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
+  // DRAFT (unreviewed machine translation), like the rest of this table — `ga`
+  // stays out of VISIBLE_LANGS until a human Irish speaker signs the copy off.
+  learnPuzzles: "Fadhbanna",
+  learnPuzzlesHint: "Su\u00edomhanna \u00f3 chluich\u00ed f\u00edora. Aimsigh an beart a bhuann.",
+  learnPuzzlesUnavailable:
+    "F\u00edora\u00edodh banc na bhfadhbanna faoi aon rialacha amh\u00e1in, agus n\u00ed chuirtear ar f\u00e1il \u00e9 sa leagan seo.",
+  learnBands: "Deacracht",
+  learnBandLocked: "Faoi ghlas",
+  learnMoreToUnlock: "eile le d\u00edghlas\u00e1il",
+  learnSets: "Sraitheanna ainmnithe",
+  learnNoSets:
+    "Tagann sraith anseo nuair a nochtann bearta\u00edocht ainmnithe go minic go leor le hoibri\u00fa tr\u00edthi le ch\u00e9ile.",
+  learnPool: "Gach fadhb",
+  learnPoolEmpty: "N\u00edl aon rud anseo f\u00f3s.",
+  learnAllTags: "Gach ceann",
+  learnShowMore: "Taispe\u00e1in tuilleadh",
+  learnSolved: "r\u00e9itithe",
+  learnPuzzleLabel: "Fadhb",
+  puzzleFindMove: "Aimsigh an beart",
+  puzzleNoteMotifs: {
+    guillotine: "Gilit\u00edn: t\u00e9ann an R\u00ed \u00f3 thaobh go taobh agus leagann gach constaic ina sheal.",
+    snapTrap:
+      "Gaiste sciobtha: beirt fhoghlaithe ar dh\u00e1 thaobh cearn\u00f3ige, agus is gabh\u00e1il \u00e9 si\u00fal isteach inti.",
+    clamp: "Teannt\u00e1n: dh\u00e1 shaighdi\u00fair de chuid an R\u00ed greamaithe, gach ceann acu ag coinne\u00e1il an chinn eile.",
+    spring:
+      "Sprionga: c\u00f3iri\u00fa foghlaithe faoi theannas a dh\u00fanann a luaithe a bhogann taobh an R\u00ed.",
+    balling: "Liathr\u00f3idi\u00fa: an R\u00ed gearrtha amach \u00f3na shaighdi\u00fair\u00ed f\u00e9in ag scata foghlaithe.",
+    cordon: "Corda: bacainn foghlaithe tarraingthe timpeall an R\u00ed.",
+    cornerFight: "Troid ch\u00fainne: is \u00e9 an c\u00fainne sprioc an R\u00ed agus inneoin naimhdeach in \u00e9ineacht.",
+    twinTowers: "T\u00fair ch\u00fapla: dh\u00e1 dhaingean foghlaithe a fhanann go dt\u00ed go dtr\u00e1nn taobh an R\u00ed.",
+  },
+  puzzleNoteTerms: {
+    "material:attackers": "Tagann na foghlaithe chun cinn ar shaighdi\u00fair\u00ed.",
+    "material:defenders": "Tagann taobh an R\u00ed chun cinn ar shaighdi\u00fair\u00ed.",
+    "escapeLane:attackers": "T\u00e1 b\u00f3thar an R\u00ed chuig an gc\u00fainne d\u00fanta.",
+    "escapeLane:defenders": "T\u00e1 b\u00f3thar an R\u00ed chuig an gc\u00fainne oscailte.",
+    "kingCorner:attackers": "Tiom\u00e1intear an R\u00ed \u00f3 na c\u00fainn\u00ed.",
+    "kingCorner:defenders": "Druideann an R\u00ed le c\u00fainne.",
+    "hug:attackers": "D\u00fanann na foghlaithe isteach ar an R\u00ed.",
+    "hug:defenders": "Briseann an R\u00ed greim na bhfoghlaithe.",
+  },
+  puzzleNoteGoals: {
+    regicide: "Gabhann na foghlaithe an R\u00ed.",
+    escape: "\u00c9ala\u00edonn an R\u00ed.",
+    "crushing:attackers": "T\u00e1 bunt\u00e1iste treascrach ag na foghlaithe.",
+    "crushing:defenders": "T\u00e1 bunt\u00e1iste treascrach ag taobh an R\u00ed.",
+    "advantage:attackers": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag na foghlaithe.",
+    "advantage:defenders": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag taobh an R\u00ed.",
+  },
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };
