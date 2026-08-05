@@ -420,8 +420,9 @@ always, and the bank is regenerated with both.
    the threshold entirely, because a person deciding it matters is better
    evidence than a count.
 
-7. **Regenerate** the bank. Numbers do not move; the ledger is what guarantees
-   that, and the test that says so.
+7. **Regenerate** the bank — `--merge` alone, since tagging is a merge-time job
+   like grading and needs no re-mining. Numbers do not move; the ledger is what
+   guarantees that, and the test that says so.
 
 ### Verify
 
@@ -430,6 +431,55 @@ the `tutorials.ts` idiom. Determinism: tag the bank twice, byte-identical.
 Cross-check the guillotine recogniser against `solve()` on a handful of known
 positions, the way the endgame recognisers were validated. The per-motif
 counts, zeros included, go in the data module header and in the commit message.
+
+### What it found
+
+**Counts, zeros included (ADR-0003):**
+
+```
+guillotine 0   snapTrap 0   clamp 0   spring 0
+balling 0      cordon 0     cornerFight 7   twinTowers 0     none 154
+```
+
+`cornerFight` clears the four-puzzle threshold and earns the bank's only
+**Named set**. 154 of 161 are in the **Pool**, which is the proportion ADR-0003
+predicted.
+
+**The proof is re-derived, not stored.** The plan's `isGuillotine` takes the
+full proven continuation, which the miner walked in `provenGoal` and discarded,
+and the checked-in shards therefore do not contain it. Widening the shard record
+and re-mining was the obvious fix and the wrong one: `solve()` is a pure
+function of the position, and a shard records the exact params it was mined
+under, so the walk simply re-runs at merge time and produces the same states.
+Only `regicide` and `escape` are proofs, so it runs over 13 of 161 records and
+took **29 ms**. The alternative was 78 minutes across four cores and the loss of
+the checked-in shards. The re-derivation self-checks: each walk's length must
+equal the independently-measured stored `dtm`, and all 13 matched.
+
+**Guillotine finds nothing, for a sharper reason than expected.** The bank has
+no `escape` proofs, which was the predicted cause. The actual cause is stronger:
+**every proof in the bank is a mate in one.** All 13 have `dtm` 1 and
+`truncated` false, so there is no continuation past the shipped **Line** at all
+— not merely no King's-side one. Re-mining to persist the proofs would have
+persisted thirteen single-ply continuations. Nothing that shortens the pipeline
+will change this; it needs deeper proofs, which means either escape-biased
+mining or hand-adds (`data/puzzle-handadds.txt`, which goes through every filter
+exactly as a mined position does).
+
+**The plan's reading of the mechanism was wrong, and playing it out is what
+showed it.** "Each of its moves captures a raider that had just been interposed"
+cannot happen: the shuttling piece executes by *arriving* beside the victim, so
+it has to be elsewhere when the block goes in. The real cycle is `block one lane
+· shuttle across and execute at the other corner · block that lane · shuttle
+back and execute the first blocker`, and the raider that dies was fed in two
+attacker moves ago. A recogniser written to the plan's letter could never have
+fired on the thing it is named for — and, since the correct answer against this
+bank is also zero, the count would never have shown it. The hand-built proof
+sequence in `motifs.test.ts` is what caught it.
+
+**`soldierGivenUp` is 0 for a structural reason.** It needs a solver move and a
+scripted reply, and 160 of 161 lines hold a single solver move with no reply. It
+is the same fact as 8b's `lineLength` finding, seen from the tagger.
 
 ---
 
