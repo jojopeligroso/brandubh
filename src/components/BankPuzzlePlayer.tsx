@@ -327,11 +327,18 @@ export default function BankPuzzlePlayer({
         onExit={onExit}
       />
 
-      {isFinished(live.attempt) && noteText && (
-        <p className="puzzle-note mt-2 text-sm text-parchment-dim" role="status" aria-live="polite">
-          {noteText}
-        </p>
-      )}
+      {/* The region is always mounted and only its contents come and go. It
+          used to carry `role="status"` on the note itself, which meant the live
+          region and the text it was to announce arrived in the same commit —
+          and a live region inserted together with its content is announced by
+          some screen readers and silently skipped by others. An empty div
+          occupies nothing; the margin moved onto the note, so the screen is
+          unchanged. */}
+      <div role="status" aria-live="polite">
+        {isFinished(live.attempt) && noteText && (
+          <p className="puzzle-note mt-2 text-sm text-parchment-dim">{noteText}</p>
+        )}
+      </div>
     </div>
   );
 }

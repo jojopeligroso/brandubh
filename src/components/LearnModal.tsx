@@ -19,6 +19,7 @@ import {
   loadTutorialProgress,
   saveTutorialProgress,
 } from "../game/tutorials";
+import { useDialogFocus } from "../useDialogFocus";
 
 export type LearnView = "menu" | "objectives" | "rules" | "tutorials" | "puzzles";
 
@@ -117,6 +118,11 @@ export default function LearnModal({
   const activeIndex = activeId ? TUTORIALS.findIndex((s) => s.id === activeId) : -1;
   const active = activeIndex >= 0 ? TUTORIALS[activeIndex] : null;
 
+  // The modal's own navigation, named so `useDialogFocus` can put focus back
+  // when a sub-view replaces the control that opened it. Every one of these
+  // swaps the body of the dialog out from under the button that was pressed.
+  const dialogRef = useDialogFocus<HTMLDivElement>(`${view}:${activeId ?? ""}:${playingId ?? ""}`);
+
   const title =
     view === "menu"
       ? t.learnTitle
@@ -147,11 +153,16 @@ export default function LearnModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className="card w-full sm:max-w-xl max-h-[90vh] overflow-y-auto p-6 rounded-b-none sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="learn-title"
+        // Focused on open by `useDialogFocus`, so a screen reader reads the
+        // dialog's name before its contents. Programmatic focus does not match
+        // `:focus-visible`, so nothing is drawn that was not drawn before.
+        tabIndex={-1}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -374,7 +385,19 @@ export default function LearnModal({
                             </span>
                             <span className="text-xs text-parchment-dim">
                               {t[p.band]}
-                              {solved.has(p.id) && <span className="ml-2 text-gold">✓</span>}
+                              {solved.has(p.id) && (
+                                // Solved was a gold tick and nothing else, so
+                                // the row said it in colour and in a glyph most
+                                // screen readers either skip or read as "check
+                                // mark". The tick keeps the screen; the word is
+                                // what reaches the accessibility tree.
+                                <>
+                                  <span className="ml-2 text-gold" aria-hidden>
+                                    ✓
+                                  </span>
+                                  <span className="sr-only">{t.learnPuzzleSolved}</span>
+                                </>
+                              )}
                             </span>
                           </span>
                         </button>
