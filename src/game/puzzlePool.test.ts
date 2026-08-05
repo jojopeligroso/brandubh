@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { Difficulty } from "./ai";
 import type { Puzzle } from "./puzzleBank";
-import { SET_THRESHOLD, namedSets, pool, poolOrder, poolTags } from "./puzzlePool";
+import {
+  SET_THRESHOLD,
+  TAG_LABEL_KEYS,
+  motifLabel,
+  namedSets,
+  pool,
+  poolOrder,
+  poolTags,
+  tagFacet,
+  tagLabel,
+} from "./puzzlePool";
+import { MOTIFS, PLAIN_TAGS } from "./motifs";
+import { translations, type Lang } from "../i18n";
 
 /** Only the five fields the pool reads. */
 const puz = (
@@ -85,25 +97,57 @@ describe("named sets", () => {
 });
 
 describe("tags", () => {
-  it("are empty until 8c computes them, which is not a failure", () => {
+  it("are empty when nothing carries one, which is not a failure", () => {
     expect(poolTags([puz("00001", 30, "easy")])).toEqual([]);
   });
 
   it("come back sorted and deduplicated across the whole pool", () => {
     const puzzles = [
-      puz("00001", 30, "easy", null, ["sacrifice", "side:attackers"]),
-      puz("00002", 30, "easy", null, ["side:attackers"]),
+      puz("00001", 30, "easy", null, ["moves1", "attackers"]),
+      puz("00002", 30, "easy", null, ["attackers"]),
     ];
-    expect(poolTags(puzzles)).toEqual(["sacrifice", "side:attackers"]);
+    expect(poolTags(puzzles)).toEqual(["attackers", "moves1"]);
+  });
+
+  it("sort into the glossary's four facets, and nothing lands outside them", () => {
+    expect(tagFacet("attackers")).toBe("side");
+    expect(tagFacet("defenders")).toBe("side");
+    expect(tagFacet("moves1")).toBe("length");
+    expect(tagFacet("moves4")).toBe("length");
+    expect(tagFacet("soldierGivenUp")).toBe("sacrifice");
+    for (const m of MOTIFS) expect(tagFacet(m)).toBe("motif");
+  });
+
+  it("every tag in the vocabulary has copy, in every locale", () => {
+    // The compile-time half of this is `satisfies Record<Tag, StringKey>` on
+    // TAG_LABEL_KEYS: a tag added to the union without copy fails the build.
+    // This is the other half — that the key it names is actually filled in, in
+    // all three tables, `ga` included even though `ga` is not on offer.
+    const all = [...PLAIN_TAGS, ...MOTIFS];
+    expect(Object.keys(TAG_LABEL_KEYS).sort()).toEqual([...all].sort());
+    for (const lang of Object.keys(translations) as Lang[]) {
+      for (const tag of all) {
+        const label = tagLabel(translations[lang], tag);
+        expect(label, `${lang}.${tag}`).toBeTruthy();
+        expect(label, `${lang}.${tag}`).not.toBe(tag);
+      }
+    }
+  });
+
+  it("names a set by its motif's short name and never by its identifier", () => {
+    expect(motifLabel(translations.en, "cornerFight")).toBe("Corner fight");
+    // A motif outside the vocabulary cannot come from the bank — `decodeBank`
+    // drops the record — so this is the shape of the fallback, not a path.
+    expect(motifLabel(translations.en, "notAMotif")).toBe("notAMotif");
   });
 });
 
 describe("the pool as the screen shows it", () => {
   const BANK = [
-    puz("00001", 30, "easy", null, ["side:attackers"]),
-    puz("00002", 90, "easy", null, ["sacrifice"]),
-    puz("00003", 120, "medium", "clamp", ["side:defenders"]),
-    puz("00004", 330, "ollamh"),
+    puz("00001", 30, "easy", null, ["attackers", "moves1"]),
+    puz("00002", 90, "easy", null, ["defenders", "moves1"]),
+    puz("00003", 120, "medium", "clamp", ["defenders", "moves2"]),
+    puz("00004", 330, "ollamh", null, ["attackers", "moves2", "cordon"]),
   ];
 
   it("hides a locked band entirely — a lock is not a greyed row in the list", () => {
@@ -116,10 +160,43 @@ describe("the pool as the screen shows it", () => {
     ]);
   });
 
-  it("narrows to one tag when a chip is chosen", () => {
-    expect(pool(BANK, { unlocked: open(...ALL), tag: "sacrifice" }).map((p) => p.id)).toEqual([
-      "00002",
+  it("narrows to one tag when a single chip is chosen, exactly as it did before", () => {
+    expect(pool(BANK, { unlocked: open(...ALL), tags: ["moves2"] }).map((p) => p.id)).toEqual([
+      "00003",
+      "00004",
     ]);
+  });
+
+  it("reads two chips in the same facet as alternatives", () => {
+    // The whole reason a flat "and" is wrong: `attackers` and `defenders` are
+    // mutually exclusive by construction, so "and" over them yields nothing and
+    // says nothing. Within a facet the chips are the options, not the conditions.
+    expect(
+      pool(BANK, { unlocked: open(...ALL), tags: ["attackers", "defenders"] }).map((p) => p.id),
+    ).toEqual(["00001", "00002", "00003", "00004"]);
+  });
+
+  it("reads two chips in different facets as conditions", () => {
+    expect(
+      pool(BANK, { unlocked: open(...ALL), tags: ["defenders", "moves2"] }).map((p) => p.id),
+    ).toEqual(["00003"]);
+  });
+
+  it("composes three facets at once", () => {
+    expect(
+      pool(BANK, { unlocked: open(...ALL), tags: ["attackers", "moves2", "cordon"] }).map(
+        (p) => p.id,
+      ),
+    ).toEqual(["00004"]);
+    expect(
+      pool(BANK, { unlocked: open(...ALL), tags: ["defenders", "moves2", "cordon"] }),
+    ).toEqual([]);
+  });
+
+  it("treats an unknown tag as a motif, so it narrows rather than widening", () => {
+    // A tag the bank cannot produce, since `decodeBank` refuses a record naming
+    // one. If one ever reached here it must not quietly select everything.
+    expect(pool(BANK, { unlocked: open(...ALL), tags: ["nothing-has-this"] })).toEqual([]);
   });
 
   it("narrows to a named set's ids, which is all a set row does", () => {
@@ -144,6 +221,6 @@ describe("the pool as the screen shows it", () => {
   });
 
   it("can come back empty, and says so by being empty", () => {
-    expect(pool(BANK, { unlocked: open(...ALL), tag: "nothing-has-this" })).toEqual([]);
+    expect(pool(BANK, { unlocked: open(...ALL), tags: ["moves3"] })).toEqual([]);
   });
 });

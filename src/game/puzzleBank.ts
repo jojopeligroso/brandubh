@@ -51,6 +51,7 @@ import { decodeMove, encodeMove, rulesFingerprint } from "./openingBook";
 import { applyMove } from "./engine";
 import { parsePosition } from "./position";
 import { bandOf, gradeOf, type GradeMeasurements, type Salience } from "./grade";
+import { MOTIFS, PLAIN_TAGS, type Motif, type Tag } from "./motifs";
 import type { Difficulty } from "./ai";
 import { BOARD_SIZE, type GameState, type Move, type Side } from "./types";
 import type { RuleSet } from "./variants";
@@ -97,11 +98,12 @@ export interface Puzzle {
    *  re-checking the truncation claim. Never rendered. */
   dtm: number;
   measurements: GradeMeasurements;
-  /** The **Primary motif**, or null. Null throughout 8b; 8c narrows the type
-   *  from `string` to the attested `Motif` union in `motifs.ts`. */
-  motif: string | null;
-  /** Computed **Tags** for filtering the **Pool**. Empty throughout 8b. */
-  tags: string[];
+  /** The **Primary motif**, or null — which is most of the bank, and is meant
+   *  to be. The type is the attested union from `motifs.ts`, so a motif this
+   *  project invented cannot be stored even by accident. */
+  motif: Motif | null;
+  /** Computed **Tags** for filtering the **Pool**. */
+  tags: Tag[];
   /** Computed at import from `measurements`, never stored. */
   grade: number;
   band: Difficulty;
@@ -143,6 +145,10 @@ export function decodeSalience(text: string): Salience {
 }
 
 // ── Payload codec ─────────────────────────────────────────────────────────────
+/** Every string that may appear in the `tags` column: the computed ones, plus
+ *  any **Motif** that is not a puzzle's primary one. */
+const VALID_TAGS: ReadonlySet<string> = new Set<string>([...PLAIN_TAGS, ...MOTIFS]);
+
 const decodeLine = (text: string): Move[] => {
   const out: Move[] = [];
   for (let i = 0; i + 4 <= text.length; i += 4) out.push(decodeMove(text.slice(i, i + 4)));
@@ -183,6 +189,12 @@ export function decodeBank(data: string): Puzzle[] {
     if (f.length !== 11) continue;
     const [id, position, leadIn, line, goal, flags, dtm, depthToFind, salience, motif, tags] = f;
     if (!PUZZLE_GOALS.includes(goal as PuzzleGoal)) continue;
+    // A motif or tag outside the attested vocabulary is a generator bug, and it
+    // is dropped exactly as an unreadable goal is: the alternative is a Learn
+    // screen filing a puzzle under a set that does not exist.
+    if (motif !== "" && !(MOTIFS as readonly string[]).includes(motif)) continue;
+    const tagList = tags === "" ? [] : tags.split(",");
+    if (!tagList.every((t) => VALID_TAGS.has(t))) continue;
     const moves = decodeLine(line);
     if (moves.length === 0) continue;
     const measurements: GradeMeasurements = {
@@ -200,8 +212,8 @@ export function decodeBank(data: string): Puzzle[] {
       truncated: flags.includes("t"),
       dtm: dtm === "-" ? Infinity : Number(dtm),
       measurements,
-      motif: motif === "" ? null : motif,
-      tags: tags === "" ? [] : tags.split(","),
+      motif: motif === "" ? null : (motif as Motif),
+      tags: tagList as Tag[],
       grade,
       band: bandOf(grade),
     });

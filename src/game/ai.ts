@@ -127,9 +127,13 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
  *  saturates the term instead of letting sheer space dominate material. */
 const KING_REGION_CAP = 12;
 
+// The three helpers below are exported because `motifs.ts` reads the same corner
+// geometry the evaluation does, and two implementations of "how far is the king
+// from a corner" would be two answers to one question.
+
 /** Number of empty squares the king can reach via open orthogonal paths (walls =
  *  any piece), capped. A small region means the king is boxed in. */
-function kingRegionSize(b: Board, kr: number, kc: number): number {
+export function kingRegionSize(b: Board, kr: number, kc: number): number {
   const seen = new Set<number>([kr * BOARD_SIZE + kc]);
   const stack: Array<[number, number]> = [[kr, kc]];
   let count = 0;
@@ -149,7 +153,7 @@ function kingRegionSize(b: Board, kr: number, kc: number): number {
   return count;
 }
 
-function clearPathToCorner(b: Board, kr: number, kc: number): number {
+export function clearPathToCorner(b: Board, kr: number, kc: number): number {
   // Count corners the king could slide to *right now* with an unobstructed
   // straight path. Two or more open paths is a near-certain escape.
   let open = 0;
@@ -191,7 +195,7 @@ function lineClear(b: Board, r0: number, c0: number, r1: number, c1: number): bo
 /** Real king-moves to the nearest corner, honouring blockers: 1 (aligned, clear
  *  lane), 2 (one clear L-path via a pivot), else 3 (capped). A rook needs ≤2
  *  moves to any square, via one of two pivots — so this is exact for 1 and 2. */
-function kingCornerMoves(b: Board, kr: number, kc: number): number {
+export function kingCornerMoves(b: Board, kr: number, kc: number): number {
   let best = 3;
   for (const corner of CORNERS) {
     const { row: cr, col: cc } = corner;

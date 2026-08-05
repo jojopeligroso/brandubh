@@ -485,6 +485,26 @@ export interface Translations {
   victoryDraw: string;
   victoryReview: string;
 
+  // Motifs and tags (Session 8c). One label per value of the `Motif` union and
+  // per computed `Tag` in game/motifs.ts. The motif names are the tafl
+  // community's own, not this project's, so `en` keeps the forum's spelling and
+  // the other locales translate the sense rather than coining a rival term.
+  motifGuillotine: string;
+  motifSnapTrap: string;
+  motifClamp: string;
+  motifSpring: string;
+  motifBalling: string;
+  motifCordon: string;
+  motifCornerFight: string;
+  motifTwinTowers: string;
+  tagAttackers: string;
+  tagDefenders: string;
+  tagMoves1: string;
+  tagMoves2: string;
+  tagMoves3: string;
+  tagMoves4: string;
+  tagSoldierGivenUp: string;
+
   // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
   /** The fourth door on the Learn menu. */
   learnPuzzles: string;
@@ -984,6 +1004,23 @@ const en: Translations = {
   victoryKing: "The King prevails",
   victoryDraw: "A draw",
   victoryReview: "Review the board",
+
+  // Session 8c
+  motifGuillotine: "Guillotine",
+  motifSnapTrap: "Snap trap",
+  motifClamp: "Clamp",
+  motifSpring: "Spring",
+  motifBalling: "Balling",
+  motifCordon: "Cordon",
+  motifCornerFight: "Corner fight",
+  motifTwinTowers: "Twin towers",
+  tagAttackers: "Raiders to move",
+  tagDefenders: "King's side to move",
+  tagMoves1: "One move",
+  tagMoves2: "Two moves",
+  tagMoves3: "Three moves",
+  tagMoves4: "Four moves",
+  tagSoldierGivenUp: "A soldier given up",
 
   // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
   learnPuzzles: "Puzzles",
@@ -1510,6 +1547,23 @@ const es: Translations = {
   victoryKing: "El Rey prevalece",
   victoryDraw: "Tablas",
   victoryReview: "Revisar el tablero",
+
+  // Session 8c
+  motifGuillotine: "Guillotina",
+  motifSnapTrap: "Cepo",
+  motifClamp: "Mordaza",
+  motifSpring: "Resorte",
+  motifBalling: "Enjambre",
+  motifCordon: "Cordón",
+  motifCornerFight: "Lucha de esquina",
+  motifTwinTowers: "Torres gemelas",
+  tagAttackers: "Juegan los asaltantes",
+  tagDefenders: "Juega el bando del Rey",
+  tagMoves1: "Una jugada",
+  tagMoves2: "Dos jugadas",
+  tagMoves3: "Tres jugadas",
+  tagMoves4: "Cuatro jugadas",
+  tagSoldierGivenUp: "Se entrega un soldado",
 
   // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
   learnPuzzles: "Problemas",
@@ -2066,6 +2120,24 @@ const ga: Translations = {
   victoryKing: "An R\u00ed i r\u00e9im",
   victoryDraw: "Cluiche cothrom",
   victoryReview: "Athbhreithnigh an cl\u00e1r",
+
+  // DRAFT (Session 8c) \u2014 unreviewed machine drafts, like the rest of this
+  // table. Present so the locale stays complete; `ga` stays out of VISIBLE_LANGS.
+  motifGuillotine: "An Ghilit\u00edn",
+  motifSnapTrap: "Gaiste tobann",
+  motifClamp: "Teannt\u00e1n",
+  motifSpring: "Sprionga",
+  motifBalling: "Saithe timpeall an R\u00ed",
+  motifCordon: "Cord\u00fan",
+  motifCornerFight: "Troid c\u00fainne",
+  motifTwinTowers: "An d\u00e1 th\u00fair",
+  tagAttackers: "Na foghlaithe le bogadh",
+  tagDefenders: "Taobh an R\u00ed le bogadh",
+  tagMoves1: "Beart amh\u00e1in",
+  tagMoves2: "Dh\u00e1 bheart",
+  tagMoves3: "Tr\u00ed bheart",
+  tagMoves4: "Ceithre bheart",
+  tagSoldierGivenUp: "Saighdi\u00fair \u00e1 thabhairt suas",
 
   // ── The puzzle bank on the Learn screen (Session 8d) ────────────────────────
   // DRAFT (unreviewed machine translation), like the rest of this table — `ga`
