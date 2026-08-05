@@ -5,6 +5,7 @@ import {
   autosaveAllowed,
   boardIsInteractive,
   controllableIn,
+  settingsStackVisible,
 } from "./analysis";
 import type { Side } from "./game/types";
 
@@ -113,6 +114,24 @@ describe("analysis opens the board up", () => {
   it("still refuses a finished position and a search in flight", () => {
     expect(boardIsInteractive({ ...BASE, analysis: true, gameOver: true })).toBe(false);
     expect(boardIsInteractive({ ...BASE, analysis: true, thinking: true })).toBe(false);
+  });
+});
+
+describe("analysis hides the settings stack", () => {
+  it("shows the stack in ordinary play, when Zen allows it", () => {
+    expect(settingsStackVisible({ analysis: false, settingsExtra: true })).toBe(true);
+  });
+
+  it("hides it while analysing — analysis reads the past game, not the next one", () => {
+    // "Play as", "AI level" and the variant picker configure a future game;
+    // analysis is about the one just played. The new game keeps its own doors:
+    // the toolbar's new-game action, the mode overlay, the settings modal.
+    expect(settingsStackVisible({ analysis: true, settingsExtra: true })).toBe(false);
+  });
+
+  it("still honours Zen's hiding of the same stack", () => {
+    expect(settingsStackVisible({ analysis: false, settingsExtra: false })).toBe(false);
+    expect(settingsStackVisible({ analysis: true, settingsExtra: false })).toBe(false);
   });
 });
 

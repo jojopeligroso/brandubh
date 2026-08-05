@@ -163,6 +163,7 @@ import {
   autosaveAllowed,
   boardIsInteractive,
   controllableIn,
+  settingsStackVisible,
 } from "./analysis";
 import {
   ANNOTATE_DIFFICULTY,
@@ -1981,8 +1982,11 @@ export default function App() {
           — Zen itself, the clock, the custom ruleset, the game file — is also
           rendered in the settings modal, which the header menu always reaches, so
           no Zen setting can ever lock you out of the control that would undo it.
-          (Zen itself now has a second way back out: the header toggle.) */}
-      {showExtra("settings") && (
+          (Zen itself now has a second way back out: the header toggle.)
+
+          Analysis hides the stack too: analysis reads the game just played, and
+          next-game configuration has no business in it — see settingsStackVisible. */}
+      {settingsStackVisible({ analysis, settingsExtra: showExtra("settings") }) && (
         <>
           <Settings
             t={t}
