@@ -136,6 +136,17 @@ import {
   type Puzzle,
   type PuzzleGoal,
 } from "../src/game/puzzleBank";
+import {
+  computeTags,
+  MOTIFS,
+  MOTIF_SET_THRESHOLD,
+  namedSets,
+  PLAIN_TAGS,
+  primaryMotif,
+  recogniseMotifs,
+  type Motif,
+  type Tag,
+} from "../src/game/motifs";
 import { BOARD_SIZE, type GameState, type Move, type Side, type Square } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 import { CORNERS, isCorner } from "../src/game/engine";
@@ -397,19 +408,31 @@ function provenLine(start: GameState, solver: Side, rootDtm: number): Built | Re
  * winner had a choice. Returns null when the win arrives by encirclement,
  * no-moves or repetition: real wins, with no name in the four-value goal
  * vocabulary, and the bank does not invent one.
+ *
+ * The states are returned as well as the name, because they are the **Guillotine**
+ * recogniser's only possible input: the motif lives past the end of the shipped
+ * **Line** and is read off the solver's working rather than off the board. They
+ * are not stored — `solve()` is a pure function of the position and the params
+ * the shard records, so the merge re-derives this walk exactly rather than
+ * carrying it around. See `tagOf` and the note on re-derivation in `emit`.
  */
-function provenGoal(start: GameState, solver: Side): PuzzleGoal | null {
+function walkProof(start: GameState, solver: Side): { states: GameState[]; goal: PuzzleGoal } | null {
+  const states: GameState[] = [start];
   let state = start;
   for (let ply = 0; ply < 128 && !isGameOver(state.status); ply++) {
     if (overBudget()) return null; // unnamed ending; the caller rejects it
     const r = solve(state, rules, { maxNodes: NODES });
     if (r.value !== solver || r.bestMove === null) return null;
     state = applyMove(state, r.bestMove, rules);
+    states.push(state);
   }
-  if (state.status === "defenders_win_escape") return "escape";
-  if (state.status === "attackers_win_capture") return "regicide";
+  if (state.status === "defenders_win_escape") return { states, goal: "escape" };
+  if (state.status === "attackers_win_capture") return { states, goal: "regicide" };
   return null;
 }
+
+const provenGoal = (start: GameState, solver: Side): PuzzleGoal | null =>
+  walkProof(start, solver)?.goal ?? null;
 
 /**
  * An evaluated line: the solver's unique best move and the opponent's best
@@ -556,9 +579,96 @@ function assess(c: Candidate): Assessed | Reason {
     truncated: built.truncated,
     dtm: built.dtm,
     measurements,
-    motif: null, // 8c
-    tags: [], // 8c
+    // Left empty here on purpose. Tagging is a merge-time job (see `tagOf`): a
+    // shard holds *evidence*, and a motif is a conclusion drawn from it, exactly
+    // as a shard holds measurements and the merge computes the grade. That is
+    // what lets a recogniser change without re-mining an afternoon.
+    motif: null,
+    tags: [],
   };
+}
+
+// ── Tagging (8c) ──────────────────────────────────────────────────────────────
+
+/**
+ * Motif and **Tags** for one puzzle, at merge time.
+ *
+ * ## Why the proof is re-derived rather than stored
+ *
+ * The **Guillotine** recogniser's input is the full proven continuation, which
+ * the miner walked in `provenGoal` and threw away. The obvious fix is to widen
+ * the shard record and re-mine — and it is the wrong one, because `solve()` is a
+ * pure function of the position and the shard records the exact params it was
+ * mined under, so the walk re-runs here and produces the same states it produced
+ * then. Re-mining would have cost 78 minutes of the four cores to recover
+ * something arithmetic already had, and it would have invalidated the checked-in
+ * shards, which are the repo's copy of the mined evidence.
+ *
+ * The re-derivation is self-checking: the walk's length must equal the stored
+ * `dtm`, which was measured by an independent call (`solve(c.start).dtm`) at
+ * mining time. A mismatch means the walk is not the proof the puzzle was
+ * accepted on, and it is reported rather than swallowed.
+ *
+ * Only `regicide` and `escape` are proofs, so this runs over a small minority of
+ * the bank. The other goals are evaluations, which have no proof to be a
+ * continuation of (ADR-0002) and therefore can never carry a Guillotine.
+ */
+interface Tagged {
+  motif: Motif | null;
+  tags: Tag[];
+  byHand: boolean;
+}
+
+const proofStats = {
+  derived: 0,
+  plies: 0,
+  longest: 0,
+  unwalkable: [] as string[],
+  mismatched: [] as string[],
+  ms: 0,
+};
+
+function tagOf(p: Assessed & { id: string; key: string }, ledger: Ledger): Tagged {
+  const parsed = parsePosition(p.position);
+  if (!parsed.ok) return { motif: null, tags: [], byHand: false };
+  const start = applyMove(parsed.state, p.leadIn, rules);
+  const solver = start.turn;
+
+  const states: GameState[] = [start];
+  let s = start;
+  for (const m of p.line) {
+    s = applyMove(s, m, rules);
+    states.push(s);
+  }
+
+  let proof: GameState[] | null = null;
+  if (isProof(p.goal)) {
+    const t0 = performance.now();
+    candidateStart = t0; // the same per-candidate budget bounds the walk
+    const walked = walkProof(start, solver);
+    proofStats.ms += performance.now() - t0;
+    if (!walked) {
+      proofStats.unwalkable.push(p.id);
+    } else {
+      proofStats.derived++;
+      const walkedPlies = walked.states.length - 1;
+      proofStats.plies += walkedPlies;
+      proofStats.longest = Math.max(proofStats.longest, walkedPlies);
+      if (walkedPlies !== p.dtm) proofStats.mismatched.push(`${p.id} walked ${walkedPlies}, dtm ${p.dtm}`);
+      else proof = walked.states;
+    }
+  }
+
+  const found = recogniseMotifs({ states, proof }, rules);
+  // A hand-written **Note** outranks anything computed: it is a person saying
+  // what the position is, and this script does not argue.
+  const hand = ledger[p.key]?.motif;
+  const byHand = hand !== undefined && (MOTIFS as readonly string[]).includes(hand);
+  if (hand !== undefined && !byHand) {
+    console.warn(`\nledger note for ${p.id} names an unknown motif ${JSON.stringify(hand)}; ignored`);
+  }
+  const motif = byHand ? (hand as Motif) : primaryMotif(found);
+  return { motif, tags: computeTags({ side: solver, states, motifs: found, primary: motif }), byHand };
 }
 
 /** Re-prove a shipped line from scratch, at the end, once. The expensive check
@@ -974,10 +1084,13 @@ function emit(shards: Shard[]): void {
   // Stable output order: by puzzle number, which is order of first appearance.
   found.sort((a, b) => a.id.localeCompare(b.id));
 
-  const graded = found.map((p) => {
+  const graded = found.map((p, i) => {
     const grade = gradeOf(p.measurements);
-    return { ...p, grade, band: bandOf(grade) };
+    process.stdout.write(`\rtagging ${i + 1}/${found.length}   `);
+    const t = tagOf(p, ledger);
+    return { ...p, grade, band: bandOf(grade), motif: t.motif, tags: t.tags, byHand: t.byHand };
   });
+  process.stdout.write("\r");
 
   // ── Report ──────────────────────────────────────────────────────────────────
   const count = <T extends string>(keys: readonly T[], of: (p: (typeof graded)[number]) => T) =>
@@ -1005,7 +1118,46 @@ function emit(shards: Shard[]): void {
     `  grades:   ${[10, 25, 50, 75, 90].map((q) => `p${q} ${pct(q)}`).join("    ")}` +
       `   (reachable max ${VERIFY * GRADE_WEIGHTS.depthToFind + 3 * GRADE_WEIGHTS.linePastFirst})`,
   );
-  console.log(`  motifs:   (none — the recognisers arrive in 8c)`);
+  // ── Motifs and tags ─────────────────────────────────────────────────────────
+  // Every motif in the vocabulary gets a row, zeros included (ADR-0003). A
+  // recogniser that finds nothing is a result about Brandubh, and a row silently
+  // missing from a report is a result nobody can read.
+  const motifCount = (m: Motif): number => graded.filter((p) => p.motif === m).length;
+  const carrying = (m: Motif): number =>
+    graded.filter((p) => p.motif === m || (p.tags as string[]).includes(m)).length;
+  console.log(`\nmotifs (primary, then carried anywhere):`);
+  for (const m of MOTIFS) {
+    const hand = graded.filter((p) => p.byHand && p.motif === m).length;
+    console.log(
+      `  ${m.padEnd(12)} ${String(motifCount(m)).padStart(4)}  (carrying ${carrying(m)}` +
+        (hand ? `, ${hand} by hand` : "") +
+        `)`,
+    );
+  }
+  console.log(`  ${"(none)".padEnd(12)} ${String(graded.filter((p) => p.motif === null).length).padStart(4)}  — the Pool`);
+  const counts = new Map<Motif, number>(MOTIFS.map((m) => [m, motifCount(m)]));
+  const byHandSet = new Set<Motif>(graded.filter((p) => p.byHand && p.motif).map((p) => p.motif as Motif));
+  const sets = namedSets(counts, byHandSet);
+  console.log(
+    `  named sets (≥${MOTIF_SET_THRESHOLD}, or any size by hand): ${sets.length ? sets.join(", ") : "none"}`,
+  );
+  console.log(
+    `  tags:     ${PLAIN_TAGS.map((t) => `${t}: ${graded.filter((p) => (p.tags as string[]).includes(t)).length}`).join(", ")}`,
+  );
+  console.log(
+    `  proofs:   ${proofStats.derived}/${graded.filter((p) => isProof(p.goal)).length} re-derived, ` +
+      `${proofStats.plies} plies (longest ${proofStats.longest}), ${proofStats.ms.toFixed(0)}ms ` +
+      (proofStats.mismatched.length ? "" : `— every walk matched its stored dtm `) +
+      `(no shard re-mine; see tagOf)`,
+  );
+  if (proofStats.unwalkable.length)
+    console.log(`  !! proof would not re-walk for: ${proofStats.unwalkable.join(", ")}`);
+  if (proofStats.mismatched.length)
+    console.log(
+      `  !! WALK LENGTH DISAGREES WITH STORED dtm — the re-derived line is not the` +
+        `\n     proof the puzzle was accepted on, so it was not offered to the recognisers:` +
+        `\n     ${proofStats.mismatched.join("\n     ")}`,
+    );
   console.log(`\nrejected:`);
   for (const r of REASONS) console.log(`  ${r.padEnd(20)} ${rejected[r]}`);
 
@@ -1037,6 +1189,8 @@ function emit(shards: Shard[]): void {
 //   npx tsx scripts/genpuzzles.ts --merge
 // ${summary}.
 // By band: ${count(["easy", "medium", "hard", "ollamh"] as const, (p) => p.band)}.
+// By primary motif, zeros included (ADR-0003): ${MOTIFS.map((m) => `${m}: ${motifCount(m)}`).join(", ")},
+// none: ${graded.filter((p) => p.motif === null).length}.
 // Format: one line per puzzle, \`id|pos|leadIn|line|goal|flags|dtm|depthToFind|salience|motif|tags\`
 // — see src/game/puzzleBank.ts for the exact contract.
 

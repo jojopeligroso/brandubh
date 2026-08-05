@@ -34,7 +34,9 @@ import {
   PUZZLE_GOALS,
   puzzleStart,
   solverMoves,
+  solverSide,
 } from "./puzzleBank";
+import { isCornerFight, MOTIFS } from "./motifs";
 import { BOARD_SIZE, type Side } from "./types";
 import { DEFAULT_VARIANT, VARIANTS } from "./variants";
 
@@ -100,13 +102,64 @@ describe("the bank as shipped", () => {
     for (const p of bank) expect(PUZZLE_GOALS).toContain(p.goal);
   });
 
-  it("has no motifs or tags yet", () => {
-    // 8b ships the format with the fields empty; 8c fills them. Asserting the
-    // emptiness now is what makes 8c's regeneration a visible change.
+  it("never moves a number that has been issued", () => {
+    // **Puzzle numbers** are permanent: assigned in order of first appearance
+    // and never reused, so a number always means the same position. A ledger
+    // with a gap or a duplicate would mean one of those two claims had broken.
+    const ids = Object.values(ledger)
+      .map((e) => e.id)
+      .sort();
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids[0]).toBe("00001");
+    expect(ids[ids.length - 1]).toBe(String(ids.length).padStart(5, "0"));
+  });
+
+  it("carries a motif from the attested vocabulary, or none at all", () => {
+    // ADR-0003: recognisers are written only for attested terms, and most
+    // puzzles exhibit none of them and live in the **Pool**.
+    for (const p of bank) if (p.motif !== null) expect(MOTIFS).toContain(p.motif);
+    expect(bank.some((p) => p.motif === null)).toBe(true);
+  });
+
+  it("tags every puzzle with its side to move and its line length", () => {
     for (const p of bank) {
-      expect(p.motif).toBeNull();
-      expect(p.tags).toEqual([]);
+      expect(p.tags, `puzzle ${p.id}`).toContain(solverSide(p));
+      expect(p.tags, `puzzle ${p.id}`).toContain(`moves${solverMoves(p.line)}`);
+      expect(new Set(p.tags).size, `puzzle ${p.id} repeats a tag`).toBe(p.tags.length);
     }
+  });
+
+  it("never repeats the primary motif as one of its own tags", () => {
+    // A **Tag** carries the motifs that are *not* primary; one repeating the row
+    // the puzzle is already filed under would say nothing.
+    for (const p of bank) if (p.motif) expect(p.tags).not.toContain(p.motif);
+  });
+
+  it("re-runs the board-only recogniser and gets the same answer", () => {
+    // Determinism, in the form that can actually ship: replaying every line and
+    // recognising it again must reproduce the stored labels exactly. Board-only,
+    // so it costs nothing — the proof-based Guillotine is re-derived by the
+    // generator instead (see `tagOf` in scripts/genpuzzles.ts).
+    for (const p of bank) {
+      const start = puzzleStart(p, rules);
+      const states = [start!];
+      let s = start!;
+      for (const m of p.line) {
+        s = applyMove(s, m, rules);
+        states.push(s);
+      }
+      const carries = p.motif === "cornerFight" || p.tags.includes("cornerFight");
+      expect(carries, `puzzle ${p.id}`).toBe(isCornerFight(states, rules));
+    }
+  });
+
+  it("carries no Guillotine, because no shipped proof runs past its line", () => {
+    // Recorded rather than omitted (ADR-0003). The motif lives in the proof past
+    // the end of the **Line**, and every proof in this bank ends *at* its line —
+    // `truncated` is false throughout — so there is no continuation for it to
+    // live in. That is a finding about the bank, not a hole in the recogniser.
+    expect(bank.filter((p) => p.motif === "guillotine")).toHaveLength(0);
+    expect(bank.filter((p) => isProof(p.goal) && p.truncated)).toHaveLength(0);
   });
 });
 
