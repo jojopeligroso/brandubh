@@ -174,7 +174,7 @@ memory.
   - **Candidate arrows** only when the engine ties exactly (up to three); one clear best move draws one arrow. The root search already collected the tie set to randomise between equal moves, so this cost nothing and is exact rather than approximate.
   - Verified: **518 tests**, build clean, and **33 driven-browser assertions at 390×844** across two passes — the review running unprompted and above the fold, the graph jumping and surviving the jump, and the full puzzle loop: answer hidden while guessing and after a wrong try, *not quite* with both offers, try-again restoring the original line with no stray variation, reveal showing the arrow and the bar, and Think harder going from d4 to d6.
 
-### Session 8 — Puzzle bank *(L — see design doc)* — **planned, not started**
+### Session 8 — Puzzle bank *(L — see design doc)* — **8a–8d shipped; 8e in progress, 8f blocked**
 **Goal:** ~80 verified puzzles (a stored position plus a line of at most four solver moves), reachable from the Learn screen as named sets and a graded pool, with an unlisted proving ground to calibrate the grades.
 Plan: [`docs/design/puzzle-bank.md`](./design/puzzle-bank.md). Five ADRs settle the load-bearing decisions; the vocabulary is in [`GLOSSARY.md`](../GLOSSARY.md).
 - [x] **8a — Attempt state machine** *(S)*. `src/game/puzzle.ts` becomes `attempt.ts`: `PuzzleState` → `Attempt`, a `step` cursor into the Line, a `source` discriminator (review / bank), skip offered in the `wrong` stage. Ships against the review path only. **This is the seam**, unit-tested before it has a bank caller, for the reason Session 7 recorded twice over.
@@ -183,6 +183,23 @@ Plan: [`docs/design/puzzle-bank.md`](./design/puzzle-bank.md). Five ADRs settle 
 - [x] **8d — Learn screen: bands, pool, named sets, playing a puzzle** *(L)*. Four bands on the `DIFFICULTIES` ladder, proportional unlocking, the pool with tag filters, a layered completion note from fixed templates. `BankPuzzlePlayer` is the contract 8e reuses. **Unlock is a quarter of a band** (27 / 6 / 8 over 106/22/29/4) — the plan proposed a third, and a third of `easy` is 36 puzzles, more work to reach the second band than the second and third bands contain. The completion note skips its evaluation-term layer for the proof goals, because the board terms are exactly what would give a **Truncated** line away. 8d shipped the tag chips rendering the raw tag id, on the grounds that 8c owned the `tag` copy; merging the two slices joins them, and `TAG_LABEL_KEYS` is exhaustive over the `Tag` union rather than a lookup with a fallback, so an unlabelled tag is a build error instead of a chip reading `soldierGivenUp` at a learner. No key was missing: `Tag` is `PLAIN_TAGS ∪ Motif`, 7 + 8, and 8c wrote exactly those fifteen.
 - [ ] **8e — Proving ground and calibration script** *(M–L)*. Unlisted page, no backend, no router (ADR-0004); blind comparison against eight anchors, never an assigned band (ADR-0005). The script prints the re-test noise floor beside the fit accuracy.
 - [ ] **8f — Fit the weights** *(operational)*. Collect, fit, paste, re-band, and rewrite the weights comment so it stops saying "guess".
+
+**Session 8 is four slices in, and the two that remain are unlike each other.**
+8a, 8b, 8c and 8d are shipped and merged: the Attempt seam, 161 puzzles mined
+into checked-in shards, the tagger, and the Learn screen that lists them. The
+bank is live, so the heading above said "planned, not started" while four ticks
+sat under it; it had been wrong since 8b, and neither branch that followed
+thought the line was theirs to fix.
+
+8e is in progress on its own branch. 8f is not merely unstarted but **blocked,
+and not on engineering**: it fits the grade weights to a **Ranking** built out
+of human blind comparisons (ADR-0005), and those comparisons do not exist yet.
+They cannot be manufactured, because weights fitted to labels a formula produced
+would measure the formula against itself; and they cannot be shortcut by asking
+anyone how hard a puzzle is, which is the one question ADR-0005 exists to
+forbid. What 8f waits on is 8e's proving ground being used, by people, enough
+times to fit on. That is a fact about a schedule rather than a task left in the
+code.
 
 ---
 
