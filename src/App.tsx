@@ -2708,33 +2708,30 @@ function Settings({
 
       {/* ── Game ── how you play: side, opponent strength, ruleset ── */}
       <SettingsSection label={t.sectionGame}>
-        <Row label={t.playAs}>
-          <div className="seg">
-            {(
-              [
-                ["defenders", t.king],
-                ["attackers", t.raiders],
-                ["hotseat", t.overTheBoard],
-              ] as [PlayMode, string][]
-            ).map(([m, l]) => (
-              <button key={m} className={playMode === m ? "on" : ""} onClick={() => onMode(m)}>
-                {l}
-              </button>
-            ))}
-          </div>
-        </Row>
+        <ChoiceGroup
+          label={t.playAs}
+          value={playMode}
+          options={[
+            { value: "defenders", label: t.king },
+            { value: "attackers", label: t.raiders },
+            { value: "hotseat", label: t.overTheBoard },
+          ]}
+          onChange={onMode}
+        />
 
         {playMode !== "hotseat" && (
-          <Row label={t.aiLevel}>
-            <div className="seg">
-              {(([["easy", t.easy], ["medium", t.medium], ["hard", t.hard], ["ollamh", t.ollamh]] as [Difficulty, string][]).map(([d, label]) => (
-                <button key={d} className={difficulty === d ? "on" : ""} onClick={() => onDifficulty(d)}>
-                  {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
-                  {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
-                </button>
-              )))}
-            </div>
-          </Row>
+          <ChoiceGroup
+            label={t.aiLevel}
+            value={difficulty}
+            options={[
+              { value: "easy", label: t.easy },
+              { value: "medium", label: t.medium },
+              { value: "hard", label: t.hard },
+              // "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts).
+              { value: "ollamh", label: <span className="gaelic">{toSeanchlo(t.ollamh)}</span> },
+            ]}
+            onChange={onDifficulty}
+          />
         )}
 
         <Row label={t.variant}>
@@ -2756,15 +2753,12 @@ function Settings({
       {/* ── Match ── over-the-board series controls (hotseat only) ── */}
       {playMode === "hotseat" && (
         <SettingsSection label={t.sectionMatch}>
-          <Row label={t.setLength}>
-            <div className="seg">
-              {SET_LENGTH_OPTIONS.map((n) => (
-                <button key={n} className={gamesPerSet === n ? "on" : ""} onClick={() => onSetLength(n)}>
-                  {n}
-                </button>
-              ))}
-            </div>
-          </Row>
+          <ChoiceGroup
+            label={t.setLength}
+            value={gamesPerSet}
+            options={SET_LENGTH_OPTIONS.map((n) => ({ value: n, label: n }))}
+            onChange={onSetLength}
+          />
 
           {/* Reset the running match — kept here (not in the action row) so it
               can't be fumbled mid-set, but still reachable while a set is live. */}
@@ -2838,16 +2832,15 @@ function ClockControls({
 
   return (
     <div className="space-y-3">
-      <Row label={t.clock}>
-        <div className="seg">
-          <button className={!enabled ? "on" : ""} onClick={() => onEnabled(false)}>
-            {t.clockOff}
-          </button>
-          <button className={enabled ? "on" : ""} onClick={() => onEnabled(true)}>
-            {t.timeControlLabel}
-          </button>
-        </div>
-      </Row>
+      <ChoiceGroup
+        label={t.clock}
+        value={enabled}
+        options={[
+          { value: false, label: t.clockOff },
+          { value: true, label: t.timeControlLabel },
+        ]}
+        onChange={onEnabled}
+      />
 
       {enabled && (
         <>
@@ -2948,17 +2941,15 @@ function ZenSettings({
   };
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-parchment-dim">{t.zenMode}</span>
-        <div className="seg">
-          <button className={!zen.enabled ? "on" : ""} onClick={() => onEnabled(false)}>
-            {t.off}
-          </button>
-          <button className={zen.enabled ? "on" : ""} onClick={() => onEnabled(true)}>
-            {t.on}
-          </button>
-        </div>
-      </div>
+      <ChoiceGroup
+        label={t.zenMode}
+        value={zen.enabled}
+        options={[
+          { value: false, label: t.off },
+          { value: true, label: t.on },
+        ]}
+        onChange={onEnabled}
+      />
       <p className="mt-1.5 text-xs text-parchment-dim">{t.zenHint}</p>
       {zen.enabled && (
         <div className="mt-3">
@@ -2993,6 +2984,23 @@ function ZenSettings({
 // The rule is simple — if Zen can hide it
 // and it configures the app, it lives here too, and no Zen setting can strand
 // you without the control that undoes it. Board design lives here as before.
+//
+// Presentation mimics lichess mobile v8 (lichobile) settings: a root list of
+// categories, each opening its own page under a back-arrow header. Enumerated
+// settings render as full-width multi-choice strips (ChoiceGroup); the
+// look-and-feel choices are picker lists — ✓ on the active row, its preview
+// flush right (PickerRow).
+type SettingsPage =
+  | "root"
+  | "zen"
+  | "clock"
+  | "rules"
+  | "theme"
+  | "pieces"
+  | "atk"
+  | "king"
+  | "def"
+  | "corner";
 function SettingsModal({
   t,
   theme,
@@ -3042,6 +3050,20 @@ function SettingsModal({
   gameInProgress: boolean;
   onClose: () => void;
 }) {
+  // Which page the navigator shows; every open starts at the category list.
+  const [page, setPage] = useState<SettingsPage>("root");
+
+  // Escape walks back the way it came: sub-page → root → closed.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (page === "root") onClose();
+      else setPage("root");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [page, onClose]);
+
   // The colour a piece has under the current theme, with any custom override
   // stripped — this seeds the picker when a side is still "follow theme". Read
   // straight from the applied CSS so it always tracks index.css, then restore
@@ -3074,221 +3096,412 @@ function SettingsModal({
     { key: "king", label: t.king },
   ];
 
+  const titles: Record<SettingsPage, string> = {
+    root: t.settings,
+    zen: t.zenMode,
+    clock: t.clock,
+    rules: t.customRulesTitle,
+    theme: t.colourTheme,
+    pieces: t.pieceColours,
+    atk: t.attackerIcon,
+    king: t.kingIcon,
+    def: t.defenderIcon,
+    corner: t.cornerIcon,
+  };
+
+  const kingEmblems = availableKingEmblems(armedKing);
+  const currentTheme = THEMES.find((m) => m.id === theme);
+  const currentAtk = ATTACKER_EMBLEMS.find((e) => e.id === attackerEmblem);
+  const currentKing = kingEmblems.find((e) => e.id === kingEmblem);
+  const currentDef = DEFENDER_EMBLEMS.find((e) => e.id === defenderEmblem);
+  const currentCorner = CORNER_EMBLEMS.find((e) => e.id === cornerEmblem);
+
+  // A root row: label, the current pick's preview, and the nav chevron (CSS).
+  const navRow = (label: string, target: SettingsPage, preview?: React.ReactNode) => (
+    <li>
+      <button
+        type="button"
+        className="settings-row nav"
+        onClick={() => setPage(target)}
+        data-testid={`settings-nav-${target}`}
+      >
+        <span className="row-name">{label}</span>
+        {preview && (
+          <span className="row-preview" aria-hidden>
+            {preview}
+          </span>
+        )}
+      </button>
+    </li>
+  );
+
   return (
     <div
       className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+        className="settings-sheet card flex max-h-[88vh] w-full flex-col overflow-hidden rounded-b-none p-0 sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
-          <h2 className="font-display text-2xl text-gold">{t.settings}</h2>
-          <button className="btn" onClick={onClose} aria-label={t.close}>
-            ✕
+        <header className="settings-head">
+          <button
+            type="button"
+            className="settings-back"
+            onClick={page === "root" ? onClose : () => setPage("root")}
+            aria-label={page === "root" ? t.close : t.back}
+            data-testid="settings-back"
+          >
+            {page === "root" ? <span aria-hidden>✕</span> : <BackIcon />}
           </button>
-        </div>
+          <h2>{titles[page]}</h2>
+        </header>
 
-        <section className="mt-5" data-testid="modal-zen">
-          <ZenSettings
-            t={t}
-            zen={zen}
-            onEnabled={onZenEnabled}
-            onToggleExtra={onToggleZenExtra}
-          />
-        </section>
-
-        {/* Clock and custom rules: only relevant before/after a game, not during. */}
-        {!gameInProgress && (
-          <>
-            <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-clock">
-              <ClockControls {...clockControls} />
-            </section>
-            {customRules && (
-              <section className="mt-5 border-t border-parchment/10 pt-4" data-testid="modal-rules">
-                <CustomRuleControls t={t} rules={customRules} onChange={onCustomRules} />
-              </section>
-            )}
-          </>
-        )}
-
-        <section className="mt-5 border-t border-parchment/10 pt-4">
-          <span className="text-sm font-semibold text-parchment-dim">{t.colourTheme}</span>
-          <div className="theme-swatches mt-2">
-            {THEMES.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                className={`theme-swatch ${theme === m.id ? "on" : ""}`}
-                onClick={() => onTheme(m.id)}
-                aria-pressed={theme === m.id}
-              >
-                <span className="chips" aria-hidden>
-                  {m.chips.map((c, i) => (
-                    <i key={i} style={{ background: c }} />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {page === "root" && (
+            <ul className="settings-list">
+              {navRow(t.zenMode, "zen")}
+              {/* Clock and custom rules: only relevant before/after a game. */}
+              {!gameInProgress && navRow(t.clock, "clock")}
+              {!gameInProgress && customRules && navRow(t.customRulesTitle, "rules")}
+              {navRow(
+                t.colourTheme,
+                "theme",
+                currentTheme && <ThemeChips chips={currentTheme.chips} />,
+              )}
+              {navRow(
+                t.pieceColours,
+                "pieces",
+                <span className="row-chips">
+                  {stoneRows.map(({ key }) => (
+                    <i key={key} style={{ background: pieceColors[key] ?? themeStones[key] }} />
                   ))}
-                </span>
-                {m.name}
-              </button>
-            ))}
-          </div>
-        </section>
+                </span>,
+              )}
+              {navRow(
+                t.attackerIcon,
+                "atk",
+                currentAtk && (
+                  <EmblemGlyph
+                    viewBox={currentAtk.viewBox}
+                    path={currentAtk.path}
+                    scale={currentAtk.scale}
+                    fillRule={currentAtk.fillRule}
+                  />
+                ),
+              )}
+              {navRow(
+                t.kingIcon,
+                "king",
+                currentKing && (
+                  <EmblemGlyph
+                    viewBox={currentKing.viewBox}
+                    path={currentKing.path}
+                    scale={currentKing.scale}
+                  />
+                ),
+              )}
+              {navRow(
+                t.defenderIcon,
+                "def",
+                currentDef && (
+                  <EmblemGlyph
+                    viewBox={currentDef.viewBox}
+                    path={currentDef.path}
+                    scale={currentDef.scale}
+                    ring={currentDef.outerRing}
+                  />
+                ),
+              )}
+              {navRow(
+                t.cornerIcon,
+                "corner",
+                currentCorner && (
+                  <EmblemGlyph viewBox={currentCorner.viewBox} path={currentCorner.path} />
+                ),
+              )}
+            </ul>
+          )}
 
-        <section className="mt-5">
-          <span className="text-sm font-semibold text-parchment-dim">{t.pieceColours}</span>
-          <div className="mt-2 space-y-2">
-            {stoneRows.map(({ key, label }) => {
-              const custom = pieceColors[key];
-              const value = custom ?? themeStones[key];
-              return (
-                <div key={key} className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-parchment">{label}</span>
-                  <div className="flex items-center gap-2">
-                    <label className="color-swatch" style={{ background: value }}>
-                      <input
-                        type="color"
-                        value={value}
-                        onChange={(e) => onPieceColor(key, e.target.value)}
-                        aria-label={label}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="btn text-xs"
-                      onClick={() => onPieceColor(key, null)}
-                      disabled={!custom}
-                    >
-                      {t.themeDefault}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+          {page === "zen" && (
+            <div className="settings-page" data-testid="modal-zen">
+              <ZenSettings t={t} zen={zen} onEnabled={onZenEnabled} onToggleExtra={onToggleZenExtra} />
+            </div>
+          )}
 
-        <section className="mt-5">
-          <span className="text-sm font-semibold text-parchment-dim">{t.attackerIcon}</span>
-          <div className="emblem-swatches mt-2">
-            {ATTACKER_EMBLEMS.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                className={`emblem-swatch ${attackerEmblem === e.id ? "on" : ""}`}
-                onClick={() => onAttackerEmblem(e.id)}
-                aria-pressed={attackerEmblem === e.id}
-                title={e.name}
-              >
-                <svg
-                  viewBox={e.viewBox}
-                  fill="currentColor"
-                  fillRule={e.fillRule ?? "evenodd"}
-                  style={e.scale ? { transform: `scale(${e.scale})` } : undefined}
-                  aria-hidden
-                >
-                  <path d={e.path} />
-                </svg>
-                <span className="emblem-name">{e.name}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+          {page === "clock" && (
+            <div className="settings-page" data-testid="modal-clock">
+              <ClockControls {...clockControls} />
+            </div>
+          )}
 
-        <section className="mt-5">
-          <span className="text-sm font-semibold text-parchment-dim">{t.kingIcon}</span>
-          <div className="emblem-swatches mt-2">
-            {availableKingEmblems(armedKing).map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                className={`emblem-swatch ${kingEmblem === e.id ? "on" : ""}`}
-                onClick={() => onKingEmblem(e.id)}
-                aria-pressed={kingEmblem === e.id}
-                title={e.name}
-              >
-                <svg
-                  viewBox={e.viewBox}
-                  fill="currentColor"
-                  fillRule="evenodd"
-                  style={e.scale ? { transform: `scale(${e.scale})` } : undefined}
-                  aria-hidden
-                >
-                  <path d={e.path} />
-                </svg>
-                <span className="emblem-name">{e.name}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+          {page === "rules" && customRules && (
+            <div className="settings-page" data-testid="modal-rules">
+              <CustomRuleControls t={t} rules={customRules} onChange={onCustomRules} />
+            </div>
+          )}
 
-        <section className="mt-5">
-          <span className="text-sm font-semibold text-parchment-dim">{t.defenderIcon}</span>
-          <div className="emblem-swatches mt-2">
-            {DEFENDER_EMBLEMS.map((e) => {
-              const ring = e.outerRing;
-              const center = ring ? emblemCenter(e.viewBox) : null;
-              return (
-                <button
+          {page === "theme" && (
+            <ul className="settings-list">
+              {THEMES.map((m) => (
+                <PickerRow
+                  key={m.id}
+                  name={m.name}
+                  selected={theme === m.id}
+                  onSelect={() => onTheme(m.id)}
+                  preview={<ThemeChips chips={m.chips} />}
+                />
+              ))}
+            </ul>
+          )}
+
+          {page === "pieces" && (
+            <ul className="settings-list">
+              {stoneRows.map(({ key, label }) => {
+                const custom = pieceColors[key];
+                const value = custom ?? themeStones[key];
+                return (
+                  <li key={key} className="settings-row">
+                    <span className="row-name">{label}</span>
+                    <span className="row-preview">
+                      <button
+                        type="button"
+                        className="btn text-xs"
+                        onClick={() => onPieceColor(key, null)}
+                        disabled={!custom}
+                      >
+                        {t.themeDefault}
+                      </button>
+                      <label className="color-swatch" style={{ background: value }}>
+                        <input
+                          type="color"
+                          value={value}
+                          onChange={(e) => onPieceColor(key, e.target.value)}
+                          aria-label={label}
+                        />
+                      </label>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {page === "atk" && (
+            <ul className="settings-list">
+              {ATTACKER_EMBLEMS.map((e) => (
+                <PickerRow
                   key={e.id}
-                  type="button"
-                  className={`emblem-swatch ${defenderEmblem === e.id ? "on" : ""}`}
-                  onClick={() => onDefenderEmblem(e.id)}
-                  aria-pressed={defenderEmblem === e.id}
-                  title={e.name}
-                >
-                  <svg
-                    viewBox={e.viewBox}
-                    fill="currentColor"
-                    fillRule="evenodd"
-                    style={e.scale ? { transform: `scale(${e.scale})` } : undefined}
-                    aria-hidden
-                  >
-                    <path d={e.path} />
-                    {ring && center && (
-                      <circle
-                        cx={center.cx}
-                        cy={center.cy}
-                        r={ring.r}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={ring.width}
-                      />
-                    )}
-                  </svg>
-                  <span className="emblem-name">{e.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+                  name={e.name}
+                  selected={attackerEmblem === e.id}
+                  onSelect={() => onAttackerEmblem(e.id)}
+                  preview={
+                    <EmblemGlyph viewBox={e.viewBox} path={e.path} scale={e.scale} fillRule={e.fillRule} />
+                  }
+                />
+              ))}
+            </ul>
+          )}
 
-        <section className="mt-5">
-          <span className="text-sm font-semibold text-parchment-dim">{t.cornerIcon}</span>
-          <div className="emblem-swatches mt-2">
-            {CORNER_EMBLEMS.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                className={`emblem-swatch ${cornerEmblem === e.id ? "on" : ""}`}
-                onClick={() => onCornerEmblem(e.id)}
-                aria-pressed={cornerEmblem === e.id}
-                title={e.name}
-              >
-                <svg viewBox={e.viewBox} fill="currentColor" fillRule="evenodd" aria-hidden>
-                  <path d={e.path} />
-                </svg>
-                <span className="emblem-name">{e.name}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+          {page === "king" && (
+            <ul className="settings-list">
+              {kingEmblems.map((e) => (
+                <PickerRow
+                  key={e.id}
+                  name={e.name}
+                  selected={kingEmblem === e.id}
+                  onSelect={() => onKingEmblem(e.id)}
+                  preview={<EmblemGlyph viewBox={e.viewBox} path={e.path} scale={e.scale} />}
+                />
+              ))}
+            </ul>
+          )}
 
-        <button className="btn btn-primary mt-6 w-full" onClick={onClose}>
-          {t.done}
-        </button>
+          {page === "def" && (
+            <ul className="settings-list">
+              {DEFENDER_EMBLEMS.map((e) => (
+                <PickerRow
+                  key={e.id}
+                  name={e.name}
+                  selected={defenderEmblem === e.id}
+                  onSelect={() => onDefenderEmblem(e.id)}
+                  preview={
+                    <EmblemGlyph viewBox={e.viewBox} path={e.path} scale={e.scale} ring={e.outerRing} />
+                  }
+                />
+              ))}
+            </ul>
+          )}
+
+          {page === "corner" && (
+            <ul className="settings-list">
+              {CORNER_EMBLEMS.map((e) => (
+                <PickerRow
+                  key={e.id}
+                  name={e.name}
+                  selected={cornerEmblem === e.id}
+                  onSelect={() => onCornerEmblem(e.id)}
+                  preview={<EmblemGlyph viewBox={e.viewBox} path={e.path} />}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+// ── Lichess-style settings widgets (shared by the modal and inline stack) ────
+
+// One row of a picker list: name, ✓ on the active row, preview flush right —
+// lichobile's `li.list_item` from the board-theme / piece-set screens.
+function PickerRow({
+  name,
+  selected,
+  onSelect,
+  preview,
+}: {
+  name: string;
+  selected: boolean;
+  onSelect: () => void;
+  preview: React.ReactNode;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        className={`settings-row ${selected ? "selected" : ""}`}
+        onClick={onSelect}
+        aria-pressed={selected}
+      >
+        <span className="row-name">{name}</span>
+        {selected && (
+          <span className="row-check" aria-hidden>
+            <CheckIcon />
+          </span>
+        )}
+        <span className="row-preview" aria-hidden>
+          {preview}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+// An enumerated setting: plain label above one full-width strip of joined,
+// equal-width buttons — lichobile's `.form-multipleChoice`.
+function ChoiceGroup<T extends string | number | boolean>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: React.ReactNode }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="choice-block">
+      <p className="choice-label">{label}</p>
+      <div className="choice">
+        {options.map((o) => (
+          <button
+            key={String(o.value)}
+            type="button"
+            className={o.value === value ? "on" : ""}
+            aria-pressed={o.value === value}
+            onClick={() => onChange(o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Any emblem at swatch size; `ring` is the defender sets' optional outer ring.
+function EmblemGlyph({
+  viewBox,
+  path,
+  scale,
+  fillRule,
+  ring,
+}: {
+  viewBox: string;
+  path: string;
+  scale?: number;
+  fillRule?: "evenodd" | "nonzero";
+  ring?: { r: number; width: number };
+}) {
+  const center = ring ? emblemCenter(viewBox) : null;
+  return (
+    <svg
+      viewBox={viewBox}
+      fill="currentColor"
+      fillRule={fillRule ?? "evenodd"}
+      style={scale ? { transform: `scale(${scale})` } : undefined}
+      aria-hidden
+    >
+      <path d={path} />
+      {ring && center && (
+        <circle
+          cx={center.cx}
+          cy={center.cy}
+          r={ring.r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={ring.width}
+        />
+      )}
+    </svg>
+  );
+}
+
+// The current theme's four chips — lichobile's board_thumbnail equivalent.
+function ThemeChips({ chips }: { chips: readonly string[] }) {
+  return (
+    <span className="row-chips">
+      {chips.map((c, i) => (
+        <i key={i} style={{ background: c }} />
+      ))}
+    </span>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4.5 12.5l4.8 4.8L19.5 6.8" />
+    </svg>
+  );
+}
+
+/** ← back to the settings root. */
+function BackIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M19 12H5" />
+      <path d="M11 6l-6 6 6 6" />
+    </svg>
   );
 }
 
