@@ -250,6 +250,8 @@ export interface Translations {
 
   // Mode overlay
   chooseGame: string;
+  /** Accessible name for the header wordmark, which reopens the setup overlay. */
+  backToStart: string;
   playVsAi: string;
   otbOverlay: string;
   withFriend: string;
@@ -658,6 +660,7 @@ const en: Translations = {
   moveLog: "Move log",
 
   chooseGame: "Choose your game",
+  backToStart: "Back to the start screen",
   playVsAi: "Play vs AI",
   otbOverlay: "Over the board",
   withFriend: "with a friend in person",
@@ -1128,6 +1131,7 @@ const es: Translations = {
   moveLog: "Registro de jugadas",
 
   chooseGame: "Elige tu juego",
+  backToStart: "Volver a la pantalla de inicio",
   playVsAi: "Contra la IA",
   otbOverlay: "Frente al tablero",
   withFriend: "con un amigo en persona",
@@ -1611,6 +1615,7 @@ const ga: Translations = {
   moveLog: "Loga bogtha",
 
   chooseGame: "Roghnaigh do chluiche",
+  backToStart: "Ar ais go dtí an scáileán tosaigh",
   playVsAi: "In aghaidh an r\u00edomhaire",
   otbOverlay: "Os comhair a ch\u00e9ile",
   withFriend: "le cara i bpearsa",

@@ -1327,6 +1327,27 @@ body {
   }
 }
 
+/* The header wordmark as a control. It has to keep reading as the wordmark, so
+   it inherits the h1's face and size outright and shows its affordance only on
+   hover / focus — no button chrome sitting under the title. */
+.wordmark-home {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: opacity 140ms ease;
+}
+.wordmark-home:hover {
+  opacity: 0.75;
+}
+.wordmark-home:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
 /* Side-picker verb badge (ESCAPE / CAPTURE) */
 .side-verb {
   font-size: 0.6rem;

@@ -511,6 +511,12 @@ export default function App() {
   // board, so it grows a way back out. The boot-time overlay has nothing behind
   // it worth returning to and keeps its original no-exit shape.
   const [modeOverlayCancelable, setModeOverlayCancelable] = useState(false);
+  // A game picked in the setup overlay that would wipe a live one, held until
+  // the player confirms. Null whenever nothing is awaiting an answer.
+  const [pendingModeChoice, setPendingModeChoice] = useState<{
+    mode: PlayMode;
+    difficulty?: Difficulty;
+  } | null>(null);
   const [showTakeback, setShowTakeback] = useState(false);
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
   const [pendingBranch, setPendingBranch] = useState<{ vsComputer: boolean } | null>(null);
@@ -1699,14 +1705,45 @@ export default function App() {
   // nothing to discard (a fresh board, solo "New game") falls straight through.
   const matchHasProgress =
     otbMatch !== null && (otbSet!.results.length > 0 || matchTotals(otbMatch).setsCompleted > 0);
+  // Moves on the board and no result yet — a game someone is in the middle of.
+  const gameUnfinished = tip >= 1 && !gameOver;
   // A solo game with moves on the board and no result yet is worth guarding too:
   // a stray "New game" tap shouldn't silently wipe a game in progress.
-  const soloGameInProgress = otbMatch === null && tip >= 1 && !gameOver;
+  const soloGameInProgress = otbMatch === null && gameUnfinished;
   const requestNewMatch = useCallback(() => {
     if (matchHasProgress) setShowNewMatchConfirm(true);
     else if (soloGameInProgress) setShowNewGameConfirm(true);
     else resetGame();
   }, [matchHasProgress, soloGameInProgress, resetGame]);
+
+  // Is there a game behind the setup overlay that picking a new one would wipe?
+  // Deliberately broader than soloGameInProgress, which excludes over-the-board
+  // play (otbMatch === null): a half-played first game of a set has no banked
+  // result yet, so matchHasProgress is false there too, and between them a live
+  // over-the-board game fell through both guards unasked.
+  const wouldDiscardGame = matchHasProgress || gameUnfinished;
+
+  // Open the setup overlay over the live board — the drawer's "New game" and the
+  // header wordmark both land here. Cancelable, because there is now a view
+  // behind it: nothing is reset until a game is actually chosen.
+  const openSetupOverlay = () => {
+    setModeOverlayCancelable(true);
+    setShowModeOverlay(true);
+  };
+
+  const closeSetupOverlay = () => {
+    setShowModeOverlay(false);
+    setModeOverlayCancelable(false);
+    setPendingModeChoice(null);
+  };
+
+  // Commit a game chosen in the overlay: this is the point of no return, so the
+  // board reset — and the chosen AI strength — land here and nowhere earlier.
+  const commitModeChoice = (m: PlayMode, d?: Difficulty) => {
+    if (d) setDifficulty(d);
+    changeMode(m);
+    closeSetupOverlay();
+  };
 
   // Contextual primary button:
   //   • set decided        → "Next set" (bank it, continue the series)
@@ -1830,6 +1867,7 @@ export default function App() {
         menuOpen={drawerOpen}
         onMenu={() => setDrawerOpen(true)}
         compact={!showModeOverlay}
+        onHome={showModeOverlay ? null : openSetupOverlay}
       />
 
       {/* Not while analysing: a set scoreboard is about a series, and analysis
@@ -2183,24 +2221,19 @@ export default function App() {
           lang={lang}
           onLang={setLang}
           difficulty={difficulty}
-          onDifficulty={setDifficulty}
           side={humanSide ?? "defenders"}
           onShowDemo={() => setLearnView("menu")}
           resume={pendingResume}
           onResume={resumeSavedGame}
           onDiscardResume={discardSavedGame}
-          onCancel={
-            modeOverlayCancelable
-              ? () => {
-                  setShowModeOverlay(false);
-                  setModeOverlayCancelable(false);
-                }
-              : null
-          }
-          onChoose={(m) => {
-            changeMode(m);
-            setShowModeOverlay(false);
-            setModeOverlayCancelable(false);
+          onCancel={modeOverlayCancelable ? closeSetupOverlay : null}
+          onChoose={(m, d) => {
+            // Reopened over a game worth keeping? Ask before wiping it. The
+            // overlay stays up behind the confirmation, so answering "no"
+            // leaves the player where they were, mid-choice.
+            if (modeOverlayCancelable && wouldDiscardGame)
+              setPendingModeChoice({ mode: m, difficulty: d });
+            else commitModeChoice(m, d);
           }}
         />
       )}
@@ -2212,14 +2245,11 @@ export default function App() {
           onLang={setLang}
           status={drawerStatus}
           onClose={() => setDrawerOpen(false)}
-          onNewGame={() => {
-            // Reopen the setup overlay rather than resetting on the spot: the
-            // full chooser (opponent → side → strength) is the "create a game"
-            // screen here, and — opened over a live board — it can be backed
-            // out of without losing anything.
-            setModeOverlayCancelable(true);
-            setShowModeOverlay(true);
-          }}
+          // Reopen the setup overlay rather than resetting on the spot: the full
+          // chooser (opponent → side → strength) is the "create a game" screen
+          // here, and — opened over a live board — it can be backed out of
+          // without losing anything. Same door the wordmark opens.
+          onNewGame={openSetupOverlay}
           onObjectives={() => setLearnView("objectives")}
           onRules={() => setLearnView("rules")}
           onTutorials={() => setLearnView("tutorials")}
@@ -2359,6 +2389,22 @@ export default function App() {
         />
       )}
 
+      {/* Setup overlay → a game that would discard the one behind it. Sits over
+          the overlay, so declining returns to the chooser rather than the board. */}
+      {pendingModeChoice && (
+        <ConfirmDialog
+          t={t}
+          title={t.newGameTitle}
+          body={t.newGameBody}
+          confirmLabel={t.newGame}
+          cancelLabel={t.back}
+          onConfirm={() =>
+            commitModeChoice(pendingModeChoice.mode, pendingModeChoice.difficulty)
+          }
+          onCancel={() => setPendingModeChoice(null)}
+        />
+      )}
+
       {showNewGameConfirm && (
         <ConfirmDialog
           t={t}
@@ -2417,6 +2463,7 @@ function Header({
   menuOpen,
   onMenu,
   compact,
+  onHome,
 }: {
   t: Translations;
   zenOn: boolean;
@@ -2425,14 +2472,40 @@ function Header({
   onMenu: () => void;
   /** Shrink during gameplay so the board gets more vertical space. */
   compact: boolean;
+  /**
+   * Reopen the setup overlay over the live board. Null while that overlay is
+   * already up — the wordmark is inert there rather than a button that leads
+   * back to where you already are.
+   */
+  onHome: (() => void) | null;
 }) {
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
         <h1 className={`gaelic leading-none text-parchment ${compact ? "text-xl" : "text-3xl"}`}>
           {/* Gaelic word → cló face + overdot orthography (see gaelic.ts):
-              "Brandubh" renders "Branduḃ". */}
-          {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+              "Brandubh" renders "Branduḃ".
+
+              The wordmark doubles as the way back to the setup overlay — the
+              app's "home", in the sense a site's logo is. It only ever opens
+              that overlay: nothing is reset until a game is actually chosen
+              there, and the overlay can be backed out of. */}
+          {onHome ? (
+            <button
+              type="button"
+              className="wordmark-home"
+              onClick={onHome}
+              aria-label={t.backToStart}
+              title={t.backToStart}
+              data-testid="wordmark-home"
+            >
+              {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+            </button>
+          ) : (
+            <>
+              {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+            </>
+          )}
         </h1>
         {!compact && (
           <p className="header-subtitle mt-0.5 text-xs uppercase tracking-[0.2em] text-parchment-dim">
@@ -3551,7 +3624,6 @@ function ModeOverlay({
   lang,
   onLang,
   difficulty,
-  onDifficulty,
   side,
   onShowDemo,
   resume,
@@ -3563,8 +3635,8 @@ function ModeOverlay({
   t: Translations;
   lang: Lang;
   onLang: (l: Lang) => void;
+  /** The current strength, shown as the highlighted option — not applied here. */
   difficulty: Difficulty;
-  onDifficulty: (d: Difficulty) => void;
   /** The side played last time, offered as the default. */
   side: Side;
   onShowDemo: () => void;
@@ -3578,7 +3650,8 @@ function ModeOverlay({
    * there is nothing behind the overlay to return to.
    */
   onCancel: (() => void) | null;
-  onChoose: (m: PlayMode) => void;
+  /** Commit a game. The difficulty comes along only on the vs-computer path. */
+  onChoose: (m: PlayMode, difficulty?: Difficulty) => void;
 }) {
   // Three-step overlay: pick opponent (AI or a friend), then — for the AI —
   // which side to play, then how strong the computer should be, before the board
@@ -3600,8 +3673,16 @@ function ModeOverlay({
   }, [onCancel]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
-      <div className="mode-card card relative w-full max-w-sm space-y-5 rounded-b-none p-6 text-center sm:mx-4 sm:rounded-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+      // Tapping the backdrop is the same "leave it as it was" gesture as ✕ and
+      // Escape — but only when there is a board behind to fall back to.
+      onClick={onCancel ?? undefined}
+    >
+      <div
+        className="mode-card card relative w-full max-w-sm space-y-5 rounded-b-none p-6 text-center sm:mx-4 sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {onCancel && (
           <button
             className="btn absolute right-3 top-3"
@@ -3697,10 +3778,11 @@ function ModeOverlay({
                 <button
                   key={d}
                   className={`btn py-3 text-base ${difficulty === d ? "btn-primary" : ""}`}
-                  onClick={() => {
-                    onDifficulty(d);
-                    onChoose(chosenSide);
-                  }}
+                  // The strength travels with the choice rather than being
+                  // applied here: choosing can still be declined at the
+                  // "discard the game in progress?" gate, and backing out of
+                  // that must not have quietly changed the AI level.
+                  onClick={() => onChoose(chosenSide, d)}
                 >
                   {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
                   {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
