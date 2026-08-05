@@ -9,6 +9,7 @@ import {
   scoreForBottom,
 } from "./evalBar";
 import {
+  ANALYSIS_LIMITS,
   DECISIVE,
   DEFAULT_WEIGHTS,
   WIN,
@@ -16,6 +17,7 @@ import {
   chooseMoveDetailed,
   evaluate,
   pickMove,
+  type SearchLimits,
 } from "./game/ai";
 import { applyMove, initialState } from "./game/engine";
 import { VARIANTS } from "./game/variants";
@@ -153,12 +155,28 @@ describe("score threading (the plumbing the bar is fed by)", () => {
     // came out first — the arrow appearing to change its mind on a position you
     // had merely stepped away from and back to. `analysePosition` clears the
     // table for exactly this reason; A → B → A is the case that proves it.
+    //
+    // What's under test is state isolation between calls (the TT clear and the
+    // pinned tie-break rng), not wall-clock behaviour, so this pins the same
+    // depth ANALYSIS_LIMITS searches to but drops its 1200ms deadline —
+    // `SearchLimits.deadlineMs` is documented as omit-for-"a pure fixed-depth
+    // (deterministic) search". With the real deadline, two calls that land on
+    // either side of it under heavy machine load can legitimately finish at
+    // different depths and settle on different (equally good) moves in this
+    // D4-symmetric opening; that's the search correctly trading depth for
+    // responsiveness under load, not the cross-call leak this test exists to
+    // catch, and asserting through it made the test a coin flip on a busy box.
+    const limits: SearchLimits = { maxDepth: ANALYSIS_LIMITS.maxDepth };
     const opening = initialState();
-    const elsewhere = applyMove(opening, analysePosition(opening, VARIANTS.walker).move!, VARIANTS.walker);
+    const elsewhere = applyMove(
+      opening,
+      analysePosition(opening, VARIANTS.walker, limits).move!,
+      VARIANTS.walker,
+    );
 
-    const first = analysePosition(opening, VARIANTS.walker);
-    analysePosition(elsewhere, VARIANTS.walker);
-    const again = analysePosition(opening, VARIANTS.walker);
+    const first = analysePosition(opening, VARIANTS.walker, limits);
+    analysePosition(elsewhere, VARIANTS.walker, limits);
+    const again = analysePosition(opening, VARIANTS.walker, limits);
 
     expect(again.move).toEqual(first.move);
     expect(again.score).toBe(first.score);
