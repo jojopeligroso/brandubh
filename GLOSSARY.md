@@ -92,9 +92,10 @@ invents a word for something that already has one. Most were named on an 11×11
 board; whether each occurs in Brandubh is a question for the recognisers, and
 a motif nobody finds here is a finding, not a gap.
 
-**Guillotine**: see under Playing. Attested for Brandubh specifically. Held
-there and not here because it is a **Goal** the solver can prove, not only a
-shape a recogniser can spot.
+**Guillotine**: see under Playing. Attested for Brandubh specifically. It is a
+**Motif** like the rest of this list, but the only one no player can spot by
+eye: it lives in the proof past the end of the **Line**, so it is recognised
+from the solver's working rather than from the board.
 
 **Shuttle**:
 Not a separate tactic: another name for the **Guillotine**, seen written as
@@ -309,10 +310,10 @@ four-move puzzle has four steps; a **Review Mistake** has one.
 
 **Goal**:
 What a **Puzzle** asks for, and therefore how it was verified. `regicide` and
-`escape` are proven outright by the solver. `guillotine` is also proven, but
-too far from the end to play out, so its **Line** is truncated at the move
-that settles it. `crushing` and `advantage` are measured against the
-evaluation and are never called proofs.
+`escape` are proven outright by the solver; `crushing` and `advantage` are
+measured against the evaluation and are never called proofs. Four values, and
+a **Guillotine** is not among them — it is an `escape` whose **Line** happens
+to be **Truncated**.
 
 **Truncated**:
 Of a **Line**: it stops before the game does, because what follows is proven
@@ -343,8 +344,9 @@ motif has none and lives in the **Pool**.
 
 **Named set**:
 A row on the Learn screen collecting the puzzles that share a **Primary
-motif**. A set is listed only once enough puzzles carry its motif, so the
-vocabulary shipped is the vocabulary actually found on the board.
+motif**. A motif found only by a recogniser needs four puzzles to earn a row;
+a motif assigned by **Note** earns one at any size, because a person deciding
+it matters is better evidence than a count.
 
 **Pool**:
 Every **Puzzle** in one list, ordered by difficulty and filterable by **Tag**.
@@ -354,6 +356,64 @@ Every **Puzzle** in one list, ordered by difficulty and filterable by **Tag**.
 A computed descriptor a **Puzzle** carries for filtering — side to move, line
 length, whether a soldier is given up, and any **Motif** that is not its
 primary one.
+
+**Puzzle number**:
+The five-digit number shown beside a **Puzzle**, its permanent public name.
+Assigned in order of first appearance and never reused, so a number always
+means the same position.
+
+**Ledger**:
+The record mapping each position to its **Puzzle number**. It keys on the
+position alone, never on the **Line**, so a number survives a **Ruleset**
+change that alters the answer.
+
+**Note**:
+Text written by hand against a **Puzzle number**, which may also assign a
+**Motif**. A note outranks anything computed: it is a person saying what the
+position is, and the generator does not argue.
+
+**Grade**:
+How hard a **Puzzle** is reckoned to be: a number computed from how deep the
+engine must search to find the answer and how the answer is likely to read to
+a person, with its weights fitted to the **Ranking**. An estimate, and never
+shown as one.
+_Avoid_: difficulty (already the code identifier for **AI level**), rating
+(implies it was measured against players, which it was not)
+
+**Band**:
+One of four groups a **Grade** falls into, named on the same ladder as **AI
+level** — Easy, Medium, Hard, Ollaṁ. Cut at fixed grades, so band sizes differ
+and are allowed to. Nobody assigns a band: people make **Comparisons**, the
+formula is fitted to those, and the bands fall out of the formula.
+
+**Unlock**:
+Solving enough of a **Band** — a proportion of it, since bands differ in size
+— to open the next one. Permanent, never revoked, and blind to how many
+attempts each solve took.
+
+**Proving ground**:
+An unlisted page where the **Grade** weights get their evidence. One protocol,
+in this order: the position cold and timed, an attempt or a surrender, then
+the answer, then three **Comparisons** against **Anchors** already solved.
+The order is the point — a difficulty judged after seeing the answer is
+judged by someone who can no longer imagine not knowing. Unlisted, not
+secured: it shows nothing the bundle does not already contain, and results
+leave the device only when the person sends them.
+
+**Comparison**:
+One person's answer to "is this puzzle harder than that one?", made after
+solving both blind. The unit of calibration data: nobody ever assigns a
+difficulty directly, because people judge two things against each other far
+more reliably than they judge one against a remembered standard.
+
+**Anchor**:
+One of a small set of **Puzzles** a new one is compared against. Eight anchors
+place any puzzle in three comparisons, which is what keeps calibration
+tractable without shared state.
+
+**Ranking**:
+The order the **Comparisons** imply once fitted, pooled across everyone who
+graded. The target the **Grade** formula is fitted to, never an output of it.
 
 ## Files and storage
 
@@ -478,3 +538,12 @@ off.
   tactics discussion; svikmølle is a borrowing from Mølle (Nine Men's Morris)
   and is not attested as tafl vocabulary on either aagenielsen.dk or
   cyningstan.com, so it is documented as a nickname rather than a source.
+- "difficulty" now has three claimants: **AI level** (how the engine plays),
+  **Grade** (how hard a puzzle is) and the `difficulty` code identifier, which
+  means the first. Resolved: **AI level** and **Grade** in prose, `difficulty`
+  in code continues to mean AI level only. The four ladder names are shared
+  deliberately — one ladder, two things graded on it.
+- "guillotine" was briefly both a **Goal** and a **Motif**, in two different
+  fields. Resolved: **Motif** only. The property that made it look like a goal
+  — that the proof runs past the end of the line — is **Truncated**, which
+  already had its own word, so the Goal vocabulary stays at four values.
