@@ -12,9 +12,9 @@ Ordered by value ÷ effort:
 4. ~~**Attacker endgame recognizer** *(M)* — exact forced-attacker-win twin of the defender recognizers.~~ **Shipped** as a cross-validated, default-off knob (`attackerRecognizer`): a capture needs move-gen where an escape is O(1) geometry, so it is neutral-but-not-free — off by default, no throughput regression. See `docs/ROADMAP.md` Session 4.
 5. ~~**Correctness & discoverability polish** *(S)* — clock reachable in Zen, custom-rule reset bug, unhide Irish locale, dead CSS/screenshot.~~ **Shipped**.
 6. ~~**Opening book (Ollamh)** *(M–L)* — deep-search book for instant, varied openings.~~ **Shipped**: `scripts/genbook.ts` generates a D4-folded book of exact-best moves (plies 0–3, searched at depth 8, margin 0 — a margin-13 "variety" candidate measured a paired-gauntlet regression and was rejected) into the bundled `src/game/openingBook.data.ts`; ollamh plays it instantly, varied via ties + D4 orientations. Honestly labelled *deep-search best-effort* — not proven (see `docs/solving.md`). See `docs/ROADMAP.md` Session 6 for all measurements.
-7. ~~**Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree.~~ **Shipped**, all four slices: 7a eval bar + best-move arrow, 7b board flip + analysis free-move mode, 7c move-tree panel, 7d post-game annotations. Position setup (paste a position in) landed alongside them. Per-slice briefs in [`docs/prompts/`](docs/prompts/README.md); design notes in [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
+7. ~~**Lichess-style analysis UI** *(L)* — eval bar, analysis, move tree.~~ **Shipped**, all six slices: 7a eval bar + best-move arrow, 7b board flip + analysis free-move mode, 7c move-tree panel, 7d post-game annotations, 7e position setup (paste a position in), 7f learn from your mistakes (review, eval graph, guess-the-move). The session grew two slices past its own plan; this line said "all four" until long after both had shipped. Per-slice briefs in [`docs/prompts/`](docs/prompts/README.md); design notes in [`docs/design/lichess-ui.md`](docs/design/lichess-ui.md).
 
-8. **Puzzle bank** *(L)* — ~80 verified puzzles on the Learn screen, as named sets and a graded pool. **Planned, not started**: plan in [`docs/design/puzzle-bank.md`](docs/design/puzzle-bank.md), sliced 8a–8f in the roadmap, with five ADRs in [`docs/adr/`](docs/adr/) and the vocabulary in [`GLOSSARY.md`](GLOSSARY.md).
+8. **Puzzle bank** *(L)* — ~80 verified puzzles on the Learn screen, as named sets and a graded pool. **8a–8d shipped**: the Attempt seam, 161 puzzles mined into checked-in shards, the tagger, and the Learn screen that lists them. **8e in progress**; **8f blocked** on human blind-comparison data that does not exist yet (ADR-0005), which is a fact about a schedule rather than a task left in the code. Plan in [`docs/design/puzzle-bank.md`](docs/design/puzzle-bank.md), sliced 8a–8f in the roadmap, with five ADRs in [`docs/adr/`](docs/adr/) and the vocabulary in [`GLOSSARY.md`](GLOSSARY.md).
 
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
 the raw backlog those sessions draw from.
@@ -72,7 +72,13 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 ## Not implemented (documented as future)
 
-- [ ] **Shieldwall capture** — Tournament rule extension. No code, no RuleSet flags.
+- [x] **Shieldwall capture** — done (`72a7e19`), and this line claimed "no code, no
+  RuleSet flags" for every commit since. It is a `RuleSet` flag
+  (`shieldwallCapture`, `src/game/variants.ts`), resolved in `src/game/engine.ts`
+  (`resolveShieldwallCaptures`), offered in the custom-rule editor with copy in all
+  three locales, and covered by an `engine.test.ts` block. **Off in both shipped
+  presets** (a Copenhagen innovation, not part of WTF Brandubh), which is why it
+  is easy to keep believing it does not exist.
 - [ ] **Exit-fort win** — King builds an impregnable formation. No code, no RuleSet flags.
 - [x] **Game replay / import** — done (Session 3), *not* future work: `src/game/gameFile.ts`
   parses and writes the PGN-style format (aagenielsen.dk-compatible), `src/game/replay.ts`

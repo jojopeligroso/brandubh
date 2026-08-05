@@ -8,7 +8,7 @@ built-in AI, with two historical rule variants and a custom rule editor.
 ![Brandubh board](docs/screenshot.png)
 
 - ⚔️ Correct, tested tafl engine (custodial capture, hostile corners & throne, strong-king throne capture)
-- 🤖 Iterative-deepening alpha–beta AI (transposition table + quiescence search) that runs in a Web Worker, so hard-level thinking never freezes the board — across three difficulty levels
+- 🤖 Iterative-deepening alpha–beta AI (transposition table + quiescence search) that runs in a Web Worker, so hard-level thinking never freezes the board — across four difficulty levels, up to **Ollamh** and its opening book
 - 👑 Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
 - 🌐 Localised in English and Spanish
 - ⏱️ Optional Lichess-style chess clock (**off by default** — no timer) — a time bank plus per-move Fischer increment (**3+2** when enabled), bullet → rapid presets and a custom control, with flag-on-time
@@ -173,10 +173,12 @@ scripts/
 
 ## Board themes
 
-The board ships with six colour themes, selectable in the settings and remembered
-between visits. Five take their palettes from the default themes of
-[Omarchy](https://omarchy.org/) — **Tokyo Night** (the default), **Catppuccin**,
-**Gruvbox**, **Nord** and **Everforest** — alongside the original **Carved Wood**.
+The board ships with twelve colour themes, selectable in the settings and
+remembered between visits, with **Everforest** as the first-visit default. Seven
+are Omarchy-inspired ([omarchy.org](https://omarchy.org/)): **Everforest**,
+**Tokyo Night**, **Catppuccin**, **Gruvbox**, **Nord**, **Rosé Pine** and
+**Kanagawa**, alongside the original **Carved Wood** and four classic
+chess-board palettes after Lichess (**Brown**, **Blue**, **Green** and **Purple**).
 Everything is driven by CSS custom properties under a `[data-theme]` attribute, so
 adding another theme is just one more block in `src/index.css` plus an entry in
 `src/theme.ts`.

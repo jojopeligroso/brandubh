@@ -26,10 +26,16 @@ import type { Puzzle } from "./puzzleBank";
  *
  * The glossary's other half — that *a motif assigned by a hand-written **Note**
  * earns a row at any size, because a person deciding it matters is better
- * evidence than a count* — is not enforceable from here. The bank format carries
- * no provenance for the motif field, so this file cannot tell a recogniser's
- * verdict from a note's. 8c owns that distinction and the data it needs; when it
- * lands, the exemption belongs beside it and this constant moves there.
+ * evidence than a count* — is still not enforceable from here, and it is worth
+ * being exact about why, because this comment used to say 8c would fix it.
+ *
+ * 8c landed and did not. The generator knows the answer (`tagOf` sets a
+ * `byHand` flag when a ledger Note names the motif, and the merge report prints
+ * it), but the stored format ends at `motif`, so the flag dies in the report and
+ * `Puzzle.motif` reaches this file as a bare `Motif | null` with a recogniser's
+ * verdict and a person's indistinguishable. So the exemption is unimplemented,
+ * and that is a gap in the bank format rather than a slice that has not happened
+ * yet.
  */
 export const SET_THRESHOLD = 4;
 
@@ -61,9 +67,12 @@ export const poolOrder = (puzzles: readonly Puzzle[]): Puzzle[] =>
 /**
  * The **Named sets** that qualify, largest first.
  *
- * Correct and empty when no motif has been recognised, which is the state of the
- * bank until 8c lands and — by the plan's own expectation — the state of most of
- * it afterwards: most puzzles have no motif and live in the Pool.
+ * Correct and empty when no motif has been recognised, which was the state of
+ * the bank before 8c and (by the plan's own expectation) is the state of most
+ * of it after. 8c's recognisers found one motif that clears the threshold:
+ * `cornerFight`, 7 puzzles. 154 of the 161 carry no motif at all and live in the
+ * Pool, which is the shape the glossary describes: one row, and the rest is the
+ * list.
  */
 export function namedSets(puzzles: readonly Puzzle[]): NamedSet[] {
   const byMotif = new Map<Motif, string[]>();
@@ -159,12 +168,12 @@ export const setLabel = (t: Translations, set: NamedSet): string => tagLabel(t, 
  * narrowed by at most one band and at most one tag.
  *
  * **One tag at a time, deliberately.** Combining chips needs an answer to
- * whether two tags mean "and" or "or", and that answer depends on a tag
- * vocabulary 8c has not shipped yet — with `side:attackers` and
- * `side:defenders` both present, "and" is guaranteed to yield nothing and "or"
- * is guaranteed to yield everything. A single active tag is a filter under
- * either reading, and it is the reading that cannot be wrong before the
- * vocabulary exists.
+ * whether two tags mean "and" or "or", and the vocabulary 8c shipped makes
+ * neither answer safe: `attackers` and `defenders` partition the bank, so "and"
+ * over that pair is guaranteed to yield nothing and "or" is guaranteed to yield
+ * everything. A single active tag is a filter under either reading. That was
+ * written as a reason to wait for the vocabulary; the vocabulary is here, and it
+ * turns out to be a reason to keep waiting for a design.
  */
 export function pool(
   puzzles: readonly Puzzle[],
