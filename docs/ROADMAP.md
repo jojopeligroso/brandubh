@@ -210,6 +210,85 @@ times to fit on: four or five graders, around sixty puzzles each. That is a fact
 about a schedule rather than a task left in the code, and the apparatus that
 turns those sittings into a table now exists.
 
+### Session 9 — An app that can be played from the keyboard *(M–L)*
+**Goal:** pick a piece up and put it down without a pointing device, and have the
+grid say where the caret is while you do it.
+Found by the accessibility pass over the Learn screen at 390×844 (`ddfd5f8`),
+reported there and deliberately not fixed there; the record is in
+[`docs/design/puzzle-bank.md`](./design/puzzle-bank.md).
+
+`src/components/Board.tsx:250` opens a `role="grid"` whose direct children are 49
+`role="gridcell"` divs (`:268`). **Two defects, and they are not the same
+defect.** There is no `role="row"` between the cells and the grid, so the
+structure is invalid and assistive technology cannot report a cell's position in
+it; and not one of the 49 carries a `tabIndex`, so no square can be reached at
+all. The first makes the board hard to describe. The second makes it impossible
+to play, which is worse, and it is what sizes the session. Every mode draws this
+one component (play, over the board, analysis, the tutorial set plays, the
+puzzle bank, and now the proving ground's comparison view), so the scope is the
+whole game and not the bank. It predates Session 8 and it is live in production
+now.
+
+- [ ] **9a — Own the focus ring before anything is focusable** *(S)*. Focus visibility in this app is not owned, it is borrowed, and it is already being spent. Authored focus styling exists in exactly six places and **five of them remove the browser's ring**: `.evalgraph-hit:focus-visible` and `.review-item:focus-visible` (`src/index.css`) blank it and put a 12% parchment tint in its place, and three text fields carry the Tailwind pair `focus:border-gold focus:outline-none` (`src/App.tsx:2685`, `src/components/GameFilePanel.tsx:210`, `src/components/ProvingGround.tsx:36`), which trade the ring for a 1px underline colour and fire on `:focus` rather than `:focus-visible`, so they also fire on a mouse click. The sixth, `.wordmark-home:focus-visible`, is the only authored rule in the codebase that *draws* a ring. Everything else, every button in the header, the toolbar, the drawer and both dialogs, relies on Chromium's default. The audit recorded that default as a pass and attributed it correctly to the user agent, but it also wrote that there is no authored `:focus-visible` anywhere, and that was untrue on the day it was written. The prediction underneath it (author one `:focus` style and the ring vanishes) is not a risk to guard against: it has happened three times already, and 8e's arrival screen is the most recent. So this slice authors one named treatment and applies it wherever focus can land, replacing the five suppressions rather than adding a seventh case. The cell's version has to survive the four backgrounds a ring on a square actually meets (`.cell.dark`, `.cell.special`, `.cell.selected`, `.cell.lastmove`) and all twelve themes in `src/theme.ts`, four of which are the light Lichess palettes where a gold ring has almost nothing to sit against. **First, and before 9b makes anything focusable**, for the reason 7b and 8a both recorded: the contract goes in before the caller, not after it.
+- [ ] **9b — Rows, a roving `tabIndex`, and a move protocol** *(M–L)*. Seven `role="row"` wrappers, one tab stop for the whole board, arrows to move the caret, Enter or Space to pick a piece up and put it down, Escape to cancel a selection.
+  - **The rows cannot be plain divs.** `.board` is `display: grid` with `grid-template-columns` / `grid-template-rows: repeat(7, 1fr)` and the 49 cells are its direct grid items, so a wrapper becomes a grid item itself and folds the board into one column. `display: contents` is the usual answer, and it carries the risk worth naming here: browsers have shipped versions that drop a `display: contents` element out of the accessibility tree, which would remove the very role being added and leave the layout as the only thing that changed. Check it in a browser rather than assume it; the fallback is to give each row its own seven-column grid.
+  - **Arrow keys move in view space, not board space,** and under `flippedH` / `flippedV` those are not the same. Right must move the caret one square right *on screen*, which on a flipped board is not `col + 1`. `src/orientation.ts` already owns that mapping and 7b unit-tested it before it had a caller; navigation goes through it, or the caret runs backwards on a flipped board while every click still lands correctly. This is the trap in the slice, and it is the one 7a's arrow avoided by using the same seam.
+  - **Roving `tabIndex` rather than `aria-activedescendant`.** One cell at `0` and the other 48 at `-1`, so the board is a single tab stop and the arrows move within it, which is what `role="grid"` promises a keyboard user. Chosen over the active-descendant route because it moves *real* focus, so 9a's rule applies to it for free; active descendant needs a caret drawn by hand, which is a second thing to keep visible across twelve themes.
+  - **The keyboard consumes the pointer's legal set; it does not compute its own.** `movesFrom` already produces it and the board already draws it (`.playable`, the capture dots), and `onSquareClick` is the single entry the pointer uses. The keyboard should end at that same call. A second answer to "what is legal here" is how two paths drift apart.
+  - Home / End / PageUp / PageDown to the ends of the row and the column, per the ARIA grid pattern. Whether the caret wraps at an edge or stops there is a decision this slice takes and writes down: it is not obvious, and an unrecorded one gets taken twice.
+  - Where the tab stop sits when the board is first reached is the other decision: the selected piece if there is one, otherwise the square the caret last left, otherwise `d4`.
+- [ ] **9c — Focus at the two surface boundaries** *(S)*. Two findings, one mechanism (who owns focus when a surface arrives), and **two different remedies, which is why they belong in one slice rather than in one fix applied twice**.
+  - **The Learn dialog: the page behind it is neither `inert` nor `aria-hidden`.** `src/useDialogFocus.ts` (shipped in `81de01f`) cycles Tab and Shift+Tab inside the dialog, so the keyboard is genuinely held, and `aria-modal="true"` asks assistive technology to ignore the outside, which is all that asking does. The gap is traversal that is not the Tab key. It is in this session rather than one of its own because **9b is what makes it expensive**: the Learn screen opens on top of the board, so from the moment the cells are reachable widgets there are 49 more of them sitting behind every open dialog for a virtual cursor to wander into. `inert` on the root is the browser's own version of what the hook does by hand, and it covers the traversal the hook cannot see.
+  - **The proving ground drops focus on `<body>` at both phase changes** (arrival into solving, solving into answer), verified in a browser during 8e. That is the same failure the Learn dialog had, and **the fix is not the same hook.** `ProvingGround` is mounted *instead of* `App` at the document root (`src/main.tsx`), so it is not modal and there is nothing behind it; `useDialogFocus` bundles a document-level Tab trap with the focus move, and installing that on non-modal content builds a WCAG 2.1.2 keyboard trap where there was a dropped focus point. What this needs is the move without the trap, which means the hook's two halves have to come apart before either surface can use the right one. That separation is the actual work in this slice.
+
+**What "done" means, because "keyboard accessible" is not a claim a suite can
+fail.** Three things, and only the first of them is pinnable: a game played from
+the opening move to a result with the pointer never touched, in every mode the
+board renders in, flipped as well as unflipped; a cell announcing its position in
+the grid as well as the square name it has carried since 7b; and a caret visible
+on all twelve themes and all four cell backgrounds.
+
+The suite is pure logic (no jsdom, no component tests), so what it can pin is
+whatever is written as pure functions over a board and a caret: which square each
+arrow lands on from each of the 49, in all four orientations; that the caret
+cannot leave the board; that exactly one square holds `tabIndex=0` in any state;
+that Enter on an empty square with nothing selected does nothing; that Escape
+returns to no-selection; and that the keyboard's legal set is the set `movesFrom`
+hands the pointer. That is real coverage, and it is the whole reason to put the
+logic beside `orientation.ts` rather than inside the component: what stays in the
+component is untested by construction, which 7d's brief already says out loud.
+
+What the suite cannot reach is most of the point. Whether focus lands at all,
+whether the ring is visible against a board, whether `display: contents` keeps
+the row in the accessibility tree, and what a screen reader actually says are
+browser facts. They want the instrument Sessions 7 and 8 used for their assertion
+passes: `playwright-core` driven against a local Chromium (`/usr/bin/chromium`
+here, with `CHROMIUM_PATH` overriding the default), serving `dist/` and asserting
+at 390×844, plus at least one pass with a real screen reader, since "the role is
+in the tree" and "the reading is useful" are different claims. **`npm run
+screenshot` is not that instrument** and should not be mistaken for one:
+`scripts/screenshot.mjs` drives past the opening overlay, captures the board and
+rewrites `docs/screenshot.png`. It produces a picture, not an assertion.
+
+**One finding from the same audit is deliberately not in this session.** Four
+accessible elements answer to the name "Menu", all of them from the single
+`t.menu` key: the header's hamburger (`src/App.tsx:2560`), which opens the
+drawer; the bottom toolbar's list button (`src/components/GameToolbar.tsx:53`),
+which opens a different menu (`gameMenuOpen`); the toolbar `<nav>` that contains
+the second one; and the drawer the first one opens. Two buttons with one name
+leading to two different places is a real defect, and it is about one i18n key
+wide. It is out of scope here because it shares no code with the board and no
+mechanism with focus, and folding it in would put a three-locale copy change into
+a session whose diff should be markup and navigation: the sizing rule at the top
+of this file says one coherent theme per session, and "everything one audit
+found" is not a theme. It is filed in `TASKS.md` under Minor UX rather than lost
+by being left out.
+
+**Sequenced after 8f, not dependent on it.** Nothing here touches the bank, the
+grade weights or the proving ground's data format, and 8f is blocked on human
+sittings rather than on code. This could be started against `main` today; it is
+placed last because 8f is the open slice above it, not because it waits on one.
+
 ---
 
 ## Deferred / not worth it (with rationale)

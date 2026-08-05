@@ -16,6 +16,8 @@ Ordered by value ÷ effort:
 
 8. **Puzzle bank** *(L)* — ~80 verified puzzles on the Learn screen, as named sets and a graded pool. **8a–8e shipped**: the Attempt seam, 161 puzzles mined into checked-in shards, the tagger, the Learn screen that lists them, and the unlisted proving ground that will calibrate the grades. **8f blocked** on human blind-comparison data that does not exist yet (ADR-0005), which is a fact about a schedule rather than a task left in the code. Plan in [`docs/design/puzzle-bank.md`](docs/design/puzzle-bank.md), sliced 8a–8f in the roadmap, with five ADRs in [`docs/adr/`](docs/adr/) and the vocabulary in [`GLOSSARY.md`](GLOSSARY.md).
 
+9. **An app that can be played from the keyboard** *(M–L)* — the board cannot be operated without a pointer. `src/components/Board.tsx` renders 49 `role="gridcell"` divs, none of them focusable and none of them inside a `role="row"`, so the grid is unreachable *and* its structure is invalid; every mode that draws a board is affected, it predates Session 8, and it is live now. Found by the Learn-screen accessibility pass (`ddfd5f8`) and reported there rather than fixed. Three slices in the roadmap: **9a** authors a focus ring first (six authored focus rules exist today and five of them remove the browser's, so the ring everything currently relies on is the user agent's), **9b** adds the rows, a roving `tabIndex` and an Enter/Escape move protocol routed through `src/orientation.ts` so arrows track the *view* under flip, **9c** settles focus at both surface boundaries (`inert` behind the Learn dialog; the focus move without the Tab trap in the proving ground, which is not modal and would become a keyboard trap if it reused the dialog hook). See `docs/ROADMAP.md` Session 9.
+
 Session-sizing rule and per-session tasks live in the roadmap. The items below are
 the raw backlog those sessions draw from.
 
@@ -98,6 +100,7 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 - [x] **"Play vs AI" overlay always picks defenders** — fixed: the overlay now steps side → difficulty, and every derived side comes from `game/sides.ts`.
 - [x] **Custom Rule Editor doesn't reset game** — Fixed. Toggling a custom rule now routes through `changeCustomRules()`, which resets the board and match just like `changeVariant()`, so the move history and live ruleset stay consistent.
+- [ ] **Two buttons both named "Menu"** — the header's hamburger (`src/App.tsx:2560`) opens the drawer and the bottom toolbar's list button (`src/components/GameToolbar.tsx:53`) opens the in-game menu, and both take their accessible name from the one `t.menu` key; the toolbar `<nav>` and the drawer take it too, so four elements answer to "Menu" and two of them are buttons leading to different places. Found by the same accessibility pass as Session 9 (`ddfd5f8`) and kept out of that session deliberately: it shares no code with the board and no mechanism with focus, and it is a copy change in three locales. It wants two distinct names, not a rename of one.
 
 ## Docs
 
