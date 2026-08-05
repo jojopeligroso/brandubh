@@ -8,7 +8,7 @@ import type { RuleSet } from "../game/variants";
 import type { Difficulty } from "../game/ai";
 import type { Side } from "../game/types";
 import { loadBank } from "../game/puzzleBank";
-import { namedSets, pool, poolTags, tagLabel } from "../game/puzzlePool";
+import { namedSets, pool, poolTags, setLabel, tagLabel } from "../game/puzzlePool";
 import {
   bandProgress,
   loadPuzzleProgress,
@@ -312,7 +312,13 @@ export default function LearnModal({
                         }
                       >
                         <span className="flex w-full items-center justify-between gap-3">
-                          <span>{t.puzzleNoteMotifs[s.motif] ?? s.motif}</span>
+                          {/* The motif's name, not its completion note: the row
+                              is read before a puzzle is attempted, and the note
+                              is a sentence written to be read after one is
+                              solved. `setLabel` is total over `Motif`, so the
+                              row cannot fall back to either the sentence or the
+                              bare id. */}
+                          <span>{setLabel(t, s)}</span>
                           <span className="font-mono text-xs text-parchment-dim">
                             {s.ids.length}
                           </span>

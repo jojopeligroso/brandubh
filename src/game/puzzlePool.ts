@@ -13,7 +13,7 @@
 
 import type { Translations } from "../i18n";
 import type { Difficulty } from "./ai";
-import type { Tag } from "./motifs";
+import type { Motif, Tag } from "./motifs";
 import type { Puzzle } from "./puzzleBank";
 
 /**
@@ -33,10 +33,17 @@ import type { Puzzle } from "./puzzleBank";
  */
 export const SET_THRESHOLD = 4;
 
-/** A **Named set**: a **Primary motif** and the puzzles filed under it, in pool
- *  order. Ids, not puzzles — a set is a view of the Pool, not a copy of it. */
+/**
+ * A **Named set**: a **Primary motif** and the puzzles filed under it, in pool
+ * order. Ids, not puzzles — a set is a view of the Pool, not a copy of it.
+ *
+ * The motif is the attested union and not a string, for the same reason
+ * `Puzzle.motif` is: a set has to be nameable. `setLabel` is total over `Motif`,
+ * so a set whose motif is only a string is a row that cannot be guaranteed a
+ * label, and this is where that guarantee is cheapest to state.
+ */
 export interface NamedSet {
-  motif: string;
+  motif: Motif;
   ids: string[];
 }
 
@@ -59,7 +66,7 @@ export const poolOrder = (puzzles: readonly Puzzle[]): Puzzle[] =>
  * it afterwards: most puzzles have no motif and live in the Pool.
  */
 export function namedSets(puzzles: readonly Puzzle[]): NamedSet[] {
-  const byMotif = new Map<string, string[]>();
+  const byMotif = new Map<Motif, string[]>();
   for (const p of poolOrder(puzzles)) {
     if (!p.motif) continue;
     const ids = byMotif.get(p.motif);
@@ -122,6 +129,30 @@ export const TAG_LABEL_KEYS: Record<Tag, LabelKey> = {
 
 /** The label for one **Tag** in the active locale. */
 export const tagLabel = (t: Translations, tag: Tag): string => t[TAG_LABEL_KEYS[tag]];
+
+/**
+ * What copy names a **Named set** on its row: the motif's name, from the same
+ * map the chips read.
+ *
+ * Deliberately *not* `puzzleNoteMotifs`, which the row used until now. The two
+ * tables are keyed alike and are about the same eight tactics, which is exactly
+ * why the wrong one went unnoticed: `puzzleNoteMotifs` holds the **completion
+ * note**, a sentence written to be read once, after a puzzle is solved ("A
+ * corner fight: the corner is the King's goal and a hostile anvil at once"),
+ * and a set row is a name read before anything has been attempted, beside a
+ * count. The note keeps that table; the row was the only thing wrong.
+ *
+ * Neither branch could see it alone. 8d wrote the row against a bank in which
+ * no motif existed, so it never rendered one; 8c named the motifs but never
+ * rendered a row. It became visible only when the two met and `cornerFight`'s
+ * seven puzzles cleared the threshold.
+ *
+ * Lifted out of the screen so the choice between two plausible tables is one
+ * the suite can hold: a label picked inside a component is a label no
+ * pure-logic test can assert, and this is a bug that shipped for want of
+ * exactly that assertion.
+ */
+export const setLabel = (t: Translations, set: NamedSet): string => tagLabel(t, set.motif);
 
 /**
  * The Pool as the screen shows it: only the bands that are open, in pool order,

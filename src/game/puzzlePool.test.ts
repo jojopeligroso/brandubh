@@ -10,6 +10,7 @@ import {
   pool,
   poolOrder,
   poolTags,
+  setLabel,
   tagLabel,
 } from "./puzzlePool";
 
@@ -137,6 +138,44 @@ describe("what a tag chip says", () => {
   it("points each tag at its own string and never at a shared one", () => {
     const keys = Object.values(TAG_LABEL_KEYS);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("what a set row says", () => {
+  // The row rendered `puzzleNoteMotifs` — the completion note, a whole sentence
+  // — where a name belongs, and shipped that way, because 8d had no motif to
+  // build a row from and 8c rendered no rows. These are the tests that stop the
+  // two tables being confused again.
+  const LANGS: Lang[] = ["en", "es", "ga"];
+
+  it("names the motif and never reads out its completion note", () => {
+    for (const lang of LANGS) {
+      const t = translations[lang];
+      for (const motif of MOTIFS) {
+        const where = `${lang}/${motif}`;
+        const label = setLabel(t, { motif, ids: ["00001"] });
+        // Both tables are keyed by Motif and both are populated, so the
+        // comparison below is a real one rather than a label against undefined.
+        expect(t.puzzleNoteMotifs[motif], where).toBeTruthy();
+        expect(label, where).toBe(tagLabel(t, motif));
+        expect(label, where).not.toBe(t.puzzleNoteMotifs[motif]);
+        // A name, not a sentence. Every note in every locale is punctuated
+        // "<name>: <explanation>.", so no note can pass this.
+        expect(label, where).not.toMatch(/[.:]/);
+      }
+    }
+  });
+
+  it("reads 'Corner fight' beside its count, which is the row the bank builds", () => {
+    // cornerFight is the bank's only Named set: 7 puzzles against a threshold
+    // of 4, and so the one motif whose note could reach a learner.
+    const bank = Array.from({ length: 7 }, (_, i) =>
+      puz(String(i + 1).padStart(5, "0"), 30, "easy", "cornerFight"),
+    );
+    const [set] = namedSets(bank);
+    expect(set.ids).toHaveLength(7);
+    expect(setLabel(translations.en, set)).toBe("Corner fight");
+    expect(setLabel(translations.es, set)).toBe("Lucha de esquina");
   });
 });
 
