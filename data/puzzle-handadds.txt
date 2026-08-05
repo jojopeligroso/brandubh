@@ -1,0 +1,16 @@
+# Hand-added puzzle candidates, read by scripts/genpuzzles.ts.
+#
+# One per line: a position in src/game/position.ts format, then the lead-in move
+# as four digits `frfctrtc`. The position is the one BEFORE the lead-in, so the
+# side to move in it is the opponent; playing the lead-in is what opens the
+# puzzle and hands over to the solver.
+#
+#   3A3/3A3/3D3/AADKDAA/3D3/3A3/3A3 a 0302
+#
+# **Provenance** never changes how a puzzle is verified. Everything here goes
+# through the same uniqueness filter, the same truncation predicate and the same
+# re-proof as a mined position, and is dropped in exactly the same way if it
+# fails any of them. This file is where a position observed in a real game gets
+# submitted; it is not a way past the filters.
+#
+# Blank lines and `#` comments are ignored. Nothing here yet.

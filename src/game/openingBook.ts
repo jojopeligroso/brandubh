@@ -14,12 +14,15 @@ import { BOOK_DATA, BOOK_RULES_FINGERPRINT } from "./openingBook.data";
 
 const moveKey = (m: Move): string => `${m.from.row}${m.from.col}${m.to.row}${m.to.col}`;
 
-const parseMove = (s: string): Move => ({
+export const encodeMove = moveKey;
+
+/** The inverse of `encodeMove`. Exported because the puzzle bank stores its
+ *  **Line**s in this same four-digit form, and two spellings of one encoding is
+ *  one spelling too many. */
+export const decodeMove = (s: string): Move => ({
   from: { row: Number(s[0]), col: Number(s[1]) },
   to: { row: Number(s[2]), col: Number(s[3]) },
 });
-
-export const encodeMove = moveKey;
 
 /** Expand a folded book blob into the runtime map: every D4 image of every
  *  entry, keyed by raw position hash. Symmetric positions (several transforms
@@ -31,7 +34,7 @@ export function expandBook(data: string): Record<string, Move[]> {
   for (const line of data.split("\n")) {
     if (!line) continue;
     const [hash, moveList] = line.split(":");
-    const moves = moveList.split(",").map(parseMove);
+    const moves = moveList.split(",").map(decodeMove);
     for (const t of SYM) {
       const key = transformHash(hash, t);
       const imaged = moves.map((m) => transformMove(m, t));

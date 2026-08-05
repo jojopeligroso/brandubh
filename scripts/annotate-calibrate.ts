@@ -1,10 +1,22 @@
-/* Calibrate the annotation bands in src/game/annotate.ts. Run: npx tsx scripts/annotate-calibrate.ts
+/* Calibrate the annotation bands in src/game/annotate.ts and the puzzle bank's
+ * `crushing` / `advantage` cuts in src/game/puzzleBank.ts.
+ * Run: npx tsx scripts/annotate-calibrate.ts
  *
  * Chess centipawn bands do not transfer here. This engine's `evaluate` is not
  * pawn-scaled (material is 40/piece, escapeLane 120), and a 7x7 board swings
  * hard — one capture can be a fifth of the material on it — so bands borrowed
  * from Lichess would either flag every move or none. These are picked from the
  * measured distribution of per-move loss in seeded self-play instead.
+ *
+ * Two distributions come out of the same walk, because they are two questions
+ * about the same units:
+ *
+ *   • per-move LOSS — how much a move gave up. The annotation bands sit on it.
+ *   • per-position ADVANTAGE (|best-play score|) — how far ahead the position
+ *     itself is. The bank's two evaluation goals sit on it: a puzzle whose line
+ *     ends `crushing` is one the engine reckons is nearly over, and one ending
+ *     `advantage` is merely won. Neither is a proof and neither is ever called
+ *     one (ADR-0002).
  *
  * Re-run this if DEFAULT_WEIGHTS ever changes: bands calibrated against a
  * different evaluation are bands that mean nothing. Deterministic (seeded). */
@@ -28,6 +40,9 @@ const scoreOf = (state: ReturnType<typeof initialState>): number =>
   pickMove(state, rules, { maxDepth: DEPTH }, undefined, rng, DEFAULT_WEIGHTS).score;
 
 const losses: number[] = [];
+/** |best-play score| at every position walked through, decided ones excluded —
+ *  the distribution the bank's `crushing` / `advantage` cuts are read off. */
+const edges: number[] = [];
 let plies = 0;
 
 for (let g = 0; g < GAMES; g++) {
@@ -50,6 +65,7 @@ for (let g = 0; g < GAMES; g++) {
     if (Math.abs(before) < 999_000 && Math.abs(after) < 999_000) {
       const loss = lossFor(before, after, mover);
       if (loss > 0) losses.push(loss);
+      edges.push(Math.abs(after));
     }
     before = after;
     plies++;
@@ -57,12 +73,25 @@ for (let g = 0; g < GAMES; g++) {
   process.stdout.write(`\rgame ${g + 1}/${GAMES} · ${plies} plies · ${losses.length} losing moves`);
 }
 
+const percentile = (xs: number[], p: number): number =>
+  xs[Math.min(xs.length - 1, Math.floor((p / 100) * xs.length))];
+const PS = [50, 60, 70, 75, 80, 85, 90, 95, 99];
+
 losses.sort((a, b) => a - b);
-const pct = (p: number): number => losses[Math.min(losses.length - 1, Math.floor((p / 100) * losses.length))];
+edges.sort((a, b) => a - b);
 console.log("\n");
 console.log(`plies sampled:   ${plies}`);
+
+console.log(`\nper-move loss — the annotation bands (annotate.ts THRESHOLDS)`);
 console.log(`moves that lost: ${losses.length} (${((100 * losses.length) / plies).toFixed(1)}% of plies)`);
-for (const p of [50, 60, 70, 75, 80, 85, 90, 95, 99]) {
-  console.log(`  p${String(p).padStart(2)}: ${pct(p)}`);
-}
+for (const p of PS) console.log(`  p${String(p).padStart(2)}: ${percentile(losses, p)}`);
 console.log(`max:             ${losses[losses.length - 1]}`);
+
+// The bank's two evaluation goals. A cut has to be high enough that calling a
+// position `crushing` means something a person would recognise, and low enough
+// that the band is not empty — which is why it is read off a distribution
+// rather than guessed, exactly as the annotation bands were.
+console.log(`\nposition |advantage| — the bank's crushing / advantage cuts (puzzleBank.ts)`);
+console.log(`positions:       ${edges.length}`);
+for (const p of PS) console.log(`  p${String(p).padStart(2)}: ${percentile(edges, p)}`);
+console.log(`max:             ${edges[edges.length - 1]}`);
