@@ -47,6 +47,24 @@ import type { Side } from "./game/types";
 export const analysisAvailable = (o: { liveGameOver: boolean }): boolean => o.liveGameOver;
 
 /**
+ * Whether the inline settings stack (game setup, clock, Zen) may render.
+ *
+ * Analysis hides it. Analysis is the step *before* a new game, not the setup
+ * of one: it looks backwards, at the game just played, and every panel it adds
+ * serves that reading. "Play as", "AI level" and the variant picker are about
+ * a future game, which has its own doors — the new-game action on the toolbar,
+ * the mode overlay, and the settings modal in the header menu. That modal is
+ * also what keeps this safe: like Zen's own hiding of the same stack, it can
+ * never lock configuration away, because the header menu always reaches it.
+ *
+ * `settingsExtra` is Zen's verdict on the stack (`showExtra("settings")`);
+ * either mode may hide it, so both must agree for it to show.
+ */
+export function settingsStackVisible(o: { analysis: boolean; settingsExtra: boolean }): boolean {
+  return !o.analysis && o.settingsExtra;
+}
+
+/**
  * Whether the computer may take its turn.
  *
  * Analysis suppresses the auto-reply outright: exploring a line means moving
