@@ -164,6 +164,7 @@ import {
   autosaveAllowed,
   boardIsInteractive,
   controllableIn,
+  inlineToolVisible,
   settingsStackVisible,
 } from "./analysis";
 import {
@@ -521,6 +522,7 @@ export default function App() {
   // only it reaches: the standalone game-file modal and the about card.
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showGameFile, setShowGameFile] = useState(false);
+  const [showPositionModal, setShowPositionModal] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
 
   const rules: RuleSet =
@@ -1944,6 +1946,23 @@ export default function App() {
           ...(showExtra("resign") && atTip && !gameOver
             ? [{ label: t.resign, danger: true, onClick: () => setShowResign(true) }]
             : []),
+          // Analysis keeps its actions here rather than as cards on the page,
+          // the way lichess's analysis menu carries "Continue from here", the
+          // board editor and "Share & export" — see inlineToolVisible.
+          ...(analysis && resumable(game.status)
+            ? [
+                { label: t.playFromHere, onClick: () => requestPlayFromHere(false) },
+                ...(showVsAiBranch
+                  ? [{ label: t.playFromHereVsAi, onClick: () => requestPlayFromHere(true) }]
+                  : []),
+              ]
+            : []),
+          ...(analysis && showExtra("position")
+            ? [{ label: t.positionTitle, onClick: () => setShowPositionModal(true) }]
+            : []),
+          ...(analysis && showExtra("gamefile")
+            ? [{ label: t.gameFileTitle, onClick: () => setShowGameFile(true) }]
+            : []),
           ...(analysis && showExtra("flip")
             ? [
                 { label: t.flipBoardH, onClick: () => setFlippedH((f) => !f) },
@@ -1987,7 +2006,9 @@ export default function App() {
         );
       })()}
 
-      {(reviewing || gameOver) && showExtra("nav") && (
+      {/* In analysis "play from here" lives in the toolbar menu instead of a
+          card — the menu is where analysis actions go (see inlineToolVisible). */}
+      {inlineToolVisible({ analysis, extra: showExtra("nav") }) && (reviewing || gameOver) && (
         <ReviewBar
           t={t}
           reviewing={reviewing}
@@ -2068,7 +2089,7 @@ export default function App() {
         />
       )}
 
-      {canAnalyse && showExtra("position") && (
+      {canAnalyse && inlineToolVisible({ analysis, extra: showExtra("position") }) && (
         <PositionPanel t={t} state={game} onLoad={loadPosition} />
       )}
 
@@ -2081,7 +2102,7 @@ export default function App() {
           its moves would write a file that replays into a completely different
           game. The panel is replaced by the reason rather than silently
           vanishing. */}
-      {showExtra("gamefile") &&
+      {inlineToolVisible({ analysis, extra: showExtra("gamefile") }) &&
         (pastedRoot ? (
           <p className="card mt-4 p-4 text-xs text-parchment-dim">{t.positionExportBlocked}</p>
         ) : (
@@ -2211,6 +2232,37 @@ export default function App() {
                 placement="modal"
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Position setup, reached from the analysis toolbar menu — the analysis
+          sibling of the game-file modal above, same shell. */}
+      {showPositionModal && (
+        <div
+          className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => setShowPositionModal(false)}
+        >
+          <div
+            className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="position-modal"
+          >
+            <div className="flex justify-end">
+              <button className="btn" onClick={() => setShowPositionModal(false)} aria-label={t.close}>
+                ✕
+              </button>
+            </div>
+            <PositionPanel
+              t={t}
+              state={game}
+              onLoad={(position) => {
+                // Loading replaces the board, so the modal has no reason to stay open.
+                loadPosition(position);
+                setShowPositionModal(false);
+              }}
+              placement="modal"
+            />
           </div>
         </div>
       )}

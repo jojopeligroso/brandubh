@@ -18,11 +18,14 @@ export default function PositionPanel({
   t,
   state,
   onLoad,
+  placement = "page",
 }: {
   t: Translations;
   /** The position currently on screen, for the copy button. */
   state: GameState;
   onLoad: (position: GameState) => void;
+  /** "page": collapsed card among the others. "modal": the panel is the destination. */
+  placement?: "page" | "modal";
 }) {
   const [pasted, setPasted] = useState("");
   const [error, setError] = useState<PositionError | null>(null);
@@ -52,7 +55,15 @@ export default function PositionPanel({
   };
 
   return (
-    <details className="card mt-4 p-4">
+    <details
+      className={placement === "modal" ? "" : "card mt-4 p-4"}
+      data-testid={placement === "modal" ? "position-panel-modal" : "position-panel"}
+      // In the modal the panel *is* the destination, so it arrives unfolded;
+      // in the page it stays a collapsed card among the others. (Initial state
+      // only: React leaves the attribute alone on re-render, so the summary
+      // toggle still works.)
+      open={placement === "modal"}
+    >
       <summary className="cursor-pointer text-sm font-semibold text-parchment-dim">
         {t.positionTitle}
       </summary>

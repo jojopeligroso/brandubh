@@ -65,6 +65,23 @@ export function settingsStackVisible(o: { analysis: boolean; settingsExtra: bool
 }
 
 /**
+ * Whether one of the below-board tool cards (play-from-here, position setup,
+ * game file) may render inline on the page.
+ *
+ * Analysis moves them into the bottom toolbar's menu, lichess-fashion: the
+ * page keeps what analysis is *for* — the board, the eval, the review, the
+ * move log and the variations — and actions live behind the menu, where
+ * lichess keeps "Continue from here", the board editor and "Share & export".
+ * Outside analysis the cards render inline as they always have.
+ *
+ * `extra` is Zen's verdict on the card (`showExtra(...)`); either mode may
+ * hide it, so both must agree for it to show.
+ */
+export function inlineToolVisible(o: { analysis: boolean; extra: boolean }): boolean {
+  return !o.analysis && o.extra;
+}
+
+/**
  * Whether the computer may take its turn.
  *
  * Analysis suppresses the auto-reply outright: exploring a line means moving

@@ -5,6 +5,7 @@ import {
   autosaveAllowed,
   boardIsInteractive,
   controllableIn,
+  inlineToolVisible,
   settingsStackVisible,
 } from "./analysis";
 import type { Side } from "./game/types";
@@ -132,6 +133,24 @@ describe("analysis hides the settings stack", () => {
   it("still honours Zen's hiding of the same stack", () => {
     expect(settingsStackVisible({ analysis: false, settingsExtra: false })).toBe(false);
     expect(settingsStackVisible({ analysis: true, settingsExtra: false })).toBe(false);
+  });
+});
+
+describe("analysis moves the tool cards into the toolbar menu", () => {
+  it("shows a tool card inline outside analysis, when Zen allows it", () => {
+    expect(inlineToolVisible({ analysis: false, extra: true })).toBe(true);
+  });
+
+  it("hides it while analysing — the action lives in the menu instead", () => {
+    // Lichess-fashion: the analysis page keeps the board, the review, the log
+    // and the variations; "play from here", position setup and the game file
+    // become rows of the bottom toolbar's menu.
+    expect(inlineToolVisible({ analysis: true, extra: true })).toBe(false);
+  });
+
+  it("still honours Zen's hiding of the same card", () => {
+    expect(inlineToolVisible({ analysis: false, extra: false })).toBe(false);
+    expect(inlineToolVisible({ analysis: true, extra: false })).toBe(false);
   });
 });
 
