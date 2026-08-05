@@ -11,10 +11,10 @@
 // not puzzles — nothing here can hand out a second copy of a puzzle for a set
 // row to own.
 
-import type { Difficulty } from "./ai";
-import type { Puzzle } from "./puzzleBank";
-import { MOTIF_SET_THRESHOLD, type Motif, type Tag } from "./motifs";
 import type { Translations } from "../i18n";
+import type { Difficulty } from "./ai";
+import { MOTIF_SET_THRESHOLD, type Motif, type Tag } from "./motifs";
+import type { Puzzle } from "./puzzleBank";
 
 /**
  * How many puzzles a recogniser-found **Motif** needs before it earns a **Named
@@ -33,7 +33,7 @@ import type { Translations } from "../i18n";
  *
  * A Note lives in `data/puzzle-ledger.json`, and `scripts/genpuzzles.ts` reads
  * it at merge time: `tagOf` prefers a ledger motif over the recogniser's and
- * sets `byHand`, and the generator's own report calls `namedSets(counts,
+ * sets `byHand`, and the generator's own report calls 8c's `namedSets(counts,
  * byHandSet)` with it. But `byHand` is **not encoded into the record**. The
  * ledger is checked in and never bundled, and the bank format carries motif but
  * not its provenance, so at runtime a recogniser's verdict and a note's are the
@@ -41,19 +41,26 @@ import type { Translations } from "../i18n";
  *
  * That is the right split rather than a gap to close. Bundling 161 ledger
  * entries so the Learn screen can apply an exemption that fires on nothing would
- * be paying bundle for a distinction no shipped puzzle draws: `puzzle-handadds.txt`
- * is empty, no ledger entry carries a `motif` key, and every motif in the bank
- * is `cornerFight` found by a recogniser. The generator is where a Note is
- * honoured, and it honours it. If a Note is ever written, the ledger's motif
- * becomes the record's motif and the count it joins is what this file sees; only
- * a Note on a motif with fewer than four puzzles would make the screen and the
- * generator's report disagree, and that is the day the record grows a provenance
- * flag.
+ * be paying bundle for a distinction no shipped puzzle draws:
+ * `puzzle-handadds.txt` is empty, no ledger entry carries a `motif` key, and
+ * every motif in the bank is `cornerFight` found by a recogniser. The generator
+ * is where a Note is honoured, and it honours it. If a Note is ever written, the
+ * ledger's motif becomes the record's motif and the count it joins is what this
+ * file sees; only a Note on a motif with fewer than four puzzles would make the
+ * screen and the generator's report disagree, and that is the day the record
+ * grows a provenance flag.
  */
 export const SET_THRESHOLD = MOTIF_SET_THRESHOLD;
 
-/** A **Named set**: a **Primary motif** and the puzzles filed under it, in pool
- *  order. Ids, not puzzles — a set is a view of the Pool, not a copy of it. */
+/**
+ * A **Named set**: a **Primary motif** and the puzzles filed under it, in pool
+ * order. Ids, not puzzles — a set is a view of the Pool, not a copy of it.
+ *
+ * The motif is the attested union and not a string, for the same reason
+ * `Puzzle.motif` is: a set has to be nameable. `setLabel` is total over `Motif`,
+ * so a set whose motif is only a string is a row that cannot be guaranteed a
+ * label, and this is where that guarantee is cheapest to state.
+ */
 export interface NamedSet {
   motif: Motif;
   ids: string[];
@@ -91,49 +98,37 @@ export function namedSets(puzzles: readonly Puzzle[]): NamedSet[] {
     .sort((a, b) => b.ids.length - a.ids.length || a.motif.localeCompare(b.motif));
 }
 
-/** Every **Tag** in the pool, sorted, deduplicated. Over the shipped bank that
- *  is four chips: `attackers`, `defenders`, `moves1`, `moves2`. */
-export function poolTags(puzzles: readonly Puzzle[]): string[] {
-  const tags = new Set<string>();
+/** Every **Tag** in the pool, sorted, deduplicated. */
+export function poolTags(puzzles: readonly Puzzle[]): Tag[] {
+  const tags = new Set<Tag>();
   for (const p of puzzles) for (const tag of p.tags) tags.add(tag);
   return [...tags].sort();
 }
 
-/**
- * Which question a **Tag** answers. Chips in the same facet are alternatives;
- * chips in different facets are conditions.
- *
- * The four facets are the glossary's four tags, one each: side to move, line
- * length, whether a soldier is given up, and a carried **Motif**. Unknown tags
- * fall in `motif`, which is where a vocabulary extension would land and is the
- * facet whose members genuinely co-occur.
- */
-export type TagFacet = "side" | "length" | "sacrifice" | "motif";
-
-export function tagFacet(tag: string): TagFacet {
-  if (tag === "attackers" || tag === "defenders") return "side";
-  if (/^moves[1-9]$/.test(tag)) return "length";
-  if (tag === "soldierGivenUp") return "sacrifice";
-  return "motif";
-}
-
-/**
- * The i18n key that names a chip.
- *
- * Exhaustive over `Tag` by type, which is the point: `satisfies` makes a tag
- * the vocabulary grows without copy a **build error** rather than a chip that
- * silently shows its identifier. 8d showed the raw id because 8c owned the
- * words; the words exist now, so nothing renders an id.
- *
- * The motif rows use the short `motif*` names and not `puzzleNoteMotifs`. Those
- * are whole sentences written to be read once, after a solve; a chip and a set
- * heading want a name.
- */
-type StringKey = {
+/** The keys of `Translations` that hold a plain string, so a tag cannot be
+ *  pointed at one of the `Record<string, string>` sub-tables by accident. */
+type LabelKey = {
   [K in keyof Translations]: Translations[K] extends string ? K : never;
 }[keyof Translations];
 
-export const TAG_LABEL_KEYS = {
+/**
+ * What copy names each **Tag** on the filter row.
+ *
+ * 8d shipped the chips rendering the raw tag id, because 8c owned the tag
+ * vocabulary and inventing a label for someone else's vocabulary would not have
+ * been honest. Both are on one branch now, so this is the join: every member of
+ * the `Tag` union against the label 8c wrote for it, the seven **plain tags**
+ * under 8c's `tag*` keys and the eight **motifs** under its `motif*` keys.
+ *
+ * Exhaustive by type rather than by care. `Tag` is `PLAIN_TAGS ∪ Motif`, so a
+ * `Record` over it means a motif or a tag added to the vocabulary without a
+ * label fails the build here, the same lever that already stops a locale
+ * shipping short of a key. There is no fallback to the identifier for the same
+ * reason `decodeBank` drops a record naming a tag outside the vocabulary: a chip
+ * that quietly reads `soldierGivenUp` is a missing translation pretending to be
+ * copy.
+ */
+export const TAG_LABEL_KEYS: Record<Tag, LabelKey> = {
   attackers: "tagAttackers",
   defenders: "tagDefenders",
   moves1: "tagMoves1",
@@ -149,20 +144,52 @@ export const TAG_LABEL_KEYS = {
   cordon: "motifCordon",
   cornerFight: "motifCornerFight",
   twinTowers: "motifTwinTowers",
-} as const satisfies Record<Tag, StringKey>;
-
-/** The chip's words, or null for a tag outside the vocabulary — which
- *  `decodeBank` already refuses to load, so it is unreachable from the bank and
- *  is a null rather than a fallback to the identifier. */
-export const tagLabel = (t: Translations, tag: string): string | null => {
-  const key = (TAG_LABEL_KEYS as Record<string, StringKey>)[tag];
-  return key ? t[key] : null;
 };
 
-/** The set row's words. Same table, since a **Named set** is named for its
- *  **Primary motif** and that motif is a tag everywhere else. */
-export const motifLabel = (t: Translations, motif: string): string =>
-  tagLabel(t, motif) ?? motif;
+/** The label for one **Tag** in the active locale. */
+export const tagLabel = (t: Translations, tag: Tag): string => t[TAG_LABEL_KEYS[tag]];
+
+/**
+ * What copy names a **Named set** on its row: the motif's name, from the same
+ * map the chips read.
+ *
+ * Deliberately *not* `puzzleNoteMotifs`, which the row used until now. The two
+ * tables are keyed alike and are about the same eight tactics, which is exactly
+ * why the wrong one went unnoticed: `puzzleNoteMotifs` holds the **completion
+ * note**, a sentence written to be read once, after a puzzle is solved ("A
+ * corner fight: the corner is the King's goal and a hostile anvil at once"),
+ * and a set row is a name read before anything has been attempted, beside a
+ * count. The note keeps that table; the row was the only thing wrong.
+ *
+ * Neither branch could see it alone. 8d wrote the row against a bank in which
+ * no motif existed, so it never rendered one; 8c named the motifs but never
+ * rendered a row. It became visible only when the two met and `cornerFight`'s
+ * seven puzzles cleared the threshold.
+ *
+ * Lifted out of the screen so the choice between two plausible tables is one
+ * the suite can hold: a label picked inside a component is a label no
+ * pure-logic test can assert, and this is a bug that shipped for want of
+ * exactly that assertion.
+ */
+export const setLabel = (t: Translations, set: NamedSet): string => tagLabel(t, set.motif);
+
+/**
+ * Which question a **Tag** answers. Chips in the same facet are alternatives;
+ * chips in different facets are conditions.
+ *
+ * The four facets are the glossary's four tags, one each: side to move, line
+ * length, whether a soldier is given up, and a carried **Motif**. Anything
+ * unrecognised falls in `motif`, which is where a vocabulary extension would
+ * land and is the facet whose members genuinely co-occur.
+ */
+export type TagFacet = "side" | "length" | "sacrifice" | "motif";
+
+export function tagFacet(tag: string): TagFacet {
+  if (tag === "attackers" || tag === "defenders") return "side";
+  if (/^moves[1-9]$/.test(tag)) return "length";
+  if (tag === "soldierGivenUp") return "sacrifice";
+  return "motif";
+}
 
 /**
  * The Pool as the screen shows it: only the bands that are open, in pool order,
@@ -209,9 +236,13 @@ export function pool(
     if (list) list.push(tag);
     else wanted.set(facet, [tag]);
   }
+  // Compared rather than `includes`d because the two slices met here: 8c
+  // narrowed `Puzzle.tags` from `string[]` to the `Tag` union, and this filter
+  // is deliberately vocabulary-agnostic — it takes whatever the screen was
+  // handed. Neither branch could see the mismatch alone.
   const matchesTags = (p: Puzzle): boolean => {
     for (const [, alternatives] of wanted) {
-      if (!alternatives.some((tag) => (p.tags as readonly string[]).includes(tag))) return false;
+      if (!alternatives.some((tag) => p.tags.some((x) => (x as string) === tag))) return false;
     }
     return true;
   };

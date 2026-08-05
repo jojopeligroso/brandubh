@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { Difficulty } from "./ai";
 import type { Puzzle } from "./puzzleBank";
+import { MOTIFS, PLAIN_TAGS, type Tag } from "./motifs";
+import { translations, type Lang } from "../i18n";
 import {
   SET_THRESHOLD,
   TAG_LABEL_KEYS,
-  motifLabel,
   namedSets,
   pool,
   poolOrder,
   poolTags,
+  setLabel,
   tagFacet,
   tagLabel,
 } from "./puzzlePool";
-import { MOTIFS, PLAIN_TAGS } from "./motifs";
-import { translations, type Lang } from "../i18n";
 
 /** Only the five fields the pool reads. */
 const puz = (
@@ -101,14 +101,6 @@ describe("tags", () => {
     expect(poolTags([puz("00001", 30, "easy")])).toEqual([]);
   });
 
-  it("come back sorted and deduplicated across the whole pool", () => {
-    const puzzles = [
-      puz("00001", 30, "easy", null, ["moves1", "attackers"]),
-      puz("00002", 30, "easy", null, ["attackers"]),
-    ];
-    expect(poolTags(puzzles)).toEqual(["attackers", "moves1"]);
-  });
-
   it("sort into the glossary's four facets, and nothing lands outside them", () => {
     expect(tagFacet("attackers")).toBe("side");
     expect(tagFacet("defenders")).toBe("side");
@@ -118,31 +110,88 @@ describe("tags", () => {
     for (const m of MOTIFS) expect(tagFacet(m)).toBe("motif");
   });
 
-  it("every tag in the vocabulary has copy, in every locale", () => {
-    // The compile-time half of this is `satisfies Record<Tag, StringKey>` on
-    // TAG_LABEL_KEYS: a tag added to the union without copy fails the build.
-    // This is the other half — that the key it names is actually filled in, in
-    // all three tables, `ga` included even though `ga` is not on offer.
-    const all = [...PLAIN_TAGS, ...MOTIFS];
-    expect(Object.keys(TAG_LABEL_KEYS).sort()).toEqual([...all].sort());
-    for (const lang of Object.keys(translations) as Lang[]) {
-      for (const tag of all) {
+  it("come back sorted and deduplicated across the whole pool", () => {
+    const puzzles = [
+      puz("00001", 30, "easy", null, ["sacrifice", "side:attackers"]),
+      puz("00002", 30, "easy", null, ["side:attackers"]),
+    ];
+    expect(poolTags(puzzles)).toEqual(["sacrifice", "side:attackers"]);
+  });
+});
+
+describe("what a tag chip says", () => {
+  // The chips rendered the raw tag id through 8d because 8c owned the copy.
+  // These are the tests that stop them going back to it.
+  const LANGS: Lang[] = ["en", "es", "ga"];
+  const EVERY_TAG: Tag[] = [...PLAIN_TAGS, ...MOTIFS];
+
+  it("covers the whole Tag vocabulary and nothing beyond it", () => {
+    // `Tag` is `PLAIN_TAGS ∪ Motif`, and the two blocks 8c wrote — seven `tag*`
+    // keys and eight `motif*` keys — are exactly that union. The Record type
+    // already enforces this at build time; asserting it here says out loud that
+    // no tag reaches a chip without copy of its own.
+    expect(Object.keys(TAG_LABEL_KEYS).sort()).toEqual([...EVERY_TAG].sort());
+  });
+
+  it("names every tag in every locale, including the hidden one", () => {
+    for (const lang of LANGS) {
+      for (const tag of EVERY_TAG) {
         const label = tagLabel(translations[lang], tag);
-        expect(label, `${lang}.${tag}`).toBeTruthy();
-        expect(label, `${lang}.${tag}`).not.toBe(tag);
+        expect(label, `${lang}/${tag}`).toBeTruthy();
+        // A chip showing the identifier is a missing translation pretending to
+        // be copy, so the label must not be the tag itself.
+        expect(label, `${lang}/${tag}`).not.toBe(tag);
       }
     }
   });
 
-  it("names a set by its motif's short name and never by its identifier", () => {
-    expect(motifLabel(translations.en, "cornerFight")).toBe("Corner fight");
-    // A motif outside the vocabulary cannot come from the bank — `decodeBank`
-    // drops the record — so this is the shape of the fallback, not a path.
-    expect(motifLabel(translations.en, "notAMotif")).toBe("notAMotif");
+  it("points each tag at its own string and never at a shared one", () => {
+    const keys = Object.values(TAG_LABEL_KEYS);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("what a set row says", () => {
+  // The row rendered `puzzleNoteMotifs` — the completion note, a whole sentence
+  // — where a name belongs, and shipped that way, because 8d had no motif to
+  // build a row from and 8c rendered no rows. These are the tests that stop the
+  // two tables being confused again.
+  const LANGS: Lang[] = ["en", "es", "ga"];
+
+  it("names the motif and never reads out its completion note", () => {
+    for (const lang of LANGS) {
+      const t = translations[lang];
+      for (const motif of MOTIFS) {
+        const where = `${lang}/${motif}`;
+        const label = setLabel(t, { motif, ids: ["00001"] });
+        // Both tables are keyed by Motif and both are populated, so the
+        // comparison below is a real one rather than a label against undefined.
+        expect(t.puzzleNoteMotifs[motif], where).toBeTruthy();
+        expect(label, where).toBe(tagLabel(t, motif));
+        expect(label, where).not.toBe(t.puzzleNoteMotifs[motif]);
+        // A name, not a sentence. Every note in every locale is punctuated
+        // "<name>: <explanation>.", so no note can pass this.
+        expect(label, where).not.toMatch(/[.:]/);
+      }
+    }
+  });
+
+  it("reads 'Corner fight' beside its count, which is the row the bank builds", () => {
+    // cornerFight is the bank's only Named set: 7 puzzles against a threshold
+    // of 4, and so the one motif whose note could reach a learner.
+    const bank = Array.from({ length: 7 }, (_, i) =>
+      puz(String(i + 1).padStart(5, "0"), 30, "easy", "cornerFight"),
+    );
+    const [set] = namedSets(bank);
+    expect(set.ids).toHaveLength(7);
+    expect(setLabel(translations.en, set)).toBe("Corner fight");
+    expect(setLabel(translations.es, set)).toBe("Lucha de esquina");
   });
 });
 
 describe("the pool as the screen shows it", () => {
+  // Real tags, because the filter's reading of two chips depends on which
+  // *facet* each is in and a fictional vocabulary has no facets.
   const BANK = [
     puz("00001", 30, "easy", null, ["attackers", "moves1"]),
     puz("00002", 90, "easy", null, ["defenders", "moves1"]),

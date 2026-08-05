@@ -8,7 +8,7 @@ import type { RuleSet } from "../game/variants";
 import type { Difficulty } from "../game/ai";
 import type { Side } from "../game/types";
 import { loadBank } from "../game/puzzleBank";
-import { motifLabel, namedSets, pool, poolTags, tagLabel } from "../game/puzzlePool";
+import { namedSets, pool, poolTags, setLabel, tagLabel } from "../game/puzzlePool";
 import {
   bandProgress,
   loadPuzzleProgress,
@@ -326,10 +326,13 @@ export default function LearnModal({
                         }
                       >
                         <span className="flex w-full items-center justify-between gap-3">
-                          {/* The short name, not `puzzleNoteMotifs` — those are
-                              whole sentences, written to be read once after a
-                              solve, and a row heading wants a name. */}
-                          <span>{motifLabel(t, s.motif)}</span>
+                          {/* The motif's name, not its completion note: the row
+                              is read before a puzzle is attempted, and the note
+                              is a sentence written to be read after one is
+                              solved. `setLabel` is total over `Motif`, so the
+                              row cannot fall back to either the sentence or the
+                              bare id. */}
+                          <span>{setLabel(t, s)}</span>
                           <span className="font-mono text-xs text-parchment-dim">
                             {s.ids.length}
                           </span>
@@ -353,18 +356,17 @@ export default function LearnModal({
                     {t.learnAllTags}
                   </button>
                   {tags.map((tag) => (
-                    // 8c's words. A tag with no key cannot reach here — the
-                    // table is exhaustive over `Tag` at compile time and
-                    // `decodeBank` drops a record naming a tag outside the
-                    // vocabulary — so an unlabelled chip is not rendered rather
-                    // than rendered as its identifier.
+                    // The chip carries 8c's label for the tag, never the raw
+                    // identifier: `TAG_LABEL_KEYS` is exhaustive over the `Tag`
+                    // union, so an unlabelled tag is a build error and not a
+                    // chip reading `soldierGivenUp` at a learner.
                     <button
                       key={tag}
                       className="btn btn-sm"
                       aria-pressed={tagFilter.includes(tag)}
                       onClick={() => toggleTag(tag)}
                     >
-                      {tagLabel(t, tag) ?? tag}
+                      {tagLabel(t, tag)}
                     </button>
                   ))}
                 </div>
