@@ -550,11 +550,39 @@ an unknown id dropped, a dead `localStorage` tolerated, unlock never revoked)
 and `completionNote` (each layer chosen in the right circumstance; no template
 mentions dtm or the end of the game). `npm test` green, build clean.
 
-A **manual driven-browser pass** (`npm run screenshot`), per project
-convention, at 390x844: a multi-step puzzle solved end to end, a wrong guess at
-step 2 retried without losing step 1, skip offered in the `wrong` stage, a
-locked band greyed and unlockable, and the completion note for each of the
-three layers.
+A **manual driven-browser pass**, per project convention, at 390x844: a
+multi-step puzzle solved end to end, a wrong guess at step 2 retried without
+losing step 1, skip offered in the `wrong` stage, a locked band greyed and
+unlockable, and the completion note for each of the three layers.
+
+**Done, and the multi-step half was done late.** 8d shipped everything on that
+list except the multi-step line, because the bank holds exactly one puzzle with
+more than one solver move (#00125) and it sits in `hard`, which is locked from a
+standing start. That is closed now, in two ways, because they catch different
+things.
+
+`src/game/bankLine.test.ts` walks #00125 — and any other multi-step puzzle a
+regeneration adds, by construction — from `puzzleStart` to `solved` through the
+real `Attempt`: every step correct with each ply checked legal on the board it is
+actually played from; a wrong guess at step 2 retried without losing step 1; a
+wrong guess at step 1; and completion reaching `solved` exactly once, on the last
+step. It says outright what it cannot claim: the step derivation is reimplemented
+there, because the shipping one lives inside `BankPuzzlePlayer` and the project
+tests no components, so it proves the machine and the data agree and not that the
+component wires them together.
+
+The browser pass is what covers the wiring. `brandubh.puzzles.v1` was seeded with
+27 `easy` and 6 `medium` ids — the two thresholds the quarter asks for — which
+opens `hard` without touching the unlock rule. #00125 then played through: the
+lead-in `d2-a2`, the King's `d4-d3` with the scripted `a4-a3` behind it, a
+deliberate wrong `d5-c5` at step 2 reading "Not quite.", *try again* restoring
+the position with the King still on `d3`, and `d3-g3` solving it. The band
+readout moved `hard` 0/29 to 1/29 and `ollaṁ` from 8 to 7 more to unlock.
+
+**Nothing in the multi-step path is broken.** The cursor advances, the reply
+lands, `retryStep` costs the step and not the line, and completion fires once.
+What the pass did find is a hole in what the screen *says* about a multi-step
+line: see [the multi-step line says nothing](#the-multi-step-line-says-nothing-when-a-step-is-right).
 
 An **accessibility pass** before it ships: the screen gains set rows, band
 locks and a progress ledger, and a lock that is a visual state only is a lock a
@@ -565,6 +593,35 @@ state and nowhere else: not in `persist.ts`, not in `gameFile.ts`, exactly as
 tutorial set plays do. The only thing that persists is the solved-id set. This
 is worth an explicit check in the browser pass, because it is the invariant a
 new screen with a board on it is most likely to break.
+
+Re-checked over the multi-step line, which is the harder case: a two-step puzzle
+puts four positions on the board rather than one, and one of them is a rewind.
+The key list was read before opening the bank and after solving #00125 and is the
+same list; the only value that changed anywhere in `localStorage` is
+`brandubh.puzzles.v1`, which gained `"00125"`. No game key exists before or
+after.
+
+### The multi-step line says nothing when a step is right
+
+Found by playing #00125 rather than by reading `attempt.ts`, and it is a hole in
+the copy rather than in the machine. On a correct **non-final** step the board
+changes twice — the guess, then the scripted reply — and the panel does not
+change at all. It reads `Find the move · King's side` before the step and
+`Find the move · King's side` after it, byte for byte.
+
+For someone watching the board that is merely quiet. For someone who is not, it
+is silence: the panel is the live region, a live region announces a *change*, and
+there is nothing here to announce. A screen-reader user who plays the right move
+at step 1 of 2 is told neither that it was right nor that the opponent answered,
+and the next thing they are asked is indistinguishable from the thing they just
+did.
+
+Not fixed here, because every fix is copy: the panel would need to say which step
+it is on (`2 / 2`, beside the queue's `29/29`), which is a visible affordance and
+a new string in three locales, and that is the owner's call rather than an
+audit's. It is recorded here because it is invisible in a bank whose other 160
+puzzles have one step, and 8f's refit will not change that — ADR-0001's
+uniqueness requirement is what keeps lines short.
 
 ---
 
