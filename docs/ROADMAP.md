@@ -9,7 +9,7 @@ Detailed specs:
 - Game resumability (shipped): [`docs/design/game-persistence.md`](./design/game-persistence.md)
 - Game import/export (PGN-style): [`docs/design/game-import-export.md`](./design/game-import-export.md)
 - Lichess-style analysis UI: [`docs/design/lichess-ui.md`](./design/lichess-ui.md)
-- Puzzle bank (planned): [`docs/design/puzzle-bank.md`](./design/puzzle-bank.md), with five ADRs in [`docs/adr/`](./adr/)
+- Puzzle bank (8a–8d shipped): [`docs/design/puzzle-bank.md`](./design/puzzle-bank.md), with five ADRs in [`docs/adr/`](./adr/)
 
 ---
 
@@ -135,7 +135,6 @@ two encodings, neither coupled to the other.
   - **Nothing is persisted.** Annotations are derived data and re-derivable in seconds, so no save or `FORMAT_VERSION` bump — and none of that risk. The AI's move selection is untouched: `chooseMoveDetailed` now reports the `score` the search already had, and the search path is otherwise byte-identical, so there is no strength change to gauntlet.
   - Verified: 431 tests (was 405), clean build, and 39 driven-browser assertions over three runs — including that the glyphs drawn beside the moves total exactly what the summary claims.
 
-**Session 7 is now shipped except 7a** (eval bar + best-move arrow), which has never been built and has no brief. The orientation seam it needs is already in place and tested (`src/orientation.ts`).
 - [x] **7e — Position setup (FEN-equivalent) — shipped.** Not in the original slicing; added to close out the design doc's last unbuilt target feature. `src/game/position.ts` encodes a board plus the side to move as one FEN-shaped line (27 tests) — the deliberate complement of the *game* file, which can only carry a move list replayed from the opening.
   - **It never becomes the live game.** A pasted position arrives as the root of an analysis tree — `moveTree.ts` already rooted at any `GameState`, so 7c had built this without knowing it — and lives in component state, where the tutorial set-plays keep their hand-built boards. The replay-from-opening invariant holds with no guard of its own, because analysis has never written to storage.
   - **Game export is blocked while one is loaded, with the reason shown.** That is the one place the invariant could genuinely leak: exporting a tree rooted on a pasted board would write a move list that replays from the opening into a completely different game.
@@ -161,6 +160,16 @@ and thrown away at merge time, because main's had already shipped. That is the
 price of not checking the remote before starting a slice, and it is the same
 lesson the prompts README already records for premises — check the repo, not the
 brief.
+
+It cost one more thing, found long after. A paragraph sat between 7d and 7e
+reading *"Session 7 is now shipped except 7a, which has never been built and has
+no brief"*: a summary that outlived the list it summarised, four ticks below a
+7a entry marked shipped and four lines above this one saying the session was
+complete. It was true on the day 7d was the last slice on this branch and false
+from the moment 7a merged, and no slice that landed afterwards read upwards far
+enough to notice. Deleted rather than corrected: the paragraphs around it already
+say what it was trying to say, and a second summary of the same list is how the
+first one got to be wrong.
 
 Session briefs now live in [`docs/prompts/`](prompts/README.md), one per slice, so a
 session can be started cold without the anchors and invariants being retyped from

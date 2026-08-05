@@ -15,8 +15,9 @@ the component; the old `.menu-panel` popover CSS is gone.
   strength) rather than resetting on the spot. The overlay grows a cancel (✕ /
   Escape) only when reopened this way — `onCancel` is null at boot, where there
   is nothing behind it to return to — so a stray tap can never cost a live game.
-- **Learn** — the three doors of the Learn hub (objectives, rules, set plays)
-  as direct rows, flattening `LearnModal`'s internal menu out of the path. The
+- **Learn** — the doors of the Learn hub (objectives, rules, set plays, and
+  puzzles since 8d) as direct rows, flattening `LearnModal`'s internal menu out
+  of the path. Counted as "the three doors" here until the fourth arrived. The
   modal keeps that menu for its other entry (the landing card's "Show me how").
 - **Tools** — the game file, moved out of the gear ⚙ modal into its own modal,
   where import/export never quite belonged among appearance settings. The

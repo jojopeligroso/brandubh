@@ -283,7 +283,9 @@ it is proposed, then allowed or declined.
 
 **Puzzle**:
 A stored, verified exercise: a position, a side to move, and the line that
-answers it. Fifty of these form the **Puzzle Bank**.
+answers it. The shipped collection of them is the **Puzzle Bank**; how many
+there are is a fact about a mining run and lives in the data module's header,
+not here.
 _Avoid_: problem, challenge, drill
 
 **Puzzle Bank**:
@@ -516,7 +518,8 @@ off.
 
 - "puzzle" named both the stored exercise and the live runtime of one.
   Resolved: **Puzzle** is the stored artefact, **Attempt** is the runtime.
-  `PuzzleState` in `src/game/puzzle.ts` is the Attempt and should be renamed.
+  8a carried the resolution into the code: `src/game/puzzle.ts` became
+  `attempt.ts` and `PuzzleState` became `Attempt`.
 - "variant" and "ruleset" are the same thing. Resolved: **Ruleset** in prose;
   `variant` survives as the code id and as the settings label.
 - "attacker" and "raider" are the same side. Resolved: **Raider** in copy,

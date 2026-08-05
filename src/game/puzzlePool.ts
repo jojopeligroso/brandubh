@@ -23,32 +23,36 @@ import type { Puzzle } from "./puzzleBank";
  * Four, from the glossary, and now 8c's constant rather than a second copy of
  * the number. Re-exported under the name this file's callers already use.
  *
- * ## The Note exemption, and why it still cannot be enforced here
+ * ## The Note exemption, and why it cannot be enforced here
  *
  * The glossary's other half is that *a motif assigned by a hand-written **Note**
- * earns a row at any size*. 8d left this note saying the exemption would become
- * enforceable when 8c shipped the provenance. 8c shipped the provenance — and
- * not to a place this file can reach, for a reason worth recording rather than
- * working around.
+ * earns a row at any size, because a person deciding it matters is better
+ * evidence than a count*. This comment used to say the exemption would become
+ * enforceable once 8c shipped the provenance. 8c shipped the provenance, and not
+ * to a place this file can reach.
  *
- * A Note lives in `data/puzzle-ledger.json`, and `scripts/genpuzzles.ts` reads
- * it at merge time: `tagOf` prefers a ledger motif over the recogniser's and
- * sets `byHand`, and the generator's own report calls 8c's `namedSets(counts,
- * byHandSet)` with it. But `byHand` is **not encoded into the record**. The
- * ledger is checked in and never bundled, and the bank format carries motif but
- * not its provenance, so at runtime a recogniser's verdict and a note's are the
- * same field with the same value.
+ * The mechanism, exactly. A Note lives in `data/puzzle-ledger.json`, which
+ * `scripts/genpuzzles.ts` reads at merge time: `tagOf` prefers a ledger motif
+ * over the recogniser's and sets a `byHand` flag, and the merge report hands
+ * that flag straight to 8c's `namedSets(counts, byHandSet)`, so the generator
+ * applies the exemption correctly. But the emitted record ends at `motif`
+ * (`id|pos|leadIn|line|goal|flags|dtm|depthToFind|salience|motif|tags`), and the
+ * ledger is checked in and never bundled. `byHand` therefore dies in the report,
+ * and `Puzzle.motif` arrives here as a bare `Motif | null` in which a
+ * recogniser's verdict and a person's are the same field holding the same value.
+ * The exemption is unimplemented, and that is a gap in the bank format rather
+ * than a slice that has not happened yet.
  *
- * That is the right split rather than a gap to close. Bundling 161 ledger
- * entries so the Learn screen can apply an exemption that fires on nothing would
- * be paying bundle for a distinction no shipped puzzle draws:
- * `puzzle-handadds.txt` is empty, no ledger entry carries a `motif` key, and
- * every motif in the bank is `cornerFight` found by a recogniser. The generator
- * is where a Note is honoured, and it honours it. If a Note is ever written, the
- * ledger's motif becomes the record's motif and the count it joins is what this
- * file sees; only a Note on a motif with fewer than four puzzles would make the
- * screen and the generator's report disagree, and that is the day the record
- * grows a provenance flag.
+ * It is also the right split rather than a gap to rush. Bundling 161 ledger
+ * entries so the Learn screen could apply an exemption that fires on nothing
+ * would pay bundle for a distinction no shipped puzzle draws:
+ * `data/puzzle-handadds.txt` holds no live entries, no ledger entry carries a
+ * `motif` key, and the one motif in the bank is `cornerFight`, found by a
+ * recogniser on seven puzzles and so already clear of the threshold. The
+ * generator is where a Note is honoured and it honours it. The single case that
+ * would make this screen and the generator's report disagree is a Note on a
+ * motif with fewer than four puzzles, and that is the day the record grows a
+ * provenance flag.
  */
 export const SET_THRESHOLD = MOTIF_SET_THRESHOLD;
 
@@ -80,9 +84,12 @@ export const poolOrder = (puzzles: readonly Puzzle[]): Puzzle[] =>
 /**
  * The **Named sets** that qualify, largest first.
  *
- * Correct and empty when no motif has been recognised, which is the state of the
- * bank until 8c lands and — by the plan's own expectation — the state of most of
- * it afterwards: most puzzles have no motif and live in the Pool.
+ * Correct and empty when no motif has been recognised, which was the state of
+ * the bank before 8c and (by the plan's own expectation) is the state of most
+ * of it after. 8c's recognisers found one motif that clears the threshold:
+ * `cornerFight`, 7 puzzles. 154 of the 161 carry no motif at all and live in the
+ * Pool, which is the shape the glossary describes: one row, and the rest is the
+ * list.
  */
 export function namedSets(puzzles: readonly Puzzle[]): NamedSet[] {
   const byMotif = new Map<Motif, string[]>();
