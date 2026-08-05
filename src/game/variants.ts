@@ -50,6 +50,18 @@ export interface RuleSet {
    */
   strongKingAdjacentToThrone: boolean;
 
+  // ── Shieldwall ────────────────────────────────────────────────────────────────
+  /**
+   * Copenhagen-style shieldwall capture: a row of two or more enemy men along
+   * the board edge is captured together when the row is bracketed at both ends
+   * (a hostile corner may stand in for one bracket) and every man in the row
+   * has an enemy man directly in front of him. The trap must be closed by the
+   * capturing side's move; a king inside the row survives, soldiers fall.
+   * Neither Walker nor WTF Brandubh uses this — it is a Copenhagen (11×11,
+   * ~2011) innovation, offered here for custom play.
+   */
+  shieldwallCapture: boolean;
+
   // ── Win conditions ────────────────────────────────────────────────────────────
   /**
    * Attackers win if they encircle the king and all remaining defenders with
@@ -85,6 +97,7 @@ export const VARIANTS: Record<string, RuleSet> = {
     cornersHostile: true,
     strongKingOnThrone: false,
     strongKingAdjacentToThrone: false,
+    shieldwallCapture: false,
     encirclementWin: false,
     repetitionResult: "draw",
   },
@@ -117,6 +130,7 @@ export const VARIANTS: Record<string, RuleSet> = {
     cornersHostile: true,
     strongKingOnThrone: true,
     strongKingAdjacentToThrone: true, // ⚠ see CONTESTED RULE note above
+    shieldwallCapture: false, // Copenhagen innovation — not part of WTF Brandubh
     encirclementWin: true,
     repetitionResult: "loss_for_defenders",
   },
@@ -137,6 +151,7 @@ export const CUSTOM_RULE_DEFAULTS: CustomRuleSet = {
   cornersHostile: true,
   strongKingOnThrone: true,
   strongKingAdjacentToThrone: true,
+  shieldwallCapture: false,
   encirclementWin: true,
   repetitionResult: "loss_for_defenders",
 };

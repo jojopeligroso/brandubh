@@ -195,6 +195,8 @@ export interface Translations {
   ruleStrongKingOnThroneHint: string;
   ruleStrongKingAdjacentThrone: string;
   ruleStrongKingAdjacentThroneHint: string;
+  ruleShieldwall: string;
+  ruleShieldwallHint: string;
   ruleEncirclementWin: string;
   ruleEncirclementWinHint: string;
   repetitionResultLabel: string;
@@ -586,6 +588,8 @@ const en: Translations = {
   ruleStrongKingOnThroneHint: "on the throne the king needs all four sides",
   ruleStrongKingAdjacentThrone: "Strong king beside throne",
   ruleStrongKingAdjacentThroneHint: "beside the throne the king needs all four sides, not a two-sided sandwich (under review)",
+  ruleShieldwall: "Shieldwall capture",
+  ruleShieldwallHint: "a bracketed, fronted row along the edge falls together (Copenhagen); a king in the row survives",
   ruleEncirclementWin: "Encirclement win",
   ruleEncirclementWinHint: "attackers win by fully surrounding the king’s side",
   repetitionResultLabel: "On threefold repetition",
@@ -1039,6 +1043,8 @@ const es: Translations = {
   ruleStrongKingOnThroneHint: "en el trono el rey necesita los cuatro lados",
   ruleStrongKingAdjacentThrone: "Rey fuerte junto al trono",
   ruleStrongKingAdjacentThroneHint: "junto al trono el rey necesita los cuatro lados",
+  ruleShieldwall: "Captura en muro de escudos",
+  ruleShieldwallHint: "una fila en el borde, cerrada y encarada, cae entera (Copenhague); el rey en la fila sobrevive",
   ruleEncirclementWin: "Victoria por cerco",
   ruleEncirclementWinHint: "los asaltantes ganan rodeando por completo al bando del rey",
   repetitionResultLabel: "En triple repetici\u00f3n",
@@ -1503,6 +1509,9 @@ const ga: Translations = {
   ruleStrongKingOnThroneHint: "ar an ríchathaoir teastaíonn na ceithre thaobh ón rí",
   ruleStrongKingAdjacentThrone: "Rí láidir in aice na ríchathaoireach",
   ruleStrongKingAdjacentThroneHint: "in aice na ríchathaoireach teastaíonn na ceithre thaobh ón rí",
+  // DRAFT (unreviewed) — like the rest of this table.
+  ruleShieldwall: "Gabháil bhalla sciath",
+  ruleShieldwallHint: "titeann sraith ar an imeall, dúnta agus os comhair a chéile, le chéile (Cóbanhávan); maireann an rí sa tsraith",
   ruleEncirclementWin: "Bua trí thimpeallú",
   ruleEncirclementWinHint: "buann na foghlaithe trí thaobh an rí a thimpeallú go hiomlán",
   repetitionResultLabel: "Ar athrá faoi thrí",
