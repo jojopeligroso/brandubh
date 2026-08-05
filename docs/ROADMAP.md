@@ -9,6 +9,7 @@ Detailed specs:
 - Game resumability (shipped): [`docs/design/game-persistence.md`](./design/game-persistence.md)
 - Game import/export (PGN-style): [`docs/design/game-import-export.md`](./design/game-import-export.md)
 - Lichess-style analysis UI: [`docs/design/lichess-ui.md`](./design/lichess-ui.md)
+- Puzzle bank (planned): [`docs/design/puzzle-bank.md`](./design/puzzle-bank.md), with five ADRs in [`docs/adr/`](./adr/)
 
 ---
 
@@ -173,6 +174,15 @@ memory.
   - **Candidate arrows** only when the engine ties exactly (up to three); one clear best move draws one arrow. The root search already collected the tie set to randomise between equal moves, so this cost nothing and is exact rather than approximate.
   - Verified: **518 tests**, build clean, and **33 driven-browser assertions at 390×844** across two passes — the review running unprompted and above the fold, the graph jumping and surviving the jump, and the full puzzle loop: answer hidden while guessing and after a wrong try, *not quite* with both offers, try-again restoring the original line with no stray variation, reveal showing the arrow and the bar, and Think harder going from d4 to d6.
 
+### Session 8 — Puzzle bank *(L — see design doc)* — **planned, not started**
+**Goal:** ~80 verified puzzles (a stored position plus a line of at most four solver moves), reachable from the Learn screen as named sets and a graded pool, with an unlisted proving ground to calibrate the grades.
+Plan: [`docs/design/puzzle-bank.md`](./design/puzzle-bank.md). Five ADRs settle the load-bearing decisions; the vocabulary is in [`GLOSSARY.md`](../GLOSSARY.md).
+- [ ] **8a — Attempt state machine** *(S)*. `src/game/puzzle.ts` becomes `attempt.ts`: `PuzzleState` → `Attempt`, a `step` cursor into the Line, a `source` discriminator (review / bank), skip offered in the `wrong` stage. Ships against the review path only. **This is the seam**, unit-tested before it has a bank caller, for the reason Session 7 recorded twice over.
+- [ ] **8b — Stored format, generator, data module, grade formula** *(L)*. `src/game/puzzleBank.ts` + a generated `puzzleBank.data.ts` + `scripts/genpuzzles.ts`, following the `genbook.ts` / `openingBook.data.ts` pattern (regeneration command in the header, fingerprint gate, compact payload). Mined from seeded self-play plus hand-added positions; uniqueness-filtered per ADR-0001; truncated per ADR-0002. Fast invariants in the suite, full `solve()` re-proofs in the script only.
+- [ ] **8c — Tagger and the guillotine recogniser** *(M)*. `src/game/motifs.ts`, attested names only (ADR-0003). Guillotine first and non-optional: it is the one motif no human can hand-label, because it lives in the proof past the end of the shipped line. Per-motif counts reported including zeros.
+- [ ] **8d — Learn screen: bands, pool, named sets, playing a puzzle** *(L)*. Four bands on the `DIFFICULTIES` ladder, proportional unlocking, the pool with tag filters, a layered completion note from fixed templates. `BankPuzzlePlayer` is the contract 8e reuses.
+- [ ] **8e — Proving ground and calibration script** *(M–L)*. Unlisted page, no backend, no router (ADR-0004); blind comparison against eight anchors, never an assigned band (ADR-0005). The script prints the re-test noise floor beside the fit accuracy.
+- [ ] **8f — Fit the weights** *(operational)*. Collect, fit, paste, re-band, and rewrite the weights comment so it stops saying "guess".
 
 ---
 
