@@ -1,0 +1,191 @@
+import { describe, expect, it } from "vitest";
+import type { Difficulty } from "./ai";
+import type { Puzzle } from "./puzzleBank";
+import { MOTIFS, PLAIN_TAGS, type Tag } from "./motifs";
+import { translations, type Lang } from "../i18n";
+import {
+  SET_THRESHOLD,
+  TAG_LABEL_KEYS,
+  namedSets,
+  pool,
+  poolOrder,
+  poolTags,
+  tagLabel,
+} from "./puzzlePool";
+
+/** Only the five fields the pool reads. */
+const puz = (
+  id: string,
+  grade: number,
+  band: Difficulty,
+  motif: string | null = null,
+  tags: string[] = [],
+): Puzzle => ({ id, grade, band, motif, tags }) as unknown as Puzzle;
+
+const ALL: Difficulty[] = ["easy", "medium", "hard", "ollamh"];
+const open = (...bands: Difficulty[]) => new Set(bands);
+
+describe("pool order", () => {
+  it("is easiest first", () => {
+    const puzzles = [puz("00003", 300, "hard"), puz("00001", 30, "easy"), puz("00002", 120, "medium")];
+    expect(poolOrder(puzzles).map((p) => p.id)).toEqual(["00001", "00002", "00003"]);
+  });
+
+  it("breaks ties by puzzle number, because most of the bank is one grade", () => {
+    // `grade.ts` records that 92 of 161 puzzles grade at exactly 30. Without the
+    // tie break the order would be whatever the data module happened to be
+    // written in, and would move under any regeneration.
+    const puzzles = [puz("00009", 30, "easy"), puz("00002", 30, "easy"), puz("00005", 30, "easy")];
+    expect(poolOrder(puzzles).map((p) => p.id)).toEqual(["00002", "00005", "00009"]);
+  });
+
+  it("does not disturb the array it is given", () => {
+    const puzzles = [puz("00002", 90, "easy"), puz("00001", 30, "easy")];
+    poolOrder(puzzles);
+    expect(puzzles.map((p) => p.id)).toEqual(["00002", "00001"]);
+  });
+});
+
+describe("named sets", () => {
+  it("are empty when no motif has been recognised — the state of the bank today", () => {
+    // 161 puzzles, `motif` null on every one of them. This is the normal case
+    // and not a degraded one: most puzzles have no motif and live in the Pool.
+    const puzzles = Array.from({ length: 161 }, (_, i) =>
+      puz(String(i).padStart(5, "0"), 30, "easy"),
+    );
+    expect(namedSets(puzzles)).toEqual([]);
+  });
+
+  it("withhold a row until the threshold is met, and grant it on the nose", () => {
+    const under = Array.from({ length: SET_THRESHOLD - 1 }, (_, i) =>
+      puz(String(i).padStart(5, "0"), 30, "easy", "cordon"),
+    );
+    expect(namedSets(under)).toEqual([]);
+
+    const exactly = [...under, puz("00099", 30, "easy", "cordon")];
+    expect(namedSets(exactly)).toEqual([
+      { motif: "cordon", ids: ["00000", "00001", "00002", "00099"] },
+    ]);
+  });
+
+  it("list their puzzles in pool order, so a set is a view and not a reordering", () => {
+    const puzzles = [
+      puz("00004", 300, "hard", "clamp"),
+      puz("00001", 30, "easy", "clamp"),
+      puz("00003", 120, "medium", "clamp"),
+      puz("00002", 30, "easy", "clamp"),
+    ];
+    expect(namedSets(puzzles)[0].ids).toEqual(["00001", "00002", "00003", "00004"]);
+  });
+
+  it("put the biggest set first, and settle ties by name", () => {
+    const many = (motif: string, n: number, from: number) =>
+      Array.from({ length: n }, (_, i) => puz(String(from + i).padStart(5, "0"), 30, "easy", motif));
+    const sets = namedSets([...many("clamp", 4, 1), ...many("spring", 6, 100), ...many("balling", 4, 200)]);
+    expect(sets.map((s) => s.motif)).toEqual(["spring", "balling", "clamp"]);
+  });
+
+  it("hand out ids rather than puzzles, so no puzzle lives in two places", () => {
+    const puzzles = Array.from({ length: 4 }, (_, i) =>
+      puz(String(i).padStart(5, "0"), 30, "easy", "cordon"),
+    );
+    const set = namedSets(puzzles)[0];
+    expect(set.ids.every((id) => puzzles.some((p) => p.id === id))).toBe(true);
+  });
+});
+
+describe("tags", () => {
+  it("are empty until 8c computes them, which is not a failure", () => {
+    expect(poolTags([puz("00001", 30, "easy")])).toEqual([]);
+  });
+
+  it("come back sorted and deduplicated across the whole pool", () => {
+    const puzzles = [
+      puz("00001", 30, "easy", null, ["sacrifice", "side:attackers"]),
+      puz("00002", 30, "easy", null, ["side:attackers"]),
+    ];
+    expect(poolTags(puzzles)).toEqual(["sacrifice", "side:attackers"]);
+  });
+});
+
+describe("what a tag chip says", () => {
+  // The chips rendered the raw tag id through 8d because 8c owned the copy.
+  // These are the tests that stop them going back to it.
+  const LANGS: Lang[] = ["en", "es", "ga"];
+  const EVERY_TAG: Tag[] = [...PLAIN_TAGS, ...MOTIFS];
+
+  it("covers the whole Tag vocabulary and nothing beyond it", () => {
+    // `Tag` is `PLAIN_TAGS ∪ Motif`, and the two blocks 8c wrote — seven `tag*`
+    // keys and eight `motif*` keys — are exactly that union. The Record type
+    // already enforces this at build time; asserting it here says out loud that
+    // no tag reaches a chip without copy of its own.
+    expect(Object.keys(TAG_LABEL_KEYS).sort()).toEqual([...EVERY_TAG].sort());
+  });
+
+  it("names every tag in every locale, including the hidden one", () => {
+    for (const lang of LANGS) {
+      for (const tag of EVERY_TAG) {
+        const label = tagLabel(translations[lang], tag);
+        expect(label, `${lang}/${tag}`).toBeTruthy();
+        // A chip showing the identifier is a missing translation pretending to
+        // be copy, so the label must not be the tag itself.
+        expect(label, `${lang}/${tag}`).not.toBe(tag);
+      }
+    }
+  });
+
+  it("points each tag at its own string and never at a shared one", () => {
+    const keys = Object.values(TAG_LABEL_KEYS);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("the pool as the screen shows it", () => {
+  const BANK = [
+    puz("00001", 30, "easy", null, ["side:attackers"]),
+    puz("00002", 90, "easy", null, ["sacrifice"]),
+    puz("00003", 120, "medium", "clamp", ["side:defenders"]),
+    puz("00004", 330, "ollamh"),
+  ];
+
+  it("hides a locked band entirely — a lock is not a greyed row in the list", () => {
+    expect(pool(BANK, { unlocked: open("easy") }).map((p) => p.id)).toEqual(["00001", "00002"]);
+  });
+
+  it("narrows to one band when a band row is chosen", () => {
+    expect(pool(BANK, { unlocked: open(...ALL), band: "medium" }).map((p) => p.id)).toEqual([
+      "00003",
+    ]);
+  });
+
+  it("narrows to one tag when a chip is chosen", () => {
+    expect(pool(BANK, { unlocked: open(...ALL), tag: "sacrifice" }).map((p) => p.id)).toEqual([
+      "00002",
+    ]);
+  });
+
+  it("narrows to a named set's ids, which is all a set row does", () => {
+    const ids = new Set(["00003", "00004"]);
+    expect(pool(BANK, { unlocked: open(...ALL), ids }).map((p) => p.id)).toEqual([
+      "00003",
+      "00004",
+    ]);
+  });
+
+  it("keeps the lock above every other filter", () => {
+    // A named set that reaches into a locked band shows only the open part of
+    // itself. The set is a shortcut into the Pool, so it cannot outrank the Pool.
+    const ids = new Set(["00003", "00004"]);
+    expect(pool(BANK, { unlocked: open("easy", "medium"), ids }).map((p) => p.id)).toEqual([
+      "00003",
+    ]);
+  });
+
+  it("comes back in pool order however it was narrowed", () => {
+    expect(pool(BANK, { unlocked: open(...ALL) }).map((p) => p.grade)).toEqual([30, 90, 120, 330]);
+  });
+
+  it("can come back empty, and says so by being empty", () => {
+    expect(pool(BANK, { unlocked: open(...ALL), tag: "nothing-has-this" })).toEqual([]);
+  });
+});

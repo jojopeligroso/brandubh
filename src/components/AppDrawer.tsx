@@ -26,6 +26,7 @@ export default function AppDrawer({
   onObjectives,
   onRules,
   onTutorials,
+  onPuzzles,
   onGameFile,
   onSettings,
   onAbout,
@@ -40,6 +41,7 @@ export default function AppDrawer({
   onObjectives: () => void;
   onRules: () => void;
   onTutorials: () => void;
+  onPuzzles: () => void;
   onGameFile: () => void;
   onSettings: () => void;
   onAbout: () => void;
@@ -97,6 +99,7 @@ export default function AppDrawer({
           {item(t.learnObjectives, <TargetIcon />, onObjectives)}
           {item(t.learnRules, <BookIcon />, onRules)}
           {item(t.learnTutorials, <BoardIcon />, onTutorials)}
+          {item(t.learnPuzzles, <BoardIcon />, onPuzzles)}
 
           <p className="drawer-section">{t.drawerTools}</p>
           {item(t.gameFileTitle, <FileIcon />, onGameFile, "drawer-game-file")}
