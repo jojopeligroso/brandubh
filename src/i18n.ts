@@ -538,6 +538,9 @@ export interface Translations {
   /** Layer 3: keyed by **Goal**, or `<goal>.<solver side>` for the evaluation
    *  goals, whose side is not fixed by the goal. */
   puzzleNoteGoals: Record<string, string>;
+  /** Read out beside a solved **Puzzle** in the Pool list. The gold tick is
+   *  `aria-hidden`; this is what a screen reader gets instead of a glyph. */
+  learnPuzzleSolved: string;
 }
 
 const en: Translations = {
@@ -1069,6 +1072,7 @@ const en: Translations = {
     "advantage:attackers": "The raiders have a clear advantage.",
     "advantage:defenders": "The King's side has a clear advantage.",
   },
+  learnPuzzleSolved: "Solved",
 };
 
 const es: Translations = {
@@ -1616,6 +1620,7 @@ const es: Translations = {
     "advantage:attackers": "Los asaltantes tienen una ventaja clara.",
     "advantage:defenders": "El bando del Rey tiene una ventaja clara.",
   },
+  learnPuzzleSolved: "Resuelto",
 };
 
 const ga: Translations = {
@@ -2189,6 +2194,7 @@ const ga: Translations = {
     "advantage:attackers": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag na foghlaithe.",
     "advantage:defenders": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag taobh an R\u00ed.",
   },
+  learnPuzzleSolved: "R\u00e9itithe",
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };

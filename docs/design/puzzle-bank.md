@@ -588,6 +588,80 @@ An **accessibility pass** before it ships: the screen gains set rows, band
 locks and a progress ledger, and a lock that is a visual state only is a lock a
 screen reader cannot report.
 
+**Not done at 8d, and done now.** What 8d recorded in its place was a reading of
+the markup — `aria-disabled` on locked rows, `aria-pressed` on the filters, the
+lock stated in words — and it was correct as far as it went. It went to the
+attributes and stopped, and every one of the four failures below is a thing the
+attributes cannot tell you.
+
+Audited over the Learn screen, `BankPuzzlePlayer`, `PuzzlePanel` and the drawer
+row that reaches them, driven at 390x844 against the production build.
+
+**Fixed:**
+
+- **Focus never entered either dialog, and could not be kept in one.** Opening
+  the Puzzles screen from the drawer left `document.activeElement` on `<body>` —
+  the row that opened it unmounted with the drawer, so the focus point was
+  destroyed rather than moved. Shift+Tab from the dialog's back button landed on
+  the game file's `<summary>` in the page behind, and 28 controls outside the
+  dialog stayed in the tab order. `aria-modal="true"` was asserted on both
+  dialogs throughout; it tells assistive technology to ignore the outside and
+  says nothing at all to the browser. `src/useDialogFocus.ts` moves focus in,
+  cycles Tab and Shift+Tab inside, and restores it on close. The drawer needed it
+  too and not as a courtesy: it is what gives the Learn screen something to hand
+  focus back to.
+- **Focus was dropped inside the dialog whenever it changed screen.** Opening a
+  puzzle replaces the list holding the row that was pressed, and focus fell to
+  `<body>` again — inside the dialog this time, with the trap unable to see it.
+  The hook takes the sub-screen as a key and re-focuses the dialog when it
+  changes, which also re-announces the dialog's name, by then the new screen's
+  title.
+- **Solved was a gold tick and nothing else.** The row said it in colour and in a
+  glyph that screen readers variously skip or read as "check mark". The tick is
+  now `aria-hidden` and carries `learnPuzzleSolved` beside it, so the row's name
+  reads "Puzzle #00013 Easy Solved".
+- **The live region held the buttons.** `role="status" aria-live="polite"` sat on
+  the whole of `PuzzlePanel`'s `<section>`, so every change of stage re-announced
+  "Try again · See it · Skip" behind the sentence that mattered, and the section
+  lost its own role while it was at it. The region is now the reading matter
+  only. The completion note had the opposite fault — its live region was created
+  in the same commit as the text it was to announce, which some screen readers
+  announce and others silently skip — and is now a region that is always mounted
+  with contents that come and go.
+
+**Found, reported, not fixed, because the fix is visual design or copy:**
+
+- **The locked band row fails contrast, on the words that carry the lock.**
+  `opacity-50` on the row takes "Ollaṁ" to **3.52:1** and "Locked · 8 more to
+  unlock" to **2.66:1** against 4.5:1. The greying is deliberate and the plan
+  asked for it; what it dims is the one channel that is not colour.
+- **The multi-step line says nothing when a step is right.** Recorded above under
+  its own heading.
+- **Tap targets are under 44x44 at 390x844** — tag chips 30 px high, the back
+  button 38x38. Above WCAG 2.2's 24x24 minimum and under the 44x44 that a thumb
+  wants.
+- **"That was the last one — lesson complete"** fires for the last puzzle of a
+  filtered pool, which is not a lesson and has not ended.
+- **`Escape` closes the whole modal from inside a puzzle**, where the visible `‹`
+  steps back one level. Two dismissals, two different meanings.
+- **The "All" chip reads pressed while a band or a set filter is active**, because
+  it tracks the tag filter alone. `narrow({})` clears all three.
+
+**Out of scope, and worse than anything above:** the board is not operable by
+keyboard at all. 49 `role="gridcell"` divs, none focusable, no `role="row"`
+between them and the `role="grid"`, so the grid's structure is invalid as well as
+unreachable. No move can be made without a pointer, which makes the whole puzzle
+feature pointer-only however good the screen around it is. It is a long-standing
+surface that predates the bank and is not rewritten here.
+
+**Passing, and worth recording so it is not re-derived:** contrast everywhere
+else in the modal is 8.3:1 or better; Chromium draws its default focus ring
+visibly on every control (there is no app-authored `:focus-visible`, so that is
+the UA's doing and not the app's); `Escape` dismisses from every level of both
+dialogs; headings run h2 then h3 with no level skipped; and the puzzle number
+already carried `learnPuzzleLabel` as `sr-only` so a row does not announce as a
+bare number.
+
 **The replay-from-opening invariant.** Bank puzzle states live in component
 state and nowhere else: not in `persist.ts`, not in `gameFile.ts`, exactly as
 tutorial set plays do. The only thing that persists is the solved-id set. This

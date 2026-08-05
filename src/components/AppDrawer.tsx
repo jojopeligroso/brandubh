@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { toSeanchlo } from "../gaelic";
 import { VISIBLE_LANGS, type Lang, type Translations } from "../i18n";
+import { useDialogFocus } from "../useDialogFocus";
 
 /**
  * The hamburger's slide-out drawer, lifted from lichess mobile: a full-height
@@ -46,6 +47,11 @@ export default function AppDrawer({
   onSettings: () => void;
   onAbout: () => void;
 }) {
+  // The drawer is where the Learn screen's focus was being lost: its rows
+  // unmount on the way out, so the point focus would return to no longer
+  // exists by the time the destination mounts. Restoring here — to the
+  // hamburger — is what gives the destination something to hand back to.
+  const drawerRef = useDialogFocus<HTMLElement>();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -77,10 +83,12 @@ export default function AppDrawer({
   return (
     <div className="drawer-backdrop" onClick={onClose} data-testid="app-drawer">
       <aside
+        ref={drawerRef}
         className="drawer"
         role="dialog"
         aria-modal="true"
         aria-label={t.menu}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="drawer-head">
