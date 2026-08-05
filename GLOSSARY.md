@@ -65,10 +65,82 @@ ring that does not lean on the board edge. WTF only.
 **Escape**:
 The defender win condition: the King reaches any corner.
 
+**Guillotine**:
+A King's-side formation in which a piece shuttles back and forth on a lane,
+forcing the raiders to feed soldiers in to block the escape, each of which is
+captured in turn, until no blocker is left. A won game rather than a strong
+one, but a long one to finish — so the interest is in recognising it, not
+playing it out. Attested for Brandubh: the corner dynamics are Fetlar's with
+fewer pieces.
+_Also known as_: the Shuttle, and (informally, by analogy) the Svikmølle. The
+project word is **Guillotine**, because it is the one attested in the tafl
+forum's own tactics discussion, where the shuttling piece is the "executioner"
+and the return move "raises the blade ready for the next victim".
+_Avoid_: shuttle, svikmølle, mill, treadmill (as headwords; keep them in the
+teaching copy only where a player is likely to have met them elsewhere)
+
 **Ply**:
 One move by one side. The move list, the review cursor and the set records all
 count in plies, so "moves" in prose means plies unless a numbered move pair is
 explicitly meant.
+
+## Named tactics
+
+The tafl community's own vocabulary, from the Hnefatafl forum's tactics
+threads. Recorded here as the source of **Motif** names, so the project never
+invents a word for something that already has one. Most were named on an 11×11
+board; whether each occurs in Brandubh is a question for the recognisers, and
+a motif nobody finds here is a finding, not a gap.
+
+**Guillotine**: see under Playing. Attested for Brandubh specifically. Held
+there and not here because it is a **Goal** the solver can prove, not only a
+shape a recogniser can spot.
+
+**Shuttle**:
+Not a separate tactic: another name for the **Guillotine**, seen written as
+"the King moving side to side to destroy enemy pieces against two corner
+squares". Same mechanism, described from the moving piece rather than from
+what it does to the blockers. Kept here as an alias so the two never drift
+into two entries again.
+
+**Svikmølle**:
+The Danish name the same idea is sometimes given, borrowed from Mølle (Nine
+Men's Morris), where a svikmølle is the double mill: five pieces arranged so
+that every move opens one mill and closes another, taking a piece each time.
+The analogy is exact and the borrowing is natural, but it is not attested on
+either aagenielsen.dk or cyningstan.com as tafl vocabulary; treat it as a
+nickname a Danish-speaking player may use, not as the community's term.
+
+**Snap trap**:
+Two raiders flanking an empty square, so entering it is capture. Straight
+(`b ! ! b`) or angled; a chain of them covers ground cheaply.
+
+**Clamp**:
+Two of the King's soldiers locked in place — if either moves, the other is
+captured.
+
+**Spring**:
+A raider formation held under tension that closes the moment the King's side
+moves.
+
+**Balling**:
+The King cut off from his own soldiers by a swarm of raiders.
+
+**Cordon**:
+A raider barrier drawn around the King. Distinct from **Encirclement**, which
+is a win condition rather than a shape.
+
+**Corner fight**:
+The particular struggle around a corner square, where the corner is both the
+King's goal and a hostile anvil for either side.
+
+**Twin towers**:
+Two raider strongpoints that simply wait until the King's side runs out of
+soldiers. Wants more board than Brandubh has; listed for completeness.
+
+**Millar Gambit**:
+An 11×11 opening, named for Tim Millar. Recorded because the thread names it;
+it does not transfer to a 7×7 board.
 
 ## Rules
 
@@ -226,10 +298,25 @@ _Avoid_: session, try
 A move in the player's own finished game that the annotation pass marked as an
 inaccuracy, mistake or blunder, offered back as an exercise.
 
+**Line**:
+A **Puzzle**'s stored answer: the solver's moves and the scripted replies
+between them, alternating and always ending on a solver move. At most four
+solver moves long, and typically one or two.
+
+**Step**:
+One solver move of a **Line**, together with the reply that follows it. A
+four-move puzzle has four steps; a **Review Mistake** has one.
+
 **Goal**:
-What a **Puzzle** asks the solver to achieve, and therefore how it was
-verified: `regicide` and `escape` are proven by the solver; `crushing` and
-`advantage` are measured against the evaluation and are never called proofs.
+What a **Puzzle** asks for, and therefore how it was verified. `regicide` and
+`escape` are proven outright by the solver. `guillotine` is also proven, but
+too far from the end to play out, so its **Line** is truncated at the move
+that settles it. `crushing` and `advantage` are measured against the
+evaluation and are never called proofs.
+
+**Truncated**:
+Of a **Line**: it stops before the game does, because what follows is proven
+but long. The learner is told the side is winning, never how many plies remain.
 
 **Provenance**:
 Where a **Puzzle**'s position came from: a mined self-play game, or a human
@@ -243,8 +330,30 @@ set play teaches a named motif to a beginner, a puzzle tests recognition.
 _Avoid_: tutorial (the word names the screen, not the artefact)
 
 **Motif**:
-The named idea a **Set Play** teaches: a custodial capture against the corner,
-barring the King's escape, and so on.
+A named tafl tactic an exercise turns on, drawn from the attested vocabulary
+below rather than invented. A **Set Play** teaches one; a **Puzzle** exhibits
+whatever a recogniser finds in it, which is often none.
+_Avoid_: theme (taken twice already: **Board theme**, and lichess's own word
+for this, which would collide in copy)
+
+**Primary motif**:
+The one **Motif** that decides which **Named set** a **Puzzle** is listed
+under, picked by a fixed priority order. Optional: a puzzle with no recognised
+motif has none and lives in the **Pool**.
+
+**Named set**:
+A row on the Learn screen collecting the puzzles that share a **Primary
+motif**. A set is listed only once enough puzzles carry its motif, so the
+vocabulary shipped is the vocabulary actually found on the board.
+
+**Pool**:
+Every **Puzzle** in one list, ordered by difficulty and filterable by **Tag**.
+**Named sets** are shortcuts into it, not separate collections.
+
+**Tag**:
+A computed descriptor a **Puzzle** carries for filtering — side to move, line
+length, whether a soldier is given up, and any **Motif** that is not its
+primary one.
 
 ## Files and storage
 
@@ -354,6 +463,18 @@ off.
   `"attackers"` in code. The two are not interchangeable in prose.
 - "difficulty" and "AI level" are the same setting. Resolved: **AI level** in
   copy, `difficulty` in code.
-- "move" is used for both a ply and a numbered pair. Unresolved: prose says
-  "moves" where the code counts plies. Prefer **Ply** where the distinction
-  matters.
+- "move" is used for both a ply and a numbered pair. Unresolved in general:
+  prose says "moves" where the code counts plies. Prefer **Ply** where the
+  distinction matters. Settled for puzzles only: a **Line**'s length is counted
+  in *solver* moves, so a "four-move puzzle" asks for four moves and holds
+  seven plies once the scripted replies are counted.
+- "theme" was proposed for a puzzle's motif, but the word is already spent on
+  **Board theme**. Resolved: **Motif**, shared with the set plays.
+- "guillotine", "shuttle" and "svikmølle" all named the same tactic, and the
+  first two were briefly two entries here with different definitions (one
+  describing the blockers, one describing the moving piece). Resolved:
+  **Guillotine** is the project word, the other two are recorded as aliases
+  under it. Guillotine is the only one attested in the tafl forum's own
+  tactics discussion; svikmølle is a borrowing from Mølle (Nine Men's Morris)
+  and is not attested as tafl vocabulary on either aagenielsen.dk or
+  cyningstan.com, so it is documented as a nickname rather than a source.
