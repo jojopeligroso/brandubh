@@ -67,27 +67,35 @@ export default function PuzzlePanel({
   else headline = `${prompt ?? t.puzzlePrompt} · ${sideLabel(attempt.mover)}`;
 
   return (
-    <section className={`puzzle card mt-3 p-3 is-${attempt.stage}`} role="status" aria-live="polite">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="puzzle-headline">{headline}</p>
-        {lesson && (
-          // Where you are in the lesson — lichess's "2/6" progress readout.
-          <span className="puzzle-progress">
-            {lesson.index + 1}/{lesson.total}
-          </span>
+    <section className={`puzzle card mt-3 p-3 is-${attempt.stage}`}>
+      {/* The live region is the *reading matter* and not the whole panel.
+          `role="status"` used to sit on the section, which put the offers
+          inside it, so every change of stage re-announced "Try again · See it ·
+          Skip" behind the sentence that mattered — and overrode the section's
+          own role while it was at it. The buttons announce themselves when they
+          are reached; what has to be spoken unasked is what just happened. */}
+      <div role="status" aria-live="polite">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="puzzle-headline">{headline}</p>
+          {lesson && (
+            // Where you are in the lesson — lichess's "2/6" progress readout.
+            <span className="puzzle-progress">
+              {lesson.index + 1}/{lesson.total}
+            </span>
+          )}
+        </div>
+        {attempt.stage === "guessing" && (
+          <p className="puzzle-hint">{waiting ? t.puzzleThinking : t.puzzleHint}</p>
+        )}
+        {attempt.stage === "solved" && attempt.attempts > 0 && (
+          // Getting there late is still getting there — said plainly, not scored.
+          <p className="puzzle-hint">{t.puzzleSolvedLate}</p>
+        )}
+        {done && lastOfLesson && (
+          // The end of the queue, said as an ending rather than just vanishing.
+          <p className="puzzle-hint">{t.puzzleLessonDone}</p>
         )}
       </div>
-      {attempt.stage === "guessing" && (
-        <p className="puzzle-hint">{waiting ? t.puzzleThinking : t.puzzleHint}</p>
-      )}
-      {attempt.stage === "solved" && attempt.attempts > 0 && (
-        // Getting there late is still getting there — said plainly, not scored.
-        <p className="puzzle-hint">{t.puzzleSolvedLate}</p>
-      )}
-      {done && lastOfLesson && (
-        // The end of the queue, said as an ending rather than just vanishing.
-        <p className="puzzle-hint">{t.puzzleLessonDone}</p>
-      )}
       <div className="mt-2 flex flex-wrap gap-2">
         {attempt.stage === "wrong" && (
           <>
