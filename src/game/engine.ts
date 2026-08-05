@@ -203,6 +203,92 @@ function resolveCaptures(
   return captured;
 }
 
+// ── Shieldwall capture ────────────────────────────────────────────────────────
+/**
+ * Copenhagen-style shieldwall (see variants.ts): a row of two or more enemy
+ * men along the board edge falls together when the row is bracketed at both
+ * ends and every man in it has a `moverSide` man directly in front. A hostile
+ * corner may stand in for one bracket. Any move by the capturing side that
+ * closes the trap captures — bracket or front man alike (only the king may
+ * ever occupy a corner, so a corner-anchored wall can rarely be closed at a
+ * bracket). A king inside the row survives; his soldiers do not.
+ * Mutates `b`, returns the captured squares.
+ */
+function resolveShieldwallCaptures(
+  b: Board,
+  tr: number,
+  tc: number,
+  moverSide: Side,
+  rules: RuleSet,
+): Square[] {
+  // A weaponless king cannot close (or take part in) a shieldwall.
+  if (b[tr][tc] === "king" && !rules.armedKing) return [];
+
+  const last = BOARD_SIZE - 1;
+  // A man participates as bracket or front only; an unarmed king participates
+  // not at all (armedKing is checked for the mover above, and for wall members
+  // here).
+  const moverMan = (r: number, c: number): boolean =>
+    sideOf(b[r][c]) === moverSide && (b[r][c] !== "king" || rules.armedKing);
+
+  // The moved piece can only be part of a wall on its own edge (as a bracket)
+  // or the line one square in (as a front man).
+  const edges: Array<{ edge: number; horiz: boolean }> = [];
+  if (tr <= 1) edges.push({ edge: 0, horiz: true });
+  if (tr >= last - 1) edges.push({ edge: last, horiz: true });
+  if (tc <= 1) edges.push({ edge: 0, horiz: false });
+  if (tc >= last - 1) edges.push({ edge: last, horiz: false });
+
+  const captured: Square[] = [];
+  for (const { edge, horiz } of edges) {
+    const inner = edge === 0 ? 1 : last - 1; // the line the front men stand on
+    const sq = (i: number): Square => (horiz ? { row: edge, col: i } : { row: i, col: edge });
+    const pieceAt = (i: number): Piece | null => (horiz ? b[edge][i] : b[i][edge]);
+    const frontSq = (i: number): Square => (horiz ? { row: inner, col: i } : { row: i, col: inner });
+
+    // Scan the edge for maximal runs of enemy men (a king may stand in a run).
+    let i = 0;
+    while (i <= last) {
+      if (!isEnemy(pieceAt(i), moverSide)) {
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < last && isEnemy(pieceAt(j + 1), moverSide)) j++;
+
+      if (j - i + 1 >= 2) {
+        const bracket = (idx: number): boolean => {
+          if (idx < 0 || idx > last) return false; // runs never reach past a corner
+          const s = sq(idx);
+          if (isCorner(s.row, s.col) && b[s.row][s.col] === null) return rules.cornersHostile;
+          return moverMan(s.row, s.col);
+        };
+        const fronts = Array.from({ length: j - i + 1 }, (_, n) => frontSq(i + n));
+        const walled =
+          bracket(i - 1) &&
+          bracket(j + 1) &&
+          fronts.every((f) => moverMan(f.row, f.col));
+        // Active capture: the trap must be closed by this very move — the moved
+        // piece is one of the brackets or front men. A wall completed by the
+        // victims' own move never fires.
+        const closedByMove =
+          fronts.some((f) => f.row === tr && f.col === tc) ||
+          [sq(i - 1), sq(j + 1)].some((s) => s.row === tr && s.col === tc);
+        if (walled && closedByMove) {
+          for (let n = i; n <= j; n++) {
+            const s = sq(n);
+            if (b[s.row][s.col] === "king") continue; // the king survives a shieldwall
+            b[s.row][s.col] = null;
+            captured.push(s);
+          }
+        }
+      }
+      i = j + 1;
+    }
+  }
+  return captured;
+}
+
 // ── King capture ──────────────────────────────────────────────────────────────
 /**
  * Is the king captured by the attacker that just moved to `movedTo`?
@@ -337,6 +423,8 @@ export function applyMove(state: GameState, move: Move, rules: RuleSet): GameSta
   board[move.from.row][move.from.col] = null;
 
   const captures = resolveCaptures(board, move.to.row, move.to.col, mover, rules);
+  if (rules.shieldwallCapture)
+    captures.push(...resolveShieldwallCaptures(board, move.to.row, move.to.col, mover, rules));
   const captured = { ...state.captured };
   captured[mover === "attackers" ? "defenders" : "attackers"] += captures.length;
 

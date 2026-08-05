@@ -9,7 +9,7 @@
  *  matches exactly. Typed `string` (not the literal) so the loader's
  *  empty-book guard stays a real comparison. */
 export const BOOK_RULES_FINGERPRINT: string =
-  "armedKing=true;cornersHostile=true;encirclementWin=true;kingMayReoccupyThrone=true;repetitionResult=loss_for_defenders;soldiersPassThroughThrone=true;strongKingAdjacentToThrone=true;strongKingOnThrone=true;throneHostileToKing=true;throneHostileToSoldiers=true";
+  "armedKing=true;cornersHostile=true;encirclementWin=true;kingMayReoccupyThrone=true;repetitionResult=loss_for_defenders;shieldwallCapture=false;soldiersPassThroughThrone=true;strongKingAdjacentToThrone=true;strongKingOnThrone=true;throneHostileToKing=true;throneHostileToSoldiers=true";
 
 export const BOOK_DATA: string = `A....a.....a.........daadkdaa...d......a......a...:3545
 A....a.....a........d.aadkdaa...d......a......a...:0414

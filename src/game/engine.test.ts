@@ -705,3 +705,109 @@ describe("applyMove — game status", () => {
     expect(s.status).toBe("attackers_win_repetition");
   });
 });
+
+// ── Shieldwall capture (custom rule, Copenhagen-style) ────────────────────────
+
+describe("shieldwall capture", () => {
+  const shieldwall = { ...wtf, id: "custom", shieldwallCapture: true };
+
+  // The position from the WTF game that motivated the rule (before 16. f4-f3):
+  // white g2/g3 on the right edge, fronted by black f2 and (after the move) f3,
+  // bracketed by black g4 and the g1 corner.
+  const gFileWall = () =>
+    board([
+      ".......",
+      ".d.a...",
+      "..d.a..",
+      ".a.k.aa",
+      "..a...d",
+      "...a.ad",
+      ".......",
+    ]);
+
+  it("a front-man move that closes the trap captures the whole row", () => {
+    const s = applyMove(state(gFileWall(), "attackers"), mv(3, 5, 4, 5), shieldwall);
+    expect(s.board[4][6]).toBeNull(); // g3
+    expect(s.board[5][6]).toBeNull(); // g2
+    expect(s.captured.defenders).toBe(2);
+    expect(s.history[0].move.captures).toHaveLength(2);
+  });
+
+  it("does nothing when the flag is off (WTF preset)", () => {
+    const s = applyMove(state(gFileWall(), "attackers"), mv(3, 5, 4, 5), wtf);
+    expect(s.board[4][6]).toBe("defender");
+    expect(s.board[5][6]).toBe("defender");
+    expect(s.captured.defenders).toBe(0);
+  });
+
+  it("a bracketing move closes the trap too, for either side", () => {
+    // Attackers a3/a4 on the left edge, fronted by defenders b3/b4, bracketed
+    // below by a2; the defender c5-a5 closes the top bracket.
+    const b = board([
+      "...a...",
+      ".......",
+      "..d....",
+      "ad.k...",
+      "ad.....",
+      "d......",
+      ".......",
+    ]);
+    const s = applyMove(state(b, "defenders"), mv(2, 2, 2, 0), shieldwall);
+    expect(s.board[3][0]).toBeNull(); // a4
+    expect(s.board[4][0]).toBeNull(); // a3
+    expect(s.captured.attackers).toBe(2);
+  });
+
+  it("a king inside the row survives; his soldier falls", () => {
+    // King g3 + defender g2 on the edge, front f2 in place, brackets g4 and the
+    // g1 corner; the attacker f4-f3 supplies the missing front man.
+    const b = board([
+      ".......",
+      ".......",
+      ".......",
+      "...a.aa",
+      "......k",
+      ".....ad",
+      ".......",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(3, 5, 4, 5), shieldwall);
+    expect(s.board[4][6]).toBe("king"); // king untouched
+    expect(s.board[5][6]).toBeNull(); // g2 defender falls
+    expect(s.captured.defenders).toBe(1);
+    expect(s.status).toBe("playing"); // and the king is not thereby captured
+  });
+
+  it("only fires when the moved piece is part of the wall", () => {
+    // Complete wall on the right edge, but the attacker moves elsewhere.
+    const b = board([
+      ".a.....",
+      ".......",
+      ".......",
+      "...k.aa",
+      ".....ad",
+      ".....ad",
+      ".......",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(0, 1, 0, 2), shieldwall);
+    expect(s.board[4][6]).toBe("defender");
+    expect(s.board[5][6]).toBe("defender");
+    expect(s.captured.defenders).toBe(0);
+  });
+
+  it("a single man on the edge is not a shieldwall", () => {
+    // Lone white g4, bracket g5 already set; f5-f4 fronts him. Row length 1 —
+    // no shieldwall, and no custodial pin either (the far anvil is off-board).
+    const b = board([
+      ".......",
+      ".......",
+      ".....aa",
+      "...k..d",
+      ".......",
+      ".......",
+      ".......",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(2, 5, 3, 5), shieldwall);
+    expect(s.board[3][6]).toBe("defender");
+    expect(s.captured.defenders).toBe(0);
+  });
+});

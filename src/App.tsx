@@ -3533,6 +3533,7 @@ function CustomRuleControls({
     { key: "cornersHostile", label: t.ruleCornersHostile, hint: t.ruleCornersHostileHint },
     { key: "strongKingOnThrone", label: t.ruleStrongKingOnThrone, hint: t.ruleStrongKingOnThroneHint },
     { key: "strongKingAdjacentToThrone", label: t.ruleStrongKingAdjacentThrone, hint: t.ruleStrongKingAdjacentThroneHint },
+    { key: "shieldwallCapture", label: t.ruleShieldwall, hint: t.ruleShieldwallHint },
     { key: "encirclementWin", label: t.ruleEncirclementWin, hint: t.ruleEncirclementWinHint },
   ];
 
