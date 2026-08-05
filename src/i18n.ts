@@ -538,6 +538,52 @@ export interface Translations {
   /** Layer 3: keyed by **Goal**, or `<goal>.<solver side>` for the evaluation
    *  goals, whose side is not fixed by the goal. */
   puzzleNoteGoals: Record<string, string>;
+
+  // ── The proving ground (Session 8e) ─────────────────────────────────────────
+  // The unlisted calibration page. Localised like everything else rather than
+  // left in English: it mounts `BankPuzzlePlayer`, which is fully translated, so
+  // an English shell around a Spanish board would be the odd thing. **No string
+  // here may name a Band, a grade or a difficulty** — ADR-0005 is that nobody is
+  // ever asked how hard a puzzle is, and copy is where that leaks first.
+  /** The arrival screen's heading and its plain account of what the page is. */
+  provingTitle: string;
+  provingWhat: string;
+  /** Says out loud that the URL is a sign and not a lock, so a later reader does
+   *  not mistake it for access control. */
+  provingUnlisted: string;
+  /** The protocol, told before it starts, because a grader who does not know a
+   *  timer is running behaves differently once they find out. */
+  provingHow: string;
+  provingGrader: string;
+  provingSeed: string;
+  provingSeedHint: string;
+  provingSize: string;
+  provingStart: string;
+  provingResume: string;
+  provingDiscard: string;
+  /** Composed after two counts: "12 / 74". */
+  provingProgress: string;
+  /** The bank is served under one **Ruleset** only, so under any other the page
+   *  has nothing to show. */
+  provingUnavailable: string;
+  /** The comparison question, composed with a **Puzzle number**. */
+  provingCompare: string;
+  provingCompareHint: string;
+  provingHarder: string;
+  provingEasier: string;
+  provingAnchorLabel: string;
+  provingNextPuzzle: string;
+  provingFinished: string;
+  provingExportTitle: string;
+  provingMail: string;
+  provingCopy: string;
+  provingCopied: string;
+  /** Shown instead of the mail button when the blob is past the safe URL length.
+   *  A truncated link still parses, so this steers rather than warns. */
+  provingTooLong: string;
+  /** Composed after a count: "412 characters". */
+  provingBlobSize: string;
+  provingRestart: string;
 }
 
 const en: Translations = {
@@ -1069,6 +1115,40 @@ const en: Translations = {
     "advantage:attackers": "The raiders have a clear advantage.",
     "advantage:defenders": "The King's side has a clear advantage.",
   },
+
+  // ── The proving ground (Session 8e) ─────────────────────────────────────────
+  provingTitle: "Proving ground",
+  provingWhat:
+    "This page is how the puzzle difficulty ratings get checked against real people. You solve positions you have not seen, and then say which of two puzzles was harder. Nothing you do here is scored, and nothing is sent anywhere until you send it.",
+  provingUnlisted:
+    "Unlisted, not secured. Nothing here is private: the puzzles ship with the app. The address is simply not linked from anywhere.",
+  provingHow:
+    "For each position: a clock starts, you play the move you think wins or ask to see it, and only then do three quick comparisons against puzzles from earlier in this session. You are never asked how hard something is, only which of two was harder.",
+  provingGrader: "Your name",
+  provingSeed: "Session word",
+  provingSeedHint: "Any word. It fixes the order the puzzles come in, so a session can be repeated exactly.",
+  provingSize: "Puzzles",
+  provingStart: "Begin",
+  provingResume: "Carry on where you left off",
+  provingDiscard: "Start again",
+  provingProgress: "of",
+  provingUnavailable:
+    "The puzzle bank was verified under one set of rules and is not served under this variant, so there is nothing to calibrate here.",
+  provingCompare: "Harder than this one?",
+  provingCompareHint: "You solved this one earlier in the session.",
+  provingHarder: "The new one was harder",
+  provingEasier: "This one was harder",
+  provingAnchorLabel: "Earlier puzzle",
+  provingNextPuzzle: "Next position",
+  provingFinished: "That is the lot. Send it back and you are done.",
+  provingExportTitle: "Send your session",
+  provingMail: "Open in mail",
+  provingCopy: "Copy to clipboard",
+  provingCopied: "Copied.",
+  provingTooLong:
+    "This session is too long for a mail link, which would be cut without saying so. Copy it instead and paste it into a message.",
+  provingBlobSize: "characters",
+  provingRestart: "Clear this session",
 };
 
 const es: Translations = {
@@ -1616,6 +1696,40 @@ const es: Translations = {
     "advantage:attackers": "Los asaltantes tienen una ventaja clara.",
     "advantage:defenders": "El bando del Rey tiene una ventaja clara.",
   },
+
+  // ── The proving ground (Session 8e) ─────────────────────────────────────────
+  provingTitle: "Campo de pruebas",
+  provingWhat:
+    "Esta p\u00e1gina sirve para contrastar la dificultad de los problemas con personas reales. Resuelves posiciones que no has visto y luego dices cu\u00e1l de dos problemas fue m\u00e1s dif\u00edcil. Nada de lo que haces aqu\u00ed se punt\u00faa, y nada se env\u00eda hasta que lo env\u00edes t\u00fa.",
+  provingUnlisted:
+    "Sin enlazar, no protegida. Aqu\u00ed no hay nada privado: los problemas viajan con la aplicaci\u00f3n. La direcci\u00f3n simplemente no est\u00e1 enlazada en ninguna parte.",
+  provingHow:
+    "Para cada posici\u00f3n: arranca un reloj, juegas la jugada que crees ganadora o pides verla, y solo entonces haces tres comparaciones r\u00e1pidas con problemas anteriores de esta sesi\u00f3n. Nunca se te pregunta cu\u00e1nto cuesta algo, solo cu\u00e1l de los dos cost\u00f3 m\u00e1s.",
+  provingGrader: "Tu nombre",
+  provingSeed: "Palabra de sesi\u00f3n",
+  provingSeedHint: "Cualquier palabra. Fija el orden de los problemas, para poder repetir una sesi\u00f3n igual.",
+  provingSize: "Problemas",
+  provingStart: "Empezar",
+  provingResume: "Seguir donde lo dejaste",
+  provingDiscard: "Empezar de nuevo",
+  provingProgress: "de",
+  provingUnavailable:
+    "El banco de problemas se verific\u00f3 con un solo conjunto de reglas y no se ofrece en esta variante, as\u00ed que aqu\u00ed no hay nada que calibrar.",
+  provingCompare: "\u00bfM\u00e1s dif\u00edcil que este?",
+  provingCompareHint: "Este lo resolviste antes en esta misma sesi\u00f3n.",
+  provingHarder: "El nuevo fue m\u00e1s dif\u00edcil",
+  provingEasier: "Este fue m\u00e1s dif\u00edcil",
+  provingAnchorLabel: "Problema anterior",
+  provingNextPuzzle: "Siguiente posici\u00f3n",
+  provingFinished: "Esto es todo. Env\u00edalo y has terminado.",
+  provingExportTitle: "Env\u00eda tu sesi\u00f3n",
+  provingMail: "Abrir en el correo",
+  provingCopy: "Copiar al portapapeles",
+  provingCopied: "Copiado.",
+  provingTooLong:
+    "Esta sesi\u00f3n es demasiado larga para un enlace de correo, que se cortar\u00eda sin avisar. C\u00f3piala y p\u00e9gala en un mensaje.",
+  provingBlobSize: "caracteres",
+  provingRestart: "Borrar esta sesi\u00f3n",
 };
 
 const ga: Translations = {
@@ -2189,6 +2303,42 @@ const ga: Translations = {
     "advantage:attackers": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag na foghlaithe.",
     "advantage:defenders": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag taobh an R\u00ed.",
   },
+
+  // ── The proving ground (Session 8e) ─────────────────────────────────────────
+  // DRAFT (Session 8e) \u2014 unreviewed machine drafts, like the rest of this
+  // table. Present so the locale stays complete; `ga` stays out of VISIBLE_LANGS.
+  provingTitle: "An F\u00e1iche Phromhaidh",
+  provingWhat:
+    "Is ar an leathanach seo a dhearbha\u00edtear r\u00e9imse deacrachta na mbl\u00e9ana i gcoinne fh\u00edordhaoine. R\u00e9it\u00edonn t\u00fa su\u00edmh nach bhfaca t\u00fa cheana, agus ansin deir t\u00fa cé acu den d\u00e1 bhl\u00e9an ab\u00f3 dheacra. N\u00ed thugtar marc ar rud ar bith anseo, agus n\u00ed sheoltar rud ar bith go dt\u00ed go seolann t\u00fa f\u00e9in \u00e9.",
+  provingUnlisted:
+    "Gan nasc, gan ghlas. N\u00edl aon r\u00fan anseo: seoltar na bl\u00e9ana leis an bhfeidhmchl\u00e1r. N\u00edl an seoladh nasctha in aon \u00e1it, sin an m\u00e9id.",
+  provingHow:
+    "Do gach su\u00edomh: tosa\u00edonn clog, imr\u00edonn t\u00fa an beart a mheasann t\u00fa a bhuann n\u00f3 iarrann t\u00fa \u00e9 a fheice\u00e1il, agus ansin amh\u00e1in a dh\u00e9anann t\u00fa tr\u00ed chompar\u00e1id ghasta le bl\u00e9ana \u00f3 luath sa seisi\u00fan. N\u00ed fhiafra\u00edtear d\u00edot riamh c\u00e9 chomh deacair is at\u00e1 rud, ach c\u00e9 acu den d\u00e1 cheann ab dheacra.",
+  provingGrader: "D\u2019ainm",
+  provingSeed: "Focal an tseisi\u00fain",
+  provingSeedHint: "Focal ar bith. Socra\u00edonn s\u00e9 ord na mbl\u00e9an, ionas gur f\u00e9idir seisi\u00fan a athdh\u00e9anamh go beacht.",
+  provingSize: "Bl\u00e9ana",
+  provingStart: "Tosaigh",
+  provingResume: "Lean ar aghaidh mar a d\u2019fh\u00e1g t\u00fa \u00e9",
+  provingDiscard: "Tosaigh as an nua",
+  provingProgress: "as",
+  provingUnavailable:
+    "Dearbha\u00edodh banc na mbl\u00e9an faoi aon fhoireann rialacha amh\u00e1in agus n\u00ed thairgtear \u00e9 faoin leagan seo, mar sin n\u00edl aon rud le cal(a)bra\u00fa anseo.",
+  provingCompare: "N\u00edos deacra n\u00e1 an ceann seo?",
+  provingCompareHint: "R\u00e9itigh t\u00fa an ceann seo n\u00edos luaithe sa seisi\u00fan.",
+  provingHarder: "Bh\u00ed an ceann nua n\u00edos deacra",
+  provingEasier: "Bh\u00ed an ceann seo n\u00edos deacra",
+  provingAnchorLabel: "Bl\u00e9an n\u00edos luaithe",
+  provingNextPuzzle: "An ch\u00e9ad su\u00edomh eile",
+  provingFinished: "Sin an m\u00e9id. Seol ar ais \u00e9 agus t\u00e1 t\u00fa cr\u00edochnaithe.",
+  provingExportTitle: "Seol do sheisi\u00fan",
+  provingMail: "Oscail sa phost",
+  provingCopy: "C\u00f3ipe\u00e1il go dt\u00ed an ghearrthaisce",
+  provingCopied: "C\u00f3ipe\u00e1ilte.",
+  provingTooLong:
+    "T\u00e1 an seisi\u00fan seo r\u00f3fhada do nasc poist, a ghearrfa\u00ed gan focal. C\u00f3ipe\u00e1il \u00e9 agus greamaigh i dteachtaireacht \u00e9.",
+  provingBlobSize: "carachtar",
+  provingRestart: "Glan an seisi\u00fan seo",
 };
 
 export const translations: Record<Lang, Translations> = { en, es, ga };

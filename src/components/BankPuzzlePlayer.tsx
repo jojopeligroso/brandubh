@@ -53,6 +53,17 @@ interface Live {
  * first three still on it. `attempt.ts` says outright that rewinding is the
  * caller's job, because review rewinds differently.
  *
+ * ## Re-presenting the same puzzle
+ *
+ * The reset runs off the `puzzle` prop's identity, so handing back the *same*
+ * `Puzzle` object resets nothing — the board keeps the solved position and the
+ * finished Attempt. That is right for the Learn screen, where a puzzle is only
+ * ever swapped for a different one, and wrong for the proving ground, whose
+ * schedule slips a puzzle back in silently to measure the re-test noise floor.
+ * A caller that can re-present a puzzle must give this component a `key` that
+ * changes with the *occasion* rather than with the puzzle, and the proving
+ * ground keys on the schedule position for exactly that reason.
+ *
  * ## Where none of it goes
  *
  * Nowhere. Bank puzzle positions live here and are never persisted or exported,
@@ -68,7 +79,9 @@ export default function BankPuzzlePlayer({
   emblems,
   sideLabel,
   queue,
+  blind = false,
   onSolved,
+  onFinish,
   onNext,
   onExit,
 }: {
@@ -86,9 +99,29 @@ export default function BankPuzzlePlayer({
    * puzzle at a time — and Skip is then not offered.
    */
   queue: { index: number; total: number } | null;
+  /**
+   * Hide the **Band**. Off by default, so the Learn screen is unchanged.
+   *
+   * The proving ground sets it, and has to: the band is the label being
+   * calibrated, and printing it above a position a grader is about to judge is
+   * the same displaced-centre failure ADR-0005's whole protocol exists to
+   * prevent. Only this one line is hidden — the **Puzzle number** stays, because
+   * the comparison questions name puzzles by it.
+   */
+  blind?: boolean;
   /** Fired once, the first time the Attempt reaches `solved`. The Learn screen
    *  writes the ledger with it; a caller that keeps no ledger passes a no-op. */
   onSolved: (id: string) => void;
+  /**
+   * Fired once, the first time the Attempt *finishes* — solved or revealed.
+   *
+   * `onSolved` is not enough for a caller that is timing the attempt, because a
+   * surrender is an ending too and it is the ending that produces the longest
+   * times. Distinct from `onExit`, which is the learner pressing a button after
+   * reading the note: the clock has to stop when the exercise stops, not when
+   * they finish reading about it.
+   */
+  onFinish?: (id: string, outcome: "solved" | "revealed") => void;
   /** The next puzzle in the caller's list; null when there is none. Also what
    *  Skip does, because skipping is moving on without answering. */
   onNext: (() => void) | null;
@@ -117,6 +150,7 @@ export default function BankPuzzlePlayer({
   const [fadingCaptures, setFadingCaptures] = useState<Square[]>([]);
   const [selected, setSelected] = useState<Square | null>(null);
   const solvedFired = useRef(false);
+  const finishFired = useRef(false);
 
   const flash = useCallback((s: GameState) => {
     const caps = s.history[s.history.length - 1]?.move.captures ?? [];
@@ -130,6 +164,7 @@ export default function BankPuzzlePlayer({
   useEffect(() => {
     clearTimers();
     solvedFired.current = false;
+    finishFired.current = false;
     setSelected(null);
     setFadingCaptures([]);
     const fresh = freshLive(puzzle, opening, mover);
@@ -143,6 +178,15 @@ export default function BankPuzzlePlayer({
       }, beat(reduced)),
     );
   }, [puzzle, opening, mover, reduced, flash]);
+
+  // The attempt has ended, however it ended. Watched here rather than announced
+  // from `handleMove`, because `reveal` sets the stage directly and a surrender
+  // is the ending a timing caller most needs told about.
+  useEffect(() => {
+    if (!onFinish || finishFired.current || !isFinished(live.attempt)) return;
+    finishFired.current = true;
+    onFinish(puzzle.id, live.attempt.stage === "solved" ? "solved" : "revealed");
+  }, [live.attempt, onFinish, puzzle.id]);
 
   /** True once the lead-in is on the board. Before that there is nothing to
    *  guess at, because the position being asked about is not on screen yet. */
@@ -214,8 +258,21 @@ export default function BankPuzzlePlayer({
     setFadingCaptures([]);
     setSelected(null);
     setLive((l) => {
-      let at = l.states[l.anchor];
-      const played = l.states.slice(0, l.anchor + 1);
+      // **The lead-in may not be on the board yet.** *See it* is offered from
+      // the moment the puzzle mounts, and the lead-in lands a beat later, so
+      // anyone who takes the offer inside that beat asks to rewind to a position
+      // the history does not hold — `states` has one entry and `anchor` is 1.
+      // Reading past the end threw, and the proving ground finds it every time
+      // because surrendering immediately is a legitimate answer there. The
+      // pending lead-in has just been cancelled by `clearTimers`, so it is
+      // played here instead.
+      const states =
+        l.states.length > l.anchor || !opening.after ? l.states : [...l.states, opening.after];
+      let at = states[l.anchor];
+      // A stored position that will not parse is a generator bug the suite
+      // catches, not something a screen has to render; leave the board alone.
+      if (!at) return l;
+      const played = states.slice(0, l.anchor + 1);
       for (const m of puzzle.line.slice(l.attempt.step * 2)) {
         if (isGameOver(at.status)) break;
         at = applyMove(at, m, rules);
@@ -290,7 +347,10 @@ export default function BankPuzzlePlayer({
         <span className="font-mono">
           <span className="sr-only">{t.learnPuzzleLabel} </span>#{puzzle.id}
         </span>
-        <span>{t[puzzle.band]}</span>
+        {/* The band is the thing being calibrated, so the proving ground turns
+            it off. Everywhere else it is the one piece of context worth having
+            before you start. */}
+        {!blind && <span>{t[puzzle.band]}</span>}
       </p>
 
       <div className="tutorial-board mt-3">
