@@ -77,10 +77,19 @@ describe("resolveTimeControl", () => {
   });
 
   it("resolves the custom control from minutes + increment", () => {
-    expect(resolveTimeControl(true, "custom", 2.5, 4)).toEqual({
-      initialSeconds: 150,
+    expect(resolveTimeControl(true, "custom", 3, 4)).toEqual({
+      initialSeconds: 180,
       incrementSeconds: 4,
     });
+  });
+
+  it("rounds a custom bank to whole minutes", () => {
+    // The editor steps in whole minutes, but a value can still arrive
+    // fractional — a bank stored by the build whose floor was a quarter minute,
+    // or a hand-edited key. It resolves to a whole-minute bank, not a 2:30 one.
+    expect(resolveTimeControl(true, "custom", 2.5, 0)!.initialSeconds).toBe(180);
+    expect(resolveTimeControl(true, "custom", 2.4, 0)!.initialSeconds).toBe(120);
+    expect(resolveTimeControl(true, "custom", 0.25, 0)!.initialSeconds).toBe(60);
   });
 
   it("clamps out-of-range custom values", () => {

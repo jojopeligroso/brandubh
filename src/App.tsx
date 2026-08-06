@@ -70,10 +70,12 @@ import {
   CUSTOM_MAX_MINUTES,
   CUSTOM_MIN_MINUTES,
   CUSTOM_TIME_CONTROL_ID,
+  DEFAULT_TIME_CONTROL_ID,
   TIME_PRESETS,
   type ClockSelection,
   type TimeCategory,
   describeTimeControl,
+  presetById,
   loadClockEnabled,
   loadControlId,
   loadCustomIncrement,
@@ -2235,6 +2237,18 @@ export default function App() {
         </p>
       )}
 
+      {/* The second way out of Zen, at the foot of everything that scrolls. The
+          header's switch is the standard one and stays where it is; this one is
+          what you find by scrolling down, which is where you end up when the
+          screen has been stripped and you are hunting for the control that did
+          it. Only while Zen is on: off, it would be a stray toggle at the bottom
+          of a page that already carries one at the top. */}
+      {zen.enabled && (
+        <div className="zen-foot">
+          <ZenSwitch t={t} on={zen.enabled} onChange={setZenEnabled} testId="zen-toggle-foot" />
+        </div>
+      )}
+
       {showVictory && isGameOver(states[tip].status) && (
         <VictoryOverlay
           t={t}
@@ -2502,6 +2516,52 @@ export default function App() {
 // where everything you reach for between games now lives (language, learning,
 // game file, settings, about). The drawer itself is rendered by App, so the
 // header only reports the button; see AppDrawer for what is behind it.
+/**
+ * The Zen control. A switch, not an icon button: Zen is a state you leave
+ * turned on, so the control has to show which way it is set without being
+ * pressed. `role="switch"` + `aria-checked` is the same promise made to a
+ * screen reader. The word carries the meaning, so there is no icon to decode —
+ * and, where the icon button was a second gold circle a glance away from the
+ * eval toggle in the board tools, this cannot be mistaken for one.
+ *
+ * Rendered in two places, which is why it is a component rather than markup in
+ * the header: its standard seat up in the header, and again at the foot of the
+ * page while Zen is on. The header scrolls away with the page, and Zen is now
+ * where a new player starts (see zen.ts), so the way back out has to be within
+ * reach from wherever they have scrolled to — scrolling down past the board is
+ * exactly what someone does when looking for the thing that put them here.
+ */
+function ZenSwitch({
+  t,
+  on,
+  onChange,
+  testId,
+}: {
+  t: Translations;
+  on: boolean;
+  onChange: (v: boolean) => void;
+  /** Distinct per placement, so a driven browser can tell the two apart. */
+  testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      className={`switch${on ? " on" : ""}`}
+      onClick={() => onChange(!on)}
+      aria-label={t.zenMode}
+      title={t.zenMode}
+      data-testid={testId}
+    >
+      <span>{t.zenShort}</span>
+      <span className="switch-track" aria-hidden>
+        <span className="switch-knob" />
+      </span>
+    </button>
+  );
+}
+
 function Header({
   t,
   zenOn,
@@ -2560,28 +2620,7 @@ function Header({
         )}
       </div>
       <div className="flex items-center gap-2">
-        {/* A switch, not an icon button: Zen is a state you leave turned on, so
-            the control has to show which way it is set without being pressed.
-            role="switch" + aria-checked is the same promise made to a screen
-            reader. The word carries the meaning, so there is no icon to decode
-            — and, where the icon button was a second gold circle a glance away
-            from the eval toggle in the board tools, this cannot be mistaken for
-            one. */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={zenOn}
-          className={`switch${zenOn ? " on" : ""}`}
-          onClick={() => onZen(!zenOn)}
-          aria-label={t.zenMode}
-          title={t.zenMode}
-          data-testid="zen-toggle"
-        >
-          <span>{t.zenShort}</span>
-          <span className="switch-track" aria-hidden>
-            <span className="switch-knob" />
-          </span>
-        </button>
+        <ZenSwitch t={t} on={zenOn} onChange={onZen} testId="zen-toggle" />
         <button
           className={`iconbtn${menuOpen ? " on" : ""}`}
           onClick={onMenu}
@@ -2971,6 +3010,18 @@ function SettingsSection({ label, children }: { label: string; children: React.R
 // Card-less, like ZenSettings: rendered both inline (in the settings stack) and
 // in the gear ⚙ modal, so the time control stays reachable when Zen has hidden
 // the inline panels. The caller supplies the surrounding card or section.
+
+/** The full preset ladder, as the settings panels offer it. */
+const ALL_TIME_CATEGORIES: TimeCategory[] = ["bullet", "blitz", "rapid"];
+/**
+ * What the setup overlay's over-the-board step offers: no bullet. A one- or
+ * two-minute bank is a control for a mouse and a real clock, not for two people
+ * passing one device back and forth — the handover alone eats the bank. Blitz
+ * up is what an over-the-board game can actually be played at, and Custom is
+ * still there for anyone who disagrees.
+ */
+const OTB_TIME_CATEGORIES: TimeCategory[] = ["blitz", "rapid"];
+
 function ClockControls({
   t,
   enabled,
@@ -2981,6 +3032,7 @@ function ClockControls({
   onCustomMinutes,
   customIncrement,
   onCustomIncrement,
+  categories = ALL_TIME_CATEGORIES,
 }: {
   t: Translations;
   enabled: boolean;
@@ -2991,15 +3043,20 @@ function ClockControls({
   onCustomMinutes: (n: number) => void;
   customIncrement: number;
   onCustomIncrement: (n: number) => void;
+  /** Preset categories to offer, in order. Defaults to the full ladder. */
+  categories?: TimeCategory[];
 }) {
-  const categories: { key: TimeCategory; label: string }[] = [
-    { key: "bullet", label: t.catBullet },
-    { key: "blitz", label: t.catBlitz },
-    { key: "rapid", label: t.catRapid },
-  ];
+  const categoryLabels: Record<TimeCategory, string> = {
+    bullet: t.catBullet,
+    blitz: t.catBlitz,
+    rapid: t.catRapid,
+  };
+  const rows = categories.map((key) => ({ key, label: categoryLabels[key] }));
   const custom = controlId === CUSTOM_TIME_CONTROL_ID;
+  // Whole minutes, the same rounding resolveTimeControl applies, so the chip's
+  // summary always names the control the game will actually be played at.
   const summary = describeTimeControl({
-    initialSeconds: Math.round(customMinutes * 60),
+    initialSeconds: Math.round(customMinutes) * 60,
     incrementSeconds: Math.round(customIncrement),
   });
 
@@ -3018,7 +3075,7 @@ function ClockControls({
       {enabled && (
         <>
           <div className="tc-groups">
-            {categories.map((c) => (
+            {rows.map((c) => (
               <div key={c.key} className="tc-row">
                 <span className="tc-cat">{c.label}</span>
                 {TIME_PRESETS.filter((p) => p.category === c.key).map((p) => (
@@ -3055,7 +3112,7 @@ function ClockControls({
                   type="range"
                   min={CUSTOM_MIN_MINUTES}
                   max={CUSTOM_MAX_MINUTES}
-                  step={0.25}
+                  step={1}
                   value={customMinutes}
                   onChange={(e) => onCustomMinutes(Number(e.target.value))}
                 />
@@ -3716,8 +3773,16 @@ function ModeOverlay({
   // the game (and starting it resets the board, so it must happen once).
   const [chosenSide, setChosenSide] = useState<Side>(side);
   // Likewise the over-the-board time control: edited here, applied only when
-  // the game is committed (see ClockSelection).
-  const [chosenClock, setChosenClock] = useState<ClockSelection>(clock);
+  // the game is committed (see ClockSelection). A bullet control set from the
+  // settings panel has no chip to sit on in this step's shorter ladder, so it
+  // is seeded off it — otherwise the step would open with the ladder showing
+  // nothing selected and no way to tell what was about to be played.
+  const [chosenClock, setChosenClock] = useState<ClockSelection>(() => {
+    const preset = presetById(clock.controlId);
+    return preset && !OTB_TIME_CATEGORIES.includes(preset.category)
+      ? { ...clock, controlId: DEFAULT_TIME_CONTROL_ID }
+      : clock;
+  });
 
   // Escape backs out only when there is somewhere to back out to.
   useEffect(() => {
@@ -3873,6 +3938,7 @@ function ModeOverlay({
                 onCustomMinutes={(n) => setChosenClock((c) => ({ ...c, customMinutes: n }))}
                 customIncrement={chosenClock.customIncrement}
                 onCustomIncrement={(n) => setChosenClock((c) => ({ ...c, customIncrement: n }))}
+                categories={OTB_TIME_CATEGORIES}
               />
             </div>
             <button
