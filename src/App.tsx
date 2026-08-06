@@ -506,6 +506,16 @@ export default function App() {
   // its move list cannot be exported — see `positionRooted` at the export panel.
   const [pastedRoot, setPastedRoot] = useState(false);
 
+  // ── A live game played on from a puzzle ─────────────────────────────────────
+  // True when `liveStates` was seeded from a **Puzzle** position rather than
+  // from the opening. Analysis is not involved — this is the real game, clock
+  // running, computer answering. What it does not have is a past: the save
+  // format and the export format are both move lists replayed from
+  // `initialState()` (CLAUDE.md's replay-from-opening invariant), and no such
+  // list reaches this board, so the game is kept out of both. Every path that
+  // installs a game grown from the opening clears the flag again.
+  const [positionGame, setPositionGame] = useState(false);
+
   // ── Resumable game ──────────────────────────────────────────────────────────
   // A game in progress is written to localStorage as it is played (see
   // game/persist.ts) and read back once, here, at startup. It is never restored
@@ -1041,6 +1051,58 @@ export default function App() {
     setPastedRoot(false);
   }, []);
 
+  // ── Playing on from a puzzle position ───────────────────────────────────────
+  // The door out of the puzzle trainer: the position a puzzle finished on
+  // becomes the live game. A **Truncated** line stops at the deciding move and
+  // says nothing about converting it (ADR-0002); this is where that gets
+  // answered, by playing it out against an opponent.
+  //
+  // It is a game in every respect but two. It cannot be *saved* and cannot be
+  // *exported*, because both formats are move lists replayed from
+  // `initialState()` and this board was never reached from one — so
+  // `positionGame` closes the autosave (`positionRoot` in analysis.ts) and the
+  // export panel, and the save already on disk, which describes a different
+  // game entirely, is dropped rather than left to be silently written over.
+  //
+  // `humanSide` comes from the puzzle screen rather than from the position: the
+  // solver keeps the side they solved as, which is *not* the side to move at
+  // the end of a line, so the computer opens with the reply. Null is over the
+  // board, where nobody replies.
+  const playFromPosition = useCallback(
+    (position: GameState, side: Side | null) => {
+      if (aiTimer.current) window.clearTimeout(aiTimer.current);
+      cancelAi();
+      dropAnalysis();
+      clearSavedGame();
+      recorded.current = false;
+      setPositionGame(true);
+      // A new game in every sense the record cares about: its own identity and
+      // its own start time (see game/records.ts).
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
+      // The board arrives whole rather than a move at a time, so neither the
+      // clock nor the victory curtain may read it as something that just
+      // happened — the same guard the import and resume paths use.
+      prevTipRef.current = 0;
+      prevTipStatusRef.current = position.status;
+      setShowVictory(false);
+      setPlayMode(side ?? "hotseat");
+      // A match is a series of games from the opening with the sides swapping
+      // between them; a one-off from a puzzle is not part of one, and the
+      // import path lands over the board the same way.
+      setMatch(null);
+      setStates([position]);
+      setCursor(0);
+      setSelected(null);
+      setFadingCaptures([]);
+      setThinking(false);
+      setShowTakeback(false);
+      setClockLine(initialClockLine(timeControl));
+      clock.reset();
+    },
+    [cancelAi, dropAnalysis, clock.reset, timeControl],
+  );
+
   // ── Moving around the tree ──────────────────────────────────────────────────
   // The review controls mean something slightly different in analysis: "back" is
   // the parent node and "forward" is the first child, so stepping back and then
@@ -1361,6 +1423,9 @@ export default function App() {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     dropAnalysis();
     recorded.current = false;
+    // Back at the opening, so whatever position was played on from is behind
+    // us: this game replays from `initialState()` and may be saved and exported.
+    setPositionGame(false);
     // A fresh board is a new game, so it gets a new identity (see game/records.ts).
     gameId.current = newGameId();
     gameStartedAt.current = Date.now();
@@ -1405,6 +1470,9 @@ export default function App() {
       cancelAi();
       dropAnalysis();
       recorded.current = false;
+      // An imported game *is* a move list from the opening (game/replay.ts), so
+      // it is savable and exportable however the board it replaces got there.
+      setPositionGame(false);
       gameId.current = newGameId();
       gameStartedAt.current = Date.now();
       const tipIndex = imported.states.length - 1;
@@ -1460,6 +1528,9 @@ export default function App() {
     if (!r) return;
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     dropAnalysis();
+    // A restored game replayed from the opening to get here (game/persist.ts),
+    // so it is a saved game again in every sense.
+    setPositionGame(false);
     setVariantId(r.variantId);
     setCustomRules(r.customRules);
     setPlayMode(r.playMode);
@@ -1523,7 +1594,15 @@ export default function App() {
     // restore a save (an empty board must not overwrite it), and analysis is on
     // (a scratch line must not overwrite the game it branched from). See
     // `autosaveAllowed` in analysis.ts.
-    if (!autosaveAllowed({ analysis, offeringResume: showModeOverlay || pendingResume !== null }))
+    if (
+      !autosaveAllowed({
+        analysis,
+        offeringResume: showModeOverlay || pendingResume !== null,
+        // A game played on from a puzzle has no move list from the opening to
+        // write — see `playFromPosition`.
+        positionRoot: positionGame,
+      })
+    )
       return;
     if (tip < 1 && !hasMatchProgress(match)) {
       clearSavedGame(); // nothing worth resuming
@@ -1561,6 +1640,7 @@ export default function App() {
     );
   }, [
     analysis,
+    positionGame,
     showModeOverlay,
     pendingResume,
     tip,
@@ -1829,7 +1909,21 @@ export default function App() {
       ? t.otbOverlay
       : `${t.playVsAi} · ${difficultyLabels[difficulty]}`,
     t.variantNames[variantId] ?? rules.name,
+    // Where this game came from, when it did not come from the opening. It is
+    // the one setup fact the mode and the ruleset do not carry, and it is the
+    // reason the game file is refused further down.
+    ...(positionGame ? [t.puzzleGameLabel] : []),
   ].join(" · ");
+
+  // A move list back to the opening is what the game file records, and two
+  // things on this screen do not have one: a tree rooted on a pasted position
+  // (7e) and a game played on from a puzzle. Exporting either would write a
+  // file that replays into a different game, so both are refused — in their own
+  // words, because the rule is one rule but the situation is not one situation.
+  const positionRooted = pastedRoot || positionGame;
+  const positionExportRefusal = pastedRoot
+    ? t.positionExportBlocked
+    : t.puzzleGameExportBlocked;
 
   // Clock placement, Lichess-style: the away side rides above the board, the
   // near side below it. Vs the computer the human sits on the bottom, whichever
@@ -2209,15 +2303,16 @@ export default function App() {
       {/* Export/import the whole mainline — always the tip, never the position
           currently under review (see docs/design/game-import-export.md).
 
-          A pasted position (7e) is the one case this must refuse. The file
-          format records a move list replayed from `initialState()`; a tree
-          rooted on a pasted board has no path back to the opening, so exporting
-          its moves would write a file that replays into a completely different
-          game. The panel is replaced by the reason rather than silently
-          vanishing. */}
+          A board that did not come from the opening is the case this must
+          refuse, in either of the two shapes it arrives in: a tree rooted on a
+          pasted position (7e), and a game played on from a puzzle. The file
+          format records a move list replayed from `initialState()`, and neither
+          has a path back to one, so exporting the moves would write a file that
+          replays into a completely different game. The panel is replaced by the
+          reason rather than silently vanishing. */}
       {showExtra("gamefile") &&
-        (pastedRoot ? (
-          <p className="card mt-4 p-4 text-xs text-parchment-dim">{t.positionExportBlocked}</p>
+        (positionRooted ? (
+          <p className="card mt-4 p-4 text-xs text-parchment-dim">{positionExportRefusal}</p>
         ) : (
           <GameFilePanel
             t={t}
@@ -2317,8 +2412,8 @@ export default function App() {
 
       {/* The game file, reached from the drawer's Tools section — configuration
           moved out of the gear ⚙ modal, where import/export never quite
-          belonged. Same refusal as the in-page panel: a tree rooted on a
-          pasted position has no move list back to the opening to export. */}
+          belonged. Same refusal as the in-page panel, for the same reason: no
+          move list back to the opening, nothing a game file can honestly say. */}
       {showGameFile && (
         <div
           className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
@@ -2334,8 +2429,8 @@ export default function App() {
                 ✕
               </button>
             </div>
-            {pastedRoot ? (
-              <p className="mt-4 text-xs text-parchment-dim">{t.positionExportBlocked}</p>
+            {positionRooted ? (
+              <p className="mt-4 text-xs text-parchment-dim">{positionExportRefusal}</p>
             ) : (
               <GameFilePanel
                 t={t}
@@ -2386,6 +2481,7 @@ export default function App() {
           rules={rules}
           emblems={emblemSet}
           initialView={learnView}
+          onPlayPosition={playFromPosition}
           onClose={() => setLearnView(null)}
         />
       )}

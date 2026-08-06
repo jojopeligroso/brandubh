@@ -48,20 +48,29 @@ describe("analysis suppresses the computer's reply", () => {
 });
 
 describe("analysis guards the autosave", () => {
+  const SAVING = { analysis: false, offeringResume: false, positionRoot: false };
+
   it("writes during ordinary play", () => {
-    expect(autosaveAllowed({ analysis: false, offeringResume: false })).toBe(true);
+    expect(autosaveAllowed(SAVING)).toBe(true);
   });
 
   it("never writes while analysing — a scratch line must not overwrite the game", () => {
     // What the autosave reads is the *derived* line, which in analysis is a
     // variation from the tree rather than the game; the page-hide autosave can
     // fire at any moment, so the mode itself has to close the door.
-    expect(autosaveAllowed({ analysis: true, offeringResume: false })).toBe(false);
+    expect(autosaveAllowed({ ...SAVING, analysis: true })).toBe(false);
   });
 
   it("still honours the existing resume-offer guard", () => {
-    expect(autosaveAllowed({ analysis: false, offeringResume: true })).toBe(false);
-    expect(autosaveAllowed({ analysis: true, offeringResume: true })).toBe(false);
+    expect(autosaveAllowed({ ...SAVING, offeringResume: true })).toBe(false);
+    expect(autosaveAllowed({ ...SAVING, analysis: true, offeringResume: true })).toBe(false);
+  });
+
+  it("never writes a game played on from a puzzle position", () => {
+    // Live play, at the tip, with nothing else wrong: the position root alone
+    // has to close the door, because the save is a move list from the opening
+    // and this game's first board was never reached from one.
+    expect(autosaveAllowed({ ...SAVING, positionRoot: true })).toBe(false);
   });
 });
 

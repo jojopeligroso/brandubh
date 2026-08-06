@@ -3,7 +3,7 @@ import Board, { Emblem } from "./Board";
 import type { Emblems } from "./ObjectivesContent";
 import type { Translations } from "../i18n";
 import { applyMove, isGameOver, movesFrom, sideOf } from "../game/engine";
-import { parsePosition } from "../game/position";
+import { parsePosition, stateFromBoard } from "../game/position";
 import { isFinished, judge, retryStep, type Attempt, type LineStep } from "../game/attempt";
 import { completionNote } from "../game/completionNote";
 import { puzzleStart, solverSide, type Puzzle } from "../game/puzzleBank";
@@ -94,6 +94,12 @@ interface Live {
  * move list from `initialState()`, and threading a custom starting board through
  * them is the replay-from-opening invariant broken. The only thing about a bank
  * puzzle that survives the screen is its id, written by whoever holds `onSolved`.
+ *
+ * `onPlay` is the one exception, and it does not weaken that. It hands the
+ * finished position *out* to whoever mounted this, to be played on as a game;
+ * the game that results still has no move list from the opening, so App keeps it
+ * out of the save and the export the same way (`positionRoot` in analysis.ts).
+ * Nothing about the puzzle is written anywhere by this component either way.
  */
 export default function BankPuzzlePlayer({
   t,
@@ -106,6 +112,7 @@ export default function BankPuzzlePlayer({
   showMeta = true,
   onSolved,
   onFinish,
+  onPlay,
   onNext,
   onExit,
 }: {
@@ -159,6 +166,15 @@ export default function BankPuzzlePlayer({
    * wrong move fails the puzzle for scoring even if it is solved afterwards.
    */
   onFinish?: (id: string, outcome: "solved" | "revealed", wrongGuesses: number) => void;
+  /**
+   * Play the finished position on as a real game. Omitted where that makes no
+   * sense — the proving ground is timing an attempt and collects nothing
+   * (ADR-0004), so leaving the screen mid-schedule is not on offer there.
+   *
+   * `humanSide` is the side the person keeps; null means over the board. The
+   * caller is handed the board and the side and decides everything else.
+   */
+  onPlay?: (position: GameState, humanSide: Side | null) => void;
   /** The next puzzle in the caller's list; null when there is none. */
   onNext: (() => void) | null;
   onExit: () => void;
@@ -192,6 +208,10 @@ export default function BankPuzzlePlayer({
   const [verdict, setVerdict] = useState<{ square: Square; ok: boolean } | null>(null);
   // Retry bumps this to re-present the same puzzle from its opening position.
   const [occasion, setOccasion] = useState(0);
+  // Who the finished position would be played on against. Vs the computer
+  // unless asked otherwise: a puzzle is solved alone, so the person who has
+  // just finished one is on their own at the screen until they say they are not.
+  const [vsComputer, setVsComputer] = useState(true);
   const solvedFired = useRef(false);
   const finishFired = useRef(false);
   // Whether *view the solution* has been taken this visit. Survives Retry on
@@ -427,6 +447,35 @@ export default function BankPuzzlePlayer({
     ? board.history[board.history.length - 1].move
     : null;
 
+  /**
+   * Play the finished position on as a real game — the answer to "and then
+   * what?", which is the question a **Truncated** line leaves hanging by
+   * design: it stops at the deciding move and tells you nothing about the
+   * twenty plies of technique after it (ADR-0002). This is where you go and
+   * find out, against an opponent that will not co-operate.
+   *
+   * Offered only where there is still a game in the position. A line that ended
+   * the game leaves nothing to play on, and the board has already said so
+   * itself — the king is standing in a corner, or he is gone from it — so the
+   * offer's absence discloses nothing the picture did not. ADR-0002's
+   * indistinguishability survives that: a truncated line and a short decisive
+   * one both end on a board that is still playing, so both carry the offer.
+   */
+  const canPlayOn = onPlay !== undefined && isFinished(live.attempt) && !isGameOver(board.status);
+
+  const playOn = () => {
+    if (!onPlay || !canPlayOn) return;
+    // Handed over as a *position*, history dropped — which is the honest shape
+    // for it. The moves on this board are the puzzle's, not the new game's, and
+    // a game that inherited them would count them towards repetition and list
+    // them in its own move log as though someone had played them there.
+    //
+    // The solver keeps the side they solved as, so it is the opponent's move:
+    // you found the move, now beat the reply. Over the board (`null`) both
+    // sides are handed back and nobody replies.
+    onPlay(stateFromBoard(board.board, board.turn), vsComputer ? mover : null);
+  };
+
   // ── The feedback strip — lichess's band under the board ─────────────────────
   // One glyph, a headline, a hint. The stage owns the finished states; the
   // `feedback` track owns what is said while a guess is outstanding, because a
@@ -548,6 +597,41 @@ export default function BankPuzzlePlayer({
           </>
         )}
       </div>
+
+      {/* Play it on. Below the row above and never the primary button: the
+          trainer's own loop is the next puzzle, and this is the door out of it
+          for someone who wants to finish this one properly. */}
+      {canPlayOn && (
+        <div className="mt-3 border-t border-parchment/10 pt-3" data-testid="puzzle-play-on">
+          <div className="choice-block">
+            <p className="choice-label">{t.puzzlePlayOnLabel}</p>
+            <div className="choice">
+              <button
+                type="button"
+                className={vsComputer ? "on" : ""}
+                aria-pressed={vsComputer}
+                onClick={() => setVsComputer(true)}
+              >
+                {t.playVsAi}
+              </button>
+              <button
+                type="button"
+                className={vsComputer ? "" : "on"}
+                aria-pressed={!vsComputer}
+                onClick={() => setVsComputer(false)}
+              >
+                {t.overTheBoard}
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 flex justify-end">
+            <button className="btn btn-sm" onClick={playOn}>
+              {t.playFromHere}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-parchment-dim">{t.puzzlePlayOnHint}</p>
+        </div>
+      )}
     </div>
   );
 }
