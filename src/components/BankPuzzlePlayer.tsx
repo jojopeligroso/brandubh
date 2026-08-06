@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board, { Emblem } from "./Board";
 import type { Emblems } from "./ObjectivesContent";
 import type { Translations } from "../i18n";
-import { applyMove, isGameOver, movesFrom, sideOf } from "../game/engine";
+import { applyMove, isGameOver, moveName, movesFrom, sideOf } from "../game/engine";
 import { parsePosition, stateFromBoard } from "../game/position";
 import { isFinished, judge, retryStep, type Attempt, type LineStep } from "../game/attempt";
 import { completionNote } from "../game/completionNote";
@@ -208,6 +208,13 @@ export default function BankPuzzlePlayer({
   const [verdict, setVerdict] = useState<{ square: Square; ok: boolean } | null>(null);
   // Retry bumps this to re-present the same puzzle from its opening position.
   const [occasion, setOccasion] = useState(0);
+  // ── Walking back through how the position arose ─────────────────────────────
+  // Which position of the played line is on screen. `null` means "the end of
+  // it", and is null rather than an index on purpose: the moves that land on
+  // their own — the lead-in, a scripted reply — would otherwise each have to
+  // push a cursor along behind them, and one that forgot to would freeze the
+  // board on a stale position mid-exercise.
+  const [cursor, setCursor] = useState<number | null>(null);
   // Who the finished position would be played on against. Vs the computer
   // unless asked otherwise: a puzzle is solved alone, so the person who has
   // just finished one is on their own at the screen until they say they are not.
@@ -244,6 +251,7 @@ export default function BankPuzzlePlayer({
     setFadingCaptures([]);
     setFeedback("start");
     setVerdict(null);
+    setCursor(null);
     const fresh = freshLive(puzzle, opening, mover);
     setLive(fresh);
     const after = opening.after;
@@ -272,7 +280,20 @@ export default function BankPuzzlePlayer({
   /** True once the lead-in is on the board. Before that there is nothing to
    *  guess at, because the position being asked about is not on screen yet. */
   const opened = live.states.length > live.anchor;
+  /** The position the exercise is *at* — the end of the line as played so far.
+   *  Every judgement reads this, never the one on screen: reviewing must not be
+   *  able to move the goalposts of the guess being asked for. */
   const board = live.states[live.states.length - 1];
+  /** The position on *screen*, which is `board` unless you have stepped back.
+   *  Clamped, because the line can get *shorter* under a cursor: a wrong guess
+   *  is bounced back off the board a beat after it lands, taking its position
+   *  with it. */
+  const end = live.states.length - 1;
+  const at = Math.min(cursor ?? end, end);
+  const shown = live.states[at];
+  const reviewing = at < end;
+  const stepBack = () => setCursor(Math.max(0, at - 1));
+  const stepOn = () => setCursor(at + 1 >= end ? null : at + 1);
 
   /** The **Step** the Attempt's cursor is on, in the shape the judge wants. A
    *  **Line** alternates solver move and scripted reply and ends on a solver
@@ -353,6 +374,9 @@ export default function BankPuzzlePlayer({
     setFadingCaptures([]);
     setSelected(null);
     setVerdict(null);
+    // The rest of the line is about to be played onto the board; a cursor left
+    // pointing into the old, shorter line would hold the board behind it.
+    setCursor(null);
     revealedEver.current = true;
     setLive((l) => {
       // **The lead-in may not be on the board yet.** *See it* is offered from
@@ -424,7 +448,12 @@ export default function BankPuzzlePlayer({
   // wrong guess, not the question, and the Attempt sits at `wrong` for exactly
   // that window — so this gate closes itself and reopens when the board is put
   // back, with no button in between.
-  const interactive = opened && live.attempt.stage === "guessing" && !isGameOver(board.status);
+  //
+  // Stepping back closes it too, for the same reason the live game refuses
+  // moves away from the tip: the position under the cursor is a place you are
+  // *reading*, and a guess played into it would answer a question nobody asked.
+  const interactive =
+    opened && !reviewing && live.attempt.stage === "guessing" && !isGameOver(board.status);
 
   const onSquareClick = (sq: Square) => {
     if (!interactive) return;
@@ -443,9 +472,18 @@ export default function BankPuzzlePlayer({
     if (mine) setSelected(sq);
   };
 
-  const lastMove: Move | null = board.history.length
-    ? board.history[board.history.length - 1].move
+  // The move that produced what is on screen — so stepping back walks the
+  // highlight back with it rather than leaving it on the latest move.
+  const lastMove: Move | null = shown.history.length
+    ? shown.history[shown.history.length - 1].move
     : null;
+  // The ✓/✗ belongs to the move that was just judged, so it stays with the
+  // position that move produced, not with whatever has been stepped back to.
+  const shownVerdict = reviewing ? null : verdict;
+  /** Every ply that produced the line as it stands, one chip each. Read off the
+   *  end of the line rather than off the screen, so the list stays whole while
+   *  you walk back through it — `states[k].history` is the first k of these. */
+  const shownHistory = board.history;
 
   /**
    * Play the finished position on as a real game — the answer to "and then
@@ -460,8 +498,14 @@ export default function BankPuzzlePlayer({
    * offer's absence discloses nothing the picture did not. ADR-0002's
    * indistinguishability survives that: a truncated line and a short decisive
    * one both end on a board that is still playing, so both carry the offer.
+   *
+   * "Here" is the position **on screen**, not the end of the line, so stepping
+   * back and playing on takes the board you are looking at. That is the only
+   * reading under which the button and the board cannot disagree — and it is
+   * the more useful one: it is how you replay the puzzle itself as a game,
+   * rather than only its aftermath.
    */
-  const canPlayOn = onPlay !== undefined && isFinished(live.attempt) && !isGameOver(board.status);
+  const canPlayOn = onPlay !== undefined && isFinished(live.attempt) && !isGameOver(shown.status);
 
   const playOn = () => {
     if (!onPlay || !canPlayOn) return;
@@ -527,9 +571,9 @@ export default function BankPuzzlePlayer({
 
       <div className="tutorial-board mt-3">
         <Board
-          board={board.board}
+          board={shown.board}
           rules={rules}
-          turn={board.turn}
+          turn={shown.turn}
           selected={selected}
           lastMove={lastMove}
           fadingCaptures={fadingCaptures}
@@ -539,7 +583,7 @@ export default function BankPuzzlePlayer({
           kingEmblem={emblems.kingEmblem}
           defenderEmblem={emblems.defenderEmblem}
           cornerEmblem={emblems.cornerEmblem}
-          verdict={verdict}
+          verdict={shownVerdict}
           onSquareClick={onSquareClick}
         />
       </div>
@@ -569,6 +613,83 @@ export default function BankPuzzlePlayer({
           {sub && <p className="puzzle-feed-sub">{sub}</p>}
         </div>
       </section>
+
+      {/* ── How the position arose ────────────────────────────────────────────
+          The moves that produced what is on screen, walkable. A bank puzzle
+          drops you into the middle of a game you did not play, and "why is that
+          raider there?" is answerable only by watching it arrive — the lead-in
+          especially, which plays itself a beat after the board appears and is
+          gone by the time anyone has finished reading the position.
+
+          Available from the moment the lead-in lands, not only at the end: the
+          question it answers is asked hardest while the puzzle is unsolved. It
+          gives nothing away — every move it can show is a move already played
+          on this board — and stepping away from the end suspends guessing, so
+          the exercise cannot be answered from a position it was not asking
+          about (`interactive`). */}
+      {opened && shownHistory.length > 0 && (
+        <div className="mt-2" data-testid="puzzle-review">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-parchment-dim">
+              {reviewing
+                ? `${t.reviewingLabel} · ${at}/${end}`
+                : `${t.moveLog} (${shownHistory.length})`}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                className="btn btn-sm"
+                onClick={stepBack}
+                disabled={at === 0}
+                aria-label={t.prevMove}
+                title={t.prevMove}
+                data-testid="puzzle-prev"
+              >
+                ‹
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={stepOn}
+                disabled={!reviewing}
+                aria-label={t.nextMove}
+                title={t.nextMove}
+                data-testid="puzzle-next"
+              >
+                ›
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={() => setCursor(null)}
+                disabled={!reviewing}
+                data-testid="puzzle-latest"
+              >
+                {t.latest}
+              </button>
+            </div>
+          </div>
+          {/* One chip per ply, coloured by who moved — the move log's own
+              scheme, laid out along a line because a puzzle is nine plies at
+              the outside and a column grid would be mostly air. */}
+          <ol className="mt-2 flex flex-wrap gap-1 font-mono text-xs text-parchment-dim">
+            {shownHistory.map((h, i) => (
+              <li key={i}>
+                <button
+                  className={`cursor-pointer rounded px-1.5 py-0.5 hover:bg-parchment/10 ${
+                    i === at - 1 ? "bg-parchment/15 ring-1 ring-gold/60" : ""
+                  }`}
+                  onClick={() => setCursor(i + 1 === end ? null : i + 1)}
+                >
+                  <span className="text-parchment/50">{i + 1}.</span>{" "}
+                  <span
+                    className={h.sideThatMoved === "attackers" ? "text-blood/90" : "text-gold/90"}
+                  >
+                    {moveName(h.move)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap justify-end gap-2">
         {!finished && (
