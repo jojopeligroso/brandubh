@@ -113,11 +113,16 @@ export default function LearnModal({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // Inside a puzzle, Escape is one step out — back to the list — rather
+      // than a trapdoor through every layer to the game.
+      if (e.key === "Escape") {
+        if (playingId) setPlayingId(null);
+        else onClose();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, playingId]);
 
   const markSolved = (id: string) => {
     setDone((prev) => {
@@ -160,6 +165,65 @@ export default function LearnModal({
         : active
           ? () => setActiveId(null)
           : () => setView("menu");
+
+  // ── A puzzle being played is a place, not a dialog ──────────────────────────
+  // Lichess-style: the puzzle takes the whole screen, opaque, so the live game
+  // — its board, its toolbar — is never visible behind the exercise, and there
+  // is no "Play" button waiting to drop the learner back into a game they were
+  // not thinking about. The only ways out are back (to the list) and close.
+  if (view === "puzzles" && playing) {
+    return (
+      <div
+        ref={dialogRef}
+        className="puzzle-screen fixed inset-0 z-50 overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="learn-title"
+        tabIndex={-1}
+      >
+        <div className="mx-auto w-full max-w-xl p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <button className="iconbtn" onClick={() => setPlayingId(null)} aria-label={t.back}>
+                ‹
+              </button>
+              <div>
+                <h2 id="learn-title" className="font-display text-2xl text-gold">
+                  {t.learnPuzzleLabel}{" "}
+                  <span className="font-mono text-xl text-parchment">#{playing.id}</span>
+                </h2>
+                {/* The band and the queue position — lichess's "Rating · Played
+                    n times" line, in this bank's terms. */}
+                <p className="text-xs text-parchment-dim">
+                  {t[playing.band]} · {playingIndex + 1} / {listed.length}
+                </p>
+              </div>
+            </div>
+            <button className="btn" onClick={onClose} aria-label={t.close}>
+              ✕
+            </button>
+          </div>
+
+          <BankPuzzlePlayer
+            t={t}
+            puzzle={playing}
+            rules={rules}
+            emblems={emblems}
+            sideLabel={(side: Side) => (side === "attackers" ? t.raiders : t.kingsSide)}
+            queue={{ index: playingIndex, total: listed.length }}
+            showMeta={false}
+            onSolved={markPuzzleSolved}
+            onNext={
+              playingIndex < listed.length - 1
+                ? () => setPlayingId(listed[playingIndex + 1].id)
+                : null
+            }
+            onExit={() => setPlayingId(null)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -432,25 +496,10 @@ export default function LearnModal({
           </div>
         )}
 
-        {view === "puzzles" && playing && (
-          <BankPuzzlePlayer
-            t={t}
-            puzzle={playing}
-            rules={rules}
-            emblems={emblems}
-            sideLabel={(side: Side) => (side === "attackers" ? t.raiders : t.kingsSide)}
-            queue={{ index: playingIndex, total: listed.length }}
-            onSolved={markPuzzleSolved}
-            onNext={
-              playingIndex < listed.length - 1
-                ? () => setPlayingId(listed[playingIndex + 1].id)
-                : null
-            }
-            onExit={() => setPlayingId(null)}
-          />
-        )}
-
-        {view !== "menu" && (
+        {/* The puzzles view deliberately has no "Play" button: its exits lead
+            deeper into puzzles or back out the way you came, never into a game
+            (lichess-style — see the full-screen player above). */}
+        {view !== "menu" && view !== "puzzles" && (
           <button className="btn btn-primary mt-6 w-full" onClick={onClose}>
             {t.playButton}
           </button>
