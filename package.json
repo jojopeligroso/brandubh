@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "description": "A slick, playable Brandubh (Irish 7x7 hnefatafl) board game with two rule variants and an AI opponent.",
+  "author": "Eoin Malone <eoinmaleoin@gmail.com>",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

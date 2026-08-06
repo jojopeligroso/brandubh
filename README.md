@@ -234,4 +234,12 @@ full set lives at [`docs/design/icons.html`](docs/design/icons.html).
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+**Source-available, all rights reserved — not open source.** © 2026 Eoin Malone.
+
+The code is published so that it can be read, inspected and verified, not so
+that it can be reused. You may read it, study it, quote it in review, and play
+any instance of the game hosted here. You may not copy, modify, redistribute,
+deploy or otherwise use it, in whole or in part, without written permission —
+ask, and it may well be given. Full terms in [LICENSE](LICENSE); third-party
+material (the Gadelica typeface, npm dependencies) keeps its own terms, see
+[NOTICE](NOTICE.md).

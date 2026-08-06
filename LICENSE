@@ -1,21 +1,163 @@
-MIT License
+Brandubh Source-Available Licence
+Copyright © 2026 Eoin Malone. All rights reserved.
 
-Copyright (c) 2026 Brandubh contributors
+This software is NOT open source. The source code is published so that it can
+be read, inspected and verified — not so that it can be used. No licence to
+use, copy, modify or redistribute this software is granted by its publication,
+by its availability on any code-hosting service, or by anything other than the
+express written permission of the copyright holder.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. DEFINITIONS
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+   "the Software" means the source code, build scripts, documentation, data
+   files, generated data modules and other original material in this
+   repository, excluding the Third-Party Material identified in section 6.
+
+   "the Author" means Eoin Malone, the copyright holder.
+
+   "you" means any person or entity that obtains a copy of, or access to, the
+   Software.
+
+
+2. WHAT YOU MAY DO
+
+   You are permitted, without charge and without further permission, to:
+
+   (a) view, read and study the Software;
+
+   (b) make the transient and incidental copies that reading it necessarily
+       involves — retrieving the repository over the network, cloning it,
+       caching it locally, and displaying it on screen;
+
+   (c) quote short excerpts for the purposes of review, criticism, comment,
+       news reporting, teaching or scholarship, with attribution to the
+       Author; and
+
+   (d) play any publicly hosted instance of the game that the Author has
+       deployed. Playing the game is not a licence to its code.
+
+   These permissions exist so that the authorship, provenance and correctness
+   of this work can be independently verified.
+
+
+3. WHAT YOU MAY NOT DO
+
+   Except as section 2 permits, as section 4 preserves, or as the Author has
+   permitted in writing under section 5, you may NOT:
+
+   (a) use the Software, in whole or in part, for any purpose — personal,
+       educational, non-commercial or commercial;
+
+   (b) reproduce or copy the Software;
+
+   (c) modify, adapt, translate or create derivative works from it;
+
+   (d) distribute, publish, sublicense, sell, rent, lease or otherwise make it
+       available to others;
+
+   (e) incorporate any part of it into another work, product or project,
+       whether or not that work is distributed;
+
+   (f) host, deploy, serve or publicly perform or display it, or operate it as
+       a service;
+
+   (g) remove, obscure or alter any copyright, authorship or licence notice;
+       or
+
+   (h) use the Software as training data for, or otherwise to develop, any
+       machine-learning model, statistical model or artificial-intelligence
+       system.
+
+   "In part" is meant seriously: individual files, functions, algorithms as
+   expressed here, data modules and generated banks are all covered.
+
+
+4. WHAT THIS LICENCE DOES NOT RESTRICT
+
+   Nothing in this licence purports to restrict, waive or override:
+
+   (a) any act permitted under applicable copyright law without the
+       rightsholder's authorisation — including fair dealing and fair use,
+       and any statutory exception for private study, research, criticism,
+       review, quotation, or reverse engineering for interoperability;
+
+   (b) your rights in your own independently created work, including work
+       that happens to resemble the Software because both implement the same
+       publicly known rules of Brandubh. The rules of tafl games are not
+       owned by the Author and are not licensed here; only this particular
+       expression of them is;
+
+   (c) the operation of the terms of service of any platform on which the
+       Author has chosen to publish the Software. In particular, publishing a
+       public repository on GitHub grants other GitHub users the ability to
+       view and fork that repository within GitHub, under GitHub's Terms of
+       Service. That platform-level permission is a consequence of where the
+       Software is hosted; it confers no rights under this licence, and a fork
+       so created remains subject to sections 2 and 3.
+
+
+5. REQUESTING PERMISSION
+
+   Permission to do anything in section 3 may be granted, refused, or granted
+   on terms, entirely at the Author's discretion. Requests should be sent to:
+
+       Eoin Malone <eoinmaleoin@gmail.com>
+
+   Any permission granted must be in writing, is limited to what it expressly
+   states, and does not license anyone else or any other use. Silence is not
+   permission.
+
+
+6. THIRD-PARTY MATERIAL
+
+   Some material distributed alongside the Software is not the Author's to
+   license, and this licence does not apply to it. It remains governed by its
+   own terms, which are described in NOTICE.md:
+
+   (a) the Gadelica typeface (src/fonts/Gadelica.otf) — © Séamas Ó Brógáin,
+       2007, bundled verbatim and used under the author's own distribution
+       terms, reproduced at src/fonts/Gadelica-LICENCE.txt;
+
+   (b) the underlying traditional Celtic and Norse symbols depicted by the
+       piece and corner emblems, which are in the public domain. The Author
+       claims no rights in those symbols. The particular vector traces in this
+       repository are part of the Software;
+
+   (c) third-party software dependencies, which are not included in this
+       repository but are fetched at build time and are governed by their own
+       licences as declared in package.json and package-lock.json. A built
+       bundle produced from this repository contains such third-party code and
+       carries those licences' obligations independently of this one.
+
+
+7. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NONINFRINGEMENT.
+
+
+8. NO LIABILITY
+
+   TO THE FULLEST EXTENT PERMITTED BY LAW, IN NO EVENT SHALL THE AUTHOR BE
+   LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+   CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. Nothing here
+   excludes liability that cannot lawfully be excluded.
+
+
+9. TERMINATION
+
+   The permissions in section 2 end automatically if you breach section 3.
+   They are restored if you cease the breach and the Author confirms
+   restoration in writing.
+
+
+10. GENERAL
+
+   If any provision of this licence is held unenforceable, the remainder stays
+   in force and the unenforceable provision is narrowed to the least extent
+   needed to make it enforceable. A failure to enforce any provision is not a
+   waiver of it. This licence is governed by the law of Ireland, without
+   regard to its conflict-of-laws rules.

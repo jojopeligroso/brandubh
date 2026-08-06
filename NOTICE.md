@@ -1,5 +1,10 @@
 # Assets
 
+This file records material that is **not** the project author's to license, and
+the terms it carries instead. It grants no rights in the project's own code —
+for that, see [LICENSE](LICENSE), which is source-available and all rights
+reserved.
+
 ## Piece emblems
 
 The emblems on the pieces are vector traces of supplied reference images of

@@ -16,6 +16,18 @@ overlays.
 
 ## Decisions to respect
 
+### The licence is source-available, not open source — do not "fix" it to MIT
+
+`LICENSE` is a bespoke **all-rights-reserved** licence: the code is published to
+be read and verified, not reused. This is deliberate and replaced an MIT licence
+that was there by default. Do not swap it for MIT/Apache/GPL, do not describe
+the project as "open source" in the README or anywhere else, and do not add
+permissions to it. `package.json` carries `"license": "SEE LICENSE IN LICENSE"`
+and stays `"private": true`. Third-party material the author cannot license —
+the Gadelica typeface, npm dependencies — is carved out in `LICENSE` §6 and
+described in `NOTICE.md`; keep those two in step when dependencies or bundled
+assets change.
+
 ### Irish (ga) locale is hidden — do not re-expose it
 
 `VISIBLE_LANGS` in `src/i18n.ts` deliberately lists only `en` and `es`. The
