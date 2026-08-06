@@ -77,7 +77,13 @@ await page.goto(`http://localhost:${port}/`, { waitUntil: "networkidle" });
 const otb = page.getByRole("button", { name: /with a friend in person/ });
 await otb.waitFor();
 await otb.click();
-await page.waitForSelector("text=Choose your game", { state: "detached" });
+// Over the board now asks for a time control before it starts the game. The
+// step opens on whatever is stored (clock off by default), so accepting it
+// unchanged gives the same untimed board this shot has always captured.
+const start = page.getByRole("button", { name: "Start game" });
+await start.waitFor();
+await start.click();
+await page.waitForSelector("text=Choose a time control", { state: "detached" });
 await page.waitForTimeout(500);
 
 await page.screenshot({ path: OUT });

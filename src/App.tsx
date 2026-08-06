@@ -71,6 +71,7 @@ import {
   CUSTOM_MIN_MINUTES,
   CUSTOM_TIME_CONTROL_ID,
   TIME_PRESETS,
+  type ClockSelection,
   type TimeCategory,
   describeTimeControl,
   loadClockEnabled,
@@ -371,6 +372,22 @@ export default function App() {
     customIncrement,
     onCustomIncrement: setCustomIncrement,
   };
+  // The same four values as one bundle, for the setup overlay's time step: it
+  // starts from whatever is set now and hands a whole selection back when the
+  // game is committed (see ClockSelection in game/clock.ts for why it travels
+  // rather than applying as it is edited).
+  const clockSelection: ClockSelection = {
+    enabled: clockEnabled,
+    controlId,
+    customMinutes,
+    customIncrement,
+  };
+  const applyClockSelection = (sel: ClockSelection) => {
+    setClockEnabled(sel.enabled);
+    setControlId(sel.controlId);
+    setCustomMinutes(sel.customMinutes);
+    setCustomIncrement(sel.customIncrement);
+  };
   // The clocks each position was first offered with, index-aligned with the move
   // timeline below. Rewinding the board rewinds these too, so a position always
   // resumes with the time it had when it was first put in front of the player.
@@ -517,6 +534,7 @@ export default function App() {
   const [pendingModeChoice, setPendingModeChoice] = useState<{
     mode: PlayMode;
     difficulty?: Difficulty;
+    clock?: ClockSelection;
   } | null>(null);
   const [showTakeback, setShowTakeback] = useState(false);
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
@@ -1758,9 +1776,11 @@ export default function App() {
   };
 
   // Commit a game chosen in the overlay: this is the point of no return, so the
-  // board reset — and the chosen AI strength — land here and nowhere earlier.
-  const commitModeChoice = (m: PlayMode, d?: Difficulty) => {
+  // board reset — and the chosen AI strength, and the chosen time control —
+  // land here and nowhere earlier.
+  const commitModeChoice = (m: PlayMode, d?: Difficulty, c?: ClockSelection) => {
     if (d) setDifficulty(d);
+    if (c) applyClockSelection(c);
     changeMode(m);
     closeSetupOverlay();
   };
@@ -2241,19 +2261,20 @@ export default function App() {
           lang={lang}
           onLang={setLang}
           difficulty={difficulty}
+          clock={clockSelection}
           side={humanSide ?? "defenders"}
           onShowDemo={() => setLearnView("menu")}
           resume={pendingResume}
           onResume={resumeSavedGame}
           onDiscardResume={discardSavedGame}
           onCancel={modeOverlayCancelable ? closeSetupOverlay : null}
-          onChoose={(m, d) => {
+          onChoose={(m, d, c) => {
             // Reopened over a game worth keeping? Ask before wiping it. The
             // overlay stays up behind the confirmation, so answering "no"
             // leaves the player where they were, mid-choice.
             if (modeOverlayCancelable && wouldDiscardGame)
-              setPendingModeChoice({ mode: m, difficulty: d });
-            else commitModeChoice(m, d);
+              setPendingModeChoice({ mode: m, difficulty: d, clock: c });
+            else commitModeChoice(m, d, c);
           }}
         />
       )}
@@ -2420,7 +2441,11 @@ export default function App() {
           confirmLabel={t.newGame}
           cancelLabel={t.back}
           onConfirm={() =>
-            commitModeChoice(pendingModeChoice.mode, pendingModeChoice.difficulty)
+            commitModeChoice(
+              pendingModeChoice.mode,
+              pendingModeChoice.difficulty,
+              pendingModeChoice.clock,
+            )
           }
           onCancel={() => setPendingModeChoice(null)}
         />
@@ -3645,6 +3670,7 @@ function ModeOverlay({
   lang,
   onLang,
   difficulty,
+  clock,
   side,
   onShowDemo,
   resume,
@@ -3658,6 +3684,8 @@ function ModeOverlay({
   onLang: (l: Lang) => void;
   /** The current strength, shown as the highlighted option — not applied here. */
   difficulty: Difficulty;
+  /** The time control as it stands, seeding the time step — not applied here. */
+  clock: ClockSelection;
   /** The side played last time, offered as the default. */
   side: Side;
   onShowDemo: () => void;
@@ -3671,17 +3699,25 @@ function ModeOverlay({
    * there is nothing behind the overlay to return to.
    */
   onCancel: (() => void) | null;
-  /** Commit a game. The difficulty comes along only on the vs-computer path. */
-  onChoose: (m: PlayMode, difficulty?: Difficulty) => void;
+  /**
+   * Commit a game. The difficulty comes along only on the vs-computer path, the
+   * time control only on the over-the-board one — each is chosen on the step
+   * that starts the game, and neither is applied before that.
+   */
+  onChoose: (m: PlayMode, difficulty?: Difficulty, clock?: ClockSelection) => void;
 }) {
-  // Three-step overlay: pick opponent (AI or a friend), then — for the AI —
-  // which side to play, then how strong the computer should be, before the board
-  // appears. A saved game, if there is one, gets asked about first: resume it, or
-  // drop it and set a new game up.
-  const [step, setStep] = useState<"mode" | "side" | "difficulty">("mode");
+  // A step per choice, one path per opponent: vs the computer it is which side
+  // to play, then how strong the computer should be; over the board it is the
+  // time control. The last step of either path is what starts the game and puts
+  // the board up. A saved game, if there is one, gets asked about first: resume
+  // it, or drop it and set a new game up.
+  const [step, setStep] = useState<"mode" | "side" | "difficulty" | "time">("mode");
   // Held here until a difficulty is picked, since that's the step that starts
   // the game (and starting it resets the board, so it must happen once).
   const [chosenSide, setChosenSide] = useState<Side>(side);
+  // Likewise the over-the-board time control: edited here, applied only when
+  // the game is committed (see ClockSelection).
+  const [chosenClock, setChosenClock] = useState<ClockSelection>(clock);
 
   // Escape backs out only when there is somewhere to back out to.
   useEffect(() => {
@@ -3817,6 +3853,41 @@ function ModeOverlay({
               {t.back}
             </button>
           </>
+        ) : step === "time" ? (
+          <>
+            {/* The over-the-board path's one choice, and the counterpart of the
+                AI path's strength step: clock or no clock, and — with a clock —
+                the same preset ladder and custom bank/increment the settings
+                panel offers, since it is the very same picker. Two players
+                sitting down together are the ones who want a timed game, and
+                the gear ⚙ modal is a poor place to have to go looking for it. */}
+            <p className="text-lg font-semibold text-parchment">{t.chooseTime}</p>
+            <div className="text-left" data-testid="overlay-time">
+              <ClockControls
+                t={t}
+                enabled={chosenClock.enabled}
+                onEnabled={(v) => setChosenClock((c) => ({ ...c, enabled: v }))}
+                controlId={chosenClock.controlId}
+                onControl={(id) => setChosenClock((c) => ({ ...c, controlId: id }))}
+                customMinutes={chosenClock.customMinutes}
+                onCustomMinutes={(n) => setChosenClock((c) => ({ ...c, customMinutes: n }))}
+                customIncrement={chosenClock.customIncrement}
+                onCustomIncrement={(n) => setChosenClock((c) => ({ ...c, customIncrement: n }))}
+              />
+            </div>
+            <button
+              className="btn btn-primary w-full py-3 text-base"
+              onClick={() => onChoose("hotseat", undefined, chosenClock)}
+            >
+              {t.startGame}
+            </button>
+            <button
+              className="text-sm text-parchment-dim underline"
+              onClick={() => setStep("mode")}
+            >
+              {t.back}
+            </button>
+          </>
         ) : (
           <>
             {/* "Show me how" is the primary CTA — new players see it first. */}
@@ -3844,7 +3915,7 @@ function ModeOverlay({
               </button>
               <button
                 className="btn py-3 text-base"
-                onClick={() => onChoose("hotseat")}
+                onClick={() => setStep("time")}
               >
                 {t.otbOverlay}
                 <span className="block text-sm font-normal text-parchment-dim">{t.withFriend}</span>
