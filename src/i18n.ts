@@ -550,6 +550,15 @@ export interface Translations {
   puzzleRetry: string;
   /** On to the next puzzle in the queue — lichess's "Continue training". */
   puzzleContinue: string;
+  /** Label over the opponent choice on a finished puzzle. */
+  puzzlePlayOnLabel: string;
+  /** What playing a finished puzzle on costs and gives, said once, under it. */
+  puzzlePlayOnHint: string;
+  /** Marks a live game that began from a puzzle position, in the drawer's
+   *  status line — the one setup fact the mode and ruleset do not carry. */
+  puzzleGameLabel: string;
+  /** Why the game file is refused in such a game. */
+  puzzleGameExportBlocked: string;
   /** Completion note, layer 1: keyed by **Motif** (see game/completionNote.ts). */
   puzzleNoteMotifs: Record<string, string>;
   /** Layer 2: keyed by `<evaluation term>.<solver side>`. */
@@ -1119,6 +1128,12 @@ const en: Translations = {
   puzzleSuccess: "Success!",
   puzzleRetry: "Retry",
   puzzleContinue: "Continue training",
+  puzzlePlayOnLabel: "Play this position on against",
+  puzzlePlayOnHint:
+    "You keep the side you solved as, so the reply is your opponent\u2019s. It starts a fresh game from this position \u2014 with no opening behind it, that game is not saved and cannot be exported.",
+  puzzleGameLabel: "From a puzzle",
+  puzzleGameExportBlocked:
+    "Export is off in a game played on from a puzzle \u2014 a game file records moves from the opening, which this game has none of.",
   puzzleNoteMotifs: {
     guillotine: "A guillotine: the King works side to side, cutting down each blocker in turn.",
     snapTrap: "A snap trap: two raiders flanking a square, so stepping into it is capture.",
@@ -1707,6 +1722,12 @@ const es: Translations = {
   puzzleSuccess: "¡Conseguido!",
   puzzleRetry: "Reintentar",
   puzzleContinue: "Seguir entrenando",
+  puzzlePlayOnLabel: "Seguir jugando esta posici\u00f3n contra",
+  puzzlePlayOnHint:
+    "Te quedas con el bando con el que resolviste, as\u00ed que la respuesta es de tu rival. Se inicia una partida nueva desde esta posici\u00f3n: como no tiene apertura detr\u00e1s, no se guarda ni se puede exportar.",
+  puzzleGameLabel: "Desde un problema",
+  puzzleGameExportBlocked:
+    "La exportaci\u00f3n est\u00e1 desactivada en una partida jugada desde un problema: un archivo de partida guarda jugadas desde la apertura, y esta partida no tiene ninguna.",
   puzzleNoteMotifs: {
     guillotine: "Una guillotina: el Rey va de lado a lado y derriba a cada bloqueador por turno.",
     snapTrap:
@@ -2330,6 +2351,13 @@ const ga: Translations = {
   puzzleSuccess: "D'éirigh leat!",
   puzzleRetry: "Atriail",
   puzzleContinue: "Lean den traenáil",
+  // DRAFT \u2014 playing a finished puzzle on.
+  puzzlePlayOnLabel: "Imir an su\u00edomh seo ar aghaidh in aghaidh",
+  puzzlePlayOnHint:
+    "Coinn\u00edonn t\u00fa an taobh ar r\u00e9itigh t\u00fa leis, mar sin is le do ch\u00e9ile comhraic an freagra. Tosa\u00edonn s\u00e9 cluiche nua \u00f3n su\u00edomh seo \u2014 gan oscailt taobh thiar de, n\u00ed sh\u00e1bh\u00e1iltear an cluiche sin agus n\u00ed f\u00e9idir \u00e9 a easp\u00f3rt\u00e1il.",
+  puzzleGameLabel: "\u00d3 fhadhb",
+  puzzleGameExportBlocked:
+    "T\u00e1 an easp\u00f3rt\u00e1il m\u00fachta i gcluiche a imr\u00edtear ar aghaidh \u00f3 fhadhb \u2014 taifead\u00e1nn comhad cluiche bearta \u00f3n oscailt, agus n\u00edl aon cheann acu sin ag an gcluiche seo.",
   puzzleNoteMotifs: {
     guillotine: "Gilit\u00edn: t\u00e9ann an R\u00ed \u00f3 thaobh go taobh agus leagann gach constaic ina sheal.",
     snapTrap:

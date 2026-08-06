@@ -34,6 +34,15 @@ not thread custom starting positions through them. The tutorial set plays
 (`src/game/tutorials.ts`) intentionally keep their hand-built boards in
 component state only, never in the persisted/exported timeline.
 
+A finished **Puzzle** can now be played on as a live game ("Play from here",
+`BankPuzzlePlayer` → `App.playFromPosition`), and that is the one live game
+whose first board is not the opening. It is held to the invariant rather than
+excused from it: `positionGame` in `App.tsx` closes the autosave (via
+`positionRoot` in `src/analysis.ts`) and replaces the export panel with its
+reason, and starting one drops the save on disk, which describes a different
+game. Anything else that installs a non-opening board as the live game must set
+that flag — no custom starting position may reach `persist.ts` or `gameFile.ts`.
+
 ### Contested rule
 
 `throneHostileToKing` + `strongKingAdjacentToThrone` in `src/game/variants.ts`

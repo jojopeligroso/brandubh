@@ -95,9 +95,21 @@ export function aiMayReply(o: {
  * was branched from. This one still matters after 7c, because what the autosave
  * reads (`states`/`cursor` in App) is the *derived* line — in analysis that is a
  * variation, not the game.
+ *
+ * `positionRoot` is the third, and it is CLAUDE.md's replay-from-opening
+ * invariant held at the storage door. A game played on from a **Puzzle**
+ * position starts from a board that no sequence of moves from `initialState()`
+ * produced, and the save format is exactly such a move list (`persist.ts`), so
+ * writing one would produce a save that restores into a different game. Playing
+ * on from a puzzle is therefore an unsaved game by construction — which is also
+ * why the path that starts one drops the save it can no longer describe.
  */
-export function autosaveAllowed(o: { analysis: boolean; offeringResume: boolean }): boolean {
-  return !o.analysis && !o.offeringResume;
+export function autosaveAllowed(o: {
+  analysis: boolean;
+  offeringResume: boolean;
+  positionRoot: boolean;
+}): boolean {
+  return !o.analysis && !o.offeringResume && !o.positionRoot;
 }
 
 /**

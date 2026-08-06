@@ -5,7 +5,7 @@ import RulesContent from "./RulesContent";
 import TutorialPlayer from "./TutorialPlayer";
 import type { Translations } from "../i18n";
 import type { RuleSet } from "../game/variants";
-import type { Side } from "../game/types";
+import type { GameState, Side } from "../game/types";
 import { loadBank, type Puzzle } from "../game/puzzleBank";
 import { loadPuzzleProgress, savePuzzleProgress } from "../game/puzzleProgress";
 import { loadTrainer, pickNext, recordAttempt, saveTrainer } from "../game/trainer";
@@ -29,12 +29,20 @@ export default function LearnModal({
   rules,
   emblems,
   initialView,
+  onPlayPosition,
   onClose,
 }: {
   t: Translations;
   rules: RuleSet;
   emblems: Emblems;
   initialView: LearnView;
+  /**
+   * Leave the hub and play a finished puzzle's position on as a real game;
+   * `humanSide` is the side the player keeps, null for over the board. The hub
+   * closes itself on the way out — the game it hands over is behind this modal,
+   * and a screen the player has been sent away from must not stay on top of it.
+   */
+  onPlayPosition: (position: GameState, humanSide: Side | null) => void;
   onClose: () => void;
 }) {
   const [view, setView] = useState<LearnView>(initialView);
@@ -212,6 +220,13 @@ export default function LearnModal({
               showMeta={false}
               onSolved={markPuzzleSolved}
               onFinish={recordFinish}
+              onPlay={(position, humanSide) => {
+                // The ledger has already been written by the time this can be
+                // pressed (`onFinish` fires when the attempt ends, not when the
+                // screen is left), so leaving here costs the trainer nothing.
+                onPlayPosition(position, humanSide);
+                onClose();
+              }}
               onNext={serveNext}
               onExit={() => setView("menu")}
             />
