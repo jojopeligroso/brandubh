@@ -21,7 +21,9 @@
 //   goal        regicide | escape | crushing | advantage. Four values, and a
 //               **Guillotine** is not among them: it is an `escape` whose line
 //               happens to be **Truncated** (ADR-0002).
-//   flags       `t` when the line is Truncated. Empty otherwise.
+//   flags       a letter set: `t` when the line is Truncated, `h` when `motif`
+//               was assigned by a hand-written **Note** rather than found by a
+//               recogniser. Empty when neither.
 //   dtm         distance to mate for a proof, `-` for an evaluation. Stored so
 //               the truncation claim can be re-checked, NEVER displayed.
 //   depthToFind the grade measurement; see `grade.ts`.
@@ -31,6 +33,15 @@
 //   motif       the **Primary motif**, or empty. Empty throughout 8b: motifs
 //               arrive with the recognisers in 8c.
 //   tags        comma-separated computed **Tags**, or empty. Likewise 8c.
+//
+// ## Why provenance is stored and the grade is not
+//
+// `h` is the one thing in the record that is not a fact about the position. It
+// is there because the glossary gives a hand-assigned motif a privilege a
+// recognised one does not have — a **Named set** row at any size — and the
+// screen that builds those rows cannot re-derive it: the ledger holding the
+// **Note** is checked in and never bundled. A grade can be recomputed from the
+// measurements beside it; provenance cannot be recomputed from anything.
 //
 // ## Why the grade is not in there
 //
@@ -102,6 +113,16 @@ export interface Puzzle {
    *  to be. The type is the attested union from `motifs.ts`, so a motif this
    *  project invented cannot be stored even by accident. */
   motif: Motif | null;
+  /** Where `motif` came from: a hand-written **Note** in the ledger rather than
+   *  a recogniser. False whenever `motif` is null.
+   *
+   *  Carried so the glossary's **Note** exemption — *a motif assigned by hand
+   *  earns a **Named set** row at any size, because a person deciding it matters
+   *  is better evidence than a count* — can be applied where the rows are built
+   *  (`puzzlePool.ts`) and not only in the generator's report. Provenance, not a
+   *  second opinion: nothing here treats a hand-labelled motif as any less true
+   *  than a recognised one. */
+  byHand: boolean;
   /** Computed **Tags** for filtering the **Pool**. */
   tags: Tag[];
   /** Computed at import from `measurements`, never stored. */
@@ -165,7 +186,9 @@ export function encodePuzzle(p: Omit<Puzzle, "grade" | "band">): string {
     encodeMove(p.leadIn),
     p.line.map(encodeMove).join(""),
     p.goal,
-    p.truncated ? "t" : "",
+    // `flags` is a letter set, so provenance costs one byte on the records that
+    // carry it and nothing on the rest. `h` only ever accompanies a motif.
+    `${p.truncated ? "t" : ""}${p.byHand && p.motif ? "h" : ""}`,
     Number.isFinite(p.dtm) ? String(p.dtm) : "-",
     String(p.measurements.depthToFind),
     encodeSalience(p.measurements.salience),
@@ -213,6 +236,7 @@ export function decodeBank(data: string): Puzzle[] {
       dtm: dtm === "-" ? Infinity : Number(dtm),
       measurements,
       motif: motif === "" ? null : (motif as Motif),
+      byHand: motif !== "" && flags.includes("h"),
       tags: tagList as Tag[],
       grade,
       band: bandOf(grade),

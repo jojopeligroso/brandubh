@@ -210,7 +210,12 @@ from. The 80 in the roadmap is the number worth stopping at, not a cap.
      ending on a solver move (odd count).
    - `goal` - `regicide` | `escape` | `crushing` | `advantage`. Four values;
      `guillotine` is a motif, not a goal (ADR-0002).
-   - `flags` - `t` when the line is **Truncated**.
+   - `flags` - a letter set: `t` when the line is **Truncated**, `h` when
+     `motif` came from a hand-written **Note** rather than a recogniser. `h` is
+     the one field here that is not a fact about the position; it is stored
+     because a hand-assigned motif earns a **Named set** row at any size and the
+     ledger holding the Note is never bundled, so nothing downstream can
+     re-derive it.
    - `dtm` - stored so the truncation claim can be re-checked, never displayed
      (ADR-0002).
    - `depthToFind`, `salience` - the grade measurements (below).
@@ -444,6 +449,15 @@ balling 0      cordon 0     cornerFight 7   twinTowers 0     none 154
 `cornerFight` clears the four-puzzle threshold and earns the bank's only
 **Named set**. 154 of 161 are in the **Pool**, which is the proportion ADR-0003
 predicted.
+
+> **Later:** puzzle 00125 was hand-labelled a **Guillotine** by **Note**, making
+> the counts `guillotine 1 (by hand), cornerFight 7, none 153` and the Named
+> sets two. It does not disturb the finding below — no recogniser found it, and
+> none could have: 00125's goal is `crushing`, an evaluation, and an evaluation
+> has no proof for `isGuillotine` to scan. It is the case the Note mechanism
+> exists for, and it is what made the record grow the `h` provenance flag
+> (`flags`, above): with one puzzle and a threshold of four, the generator would
+> otherwise have reported a set the Learn screen never rendered.
 
 **The proof is re-derived, not stored.** The plan's `isGuillotine` takes the
 full proven continuation, which the miner walked in `provenGoal` and discarded,

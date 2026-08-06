@@ -372,7 +372,9 @@
     "id": "00124"
   },
   "D.....a....a......d...a..kdaa...d......a....a.a...": {
-    "id": "00125"
+    "id": "00125",
+    "note": "Hand-labelled a Guillotine from the solved position. The line ends with the King on g3, the g-file empty between the corners g1 and g7 and a raider already standing on g6: the raiders must feed blockers into that lane, and the King shuttles between g3 and g5 taking each one against the corner behind it. The recogniser cannot see it — the goal is crushing, an evaluation, so there is no proof for isGuillotine to scan (ADR-0002) — which is the case the Note mechanism exists for.",
+    "motif": "guillotine"
   },
   "D....a...........d.ddaaa.k.a....d......a......a...": {
     "id": "00126"

@@ -15,14 +15,15 @@ import {
   tagLabel,
 } from "./puzzlePool";
 
-/** Only the five fields the pool reads. */
+/** Only the six fields the pool reads. */
 const puz = (
   id: string,
   grade: number,
   band: Difficulty,
   motif: string | null = null,
   tags: string[] = [],
-): Puzzle => ({ id, grade, band, motif, tags }) as unknown as Puzzle;
+  byHand = false,
+): Puzzle => ({ id, grade, band, motif, tags, byHand }) as unknown as Puzzle;
 
 const ALL: Difficulty[] = ["easy", "medium", "hard", "ollamh"];
 const open = (...bands: Difficulty[]) => new Set(bands);
@@ -85,6 +86,38 @@ describe("named sets", () => {
       Array.from({ length: n }, (_, i) => puz(String(from + i).padStart(5, "0"), 30, "easy", motif));
     const sets = namedSets([...many("clamp", 4, 1), ...many("spring", 6, 100), ...many("balling", 4, 200)]);
     expect(sets.map((s) => s.motif)).toEqual(["spring", "balling", "clamp"]);
+  });
+
+  it("grant a row at any size to a motif carried by hand", () => {
+    // The glossary's **Note** exemption: a person deciding a position matters is
+    // better evidence than a count. One puzzle, three short of the threshold,
+    // and it earns its row — the case puzzle 00125 is in.
+    const alone = [puz("00125", 290, "hard", "guillotine", [], true)];
+    expect(namedSets(alone)).toEqual([{ motif: "guillotine", ids: ["00125"] }]);
+  });
+
+  it("open the row once, for the whole set, not once per hand-labelled puzzle", () => {
+    // The exemption is a property of the set. A Note on one puzzle opens the
+    // row; anything a recogniser finds under the same motif later joins it
+    // rather than being held back or starting a second row.
+    const sets = namedSets([
+      puz("00003", 30, "easy", "guillotine"),
+      puz("00001", 30, "easy", "guillotine", [], true),
+      puz("00002", 30, "easy", "guillotine"),
+    ]);
+    expect(sets).toEqual([{ motif: "guillotine", ids: ["00001", "00002", "00003"] }]);
+  });
+
+  it("still withhold a row from a motif no one has vouched for", () => {
+    // The exemption is not a way past the threshold for everything else: a
+    // hand-labelled Guillotine says nothing about three recognised cordons.
+    const sets = namedSets([
+      puz("00001", 30, "easy", "guillotine", [], true),
+      ...Array.from({ length: SET_THRESHOLD - 1 }, (_, i) =>
+        puz(String(100 + i).padStart(5, "0"), 30, "easy", "cordon"),
+      ),
+    ]);
+    expect(sets.map((s) => s.motif)).toEqual(["guillotine"]);
   });
 
   it("hand out ids rather than puzzles, so no puzzle lives in two places", () => {

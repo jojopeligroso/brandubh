@@ -4,8 +4,8 @@
 //   npx tsx scripts/genpuzzles.ts --merge
 // 161 puzzles (regicide: 13, escape: 0, crushing: 146, advantage: 2), 0 truncated, 39.9% of 404 candidates.
 // By band: easy: 106, medium: 22, hard: 29, ollamh: 4.
-// By primary motif, zeros included (ADR-0003): guillotine: 0, snapTrap: 0, clamp: 0, spring: 0, balling: 0, cordon: 0, cornerFight: 7, twinTowers: 0,
-// none: 154.
+// By primary motif, zeros included (ADR-0003): guillotine: 1, snapTrap: 0, clamp: 0, spring: 0, balling: 0, cordon: 0, cornerFight: 7, twinTowers: 0,
+// none: 153.
 // Format: one line per puzzle, `id|pos|leadIn|line|goal|flags|dtm|depthToFind|salience|motif|tags`
 // — see src/game/puzzleBank.ts for the exact contract.
 
@@ -153,7 +153,7 @@ export const BANK_DATA: string = `00001|3A3/A6/7/AA1KDA1/3A2D/2D4/4A2 a|0305|330
 00122|3A3/7/AA1A3/A1K2A1/3D3/3A3/3AD2 d|3222|3565|crushing||-|1|ct||attackers,moves1
 00123|3A3/2K4/AA1A3/A6/3D3/3A3/3A1A1 a|5356|1210|crushing||-|1|kt||defenders,moves1
 00124|2A2A1/7/1A1A3/ADK1A2/3A3/4A2/7 a|0222|3262|crushing||-|1|kt||defenders,moves1
-00125|3A3/3A2A/3D3/AADKDA1/D6/3A3/3A3 a|5350|334330404346|crushing||-|3|kt||defenders,moves2
+00125|3A3/3A2A/3D3/AADKDA1/D6/3A3/3A3 a|5350|334330404346|crushing|h|-|3|kt|guillotine|defenders,moves2
 00126|4A2/2DA3/A1D4/3KDAA/2D4/3A3/3A3 a|0402|3330|crushing||-|1|kt||defenders,moves1
 00127|2A4/7/2D1D2/A5A/1A1KAA1/2A1D2/3A3 a|3646|4303|crushing||-|1|kt||defenders,moves1
 00128|3A3/7/1A2DD1/A1DK2A/2D4/2A4/3A3 a|0323|3222|crushing||-|3|ct||defenders,moves1

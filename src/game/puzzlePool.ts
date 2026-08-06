@@ -23,36 +23,30 @@ import type { Puzzle } from "./puzzleBank";
  * Four, from the glossary, and now 8c's constant rather than a second copy of
  * the number. Re-exported under the name this file's callers already use.
  *
- * ## The Note exemption, and why it cannot be enforced here
+ * ## The Note exemption
  *
  * The glossary's other half is that *a motif assigned by a hand-written **Note**
  * earns a row at any size, because a person deciding it matters is better
- * evidence than a count*. This comment used to say the exemption would become
- * enforceable once 8c shipped the provenance. 8c shipped the provenance, and not
- * to a place this file can reach.
+ * evidence than a count*. `namedSets` applies it below.
  *
  * The mechanism, exactly. A Note lives in `data/puzzle-ledger.json`, which
  * `scripts/genpuzzles.ts` reads at merge time: `tagOf` prefers a ledger motif
- * over the recogniser's and sets a `byHand` flag, and the merge report hands
- * that flag straight to 8c's `namedSets(counts, byHandSet)`, so the generator
- * applies the exemption correctly. But the emitted record ends at `motif`
- * (`id|pos|leadIn|line|goal|flags|dtm|depthToFind|salience|motif|tags`), and the
- * ledger is checked in and never bundled. `byHand` therefore dies in the report,
- * and `Puzzle.motif` arrives here as a bare `Motif | null` in which a
- * recogniser's verdict and a person's are the same field holding the same value.
- * The exemption is unimplemented, and that is a gap in the bank format rather
- * than a slice that has not happened yet.
+ * over the recogniser's and sets a `byHand` flag. That flag now rides in the
+ * record's `flags` column as `h` and arrives here on `Puzzle.byHand`, so the
+ * generator's report and this screen answer the question the same way.
  *
- * It is also the right split rather than a gap to rush. Bundling 161 ledger
- * entries so the Learn screen could apply an exemption that fires on nothing
- * would pay bundle for a distinction no shipped puzzle draws:
- * `data/puzzle-handadds.txt` holds no live entries, no ledger entry carries a
- * `motif` key, and the one motif in the bank is `cornerFight`, found by a
- * recogniser on seven puzzles and so already clear of the threshold. The
- * generator is where a Note is honoured and it honours it. The single case that
- * would make this screen and the generator's report disagree is a Note on a
- * motif with fewer than four puzzles, and that is the day the record grows a
- * provenance flag.
+ * This comment used to say the exemption was unenforceable here, and that the
+ * day it mattered would be the day the record grew a provenance flag. That day
+ * was puzzle 00125, hand-labelled a **Guillotine**: one puzzle, three short of
+ * the threshold, and a motif no recogniser can reach on an evaluation goal
+ * (ADR-0002). Left alone it would have been a set the generator announced and
+ * the Learn screen never showed — the two disagreeing about the bank, which is
+ * worse than either answer.
+ *
+ * The bundle cost is one letter on the records that carry it, because `flags`
+ * was already a letter set. Bundling the ledger itself was the alternative and
+ * is still the wrong trade: the Note's prose is generator input, and 161 entries
+ * of it would ship to say what one byte says.
  */
 export const SET_THRESHOLD = MOTIF_SET_THRESHOLD;
 
@@ -82,25 +76,32 @@ export const poolOrder = (puzzles: readonly Puzzle[]): Puzzle[] =>
   [...puzzles].sort((a, b) => a.grade - b.grade || a.id.localeCompare(b.id));
 
 /**
- * The **Named sets** that qualify, largest first.
+ * The **Named sets** that qualify, largest first: a motif with `SET_THRESHOLD`
+ * puzzles or more, or any motif carried by hand on even one of them.
  *
  * Correct and empty when no motif has been recognised, which was the state of
  * the bank before 8c and (by the plan's own expectation) is the state of most
- * of it after. 8c's recognisers found one motif that clears the threshold:
- * `cornerFight`, 7 puzzles. 154 of the 161 carry no motif at all and live in the
- * Pool, which is the shape the glossary describes: one row, and the rest is the
- * list.
+ * of it after. Two rows qualify today: `cornerFight`, found by a recogniser on
+ * 7 puzzles, and `guillotine`, one puzzle carrying a **Note**. 153 of the 161
+ * carry no motif at all and live in the Pool, which is the shape the glossary
+ * describes: a couple of rows, and the rest is the list.
+ *
+ * The exemption is a property of the *set*, not of the puzzle that earns it: one
+ * hand-labelled Guillotine opens the row, and any Guillotine a recogniser finds
+ * later joins it rather than starting a second one.
  */
 export function namedSets(puzzles: readonly Puzzle[]): NamedSet[] {
   const byMotif = new Map<Motif, string[]>();
+  const exempt = new Set<Motif>();
   for (const p of poolOrder(puzzles)) {
     if (!p.motif) continue;
+    if (p.byHand) exempt.add(p.motif);
     const ids = byMotif.get(p.motif);
     if (ids) ids.push(p.id);
     else byMotif.set(p.motif, [p.id]);
   }
   return [...byMotif.entries()]
-    .filter(([, ids]) => ids.length >= SET_THRESHOLD)
+    .filter(([motif, ids]) => ids.length >= SET_THRESHOLD || exempt.has(motif))
     .map(([motif, ids]) => ({ motif, ids }))
     .sort((a, b) => b.ids.length - a.ids.length || a.motif.localeCompare(b.motif));
 }

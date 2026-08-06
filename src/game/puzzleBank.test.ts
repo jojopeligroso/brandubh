@@ -153,13 +153,35 @@ describe("the bank as shipped", () => {
     }
   });
 
-  it("carries no Guillotine, because no shipped proof runs past its line", () => {
+  it("finds no Guillotine by recogniser, because no shipped proof runs past its line", () => {
     // Recorded rather than omitted (ADR-0003). The motif lives in the proof past
     // the end of the **Line**, and every proof in this bank ends *at* its line —
     // `truncated` is false throughout — so there is no continuation for it to
-    // live in. That is a finding about the bank, not a hole in the recogniser.
-    expect(bank.filter((p) => p.motif === "guillotine")).toHaveLength(0);
+    // live in. That is a finding about the bank, not a hole in the recogniser,
+    // and it is the assertion this test has always been about.
     expect(bank.filter((p) => isProof(p.goal) && p.truncated)).toHaveLength(0);
+    expect(bank.filter((p) => p.motif === "guillotine" && !p.byHand)).toHaveLength(0);
+  });
+
+  it("carries the Guillotine only by hand, on 00125", () => {
+    // The other half of the same finding. A Guillotine in this bank can only
+    // have come from a **Note**, because the recogniser above cannot reach one:
+    // 00125's goal is `crushing`, an evaluation, and an evaluation has no proof
+    // to be a continuation of (ADR-0002).
+    //
+    // Pinned to the id rather than counted, because a **Puzzle number** is
+    // permanent and never reused — so this test moves only when a person adds
+    // or removes a Note, which is exactly when it should be read again.
+    const hand = bank.filter((p) => p.byHand);
+    expect(hand.map((p) => `${p.id}:${p.motif}`)).toEqual(["00125:guillotine"]);
+    expect(hand[0].goal).toBe("crushing");
+  });
+
+  it("never flags provenance on a puzzle with no motif", () => {
+    // `h` says where `motif` came from, so it is meaningless without one and the
+    // codec refuses to write it — otherwise the flag would start to look like a
+    // property of the puzzle rather than of the label.
+    for (const p of bank) if (!p.motif) expect(p.byHand, `puzzle ${p.id}`).toBe(false);
   });
 });
 
@@ -317,6 +339,30 @@ describe("the codec", () => {
             const s = { capture, movesKing, towardCorner, onlyMoveOfPiece };
             expect(decodeSalience(encodeSalience(s))).toEqual(s);
           }
+  });
+
+  it("round-trips the two flags independently", () => {
+    // `flags` is a letter set, not an enum: `truncated` and `byHand` are
+    // unrelated facts and either can hold without the other. The shipped bank
+    // exercises only `h` today (nothing is truncated), so the pairing is checked
+    // here rather than left to the data to demonstrate.
+    const base = bank.find((p) => p.motif)!;
+    for (const truncated of [false, true])
+      for (const byHand of [false, true]) {
+        const [again] = decodeBank(encodePuzzle({ ...base, truncated, byHand }));
+        expect(again.truncated, `truncated=${truncated} byHand=${byHand}`).toBe(truncated);
+        expect(again.byHand, `truncated=${truncated} byHand=${byHand}`).toBe(byHand);
+      }
+  });
+
+  it("will not write provenance onto a record with no motif", () => {
+    // `h` says where `motif` came from. Without a motif there is nothing for it
+    // to be the provenance of, so the encoder drops it rather than storing a
+    // flag whose referent is missing.
+    const none = bank.find((p) => !p.motif)!;
+    const encoded = encodePuzzle({ ...none, byHand: true });
+    expect(encoded.split("|")[5]).toBe("");
+    expect(decodeBank(encoded)[0].byHand).toBe(false);
   });
 
   it("drops a record it cannot read rather than throwing", () => {

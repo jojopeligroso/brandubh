@@ -372,7 +372,9 @@ change that alters the answer.
 **Note**:
 Text written by hand against a **Puzzle number**, which may also assign a
 **Motif**. A note outranks anything computed: it is a person saying what the
-position is, and the generator does not argue.
+position is, and the generator does not argue. The prose stays in the ledger
+and is never bundled; a motif it assigns is bundled, and carries a flag saying
+it came from a person, which is what earns it a **Named set** at any size.
 
 **Grade**:
 How hard a **Puzzle** is reckoned to be: a number computed from how deep the
