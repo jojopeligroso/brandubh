@@ -531,6 +531,21 @@ export interface Translations {
   /** The bank's prompt. `puzzlePrompt` says "find a *better* move", which is
    *  right for a Review Mistake and wrong for a puzzle nobody has moved in. */
   puzzleFindMove: string;
+  // The lichess-style feedback strip under the puzzle board (see
+  // BankPuzzlePlayer): one headline + one hint per stage of the exercise.
+  /** Opening state: it is the learner to move. */
+  puzzleYourTurn: string;
+  /** A correct step of a longer **Line**, with more still to find. */
+  puzzleBestMove: string;
+  puzzleKeepGoing: string;
+  /** A wrong guess, after the board has bounced back to the position. */
+  puzzleNotTheMove: string;
+  /** The line is complete and every step was the learner's. */
+  puzzleSuccess: string;
+  /** Present the same puzzle again from its opening position. */
+  puzzleRetry: string;
+  /** On to the next puzzle in the queue — lichess's "Continue training". */
+  puzzleContinue: string;
   /** Completion note, layer 1: keyed by **Motif** (see game/completionNote.ts). */
   puzzleNoteMotifs: Record<string, string>;
   /** Layer 2: keyed by `<evaluation term>.<solver side>`. */
@@ -541,6 +556,8 @@ export interface Translations {
   /** Read out beside a solved **Puzzle** in the Pool list. The gold tick is
    *  `aria-hidden`; this is what a screen reader gets instead of a glyph. */
   learnPuzzleSolved: string;
+  /** The trainer has nothing left to serve: every puzzle in the bank solved. */
+  learnAllSolved: string;
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   // The unlisted calibration page. Localised like everything else rather than
@@ -1089,6 +1106,13 @@ const en: Translations = {
   learnSolved: "solved",
   learnPuzzleLabel: "Puzzle",
   puzzleFindMove: "Find the move",
+  puzzleYourTurn: "Your turn",
+  puzzleBestMove: "Best move!",
+  puzzleKeepGoing: "Keep going…",
+  puzzleNotTheMove: "That's not the move! Try something else.",
+  puzzleSuccess: "Success!",
+  puzzleRetry: "Retry",
+  puzzleContinue: "Continue training",
   puzzleNoteMotifs: {
     guillotine: "A guillotine: the King works side to side, cutting down each blocker in turn.",
     snapTrap: "A snap trap: two raiders flanking a square, so stepping into it is capture.",
@@ -1119,6 +1143,7 @@ const en: Translations = {
     "advantage:defenders": "The King's side has a clear advantage.",
   },
   learnPuzzleSolved: "Solved",
+  learnAllSolved: "Every puzzle in the bank is solved. Well played.",
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   provingTitle: "Proving ground",
@@ -1667,6 +1692,13 @@ const es: Translations = {
   learnSolved: "resueltos",
   learnPuzzleLabel: "Problema",
   puzzleFindMove: "Encuentra la jugada",
+  puzzleYourTurn: "Te toca",
+  puzzleBestMove: "¡La mejor jugada!",
+  puzzleKeepGoing: "Sigue así…",
+  puzzleNotTheMove: "¡Esa no es la jugada! Prueba otra cosa.",
+  puzzleSuccess: "¡Conseguido!",
+  puzzleRetry: "Reintentar",
+  puzzleContinue: "Seguir entrenando",
   puzzleNoteMotifs: {
     guillotine: "Una guillotina: el Rey va de lado a lado y derriba a cada bloqueador por turno.",
     snapTrap:
@@ -1701,6 +1733,7 @@ const es: Translations = {
     "advantage:defenders": "El bando del Rey tiene una ventaja clara.",
   },
   learnPuzzleSolved: "Resuelto",
+  learnAllSolved: "Todos los problemas del banco están resueltos. Bien jugado.",
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   provingTitle: "Campo de pruebas",
@@ -2278,6 +2311,14 @@ const ga: Translations = {
   learnSolved: "r\u00e9itithe",
   learnPuzzleLabel: "Fadhb",
   puzzleFindMove: "Aimsigh an beart",
+  // Unreviewed machine drafts, like the rest of this table (see CLAUDE.md).
+  puzzleYourTurn: "Do sheal",
+  puzzleBestMove: "An beart is fearr!",
+  puzzleKeepGoing: "Lean ort…",
+  puzzleNotTheMove: "Ní hin é an beart! Bain triail as rud eile.",
+  puzzleSuccess: "D'éirigh leat!",
+  puzzleRetry: "Atriail",
+  puzzleContinue: "Lean den traenáil",
   puzzleNoteMotifs: {
     guillotine: "Gilit\u00edn: t\u00e9ann an R\u00ed \u00f3 thaobh go taobh agus leagann gach constaic ina sheal.",
     snapTrap:
@@ -2309,6 +2350,8 @@ const ga: Translations = {
     "advantage:defenders": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag taobh an R\u00ed.",
   },
   learnPuzzleSolved: "R\u00e9itithe",
+  // Unreviewed machine draft, like the rest of this table (see CLAUDE.md).
+  learnAllSolved: "T\u00e1 gach fadhb sa bhanc r\u00e9itithe. Imirt mhaith.",
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   // DRAFT (Session 8e) \u2014 unreviewed machine drafts, like the rest of this

@@ -2433,6 +2433,81 @@ button.settings-row:hover {
   color: var(--color-parchment);
   opacity: 0.7;
 }
+
+/* ── The puzzle screen (lichess-style) ───────────────────────────────────────
+   A puzzle is a place, not a dialog: the layer is opaque, so the live game —
+   its board, its toolbar — is never visible behind an exercise. Same canvas as
+   the app body, so arriving reads as a change of room rather than a curtain. */
+.puzzle-screen {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--app-bg-radial) 0%, transparent 60%),
+    linear-gradient(160deg, var(--app-bg-1) 0%, var(--app-bg-2) 100%);
+  background-color: var(--app-bg-2);
+}
+
+/* The verdict roundel — lichess's ✓/✗ pinned to the square the guess landed
+   on. Shares .mark-badge's geometry; only the colours are its own. */
+.verdict-badge {
+  font-size: 0.78rem;
+}
+.verdict-badge.is-wrong {
+  background: var(--color-blood, #c34043);
+  color: #f4f1e8;
+}
+.verdict-badge.is-right {
+  background: var(--color-moss, #9ece6a);
+  color: var(--on-accent);
+}
+
+/* The feedback strip under the board — lichess's "Your turn / That's not the
+   move! / Success!" band: a big glyph beside two lines of text, offers below. */
+.puzzle-feed {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-parchment) 8%, transparent);
+  background: color-mix(in srgb, var(--color-night) 72%, transparent);
+}
+.puzzle-feed-glyph {
+  flex: 0 0 auto;
+  width: 2.2rem;
+  font-size: 1.9rem;
+  line-height: 1;
+  text-align: center;
+  color: var(--color-gold);
+}
+.puzzle-feed.is-wrong .puzzle-feed-glyph {
+  color: var(--color-blood);
+}
+.puzzle-feed.is-right .puzzle-feed-glyph {
+  color: var(--color-moss, #9ece6a);
+}
+/* The opening state's glyph is the solver's own emblem — sized like the text
+   glyphs it alternates with, coloured by its side via text-blood/text-gold. */
+.puzzle-feed-emblem {
+  display: block;
+  width: 1.9rem;
+  height: 1.9rem;
+  margin: 0 auto;
+}
+.puzzle-feed-emblem svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.puzzle-feed-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-parchment);
+}
+.puzzle-feed-sub {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--color-parchment);
+  opacity: 0.72;
+}
 /* Names what tapping a costliest move does — it starts an exercise, it does
    not just scroll the board there. */
 .review-practise {

@@ -135,6 +135,13 @@ interface BoardProps {
    * arrows it is decoration, `aria-hidden` and click-through.
    */
   markBadge?: { square: Square; mark: Mark } | null;
+  /**
+   * The puzzle judge's verdict on the move that produced the position on
+   * screen, pinned to the square it landed on — lichess's on-board ✓/✗
+   * roundel. Same contract as `markBadge`: decoration only, `aria-hidden`
+   * and click-through; the feedback strip carries the words.
+   */
+  verdict?: { square: Square; ok: boolean } | null;
   onSquareClick: (sq: Square) => void;
 }
 
@@ -220,6 +227,7 @@ export default function Board({
   bestMove = null,
   alsoBest = [],
   markBadge = null,
+  verdict = null,
   onSquareClick,
 }: BoardProps) {
   const legal = useMemo<Square[]>(() => {
@@ -317,6 +325,14 @@ export default function Board({
               {markBadge && markBadge.square.row === r && markBadge.square.col === c && (
                 <span className={`mark-badge is-${markBadge.mark}`} aria-hidden>
                   {markGlyph(markBadge.mark)}
+                </span>
+              )}
+              {verdict && verdict.square.row === r && verdict.square.col === c && (
+                <span
+                  className={`mark-badge verdict-badge ${verdict.ok ? "is-right" : "is-wrong"}`}
+                  aria-hidden
+                >
+                  {verdict.ok ? "✓" : "✗"}
                 </span>
               )}
               {/* fading captured-piece flash */}
