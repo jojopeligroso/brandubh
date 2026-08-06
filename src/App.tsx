@@ -105,7 +105,8 @@ import {
   type Lang,
   type Translations,
 } from "./i18n";
-import { isGaelicLang, toSeanchlo, toSeanchloTable } from "./gaelic";
+import { isGaelicLang, toSeanchloTable } from "./gaelic";
+import { OllamhMark, Wordmark } from "./components/Wordmark";
 import {
   applyPieceColors,
   applyTheme,
@@ -2684,9 +2685,10 @@ function Header({
   return (
     <header className="flex items-center justify-between gap-2">
       <div>
-        <h1 className={`gaelic leading-none text-parchment ${compact ? "text-xl" : "text-3xl"}`}>
-          {/* Gaelic word → cló face + overdot orthography (see gaelic.ts):
-              "Brandubh" renders "Branduḃ".
+        <h1 className={`leading-none text-parchment ${compact ? "text-xl" : "text-3xl"}`}>
+          {/* The wordmark is drawn, not typeset — outlined cló Gaelach reading
+              "Branduḃ" (see components/Wordmark.tsx). It sizes off this
+              element's font-size, so the text-xl / text-3xl swap still works.
 
               The wordmark doubles as the way back to the setup overlay — the
               app's "home", in the sense a site's logo is. It only ever opens
@@ -2701,11 +2703,11 @@ function Header({
               title={t.backToStart}
               data-testid="wordmark-home"
             >
-              {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+              <Wordmark />
             </button>
           ) : (
             <>
-              {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+              <Wordmark />
             </>
           )}
         </h1>
@@ -3035,8 +3037,9 @@ function Settings({
               { value: "easy", label: t.easy },
               { value: "medium", label: t.medium },
               { value: "hard", label: t.hard },
-              // "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts).
-              { value: "ollamh", label: <span className="gaelic">{toSeanchlo(t.ollamh)}</span> },
+              // "Ollamh" is Irish → always set in the cló Gaelach face (outlined,
+              // see components/Wordmark.tsx).
+              { value: "ollamh", label: <OllamhMark label={t.ollamh} /> },
             ]}
             onChange={onDifficulty}
           />
@@ -3927,8 +3930,8 @@ function ModeOverlay({
             ))}
           </div>
         </div>
-        <h2 className="gaelic text-3xl text-parchment">
-          {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+        <h2 className="text-3xl text-parchment">
+          <Wordmark />
         </h2>
         {resume ? (
           <>
@@ -4002,8 +4005,9 @@ function ModeOverlay({
                   // that must not have quietly changed the AI level.
                   onClick={() => onChoose(chosenSide, d)}
                 >
-                  {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
-                  {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
+                  {/* "Ollamh" is Irish → always set in the cló Gaelach face
+                      (outlined, see components/Wordmark.tsx). */}
+                  {d === "ollamh" ? <OllamhMark label={label} /> : label}
                 </button>
               ))}
             </div>

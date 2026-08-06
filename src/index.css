@@ -18,22 +18,10 @@
   --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Cló Gaelach face — Gadelica (the upright 17th-century printed model),
-   © Séamas Ó Brógáin 2007, bundled verbatim. See src/fonts/Gadelica-LICENCE.txt.
-
-   RULE (see src/gaelic.ts): this face is used ONLY for Irish / Scottish-Gaelic
-   text — never English, Spanish, or any other language. It is reached only via
-   the `.gaelic` marker: on individual Gaelic words (e.g. the Branduḃ wordmark),
-   or on display text when a Gaelic locale flags the document with
-   `data-lang-gaelic`. Gaelic text here uses the overdot orthography (ponc
-   séimhithe): "Brandubh" → "Branduḃ". */
-@font-face {
-  font-family: "Gadelica";
-  src: url("./fonts/Gadelica.otf") format("opentype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
+/* No cló Gaelach font is bundled. The only text ever set in that face was the
+   "Branduḃ" wordmark and the "Ollaṁ" difficulty label — both fixed strings — so
+   they ship as outlines instead (src/wordmark.ts, components/Wordmark.tsx) and
+   there is no font file to redistribute. See NOTICE.md. */
 
 /* Board variables — base (Tokyo Night). Themes override the same names.
 
@@ -356,19 +344,13 @@ body {
   font-family: var(--font-display);
 }
 
-/* The cló Gaelach marker: the ONLY way text is set in the Gadelica face. Put it
-   on Gaelic words (e.g. the Branduḃ wordmark). See src/gaelic.ts for the rule. */
-.gaelic {
-  font-family: "Gadelica", var(--font-display);
-}
-
-/* A Gaelic locale (Irish/Scottish Gaelic): the app sets data-lang-gaelic on the
-   document root, and display headings + board coordinates render in the cló
-   face. Body/UI text keeps the system font; move notation stays monospace. */
-:root[data-lang-gaelic] .font-display,
-:root[data-lang-gaelic] .coord {
-  font-family: "Gadelica", var(--font-display);
-}
+/* There is no `.gaelic` font rule any more, and no cló face for a Gaelic locale
+   to switch into: the two fixed Gaelic words are drawn (components/Wordmark.tsx)
+   and everything else keeps the display face. `data-lang-gaelic` survives on the
+   root as the locale marker — the app still deep-converts Gaelic strings to
+   overdot orthography via toSeanchloTable (see src/gaelic.ts) — but it no longer
+   selects a typeface. Restoring one means restoring a bundled font, which is the
+   thing NOTICE.md records that we deliberately stopped shipping. */
 
 /* ── Board ─────────────────────────────────────────────────────────────────── */
 .board {

@@ -115,9 +115,10 @@ express written permission of the copyright holder.
    license, and this licence does not apply to it. It remains governed by its
    own terms, which are described in NOTICE.md:
 
-   (a) the Gadelica typeface (src/fonts/Gadelica.otf) — © Séamas Ó Brógáin,
-       2007, bundled verbatim and used under the author's own distribution
-       terms, reproduced at src/fonts/Gadelica-LICENCE.txt;
+   (a) the Gadelica typeface — © Séamas Ó Brógáin, 2007. No font file is
+       bundled. The "Branduḃ" and "Ollaṁ" marks are outlines derived from his
+       letterforms, drawn from a face its author distributes for use without
+       restriction; the Author claims nothing in the typeface design itself;
 
    (b) the underlying traditional Celtic and Norse symbols depicted by the
        piece and corner emblems, which are in the public domain. The Author

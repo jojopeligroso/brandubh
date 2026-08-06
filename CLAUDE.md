@@ -23,10 +23,17 @@ be read and verified, not reused. This is deliberate and replaced an MIT licence
 that was there by default. Do not swap it for MIT/Apache/GPL, do not describe
 the project as "open source" in the README or anywhere else, and do not add
 permissions to it. `package.json` carries `"license": "SEE LICENSE IN LICENSE"`
-and stays `"private": true`. Third-party material the author cannot license —
-the Gadelica typeface, npm dependencies — is carved out in `LICENSE` §6 and
-described in `NOTICE.md`; keep those two in step when dependencies or bundled
-assets change.
+and stays `"private": true`. Third-party material the author cannot license is
+carved out in `LICENSE` §6 and described in `NOTICE.md`; keep those two in step
+when dependencies or bundled assets change.
+
+Because the project is licensed commercially (museum installations), the bar for
+bundling third-party assets is "can this be sub-licensed to a paying customer?"
+**No font files are bundled.** The cló Gaelach face was dropped for exactly this
+reason: the two fixed Gaelic words that used it — the `Branduḃ` wordmark and the
+`Ollaṁ` level — ship as outlines instead (`src/wordmark.ts`, generated;
+`src/components/Wordmark.tsx`). Do not reintroduce a webfont to restore the face
+for arbitrary text, and do not hand-edit `src/wordmark.ts`.
 
 ### Irish (ga) locale is hidden — do not re-expose it
 

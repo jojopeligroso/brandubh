@@ -27,20 +27,24 @@ tracer; the shapes are faithful reproductions of those public-domain symbols.
 
 ## Fonts
 
-The **Brandubh** title wordmark is set in **Gadelica**, a traditional cló
-Gaelach (Irish typeface) modelled on the 17th-century printed letterforms —
-© Séamas Ó Brógáin, 2007. It is bundled verbatim at `src/fonts/Gadelica.otf`
-and used unmodified under the author's own distribution terms: free to use and
-redistribute, not modified or renamed, not sold, with authorship credited. Full
-terms in `src/fonts/Gadelica-LICENCE.txt`.
+**No font files are bundled.** The interface uses the platform's own serif,
+sans-serif and monospace faces throughout.
 
-**Standard for the cló face (`src/gaelic.ts`):** Gadelica is used *only* for
-Irish / Scottish-Gaelic text — never English, Spanish, or any other language.
-It is reached solely through the `.gaelic` marker: on individual Gaelic words
-(e.g. the **Brandubh** wordmark), or on display text when a Gaelic locale flags
-the document with `data-lang-gaelic`. Gaelic text in this face uses traditional
-overdot orthography — séimhiú marked with the ponc séimhithe (`bh → ḃ`, … `th →
-ṫ`, eclipsis preserved: `bhfear → bḟear`), so "Brandubh" reads **Branduḃ**.
+The **Branduḃ** wordmark and the **Ollaṁ** difficulty label are drawn, not
+typeset. Both were set once in **Gadelica** — a traditional cló Gaelach (Irish
+typeface) modelled on 17th-century printed letterforms, © Séamas Ó Brógáin,
+2007 — and converted to outlines, which is all that ships (`src/wordmark.ts`,
+`src/components/Wordmark.tsx`). Those two fixed words were the only text ever
+set in the cló face, so nothing was lost by dropping the font.
 
-The rest of the interface keeps the platform's native serif, sans-serif and
-monospace fonts (no other bundled files).
+Séamas Ó Brógáin's letterforms are the origin of those outlines and he is
+credited accordingly. Outlining is ordinary typographic use of a face that its
+author distributes for use without restriction; it does not make the underlying
+design ours, and no claim is made over the Gadelica typeface itself.
+
+Because the glyphs are baked into path data, these two words cannot be
+re-rendered or translated — changing them means re-outlining them. Everything
+else, including a Gaelic locale, renders in the ordinary display face while
+keeping traditional overdot orthography — séimhiú marked with the ponc
+séimhithe (`bh → ḃ`, … `th → ṫ`, eclipsis preserved: `bhfear → bḟear`), so
+"Brandubh" reads **Branduḃ**. See `src/gaelic.ts`.

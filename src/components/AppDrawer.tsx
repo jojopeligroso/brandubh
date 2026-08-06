@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { toSeanchlo } from "../gaelic";
+import { Wordmark } from "./Wordmark";
 import { VISIBLE_LANGS, type Lang, type Translations } from "../i18n";
 import { useDialogFocus } from "../useDialogFocus";
 
@@ -92,9 +92,8 @@ export default function AppDrawer({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="drawer-head">
-          <p className="gaelic text-2xl leading-none text-parchment">
-            {toSeanchlo("Brand")}
-            <span className="text-gold">{toSeanchlo("ubh")}</span>
+          <p className="text-2xl leading-none text-parchment">
+            <Wordmark />
           </p>
           <p className="drawer-status">{status}</p>
         </div>

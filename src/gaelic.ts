@@ -1,21 +1,24 @@
 /**
  * Cló Gaelach — the standard for when the traditional Gaelic script is used.
  *
- * RULE: the cló Gaelach face (Gadelica) is used ONLY for Irish / Scottish-Gaelic
- * text. English, Spanish, or any other language is never set in it. It applies
- * in exactly two situations, and only through the `.gaelic` CSS marker:
+ * RULE: the cló Gaelach face is used ONLY for Irish / Scottish-Gaelic text.
+ * English, Spanish, or any other language is never set in it.
  *
- *   1. Individual Gaelic words inside an otherwise non-Gaelic UI — e.g. the
- *      "Brandubh" wordmark. Set the element's class to `gaelic` and pass its
- *      text through `toSeanchlo`.
- *   2. A Gaelic locale (Irish `ga`, Scottish Gaelic `gd`) — the app flags the
- *      document with `data-lang-gaelic` and the display text renders in the cló
- *      face (see the `[data-lang-gaelic]` rules in index.css), with all strings
- *      converted by `toSeanchloTable`.
+ * No cló font is bundled any more. The only text that ever used the face was a
+ * pair of fixed words — the "Branduḃ" wordmark and the "Ollaṁ" difficulty level
+ * — and those now ship as outlines (src/wordmark.ts, components/Wordmark.tsx),
+ * so there is no font file to redistribute. See NOTICE.md.
  *
- * Gaelic text in the cló face uses traditional overdot orthography: séimhiú
- * (lenition) is marked with the ponc séimhithe (overdot) rather than a
- * following "h" — "bh" → "ḃ", "ch" → "ċ", … "th" → "ṫ".
+ * What remains here is the orthography, which is independent of the typeface.
+ * A Gaelic locale (Irish `ga`, Scottish Gaelic `gd`) still flags the document
+ * with `data-lang-gaelic` and still runs every string through `toSeanchloTable`;
+ * that text renders in the ordinary display face. Gaelic text uses traditional
+ * overdot orthography: séimhiú (lenition) is marked with the ponc séimhithe
+ * (overdot) rather than a following "h" — "bh" → "ḃ", "ch" → "ċ", … "th" → "ṫ".
+ *
+ * `toSeanchlo` is still exported for that table conversion. Do not use it to
+ * build new on-screen words expecting the cló face: outlining is the only way
+ * to get the traditional letterforms now, and it only works for fixed strings.
  */
 
 /** BCP-47 codes written in the Gaelic script. */
