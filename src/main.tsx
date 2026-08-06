@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { Analytics } from "@vercel/analytics/react";
 import "./index.css";
 import App from "./App";
 import ProvingGround from "./components/ProvingGround";
@@ -17,4 +18,9 @@ import { isProvingPath } from "./game/proving";
 // normal app anyway (ADR-0004).
 const page = isProvingPath(window.location.pathname) ? <ProvingGround /> : <App />;
 
-createRoot(document.getElementById("root")!).render(<StrictMode>{page}</StrictMode>);
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    {page}
+    <Analytics />
+  </StrictMode>,
+);
