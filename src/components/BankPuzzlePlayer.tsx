@@ -153,8 +153,12 @@ export default function BankPuzzlePlayer({
    * reading the note: the clock has to stop when the exercise stops, not when
    * they finish reading about it. Fired once per *puzzle*, never re-armed by
    * Retry, so a timing caller's record cannot be overwritten by practice.
+   *
+   * `wrongGuesses` is the Attempt's count of bounced guesses, so the trainer
+   * can tell a clean solve from a late one — lichess's rule, where the first
+   * wrong move fails the puzzle for scoring even if it is solved afterwards.
    */
-  onFinish?: (id: string, outcome: "solved" | "revealed") => void;
+  onFinish?: (id: string, outcome: "solved" | "revealed", wrongGuesses: number) => void;
   /** The next puzzle in the caller's list; null when there is none. */
   onNext: (() => void) | null;
   onExit: () => void;
@@ -238,7 +242,11 @@ export default function BankPuzzlePlayer({
   useEffect(() => {
     if (!onFinish || finishFired.current || !isFinished(live.attempt)) return;
     finishFired.current = true;
-    onFinish(puzzle.id, live.attempt.stage === "solved" ? "solved" : "revealed");
+    onFinish(
+      puzzle.id,
+      live.attempt.stage === "solved" ? "solved" : "revealed",
+      live.attempt.attempts,
+    );
   }, [live.attempt, onFinish, puzzle.id]);
 
   /** True once the lead-in is on the board. Before that there is nothing to

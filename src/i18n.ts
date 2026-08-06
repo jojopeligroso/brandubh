@@ -556,6 +556,8 @@ export interface Translations {
   /** Read out beside a solved **Puzzle** in the Pool list. The gold tick is
    *  `aria-hidden`; this is what a screen reader gets instead of a glyph. */
   learnPuzzleSolved: string;
+  /** The trainer has nothing left to serve: every puzzle in the bank solved. */
+  learnAllSolved: string;
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   // The unlisted calibration page. Localised like everything else rather than
@@ -1141,6 +1143,7 @@ const en: Translations = {
     "advantage:defenders": "The King's side has a clear advantage.",
   },
   learnPuzzleSolved: "Solved",
+  learnAllSolved: "Every puzzle in the bank is solved. Well played.",
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   provingTitle: "Proving ground",
@@ -1730,6 +1733,7 @@ const es: Translations = {
     "advantage:defenders": "El bando del Rey tiene una ventaja clara.",
   },
   learnPuzzleSolved: "Resuelto",
+  learnAllSolved: "Todos los problemas del banco están resueltos. Bien jugado.",
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   provingTitle: "Campo de pruebas",
@@ -2346,6 +2350,8 @@ const ga: Translations = {
     "advantage:defenders": "T\u00e1 bunt\u00e1iste soil\u00e9ir ag taobh an R\u00ed.",
   },
   learnPuzzleSolved: "R\u00e9itithe",
+  // Unreviewed machine draft, like the rest of this table (see CLAUDE.md).
+  learnAllSolved: "T\u00e1 gach fadhb sa bhanc r\u00e9itithe. Imirt mhaith.",
 
   // ── The proving ground (Session 8e) ─────────────────────────────────────────
   // DRAFT (Session 8e) \u2014 unreviewed machine drafts, like the rest of this

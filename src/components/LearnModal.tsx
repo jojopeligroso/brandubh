@@ -5,15 +5,10 @@ import RulesContent from "./RulesContent";
 import TutorialPlayer from "./TutorialPlayer";
 import type { Translations } from "../i18n";
 import type { RuleSet } from "../game/variants";
-import type { Difficulty } from "../game/ai";
 import type { Side } from "../game/types";
-import { loadBank } from "../game/puzzleBank";
-import { namedSets, pool, poolTags, setLabel, tagLabel } from "../game/puzzlePool";
-import {
-  bandProgress,
-  loadPuzzleProgress,
-  savePuzzleProgress,
-} from "../game/puzzleProgress";
+import { loadBank, type Puzzle } from "../game/puzzleBank";
+import { loadPuzzleProgress, savePuzzleProgress } from "../game/puzzleProgress";
+import { loadTrainer, pickNext, recordAttempt, saveTrainer } from "../game/trainer";
 import {
   TUTORIALS,
   loadTutorialProgress,
@@ -22,11 +17,6 @@ import {
 import { useDialogFocus } from "../useDialogFocus";
 
 export type LearnView = "menu" | "objectives" | "rules" | "tutorials" | "puzzles";
-
-/** How much of the **Pool** is listed at once. 161 rows in a phone-height modal
- *  is a wall rather than a list, and the order is meaningful, so the tail is
- *  asked for rather than scrolled past. */
-const PAGE = 24;
 
 /**
  * The Learn hub behind "Show me how" / "How to play": a menu of four doors —
@@ -58,26 +48,34 @@ export default function LearnModal({
   const [solved, setSolved] = useState<Set<string>>(() =>
     loadPuzzleProgress(new Set(bank.map((p) => p.id))),
   );
-  const [bandFilter, setBandFilter] = useState<Difficulty | null>(null);
-  const [motifFilter, setMotifFilter] = useState<string | null>(null);
-  // Several at once, read as "and" between facets and "or" within one — see
-  // `pool`, which is where that reading is argued and tested.
-  const [tagFilter, setTagFilter] = useState<readonly string[]>([]);
-  const [shown, setShown] = useState(PAGE);
-  const [playingId, setPlayingId] = useState<string | null>(null);
 
-  const bands = bandProgress(bank, solved);
-  const unlocked = new Set(bands.filter((b) => b.unlocked).map((b) => b.band));
-  const sets = useMemo(() => namedSets(bank), [bank]);
-  const tags = useMemo(() => poolTags(bank), [bank]);
-  const listed = pool(bank, {
-    unlocked,
-    band: bandFilter,
-    tags: tagFilter,
-    ids: motifFilter ? new Set(sets.find((s) => s.motif === motifFilter)?.ids ?? []) : null,
-  });
-  const playingIndex = playingId ? listed.findIndex((p) => p.id === playingId) : -1;
-  const playing = playingIndex >= 0 ? listed[playingIndex] : null;
+  // ── The trainer (see game/trainer.ts) ───────────────────────────────────────
+  // The Pool is not browsed any more: the Puzzles door opens straight onto a
+  // board, and the trainer decides which. Its band walk and its record persist;
+  // which puzzle is up right now does not — a fresh visit draws fresh.
+  const [trainer, setTrainer] = useState(loadTrainer);
+  useEffect(() => saveTrainer(trainer), [trainer]);
+  /** The puzzle on the board. `undefined` = nothing drawn yet (or not in the
+   *  view); `null` = the bank is finished — every puzzle solved. */
+  const [serving, setServing] = useState<Puzzle | null | undefined>(undefined);
+  /** Bumped per serve, so the player remounts even when the draw legitimately
+   *  repeats a puzzle (the only-one-left case in `pickNext`). */
+  const [serveCount, setServeCount] = useState(0);
+
+  // Draw the first puzzle on entering the view; forget the board on leaving so
+  // the next visit draws fresh rather than resuming a stale position.
+  useEffect(() => {
+    if (view !== "puzzles" || bank.length === 0) {
+      setServing(undefined);
+      return;
+    }
+    if (serving !== undefined) return;
+    const picked = pickNext(bank, solved, trainer.band, Math.random);
+    // A dry band is skipped upward inside pickNext; keep the walk.
+    if (picked.band !== trainer.band) setTrainer((tr) => ({ ...tr, band: picked.band }));
+    setServing(picked.puzzle);
+    setServeCount((n) => n + 1);
+  }, [view, bank, serving, solved, trainer.band]);
 
   const markPuzzleSolved = (id: string) => {
     setSolved((prev) => {
@@ -89,40 +87,32 @@ export default function LearnModal({
     });
   };
 
-  /** Every way into the **Pool** is a filter on the one list, never a second
-   *  collection. A band row and a set row are each one choice and clear
-   *  everything else, so the narrowing stays legible from the screen. */
-  const narrow = (next: {
-    band?: Difficulty | null;
-    motif?: string | null;
-    tags?: readonly string[];
-  }) => {
-    setBandFilter(next.band ?? null);
-    setMotifFilter(next.motif ?? null);
-    setTagFilter(next.tags ?? []);
-    setShown(PAGE);
-  };
+  /** A finished attempt, scored: clean — no wrong guess, no *view the
+   *  solution* — argues for promotion; anything else just counts. */
+  const recordFinish = (_id: string, outcome: "solved" | "revealed", wrongGuesses: number) =>
+    setTrainer((tr) => recordAttempt(tr, outcome === "solved" && wrongGuesses === 0));
 
-  /** Chips accumulate; a band or a set row does not. Toggling a chip therefore
-   *  drops the band and the set — those are one-choice rows — and keeps the
-   *  other chips, which are the half of the filter that composes. */
-  const toggleTag = (tag: string) =>
-    narrow({
-      tags: tagFilter.includes(tag) ? tagFilter.filter((x) => x !== tag) : [...tagFilter, tag],
-    });
+  /** Continue training: the next draw. Null past the last unsolved puzzle,
+   *  which is what flips the view to the all-done state. */
+  const serveNext = () => {
+    const picked = pickNext(bank, solved, trainer.band, Math.random, serving?.id);
+    if (picked.band !== trainer.band) setTrainer((tr) => ({ ...tr, band: picked.band }));
+    setServing(picked.puzzle);
+    setServeCount((n) => n + 1);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Inside a puzzle, Escape is one step out — back to the list — rather
-      // than a trapdoor through every layer to the game.
+      // Inside the trainer, Escape is one step out — back to the Learn menu —
+      // rather than a trapdoor through every layer to the game.
       if (e.key === "Escape") {
-        if (playingId) setPlayingId(null);
+        if (view === "puzzles") setView("menu");
         else onClose();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, playingId]);
+  }, [onClose, view]);
 
   const markSolved = (id: string) => {
     setDone((prev) => {
@@ -140,7 +130,9 @@ export default function LearnModal({
   // The modal's own navigation, named so `useDialogFocus` can put focus back
   // when a sub-view replaces the control that opened it. Every one of these
   // swaps the body of the dialog out from under the button that was pressed.
-  const dialogRef = useDialogFocus<HTMLDivElement>(`${view}:${activeId ?? ""}:${playingId ?? ""}`);
+  const dialogRef = useDialogFocus<HTMLDivElement>(
+    `${view}:${activeId ?? ""}:${serving?.id ?? ""}:${serveCount}`,
+  );
 
   const title =
     view === "menu"
@@ -158,20 +150,15 @@ export default function LearnModal({
               : t.learnTutorials;
 
   const goBack =
-    view === "menu"
-      ? null
-      : playing
-        ? () => setPlayingId(null)
-        : active
-          ? () => setActiveId(null)
-          : () => setView("menu");
+    view === "menu" ? null : active ? () => setActiveId(null) : () => setView("menu");
 
-  // ── A puzzle being played is a place, not a dialog ──────────────────────────
-  // Lichess-style: the puzzle takes the whole screen, opaque, so the live game
-  // — its board, its toolbar — is never visible behind the exercise, and there
-  // is no "Play" button waiting to drop the learner back into a game they were
-  // not thinking about. The only ways out are back (to the list) and close.
-  if (view === "puzzles" && playing) {
+  // ── The trainer is a place, not a dialog ────────────────────────────────────
+  // Lichess-style: the Puzzles door opens straight onto a board — no list to
+  // browse, no "Play" button waiting to drop the learner back into a game they
+  // were not thinking about. The screen is opaque, so nothing of the live game
+  // shows behind the exercise; the ways out are back (to the Learn menu) and
+  // close. Which puzzle is on the board is the trainer's call (game/trainer.ts).
+  if (view === "puzzles" && bank.length > 0 && serving !== undefined) {
     return (
       <div
         ref={dialogRef}
@@ -184,18 +171,25 @@ export default function LearnModal({
         <div className="mx-auto w-full max-w-xl p-4 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-2">
-              <button className="iconbtn" onClick={() => setPlayingId(null)} aria-label={t.back}>
+              <button className="iconbtn" onClick={() => setView("menu")} aria-label={t.back}>
                 ‹
               </button>
               <div>
                 <h2 id="learn-title" className="font-display text-2xl text-gold">
-                  {t.learnPuzzleLabel}{" "}
-                  <span className="font-mono text-xl text-parchment">#{playing.id}</span>
+                  {serving ? (
+                    <>
+                      {t.learnPuzzleLabel}{" "}
+                      <span className="font-mono text-xl text-parchment">#{serving.id}</span>
+                    </>
+                  ) : (
+                    t.learnPuzzles
+                  )}
                 </h2>
-                {/* The band and the queue position — lichess's "Rating · Played
-                    n times" line, in this bank's terms. */}
+                {/* The band being trained and the bank-wide count — lichess's
+                    "Rating · Played n times" line, in this bank's terms. */}
                 <p className="text-xs text-parchment-dim">
-                  {t[playing.band]} · {playingIndex + 1} / {listed.length}
+                  {serving ? `${t[serving.band]} · ` : ""}
+                  {solved.size} / {bank.length} {t.learnSolved}
                 </p>
               </div>
             </div>
@@ -204,22 +198,36 @@ export default function LearnModal({
             </button>
           </div>
 
-          <BankPuzzlePlayer
-            t={t}
-            puzzle={playing}
-            rules={rules}
-            emblems={emblems}
-            sideLabel={(side: Side) => (side === "attackers" ? t.raiders : t.kingsSide)}
-            queue={{ index: playingIndex, total: listed.length }}
-            showMeta={false}
-            onSolved={markPuzzleSolved}
-            onNext={
-              playingIndex < listed.length - 1
-                ? () => setPlayingId(listed[playingIndex + 1].id)
-                : null
-            }
-            onExit={() => setPlayingId(null)}
-          />
+          {serving ? (
+            <BankPuzzlePlayer
+              // Remount per serve, not per puzzle: the draw may honestly repeat
+              // the last unsolved puzzle, and a stale board must not survive it.
+              key={serveCount}
+              t={t}
+              puzzle={serving}
+              rules={rules}
+              emblems={emblems}
+              sideLabel={(side: Side) => (side === "attackers" ? t.raiders : t.kingsSide)}
+              queue={{ index: solved.size, total: bank.length }}
+              showMeta={false}
+              onSolved={markPuzzleSolved}
+              onFinish={recordFinish}
+              onNext={serveNext}
+              onExit={() => setView("menu")}
+            />
+          ) : (
+            // `serving` is null: the trainer drew and found nothing — the whole
+            // bank is solved.
+            <div className="card mt-6 p-6 text-center">
+              <p className="text-2xl" aria-hidden>
+                ✓
+              </p>
+              <p className="mt-2 text-sm text-parchment">{t.learnAllSolved}</p>
+              <button className="btn btn-primary mt-4" onClick={() => setView("menu")}>
+                {t.puzzleDone}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -348,152 +356,6 @@ export default function LearnModal({
           // Not a failure and not an empty state: the bank was proved under one
           // ruleset and says nothing about this one.
           <p className="mt-4 text-sm text-parchment-dim">{t.learnPuzzlesUnavailable}</p>
-        )}
-
-        {view === "puzzles" && bank.length > 0 && !playing && (
-          <div className="mt-4 flex flex-col gap-5">
-            <section>
-              <h3 className="text-sm font-semibold text-parchment">{t.learnBands}</h3>
-              <ul className="mt-2 flex flex-col gap-2">
-                {bands.map((b) => (
-                  <li key={b.band}>
-                    <button
-                      className={`btn w-full justify-between text-left ${b.unlocked ? "" : "opacity-50"}`}
-                      // A lock that is a visual state only is a lock a screen
-                      // reader cannot report, so the row says it in words as
-                      // well as in colour, and stays in the tab order so the
-                      // reason for it can be read.
-                      aria-disabled={!b.unlocked}
-                      aria-pressed={b.unlocked ? bandFilter === b.band : undefined}
-                      onClick={() =>
-                        b.unlocked && narrow({ band: bandFilter === b.band ? null : b.band })
-                      }
-                    >
-                      <span className="flex w-full items-center justify-between gap-3">
-                        <span>{t[b.band]}</span>
-                        <span className="font-mono text-xs text-parchment-dim">
-                          {b.unlocked
-                            ? `${b.solved} / ${b.total} ${t.learnSolved}`
-                            : `${t.learnBandLocked} · ${b.needed} ${t.learnMoreToUnlock}`}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section>
-              <h3 className="text-sm font-semibold text-parchment">{t.learnSets}</h3>
-              {sets.length === 0 ? (
-                // The normal case, not a degraded one: most puzzles carry no
-                // motif and live in the Pool.
-                <p className="mt-2 text-sm text-parchment-dim">{t.learnNoSets}</p>
-              ) : (
-                <ul className="mt-2 flex flex-col gap-2">
-                  {sets.map((s) => (
-                    <li key={s.motif}>
-                      <button
-                        className="btn w-full justify-between text-left"
-                        aria-pressed={motifFilter === s.motif}
-                        onClick={() =>
-                          narrow({ motif: motifFilter === s.motif ? null : s.motif })
-                        }
-                      >
-                        <span className="flex w-full items-center justify-between gap-3">
-                          {/* The motif's name, not its completion note: the row
-                              is read before a puzzle is attempted, and the note
-                              is a sentence written to be read after one is
-                              solved. `setLabel` is total over `Motif`, so the
-                              row cannot fall back to either the sentence or the
-                              bare id. */}
-                          <span>{setLabel(t, s)}</span>
-                          <span className="font-mono text-xs text-parchment-dim">
-                            {s.ids.length}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section>
-              <h3 className="text-sm font-semibold text-parchment">{t.learnPool}</h3>
-              {tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    className="btn btn-sm"
-                    aria-pressed={tagFilter.length === 0}
-                    onClick={() => narrow({})}
-                  >
-                    {t.learnAllTags}
-                  </button>
-                  {tags.map((tag) => (
-                    // The chip carries 8c's label for the tag, never the raw
-                    // identifier: `TAG_LABEL_KEYS` is exhaustive over the `Tag`
-                    // union, so an unlabelled tag is a build error and not a
-                    // chip reading `soldierGivenUp` at a learner.
-                    <button
-                      key={tag}
-                      className="btn btn-sm"
-                      aria-pressed={tagFilter.includes(tag)}
-                      onClick={() => toggleTag(tag)}
-                    >
-                      {tagLabel(t, tag)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {listed.length === 0 ? (
-                <p className="mt-2 text-sm text-parchment-dim">{t.learnPoolEmpty}</p>
-              ) : (
-                <>
-                  <ol className="mt-2 flex flex-col gap-2">
-                    {listed.slice(0, shown).map((p) => (
-                      <li key={p.id}>
-                        <button
-                          className="btn w-full justify-between text-left"
-                          onClick={() => setPlayingId(p.id)}
-                        >
-                          <span className="flex w-full items-center justify-between gap-3">
-                            <span className="font-mono">
-                              <span className="sr-only">{t.learnPuzzleLabel} </span>#{p.id}
-                            </span>
-                            <span className="text-xs text-parchment-dim">
-                              {t[p.band]}
-                              {solved.has(p.id) && (
-                                // Solved was a gold tick and nothing else, so
-                                // the row said it in colour and in a glyph most
-                                // screen readers either skip or read as "check
-                                // mark". The tick keeps the screen; the word is
-                                // what reaches the accessibility tree.
-                                <>
-                                  <span className="ml-2 text-gold" aria-hidden>
-                                    ✓
-                                  </span>
-                                  <span className="sr-only">{t.learnPuzzleSolved}</span>
-                                </>
-                              )}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                  {shown < listed.length && (
-                    <button
-                      className="btn btn-sm mt-2"
-                      onClick={() => setShown((n) => n + PAGE)}
-                    >
-                      {t.learnShowMore}
-                    </button>
-                  )}
-                </>
-              )}
-            </section>
-          </div>
         )}
 
         {/* The puzzles view deliberately has no "Play" button: its exits lead
