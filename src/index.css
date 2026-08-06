@@ -860,6 +860,19 @@ body {
   }
 }
 
+/* The Zen switch's second seat, at the foot of the scrolling column. `margin-top:
+   auto` is what makes it a *foot*: the column is a min-height flex column, so on a
+   short page the switch drops to the bottom of the viewport instead of hanging
+   under the last card, and on a long one it simply follows the content down. Set
+   apart by a rule, like the drawer's pinned bottom rows. */
+.zen-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
+}
+
 /* ── App drawer ───────────────────────────────────────────────────────────────
    The hamburger's slide-out navigation, lifted from lichess mobile: a
    full-height panel from the right over a dimmed page. Sections carry the

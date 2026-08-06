@@ -9,9 +9,11 @@ import {
 } from "./zen";
 
 describe("zen config", () => {
-  it("defaults to off, hiding every extra bar the ones Zen ships with", () => {
+  it("defaults to on, hiding every extra bar the ones Zen ships with", () => {
+    // The calm board is what a new player is shown, rather than a mode they
+    // have to find first. The extras keep their own defaults either way.
     const cfg = defaultZenConfig();
-    expect(cfg.enabled).toBe(false);
+    expect(cfg.enabled).toBe(true);
     for (const id of ZEN_EXTRAS) {
       expect(cfg.extras[id]).toBe(ZEN_DEFAULT_EXTRAS.includes(id));
     }

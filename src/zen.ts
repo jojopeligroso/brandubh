@@ -2,7 +2,7 @@
 //
 // Zen mode strips the screen to the essentials of a game in progress — the
 // board, whose turn it is, the clock (when running) and the move log. Nothing
-// else shows while you play.
+// else shows while you play. It is **on by default** (see defaultZenConfig).
 //
 // Game-flow controls are deliberately NOT part of this config: they are
 // contextual, so a minimal "Next game" / "Next set" prompt appears only when a
@@ -89,7 +89,17 @@ const defaultExtras = (): Record<ZenExtraId, boolean> =>
     {} as Record<ZenExtraId, boolean>,
   );
 
-export const defaultZenConfig = (): ZenConfig => ({ enabled: false, extras: defaultExtras() });
+/**
+ * **Zen is on out of the box.** The calm board is the game this app is for, so
+ * it is what a new player is shown — not a mode they have to discover before
+ * they can have it. Everything Zen hides is opt-in from here, and the way back
+ * out is never more than the header switch (or the one at the foot of the page,
+ * for when the header has scrolled away).
+ *
+ * Only the *mode* defaults on; the extras keep their own defaults, so a first
+ * visit is Zen with the move navigator and nothing else.
+ */
+export const defaultZenConfig = (): ZenConfig => ({ enabled: true, extras: defaultExtras() });
 
 /** Parse a stored extras map, keeping only known boolean flags (missing → default). */
 export function parseZenExtras(raw: string | null): Record<ZenExtraId, boolean> {
@@ -126,7 +136,10 @@ export function upgradeZenExtras(
 export function loadZenConfig(): ZenConfig {
   const cfg = defaultZenConfig();
   try {
-    cfg.enabled = localStorage.getItem(ZEN_ENABLED_KEY) === "1";
+    // Anything but a stored "0" is Zen: an explicit switch-off is the only
+    // thing that turns it off, so a first visit — nothing stored at all — gets
+    // the default above rather than falling through to "not on".
+    cfg.enabled = localStorage.getItem(ZEN_ENABLED_KEY) !== "0";
     cfg.extras = upgradeZenExtras(
       parseZenExtras(localStorage.getItem(ZEN_EXTRAS_KEY)),
       localStorage.getItem(ZEN_EXTRAS_VERSION_KEY),
