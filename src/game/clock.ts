@@ -56,8 +56,16 @@ export const DEFAULT_TIME_CONTROL_ID = "3+2";
 /** Sentinel id for a user-defined bank/increment. */
 export const CUSTOM_TIME_CONTROL_ID = "custom";
 
-/** Bounds for the custom-control editor. */
-export const CUSTOM_MIN_MINUTES = 0.25; // 15 seconds
+/**
+ * Bounds for the custom-control editor. The **bank is whole minutes**: 1, 2, 3
+ * and so on, never 1.5 or 2.25. A part-minute bank is a fussier choice than the
+ * control is worth making — the increment is there for fine adjustment, and the
+ * preset ladder covers the short end — so the minutes are rounded wherever they
+ * are read or resolved, not merely stepped in the slider. (This bound was once
+ * 0.25, a fifteen-second floor; a stored quarter-minute from that build rounds
+ * up to 1 on the way in.)
+ */
+export const CUSTOM_MIN_MINUTES = 1;
 export const CUSTOM_MAX_MINUTES = 60;
 export const CUSTOM_MAX_INCREMENT = 60;
 
@@ -143,7 +151,7 @@ export function loadCustomMinutes(): number {
   try {
     const raw = Number(localStorage.getItem(CLOCK_CUSTOM_MINUTES_KEY));
     if (Number.isFinite(raw) && raw > 0) {
-      return clampNumber(raw, CUSTOM_MIN_MINUTES, CUSTOM_MAX_MINUTES);
+      return Math.round(clampNumber(raw, CUSTOM_MIN_MINUTES, CUSTOM_MAX_MINUTES));
     }
   } catch {
     /* localStorage unavailable */
@@ -196,9 +204,11 @@ export function resolveTimeControl(
   if (!enabled) return null;
   if (controlId === CUSTOM_TIME_CONTROL_ID) {
     return {
-      initialSeconds: Math.round(
-        clampNumber(customMinutes, CUSTOM_MIN_MINUTES, CUSTOM_MAX_MINUTES) * 60,
-      ),
+      // Rounded to the minute *before* the conversion, so a stray fractional
+      // value (an old stored bank, a hand-edited key) becomes a whole-minute
+      // bank rather than a 2:30 one.
+      initialSeconds:
+        Math.round(clampNumber(customMinutes, CUSTOM_MIN_MINUTES, CUSTOM_MAX_MINUTES)) * 60,
       incrementSeconds: Math.round(clampNumber(customIncrement, 0, CUSTOM_MAX_INCREMENT)),
     };
   }

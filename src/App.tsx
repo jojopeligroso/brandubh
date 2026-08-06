@@ -2998,8 +2998,10 @@ function ClockControls({
     { key: "rapid", label: t.catRapid },
   ];
   const custom = controlId === CUSTOM_TIME_CONTROL_ID;
+  // Whole minutes, the same rounding resolveTimeControl applies, so the chip's
+  // summary always names the control the game will actually be played at.
   const summary = describeTimeControl({
-    initialSeconds: Math.round(customMinutes * 60),
+    initialSeconds: Math.round(customMinutes) * 60,
     incrementSeconds: Math.round(customIncrement),
   });
 
@@ -3055,7 +3057,7 @@ function ClockControls({
                   type="range"
                   min={CUSTOM_MIN_MINUTES}
                   max={CUSTOM_MAX_MINUTES}
-                  step={0.25}
+                  step={1}
                   value={customMinutes}
                   onChange={(e) => onCustomMinutes(Number(e.target.value))}
                 />
