@@ -164,6 +164,26 @@ export function loadCustomIncrement(): number {
 }
 
 /**
+ * The four values the time-control picker edits, as one bundle.
+ *
+ * The settings panel holds them as separate pieces of App state, because there
+ * each edit applies on the spot. The **setup overlay** needs them together: a
+ * control chosen there is picked *before* the game it belongs to exists, so the
+ * choice has to travel with the game choice (see `commitModeChoice` in App)
+ * rather than being applied as it is made — backing out of the "discard the
+ * game in progress?" gate must not have quietly re-armed the clock, exactly as
+ * it must not have quietly changed the AI strength.
+ *
+ * Resolve one with {@link resolveTimeControl}.
+ */
+export interface ClockSelection {
+  enabled: boolean;
+  controlId: string;
+  customMinutes: number;
+  customIncrement: number;
+}
+
+/**
  * Resolve the current UI selection into a concrete {@link TimeControl}, or null
  * when the clock is switched off.
  */

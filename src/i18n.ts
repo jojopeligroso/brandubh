@@ -256,6 +256,10 @@ export interface Translations {
   otbOverlay: string;
   withFriend: string;
   chooseDifficulty: string;
+  /** Heading of the overlay's time step, on the over-the-board path. */
+  chooseTime: string;
+  /** Commits the game from the overlay's time step. */
+  startGame: string;
   resumeBody: string;
   resumeGame: string;
 
@@ -785,6 +789,8 @@ const en: Translations = {
   otbOverlay: "Over the board",
   withFriend: "with a friend in person",
   chooseDifficulty: "Choose difficulty",
+  chooseTime: "Choose a time control",
+  startGame: "Start game",
   resumeBody: "You have a game in progress.",
   resumeGame: "Resume game",
 
@@ -1364,6 +1370,8 @@ const es: Translations = {
   otbOverlay: "Frente al tablero",
   withFriend: "con un amigo en persona",
   chooseDifficulty: "Elige la dificultad",
+  chooseTime: "Elige el ritmo de juego",
+  startGame: "Empezar partida",
   resumeBody: "Tienes una partida en curso.",
   resumeGame: "Reanudar partida",
 
@@ -1960,6 +1968,9 @@ const ga: Translations = {
   otbOverlay: "Os comhair a ch\u00e9ile",
   withFriend: "le cara i bpearsa",
   chooseDifficulty: "Roghnaigh an deacracht",
+  // DRAFT (overlay time step) — unreviewed, like the rest of this table.
+  chooseTime: "Roghnaigh rialú ama",
+  startGame: "Tosaigh an cluiche",
   resumeBody: "Tá cluiche ar siúl agat.",
   resumeGame: "Lean ar aghaidh leis an gcluiche",
 
