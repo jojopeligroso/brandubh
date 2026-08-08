@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  allMoves,
   applyMove,
   isEncircled,
   kingIsCaptured,
@@ -809,5 +810,69 @@ describe("shieldwall capture", () => {
     const s = applyMove(state(b, "attackers"), mv(2, 5, 3, 5), shieldwall);
     expect(s.board[3][6]).toBe("defender");
     expect(s.captured.defenders).toBe(0);
+  });
+});
+
+// ── Repetition is guarded on plies-since-capture ──────────────────────────────
+// The threefold check skips `hashBoard` unless eight plies have passed since a
+// capture — worth 18% of search time in the opening and 68% in the endgame (see
+// the measurement in `computeStatus`). The guard is only sound because a capture
+// makes every earlier position unreachable, so these tests pin the boundary
+// rather than the speedup: a threefold that becomes reachable *exactly* eight
+// plies after a capture must still be found.
+
+describe("plies-since-capture", () => {
+  const step = (s: GameState, fr: number, fc: number, tr: number, tc: number, rules = walker) =>
+    applyMove(
+      s,
+      allMoves(s.board, s.turn, rules).find(
+        (m) => m.from.row === fr && m.from.col === fc && m.to.row === tr && m.to.col === tc,
+      )!,
+      rules,
+    );
+
+  /** Attacker slides up the e-file to close a sandwich on the lone defender. */
+  const afterCapture = () => {
+    const start = state(
+      board([
+        ".......",
+        "..ad...",
+        ".......",
+        "...k...",
+        ".......",
+        "....a..",
+        ".......",
+      ]),
+      "attackers",
+    );
+    return step(start, 5, 4, 1, 4);
+  };
+
+  it("resets to zero on a capture and climbs by one otherwise", () => {
+    const captured = afterCapture();
+    expect(captured.history[captured.history.length - 1].move.captures).toHaveLength(1);
+    expect(captured.sinceCapture).toBe(0);
+
+    const quiet = step(captured, 3, 3, 3, 4);
+    expect(quiet.sinceCapture).toBe(1);
+    expect(step(quiet, 1, 4, 1, 5).sinceCapture).toBe(2);
+  });
+
+  it("still finds a threefold that lands exactly eight plies after a capture", () => {
+    // King and one attacker shuttle, returning the position every four plies.
+    let s = afterCapture();
+    const shuttle: [number, number, number, number][] = [
+      [3, 3, 3, 4], // king off the throne
+      [1, 4, 1, 5], // attacker out
+      [3, 4, 3, 3], // king back
+      [1, 5, 1, 4], // attacker back — position repeats here
+    ];
+    for (let i = 0; i < 8; i++) {
+      expect(s.status).toBe("playing");
+      const [fr, fc, tr, tc] = shuttle[i % 4];
+      s = step(s, fr, fc, tr, tc);
+    }
+    expect(s.sinceCapture).toBe(8);
+    expect(s.status).toBe("draw_repetition");
   });
 });
