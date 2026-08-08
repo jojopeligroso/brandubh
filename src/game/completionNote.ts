@@ -35,8 +35,8 @@
 // one that stopped three moves short. A proven outcome gets the proven outcome
 // as its note, from layer 3, and the board is not consulted.
 
-import { DEFAULT_WEIGHTS } from "./ai";
-import { CORNERS, findKing, inBounds } from "./engine";
+import { DEFAULT_WEIGHTS } from "./engine";
+import { CORNERS, findKing, inBounds } from "./rules";
 import { isProof, type Puzzle } from "./puzzleBank";
 import { BOARD_SIZE, type Board, type GameState, type Side } from "./types";
 
@@ -94,7 +94,7 @@ const DIRS: ReadonlyArray<readonly [number, number]> = [
 /**
  * The four terms, attacker-positive, in the evaluation's own weights.
  *
- * Computed here rather than imported because `ai.ts`'s copies are private search
+ * Computed here rather than imported because `engine.ts`'s copies are private search
  * internals that return one summed number: `evaluate` cannot say *which* term
  * moved, which is the only question this file asks. What is duplicated is a
  * little geometry, not the evaluation — there is no second opinion about the

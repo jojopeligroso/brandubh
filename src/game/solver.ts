@@ -26,7 +26,7 @@
 //     endgames with few pieces, and whatever prefix of the opening tree fits the
 //     budget.
 
-import { allMoves, applyMove, isGameOver, winnerOf } from "./engine";
+import { allMoves, applyMove, isGameOver, winnerOf } from "./rules";
 import { BOARD_SIZE, type Board, type GameState, type Piece, type Side } from "./types";
 import type { RuleSet } from "./variants";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { forcedDefenderWin } from "./ai";
-import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "./engine";
+import { forcedDefenderWin } from "./engine";
+import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "./rules";
 import type { Board, GameState, Piece, Side } from "./types";
 import type { RuleSet } from "./variants";
 import { VARIANTS } from "./variants";

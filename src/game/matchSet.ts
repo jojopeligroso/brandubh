@@ -17,7 +17,7 @@
 // is behind the king.
 
 import type { GameStatus, Side } from "./types";
-import { winnerOf } from "./engine";
+import { winnerOf } from "./rules";
 
 /** The two people sitting over the board. */
 export type PlayerId = "p1" | "p2";

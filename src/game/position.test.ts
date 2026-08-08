@@ -6,7 +6,7 @@ import {
   stateFromBoard,
   validateBoard,
 } from "./position";
-import { allMoves, applyMove, initialState } from "./engine";
+import { allMoves, applyMove, initialState } from "./rules";
 import { DEFAULT_VARIANT, VARIANTS } from "./variants";
 import { BOARD_SIZE, type Board, type Piece } from "./types";
 

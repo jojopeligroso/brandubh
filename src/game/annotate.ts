@@ -18,8 +18,8 @@
 // classifier that forgets this marks every good defender move as a blunder.
 // `lossFor` below is the single place that asymmetry is handled.
 
-import { DECISIVE as DECISIVE_SCORE } from "./ai";
-import { winnerOf } from "./engine";
+import { DECISIVE as DECISIVE_SCORE } from "./engine";
+import { winnerOf } from "./rules";
 import type { GameStatus, Side } from "./types";
 
 /**
@@ -59,7 +59,7 @@ export function lossFor(before: number, after: number, mover: Side): number {
 }
 
 /**
- * Bands, in the units of `evaluate` (`src/game/ai.ts`).
+ * Bands, in the units of `evaluate` (`src/game/engine.ts`).
  *
  * **Calibrated, not imported.** Centipawn bands do not transfer: this engine is
  * not pawn-scaled, and a 7×7 board swings hard enough that one capture can be a

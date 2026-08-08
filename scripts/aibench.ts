@@ -10,8 +10,8 @@ import {
   pickMove,
   resetTT,
   type SearchConfig,
-} from "../src/game/ai";
-import { applyMove, initialState, isGameOver, winnerOf } from "../src/game/engine";
+} from "../src/game/engine";
+import { applyMove, initialState, isGameOver, winnerOf } from "../src/game/rules";
 import type { GameState, Side } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 

@@ -10,12 +10,12 @@
 //                  for the eval bar and the best-move arrow.
 //
 // Keeping them on separate threads is not just about latency. The transposition
-// table is module-global (see ai.ts), so two searches in one worker would share
+// table is module-global (see engine.ts), so two searches in one worker would share
 // it — and analysis searches with different weights (`attackerRecognizer` on),
 // which would put entries scored under one evaluation function in front of a
 // search using the other. Separate instances mean separate module state and so
 // separate tables, with no cross-contamination to reason about.
-import { ANALYSIS_DEEP_LIMITS, analysePosition, chooseMoveDetailed, type Difficulty } from "./ai";
+import { ANALYSIS_DEEP_LIMITS, analysePosition, chooseMoveDetailed, type Difficulty } from "./engine";
 import type { GameState, Move } from "./types";
 import type { RuleSet } from "./variants";
 
@@ -41,9 +41,9 @@ export type AiRequest = AiMoveRequest | AiAnalysisRequest;
 export interface AiResponse {
   id: number;
   move: Move | null;
-  /** Attacker-positive position value — see `MoveInfo.score` in ai.ts. */
+  /** Attacker-positive position value — see `MoveInfo.score` in engine.ts. */
   score: number;
-  /** The equal-best move set — see `SearchResult.bestMoves` in ai.ts. */
+  /** The equal-best move set — see `SearchResult.bestMoves` in engine.ts. */
   bestMoves: Move[];
   /** Search stats for the on-screen readout (see App: AiInfoLine). */
   depth: number;

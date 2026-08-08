@@ -1,5 +1,5 @@
 /* Headless sanity checks for the Brandubh engine. Run: npx tsx scripts/selftest.ts */
-import { chooseMove } from "../src/game/ai";
+import { chooseMove } from "../src/game/engine";
 import {
   allMoves,
   applyMove,
@@ -9,7 +9,7 @@ import {
   kingIsCaptured,
   movesFrom,
   winnerOf,
-} from "../src/game/engine";
+} from "../src/game/rules";
 import type { Board, GameState, Move, Piece } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 

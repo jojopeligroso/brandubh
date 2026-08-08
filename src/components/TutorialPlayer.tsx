@@ -3,7 +3,7 @@ import Board from "./Board";
 import TutorialMistakeOverlay from "./TutorialMistakeOverlay";
 import type { Emblems } from "./ObjectivesContent";
 import type { Translations } from "../i18n";
-import { applyMove, isGameOver, movesFrom, sideOf } from "../game/engine";
+import { applyMove, isGameOver, movesFrom, sideOf } from "../game/rules";
 import type { GameState, Move, Square } from "../game/types";
 import {
   explainMistake,

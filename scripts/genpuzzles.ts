@@ -70,7 +70,7 @@
  *     moves the game went on to play. A game is now played to completion first
  *     and its candidates assessed after, which removes the coupling
  *     structurally rather than defending against it. `analysePosition`
- *     (`ai.ts:1295-1315`) records the same hazard found the same way.
+ *     (`engine.ts:1295-1315`) records the same hazard found the same way.
  *
  * ## What "verified" means here, and what it does not
  *
@@ -125,8 +125,8 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { chooseMove, resetTT, scoreRootMoves } from "../src/game/ai";
-import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "../src/game/engine";
+import { chooseMove, resetTT, scoreRootMoves } from "../src/game/engine";
+import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "../src/game/rules";
 import { encodeMove, rulesFingerprint } from "../src/game/openingBook";
 import { encodePosition, parsePosition } from "../src/game/position";
 import { canonicalKey, solve } from "../src/game/solver";
@@ -160,7 +160,7 @@ import {
 } from "../src/game/motifs";
 import { BOARD_SIZE, type GameState, type Move, type Side, type Square } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
-import { CORNERS, isCorner } from "../src/game/engine";
+import { CORNERS, isCorner } from "../src/game/rules";
 import {
   handAddProblemReport,
   mergeHandAddWarning,
@@ -714,7 +714,7 @@ function reproof(p: Assessed): boolean {
 
 /**
  * Seeded self-play with a third of moves played at random — `easy`'s blunder
- * rate (`ai.ts:1141`), and the `scripts/annotate-calibrate.ts` precedent. Real
+ * rate (`engine.ts:1141`), and the `scripts/annotate-calibrate.ts` precedent. Real
  * errors are what leave puzzles behind: two perfect players never blunder into
  * one, and a bank mined from perfect play would be a bank of positions nobody
  * ever reaches.

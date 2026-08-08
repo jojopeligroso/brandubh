@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./sides";
-import { allMoves, applyMove, initialState, sideOf } from "./engine";
-import { chooseMove } from "./ai";
+import { allMoves, applyMove, initialState, sideOf } from "./rules";
+import { chooseMove } from "./engine";
 import { VARIANTS } from "./variants";
 import {
   parseSavedGame,

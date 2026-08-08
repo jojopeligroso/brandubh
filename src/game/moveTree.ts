@@ -17,7 +17,7 @@
 // No React in this file. The test suites here are pure-logic only, so anything
 // that lives inside a component is untested by construction.
 
-import { applyMove } from "./engine";
+import { applyMove } from "./rules";
 import type { GameState, Move, Side } from "./types";
 import type { RuleSet } from "./variants";
 

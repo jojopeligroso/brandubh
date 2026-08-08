@@ -12,7 +12,7 @@
 // row to own.
 
 import type { Translations } from "../i18n";
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import { MOTIF_SET_THRESHOLD, type Motif, type Tag } from "./motifs";
 import type { Puzzle } from "./puzzleBank";
 

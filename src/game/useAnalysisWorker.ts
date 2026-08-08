@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { ANALYSIS_DEEP_LIMITS, analysePosition } from "./ai";
+import { ANALYSIS_DEEP_LIMITS, analysePosition } from "./engine";
 import type { GameState } from "./types";
 import type { RuleSet } from "./variants";
 import type { AiRequest, AiResponse } from "./ai.worker";
@@ -14,7 +14,7 @@ import type { AiMove } from "./useAiWorker";
  * abort a synchronous search — so a shared instance would mean every cursor
  * step could kill the AI's in-flight move, and every AI move could kill the
  * analysis. Two instances make the two searches independent by construction:
- * they run on separate threads, cancel separately, and (since ai.ts's
+ * they run on separate threads, cancel separately, and (since engine.ts's
  * transposition table is module-global) keep separate tables, which also stops
  * analysis's different weights from polluting the playing engine's cache.
  *

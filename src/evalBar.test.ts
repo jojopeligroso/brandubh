@@ -18,11 +18,11 @@ import {
   evaluate,
   pickMove,
   type SearchLimits,
-} from "./game/ai";
-import { applyMove, initialState } from "./game/engine";
+} from "./game/engine";
+import { applyMove, initialState } from "./game/rules";
 import { VARIANTS } from "./game/variants";
 
-const RECOGNIZED_WIN = WIN - 2; // ai.ts's recognizer result, mirrored for the test
+const RECOGNIZED_WIN = WIN - 2; // engine.ts's recognizer result, mirrored for the test
 
 describe("decisive scores", () => {
   it("names the attackers at +WIN and the defenders at -WIN", () => {

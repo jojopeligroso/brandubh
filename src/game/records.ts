@@ -22,7 +22,7 @@
 // cannot put back (records.test.ts asserts the round trip), so either
 // representation can be treated as canonical.
 
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import type { GameStatus, PlayMode, Side } from "./types";
 import type { Match, MatchSet, PlayerId, SetGameResult } from "./matchSet";
 import type { ClockBanks } from "./clockLine";

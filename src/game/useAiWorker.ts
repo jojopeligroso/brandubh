@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { chooseMoveDetailed, type Difficulty } from "./ai";
+import { chooseMoveDetailed, type Difficulty } from "./engine";
 import type { GameState } from "./types";
 import type { RuleSet } from "./variants";
 import type { AiRequest, AiResponse } from "./ai.worker";

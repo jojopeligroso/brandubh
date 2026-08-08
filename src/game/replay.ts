@@ -16,7 +16,7 @@
 // (gameFile.ts) and any storage format can sit on top of it without coupling to
 // each other.
 
-import { allMoves, applyMove, initialState, isGameOver } from "./engine";
+import { allMoves, applyMove, initialState, isGameOver } from "./rules";
 import type { GameState, GameStatus, Move, Square } from "./types";
 import type { RuleSet } from "./variants";
 

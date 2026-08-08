@@ -14,7 +14,7 @@ import {
   type Mark,
   worstMoves,
 } from "./annotate";
-import { DECISIVE as DECISIVE_SCORE } from "./ai";
+import { DECISIVE as DECISIVE_SCORE } from "./engine";
 import type { Side } from "./types";
 
 // Scores are attacker-positive throughout: high is good for the raiders, low is

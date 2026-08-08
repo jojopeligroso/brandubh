@@ -59,11 +59,11 @@
 // ruleset appends a second data module rather than forking this format.
 
 import { decodeMove, encodeMove, rulesFingerprint } from "./openingBook";
-import { applyMove } from "./engine";
+import { applyMove } from "./rules";
 import { parsePosition } from "./position";
 import { bandOf, gradeOf, type GradeMeasurements, type Salience } from "./grade";
 import { MOTIFS, PLAIN_TAGS, type Motif, type Tag } from "./motifs";
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import { BOARD_SIZE, type GameState, type Move, type Side } from "./types";
 import type { RuleSet } from "./variants";
 import {
@@ -260,7 +260,7 @@ export function loadBank(rules: RuleSet): Puzzle[] {
 
 /**
  * The two cuts the evaluation goals sit on, in the units of `evaluate`
- * (`src/game/ai.ts`).
+ * (`src/game/engine.ts`).
  *
  * **Calibrated, not borrowed.** `scripts/annotate-calibrate.ts` measured the
  * distribution of |best-play score| over 645 positions from 40 seeded self-play

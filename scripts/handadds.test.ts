@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
-import { allMoves, applyMove, initialState } from "../src/game/engine";
+import { allMoves, applyMove, initialState } from "../src/game/rules";
 import { encodePosition } from "../src/game/position";
 import { canonicalKey } from "../src/game/solver";
 import { VARIANTS } from "../src/game/variants";

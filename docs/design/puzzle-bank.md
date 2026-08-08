@@ -180,10 +180,10 @@ from. The 80 in the roadmap is the number worth stopping at, not a cap.
   second one.
 - `src/game/solver.ts` - `solve()` returns `{value, dtm, bestMove, budgetHit}`
   and never guesses. `canonicalKey()` folds a position over D4.
-- `src/game/ai.ts` - `scoreRootMoves(state, rules, depth, margin)` returns the
+- `src/game/engine.ts` - `scoreRootMoves(state, rules, depth, margin)` returns the
   exact-tie set at a fixed depth, deterministic, no deadline. `DIFFICULTIES`
-  (`ai.ts:22`), `DEFAULT_WEIGHTS` (`ai.ts:112`), `easy`'s 0.35 blunder rate
-  (`ai.ts:1141`).
+  (`engine.ts:22`), `DEFAULT_WEIGHTS` (`engine.ts:112`), `easy`'s 0.35 blunder rate
+  (`engine.ts:1141`).
 - `scripts/annotate-calibrate.ts` - the seeded self-play harness with a
   quarter of moves played at random so there are real errors to measure.
 - `src/game/position.ts` - `encodePosition` / `parsePosition` / `validateBoard`,
@@ -325,7 +325,7 @@ from. The 80 in the roadmap is the number worth stopping at, not a cap.
      which depended on the global duplicate set and on the target being reached,
      changed which moves the game went on to play. The observer was perturbing
      what it observed. A game is now played to completion and its candidates
-     assessed after. `analysePosition` (`ai.ts:1295-1315`) records the same
+     assessed after. `analysePosition` (`engine.ts:1295-1315`) records the same
      hazard, found the same way.
 
    A shard holds **assessed** puzzles and no ids: numbering is order of first
@@ -368,7 +368,7 @@ always, and the bank is regenerated with both.
 
 ### What exists
 
-- `src/game/ai.ts` holds the geometry the tagger needs, currently unexported:
+- `src/game/engine.ts` holds the geometry the tagger needs, currently unexported:
   `kingRegionSize` (`132`), `clearPathToCorner` (`152`), `kingCornerMoves`
   (`194`).
 - `src/game/tutorials.ts` exports `sq`, `mv`, `parseRows`: the hand-built-board
@@ -378,7 +378,7 @@ always, and the bank is regenerated with both.
 
 ### Build
 
-1. **Export the three geometry helpers** from `ai.ts` with a one-line comment
+1. **Export the three geometry helpers** from `engine.ts` with a one-line comment
    saying why (they are now shared vocabulary, not private detail). No
    behaviour change, no new file for them.
 
@@ -547,7 +547,7 @@ Learn screen.
    component does the lookup, the test checks the choice.
 
 4. **The screen.** A fourth door on the Learn menu. Inside: four band rows on
-   the existing `DIFFICULTIES` ladder (`ai.ts:22`) with locks and a progress
+   the existing `DIFFICULTIES` ladder (`engine.ts:22`) with locks and a progress
    readout; named set rows above the pool; the pool as one list ordered by
    grade and filterable by tag. Named sets are shortcuts into the pool, not
    separate collections.

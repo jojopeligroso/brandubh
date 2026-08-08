@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { forcedAttackerWin } from "./ai";
-import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "./engine";
+import { forcedAttackerWin } from "./engine";
+import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "./rules";
 import type { Board, GameState, Piece, Side } from "./types";
 import type { RuleSet } from "./variants";
 import { VARIANTS } from "./variants";
@@ -48,7 +48,7 @@ function mulberry32(seed: number): () => number {
 // The recognizer's scope is an imminent king capture: attacker on move with a
 // capture in hand, or defender on move but netted (every reply losing the king) —
 // the exact twin of the defender recognizer's escape/fork pair. See the note above
-// `forcedAttackerWin` in ai.ts for why it rides a default-off flag.
+// `forcedAttackerWin` in engine.ts for why it rides a default-off flag.
 describe("attacker recognizer: fires on the intended patterns", () => {
   it("capture in hand — attacker to move completes a custodial sandwich", () => {
     // King on (3,1) already flanked north by (2,1); the attacker on (6,1) slides to

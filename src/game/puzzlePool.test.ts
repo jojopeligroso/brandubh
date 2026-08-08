@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import type { Puzzle } from "./puzzleBank";
 import { MOTIFS, PLAIN_TAGS, type Tag } from "./motifs";
 import { translations, type Lang } from "../i18n";

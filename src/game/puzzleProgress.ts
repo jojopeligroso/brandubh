@@ -23,7 +23,7 @@
 // `gameFile.ts`, exactly as tutorial set plays do — see the
 // replay-from-opening invariant in `replay.ts`.
 
-import { DIFFICULTIES, type Difficulty } from "./ai";
+import { DIFFICULTIES, type Difficulty } from "./engine";
 import type { Puzzle } from "./puzzleBank";
 
 const PROGRESS_KEY = "brandubh.puzzles.v1";

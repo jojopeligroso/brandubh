@@ -30,7 +30,7 @@
 // Pure and tested, in the project idiom: the component that serves boards holds
 // no judgement worth testing, because every judgement is here.
 
-import { DIFFICULTIES, type Difficulty } from "./ai";
+import { DIFFICULTIES, type Difficulty } from "./engine";
 import type { Puzzle } from "./puzzleBank";
 
 const TRAINER_KEY = "brandubh.trainer.v1";

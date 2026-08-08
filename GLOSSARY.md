@@ -8,7 +8,20 @@ word, in code and in copy. An `_Avoid_` line names a synonym that is banned in
 prose; where code already uses the banned word as an identifier that is noted,
 and the identifier stays put until it is worth renaming.
 
+## The games
+
+**Boardgame**:
+One of the games the app can play: Brandubh, Tablut, Nine Men's Morris. A
+boardgame owns its own board, pieces, setup, legal moves, terminal conditions
+and **Rulesets**; more may be added. Not a **Game**, which is one playing of
+one boardgame.
+_Avoid_: game (one playing), variant, mode, exhibit
+
 ## Playing
+
+The vocabulary below is **tafl** vocabulary — Brandubh and Tablut. Nine Men's
+Morris inherits none of it: it has no King, no sides, no throne and no
+custodial capture, and reaching for these words there is an error.
 
 **Raider**:
 An attacking soldier; the side that surrounds the King.
@@ -148,7 +161,10 @@ it does not transfer to a 7×7 board.
 **Ruleset**:
 A named set of gameplay flags a game is played under (`walker`, `wtf`,
 `custom`). Two rulesets can disagree about whether a given move is legal or
-winning, so nothing verified under one ruleset is valid under another.
+winning, so nothing verified under one ruleset is valid under another. A
+ruleset belongs to exactly one **Boardgame** and says nothing about any other:
+it is the exact rules of one boardgame's variants, never the choice between
+boardgames.
 _Avoid_: variant (used as the id in code and as the settings label; "ruleset"
 in prose)
 
@@ -212,10 +228,17 @@ for **Side**.
 
 ## The engine
 
+**Rules**:
+What decides legality and results for one **Boardgame**: move generation,
+capture, terminal conditions and notation (`rules.ts`). Distinct from a
+**Ruleset**, which is the set of flags the rules read. Each boardgame has its
+own rules; they are not shared (ADR-0006).
+
 **Engine**:
-The search that picks the computer's moves and evaluates positions. One
-engine, shared by play, analysis and puzzle verification, so what it proves
-under a ruleset is what the game plays under.
+The search that picks the computer's moves and evaluates positions
+(`engine.ts`). One engine per **Boardgame**, shared by that boardgame's play,
+analysis and puzzle verification, so what it proves under a ruleset is what
+the game plays under.
 
 **AI level**:
 How hard the computer plays: Easy, Medium, Hard or **Ollamh**. A level sets
@@ -452,6 +475,12 @@ overlay**.
 **Drawer**:
 The slide-out menu behind the hamburger: play, learn, tools, settings, about.
 
+**History**:
+The space where the historical explanation of the games is kept. A reference
+surface reached from the **Drawer**, beside the games rather than above them:
+it explains them, it does not contain them.
+_Avoid_: hub, about, extras
+
 **Zen mode**:
 A calm, over-the-board screen stripped to the board, whose turn it is, the
 clock and the move log. Everything else is an opt-in **Extra**.
@@ -491,6 +520,9 @@ off.
 
 ## Relationships
 
+- A **Boardgame** owns one or more **Rulesets**; a **Ruleset** belongs to exactly
+  one **Boardgame**
+- A **Game** is one playing of one **Boardgame**, under one of its **Rulesets**
 - A **Puzzle** belongs to exactly one **Ruleset** and is invalid under any other
 - A **Puzzle** and a **Review Mistake** both produce an **Attempt**; the Attempt
   is what the board and the puzzle panel know about

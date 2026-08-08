@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allMoves, applyMove, initialState, isGameOver } from "./engine";
+import { allMoves, applyMove, initialState, isGameOver } from "./rules";
 import { findLegalMove, replayPlies, type PlyInput } from "./replay";
 import type { GameState, Square } from "./types";
 import { VARIANTS } from "./variants";

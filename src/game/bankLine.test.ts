@@ -23,7 +23,7 @@
 // deliberately not substitutes.
 
 import { describe, expect, it } from "vitest";
-import { allMoves, applyMove } from "./engine";
+import { allMoves, applyMove } from "./rules";
 import { judge, retryStep, type Attempt, type LineStep } from "./attempt";
 import { loadBank, puzzleStart, solverMoves, solverSide, type Puzzle } from "./puzzleBank";
 import type { GameState, Move } from "./types";

@@ -15,7 +15,7 @@
 // are noisy. A simple model of a judge routinely outperforms the judge for
 // exactly that reason (ADR-0005).
 
-import { DIFFICULTIES, type Difficulty } from "./ai";
+import { DIFFICULTIES, type Difficulty } from "./engine";
 
 /**
  * What the eye lands on first.

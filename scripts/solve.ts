@@ -6,7 +6,7 @@
  * feasibility analysis in docs/solving.md for why the full opening is out of reach
  * in this environment. */
 import { solve } from "../src/game/solver";
-import { allMoves, applyMove, initialState, moveName } from "../src/game/engine";
+import { allMoves, applyMove, initialState, moveName } from "../src/game/rules";
 import type { GameState } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 

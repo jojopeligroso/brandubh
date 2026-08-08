@@ -1,4 +1,4 @@
-import { moveName } from "../game/engine";
+import { moveName } from "../game/rules";
 import {
   isMainline,
   lineTo,
