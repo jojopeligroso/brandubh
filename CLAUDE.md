@@ -13,6 +13,10 @@ overlays.
 - `npm run dev` / `npm run preview` — local server
 - `npm run screenshot` — playwright-core driven-browser capture; the project
   convention is a manual driven-browser pass for UI changes
+- `npm run check:evalbar` — driven-browser assertion that the eval bar fills
+  from the bottom. The one UI check that can fail: the suites are pure logic and
+  the screenshot does not frame the bar, which is how an inverted bar shipped in
+  `05c187e` and survived. Run it after touching `.evalbar-*` in `src/index.css`
 
 ## Decisions to respect
 

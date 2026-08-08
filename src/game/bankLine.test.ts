@@ -7,8 +7,8 @@
 // generator actually mined, with every ply applied to a real board and checked
 // legal on the way past.
 //
-// It exists because of a gap 8d declared rather than papered over. 160 of the
-// bank's 161 puzzles hold one solver move, so every browser pass and every
+// It exists because of a gap 8d declared rather than papered over. 157 of the
+// bank's 158 puzzles hold one solver move, so every browser pass and every
 // bank-fed assertion up to now walked a line whose second step does not exist.
 // The multi-step path — `judge` advancing the cursor, the scripted reply going
 // to the board behind the guess, `retryStep` mid-line, and completion firing on

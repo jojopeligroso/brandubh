@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   chooseMove,
   FULL_CONFIG,
+  DEFAULT_WEIGHTS,
   LEGACY_CONFIG,
   pickMove,
   resetTT,
@@ -88,6 +89,15 @@ describe("quiescence kills the horizon effect", () => {
   // A non-quiescent depth-1 searcher grabs the bait (and a king-run that lands
   // next to a corner is then custodially captured); quiescence sees the refutation
   // and keeps the king safe.
+  //
+  // The endgame recognizers are switched OFF for this pair. This fixture puts the
+  // king one step from an edge with a corner-adjacent square available, which the
+  // recognizer now proves a defender win outright (see `kingTouchesCorner`) — so
+  // with it on, *both* configs play the king safely and the pair stops isolating
+  // the thing it is named for. Turning it off keeps these two tests a measurement
+  // of quiescence alone, which is what they are for; the recognizer has its own
+  // suite in `recognizers.test.ts`.
+  const noRecognizers = { ...DEFAULT_WEIGHTS, endgameRecognizers: false, attackerRecognizer: false };
   const build = (): GameState => {
     const b = empty();
     b[3][1] = "king";
@@ -102,7 +112,7 @@ describe("quiescence kills the horizon effect", () => {
   it("full search does not hang the king at depth 1", () => {
     const s = build();
     resetTT();
-    const { move } = pickMove(s, walker, { maxDepth: 1 }, FULL_CONFIG, fixed);
+    const { move } = pickMove(s, walker, { maxDepth: 1 }, FULL_CONFIG, fixed, noRecognizers);
     expect(move).not.toBeNull();
     const after = applyMove(s, move!, walker);
     expect(someMoveGives(after, "attackers_win_capture")).toBe(false);
@@ -111,7 +121,7 @@ describe("quiescence kills the horizon effect", () => {
   it("legacy (no quiescence) walks into the king capture at the same depth", () => {
     const s = build();
     resetTT();
-    const { move } = pickMove(s, walker, { maxDepth: 1 }, LEGACY_CONFIG, fixed);
+    const { move } = pickMove(s, walker, { maxDepth: 1 }, LEGACY_CONFIG, fixed, noRecognizers);
     const after = applyMove(s, move!, walker);
     // Demonstrates the horizon blunder the new search fixes.
     expect(someMoveGives(after, "attackers_win_capture")).toBe(true);

@@ -22,7 +22,7 @@ anchor detection, and hardcoded move-ordering bonuses — and again in
 `position.ts` and `Board.tsx`. Tablut wins on any edge square, which makes
 "distance to the nearest corner" not miscalibrated but meaningless. A
 parameterised core therefore has to reach into the search as well, and the
-search is the file the opening book and 161 solver-verified puzzles were
+search is the file the opening book and 158 solver-verified puzzles were
 generated against. Sharing would buy roughly 120 lines — rook movement and
 custodial soldier capture — at the price of editing the highest-risk files in
 the project.

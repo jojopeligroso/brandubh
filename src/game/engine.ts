@@ -9,6 +9,7 @@ import {
   isEnemy,
   isGameOver,
   isThrone,
+  movesFrom,
   sideOf,
   winnerOf,
 } from "./rules";
@@ -86,10 +87,31 @@ export interface EvalWeights {
    *  of the crude aligned?1:2 estimate that ignores pieces in the lane. */
   blockerAwareKingDist: boolean;
   /** Consult the exact *defender* endgame recognizers at leaf nodes (two-lane fork,
-   *  guarded corner race): they return a *proven* defender win where a heuristic
-   *  would only guess, sharpening the search's horizon. Sound (validated against the
-   *  exhaustive solver) — never claims a win that isn't forced. Free (throughput
-   *  unchanged), so ON by default. */
+   *  corner-adjacent lane, guarded corner race): they return a *proven* defender win
+   *  where a heuristic would only guess, sharpening the search's horizon. Sound
+   *  (validated against the exhaustive solver) — never claims a win that isn't forced.
+   *  ON by default.
+   *
+   *  ⚠ NOT free, despite what this comment claimed until it was measured. The old
+   *  "throughput unchanged, 69k nodes/s both ways" figure came from symmetric
+   *  self-play, where the escape-zone gate below bails in O(1) at nearly every leaf.
+   *  In the endgame the recognizer actually exists for it does not bail: a king
+   *  parked near a corner satisfies both `near(...)` and `kingCornerMoves ≤ 2`
+   *  permanently, so the defender-to-move branch pays for every such leaf.
+   *
+   *  Measured on a b2-king Brandubh endgame at fixed depth 4: **22.9k nodes/s with
+   *  it on against 107k with it off, a ~4.7× cost** — larger than the attacker
+   *  twin's ~7%, which ships default-OFF for being "not free". So the two flags'
+   *  defaults remain inconsistent on the evidence, and settling that is a strength
+   *  question for `scripts/evaltune.ts`, not a bug.
+   *
+   *  What has changed is the consequence. The ratio is the same 4.7× it was when
+   *  it cost the analysis bar a ply, but both sides of it moved: skipping the dead
+   *  repetition check (`computeStatus`) and building only the replies that can
+   *  matter (`forkWinAttackerToMove`) took this position's depth-3 analysis from
+   *  2050ms to ~950ms. `ANALYSIS_LIMITS` now completes depth 3 inside its 1200ms
+   *  deadline and reports the forced defender win it used to miss, so the cost is
+   *  no longer buying a wrong answer. A ratio is not a verdict on its own. */
   endgameRecognizers: boolean;
   /** Consult the *attacker* recognizer (`forcedAttackerWin`) at leaf nodes: the
    *  proven twin, an imminent king capture. Equally sound (cross-validated against an
@@ -223,25 +245,137 @@ export function kingCornerMoves(b: Board, kr: number, kc: number): number {
 //
 // Measured neutral in symmetric self-play (24-24 at depth 3, 16-16 at depth 5):
 // quiescence already chases king escapes and the deep search resolves these ≤3-ply
-// patterns unaided, so two equal engines gain nothing on average. Kept ON anyway
-// because they are *free* (throughput unchanged, 69k nodes/s both ways) and give a
+// patterns unaided, so two equal engines gain nothing on average. Kept ON for the
 // horizon-correctness guarantee self-play can't show — the AI treats a two-lane
 // fork as lost even when its horizon is one ply short, which is what a human trying
-// to set one up would exploit.
+// to set one up would exploit. NOT for being free: the "69k nodes/s both ways"
+// figure was measured where the escape-zone gate bails, and in a real corner endgame
+// the cost is ~4.7×. See the ⚠ on `endgameRecognizers` in EvalWeights.
 const RECOGNIZED_WIN = WIN - 2;
 
-/** Attacker to move, but the king already has ≥2 clear straight lanes to distinct
- *  corners. A single attacker move can block at most one lane and cannot occupy two
- *  squares, so unless some attacker move captures the king outright, the defender
- *  escapes through a still-open lane next move. Verified move-by-move (no assumption
- *  is trusted): every attacker reply must leave the king a clear lane and must not
- *  end the game in the attackers' favour. Cheap precondition (≥2 lanes) makes the
- *  per-reply loop rare. */
+/** The king is orthogonally adjacent to a corner. Such a lane has no squares between
+ *  king and corner, so it is the one lane an attacker move cannot block: the corner
+ *  itself is unenterable by a soldier, and there is nothing in between to stand on. */
+function kingTouchesCorner(kr: number, kc: number): boolean {
+  return CORNERS.some((c) => Math.abs(c.row - kr) + Math.abs(c.col - kc) === 1);
+}
+
+/** Every attacker move that lands on `(tr, tc)`, appended to `out`.
+ *
+ *  Found by scanning outward from the destination rather than by generating every
+ *  attacker move and keeping the few that land here. `allMoves` walks all 49
+ *  squares and allocates the whole reply list; this walks four rays from one
+ *  square and allocates only the moves it returns, which is what makes the
+ *  restricted loop in `forkWinAttackerToMove` worth having — filtering the full
+ *  list still pays for building it.
+ *
+ *  Mirrors `movesFrom` exactly, in the opposite direction: a soldier may never
+ *  stop on a corner or the throne, the first piece on a ray blocks it, and an
+ *  empty throne bars the slide unless the ruleset lets soldiers cross it. */
+function attackerMovesInto(b: Board, tr: number, tc: number, rules: RuleSet, out: Move[]): void {
+  if (b[tr][tc] !== null) return; // occupied — nothing can land here
+  if (isCorner(tr, tc) || isThrone(tr, tc)) return; // never a legal soldier landing
+  for (const [dr, dc] of DIRS) {
+    let r = tr + dr;
+    let c = tc + dc;
+    while (inBounds(r, c)) {
+      const p = b[r][c];
+      if (p !== null) {
+        if (p === "attacker") out.push({ from: { row: r, col: c }, to: { row: tr, col: tc } });
+        break; // the first piece on the ray blocks it either way
+      }
+      if (isThrone(r, c) && !rules.soldiersPassThroughThrone) break;
+      r += dr;
+      c += dc;
+    }
+  }
+}
+
+/** Attacker to move, but the king's escape cannot be shut. Two shapes qualify, and
+ *  the *only* thing the precondition does is keep the per-reply loop rare — the loop
+ *  below is what actually proves the win, so neither shape is trusted on its own:
+ *
+ *   - **≥2 clear straight lanes to distinct corners.** One attacker move blocks at
+ *     most one lane and cannot occupy two squares, so a lane survives.
+ *   - **One lane, with the king already touching that corner.** Adjacency is what
+ *     makes a single lane sufficient: there is no square between king and corner to
+ *     interpose on, and no soldier may ever land on the corner itself, so the lane
+ *     cannot be blocked at all. Only a capture can save the attackers.
+ *
+ * The second shape is the commonest forced escape there is, and requiring two lanes
+ * missed all of it: a king on b1 with a1 open and g1 blocked is winning, and was
+ * scored as an ordinary position. Adjacency holds it to 8 squares of the board, so
+ * it costs about what the ≥2-lane gate costs.
+ *
+ * Verified move-by-move (no assumption is trusted): every attacker reply must leave
+ * the king a clear lane and must not end the game in the attackers' favour.
+ *
+ * ## Which replies have to be built
+ *
+ * Building a child is the whole cost of this function — `applyMove` clones the
+ * board, resolves captures and runs `computeStatus`, and it ran once per reply
+ * for ~46 replies at every leaf that got this far. Nearly all of it is provably
+ * wasted: once either precondition holds, **only a reply landing orthogonally
+ * beside the king can change the answer.** `computeStatus` has exactly five ways
+ * to end a game, and for any other reply four of them are unreachable.
+ *
+ *  - **King captured.** `kingIsCaptured` opens with an explicit "the moved piece
+ *    must be adjacent to the king" and returns false otherwise. So this is
+ *    precisely the case the restricted loop keeps, and the only one it keeps.
+ *  - **Encirclement.** `isEncircled` returns false whenever the king stands on a
+ *    board edge — and a king with a clear lane is always on one. A straight lane
+ *    to a corner means sharing that corner's row or column, and the corners'
+ *    rows and columns are exactly 0 and 6, which are the edges. Both
+ *    preconditions require at least one lane, so both put the king on an edge,
+ *    and an attacker reply cannot move it off.
+ *  - **Defenders have no move.** A lane survives every single reply, and a
+ *    surviving lane is a king move. With ≥2 lanes it survives by counting: a
+ *    soldier occupies one square, two lanes leave the king in different
+ *    directions and so share only the king's own square, and one blocker cannot
+ *    close two. With the corner-adjacent lane it survives absolutely: there is
+ *    no square between king and corner to interpose on, and no soldier may ever
+ *    stop on a corner (`movesFrom`), so that lane cannot be closed at all.
+ *  - **Defender escape.** Needs a defender to have moved; the mover is the
+ *    attackers.
+ *
+ * That leaves **repetition**, which is the one that stopped this being obvious.
+ * It is handled by counting rather than by geometry: a repetition needs eight
+ * plies since the last capture (`computeStatus` in `rules.ts` carries the
+ * argument), so when the child cannot reach eight the branch is dead and the
+ * reply is safe to skip. Above that the loop simply runs in full — rare, and
+ * correct.
+ *
+ * The same reasoning retires the surviving-lane check for a skipped reply, since
+ * a lane provably survives it. A skipped reply is one this function would have
+ * built, examined and passed. */
 function forkWinAttackerToMove(state: GameState, rules: RuleSet): boolean {
   const b = state.board;
   const k = findKing(b);
-  if (!k || clearPathToCorner(b, k.row, k.col) < 2) return false;
-  for (const m of allMoves(b, "attackers", rules)) {
+  if (!k) return false;
+  const lanes = clearPathToCorner(b, k.row, k.col);
+  const touchesCorner = kingTouchesCorner(k.row, k.col);
+  if (lanes < 2 && !(lanes === 1 && touchesCorner)) return false;
+
+  // The one branch the geometry above cannot rule out. A capture resets the
+  // count, so a reply that captures cannot repeat either; this only has to bound
+  // the quiet case. The `??` fallback overestimates (it assumes no capture ever
+  // happened), which errs towards running the full loop.
+  const captureOnly =
+    rules.repetitionResult === "none" || (state.sinceCapture ?? state.history.length) + 1 < 8;
+
+  let replies: Move[];
+  if (captureOnly) {
+    replies = [];
+    for (const [dr, dc] of DIRS) {
+      const tr = k.row + dr;
+      const tc = k.col + dc;
+      if (inBounds(tr, tc)) attackerMovesInto(b, tr, tc, rules, replies);
+    }
+  } else {
+    replies = allMoves(b, "attackers", rules);
+  }
+
+  for (const m of replies) {
     const child = applyMove(state, m, rules);
     if (isGameOver(child.status)) {
       if (winnerOf(child.status) !== "defenders") return false; // a saving/winning attacker reply
@@ -277,14 +411,17 @@ export function forcedDefenderWin(state: GameState, rules: RuleSet): boolean {
   // from which it forks two corners the attacker can't both stop. Gate on real
   // king-distance ≤2 so central positions don't pay for the king-move loop.
   if (kingCornerMoves(b, k.row, k.col) > 2) return false;
-  for (const m of allMoves(b, "defenders", rules)) {
-    if (b[m.from.row][m.from.col] !== "king") continue; // the race is about the king
+  // Only the king's own moves matter, so generate only those. `allMoves` here meant
+  // scanning all 49 squares and generating for every defender at every leaf that got
+  // this far, then throwing all but the king's away — the single largest slice of the
+  // recognizer's cost, and pure waste. Same squares, same order, same semantics.
+  for (const to of movesFrom(b, k.row, k.col, rules)) {
     // A two-lane fork square is always on an edge (only rows/cols 0 and 6 hold
     // corners), so only king moves that land on an edge can create one. Skipping
     // interior destinations keeps this loop to a handful of squares.
-    const onEdge = m.to.row === 0 || m.to.row === BOARD_SIZE - 1 || m.to.col === 0 || m.to.col === BOARD_SIZE - 1;
+    const onEdge = to.row === 0 || to.row === BOARD_SIZE - 1 || to.col === 0 || to.col === BOARD_SIZE - 1;
     if (!onEdge) continue;
-    const child = applyMove(state, m, rules);
+    const child = applyMove(state, { from: { row: k.row, col: k.col }, to }, rules);
     if (winnerOf(child.status) === "defenders") return true; // stepped straight out
     if (!isGameOver(child.status) && forkWinAttackerToMove(child, rules)) return true; // stepped into a fork
   }

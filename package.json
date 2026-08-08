@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "screenshot": "npm run build && node scripts/screenshot.mjs"
+    "screenshot": "npm run build && node scripts/screenshot.mjs",
+    "check:evalbar": "npm run build && node scripts/evalbar-geometry.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -105,7 +105,7 @@ export const HOLDOUT_SIZE = 18;
  * The eight **Anchors**, spread across the *grade range* and not across the pool.
  *
  * Spreading by pool position would be wrong here for a reason `grade.ts`
- * already records: 92 of 161 puzzles grade at exactly 30, so eight evenly-spaced
+ * already records: 89 of 158 puzzles grade at exactly 30, so eight evenly-spaced
  * indices would put five anchors on the same grade and the binary search would
  * be comparing a puzzle against five copies of one reference point. Spreading
  * over the *distinct* grades present gives eight genuinely different references.
@@ -607,7 +607,7 @@ export function featuresOf(m: GradeMeasurements): number[] {
  *
  * Seven parameters over at most eighty rows, so the direct solve is fine and a
  * dependency would not be. The ridge term is doing real work rather than
- * guarding a corner: `grade.ts` records that `lineLength` is 1 on 160 of 161
+ * guarding a corner: `grade.ts` records that `lineLength` is 1 on 157 of 158
  * puzzles, so its column is *nearly constant* and `XᵀX` is *nearly singular*.
  * Without the ridge the fit would hand that column an enormous coefficient
  * fitted to one puzzle and report a good residual. With it, a column that does
@@ -782,7 +782,7 @@ export const anchorIdSet = (bank: readonly Puzzle[]): Set<string> =>
  * Only pairs with a held-out puzzle on at least one side count; anything else
  * is scoring the fit on its own training data. Ties in the predicted grade are
  * counted as wrong rather than as half, because a table that cannot separate
- * two puzzles has not predicted which is harder, and 92 of 161 puzzles share a
+ * two puzzles has not predicted which is harder, and 89 of 158 puzzles share a
  * grade under the current table — a scoring rule that rewarded ties would
  * flatter exactly the failure this measurement exists to catch.
  */
