@@ -101,17 +101,32 @@ export interface EvalWeights {
    *
    *  Measured on a b2-king Brandubh endgame at fixed depth 4: **22.9k nodes/s with
    *  it on against 107k with it off, a ~4.7× cost** — larger than the attacker
-   *  twin's ~7%, which ships default-OFF for being "not free". So the two flags'
-   *  defaults remain inconsistent on the evidence, and settling that is a strength
-   *  question for `scripts/evaltune.ts`, not a bug.
+   *  twin's ~7%, which ships default-OFF for being "not free". Reproduced since by
+   *  `scripts/evaltime.ts` (interleaved, min-of-N) at 4.0-4.5× on that position,
+   *  and the cost scales with how often the escape-zone gate fails to bail:
+   *  ~1.2× in the opening, ~1.9× at midgame, ~2.3× and ~4.2× at the two endgames.
    *
-   *  What has changed is the consequence. The ratio is the same 4.7× it was when
-   *  it cost the analysis bar a ply, but both sides of it moved: skipping the dead
-   *  repetition check (`computeStatus`) and building only the replies that can
-   *  matter (`forkWinAttackerToMove`) took this position's depth-3 analysis from
-   *  2050ms to ~950ms. `ANALYSIS_LIMITS` now completes depth 3 inside its 1200ms
-   *  deadline and reports the forced defender win it used to miss, so the cost is
-   *  no longer buying a wrong answer. A ratio is not a verdict on its own. */
+   *  ⚠ RESOLVED — the ratio was never the question. A ratio is not a verdict, and
+   *  a fixed-depth gauntlet cannot supply one here: `scripts/evaltune.ts` holds
+   *  depth constant *precisely* to isolate eval quality from speed, and speed is
+   *  the entire cost of a recognizer, which is why fixed-depth self-play scored it
+   *  neutral (24-24 at depth 3, 16-16 at depth 5). The deciding measurement is the
+   *  one the app actually performs: iterative deepening against `ANALYSIS_LIMITS`'
+   *  1200ms deadline.
+   *
+   *  Under that deadline, on the reported b2-king position (`evaltime.ts`, 23 runs
+   *  over three separate invocations, unanimous): ON reaches depth 3 and returns a
+   *  **proven** forced defender win. OFF reaches depth 4 — one ply deeper, bought
+   *  with the saved time — and proves nothing at all. The recognizer trades a ply
+   *  for a proof, and on this position the proof is the answer and the extra ply
+   *  is not. That is what the cost buys, so it ships ON.
+   *
+   *  The apparent inconsistency with `attackerRecognizer` dissolves on the same
+   *  evidence: toggling it changed no verdict at any position measured, so for
+   *  *play* it is cost without a demonstrated benefit and correctly stays off —
+   *  while `ANALYSIS_WEIGHTS` already turns it ON for analysis, which is the case
+   *  it was kept for. The two flags are not one decision made two ways; they are
+   *  two questions with different answers. */
   endgameRecognizers: boolean;
   /** Consult the *attacker* recognizer (`forcedAttackerWin`) at leaf nodes: the
    *  proven twin, an imminent king capture. Equally sound (cross-validated against an
