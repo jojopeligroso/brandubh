@@ -1,0 +1,92 @@
+# Every invariant in this repo was enforced by somebody remembering to type
+# `npm test`, and the invariants are not cosmetic: recognizer soundness is
+# cross-validated against an independent oracle (`recognizers.test.ts`), the
+# puzzle bank re-verifies uniqueness at VERIFY depth (`puzzleBank.test.ts`),
+# and strict TS doubles as the i18n completeness check, so `npm run build` is a
+# correctness gate and not just a packaging step (see CLAUDE.md). The bank
+# defect fixed in 42d5698 was caught by `npm test` — by the luck of someone
+# running it, not by a gate.
+#
+# `npm test` is ~40-90s depending on machine load, with puzzleBank.test.ts
+# alone accounting for most of it. That is CI-sized, not hook-sized: it does
+# not belong in a pre-commit hook.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Superseded runs are wasted minutes; the newest push is the only one whose
+# answer anybody acts on. main is exempt so the record of what actually shipped
+# stays complete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 24 rather than the 26 on the dev machine: 24 is LTS, and the full
+      # sequence below (npm ci, build, 804 tests) was run on 24.19.0 before
+      # this file was written, so the pin is measured rather than assumed.
+      # package.json declares no `engines` and there is no .nvmrc, so this
+      # workflow is currently the only place the version is written down.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # `npm ci`, not `npm install` — it installs from the lockfile exactly and
+      # fails when the lockfile and package.json disagree, which is the drift a
+      # developer's warm node_modules hides.
+      - run: npm ci
+
+      # Runs `tsc -b` before vite; this is where an i18n key missing from a
+      # locale table fails.
+      - run: npm run build
+
+      - run: npm test
+
+  # Separate job, deliberately. This is the one check in the repo that drives a
+  # real browser, so when it fails the useful question is "did the eval bar
+  # invert, or is the runner missing a browser?" — and that is much easier to
+  # answer when it is not tangled up with 804 logic tests.
+  #
+  # It was tempting to leave this as the documented manual gate it has been.
+  # That is exactly the arrangement under which an inverted bar shipped in
+  # 05c187e and survived: the suites are pure logic, and screenshot.mjs does
+  # not frame the bar, so nothing in the repo could fail. A gate that depends
+  # on someone remembering is the failure, not the safeguard. It costs ~10s.
+  evalbar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+
+      # playwright-core ships no browser of its own and this project does not
+      # depend on the full `playwright` package, so there is no `playwright
+      # install` here — the script picks an existing binary from a candidate
+      # list. GitHub's ubuntu-latest image preinstalls google-chrome-stable,
+      # which is already on that list. Printing what is actually present makes
+      # a first-run failure diagnosable instead of mysterious; the script's own
+      # error names every path it tried.
+      - name: Show available browsers
+        run: |
+          for p in /usr/bin/google-chrome-stable /usr/bin/chromium \
+                   /usr/bin/chromium-browser; do
+            [ -e "$p" ] && echo "present: $p" || echo "absent:  $p"
+          done
+
+      # Builds as part of the script.
+      - run: npm run check:evalbar

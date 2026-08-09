@@ -4,17 +4,33 @@
 // captures the board view. Uses the environment's pre-installed Chromium.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { chromium } from "playwright-core";
 
 const DIST = new URL("../dist/", import.meta.url).pathname;
 const OUT = new URL("../docs/screenshot.png", import.meta.url).pathname;
-// Override with CHROMIUM_PATH when Chromium lives elsewhere; the default is the
-// pre-provisioned browser in the CI/web sandbox. playwright-core ships no
-// browser of its own, so it always needs an explicit executable.
-const CHROME =
-  process.env.CHROMIUM_PATH ??
-  "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+// playwright-core ships no browser of its own, so it always needs an explicit
+// executable. Prefer CHROMIUM_PATH, then the sandbox's pre-provisioned build,
+// then whatever the distro installed.
+//
+// This used to name the sandbox path alone, unconditionally, so `npm run
+// screenshot` failed on any machine that was not that sandbox — the project
+// convention is a manual driven-browser pass for UI changes, and the script
+// implementing it did not run. Same list as evalbar-geometry.mjs; keep the two
+// in step.
+const CANDIDATES = [
+  process.env.CHROMIUM_PATH,
+  "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/google-chrome-stable",
+].filter(Boolean);
+const CHROME = CANDIDATES.find((p) => existsSync(p));
+if (!CHROME) {
+  console.error("no Chromium found; set CHROMIUM_PATH. Tried:\n  " + CANDIDATES.join("\n  "));
+  process.exit(2);
+}
 const MIME = {
   ".html": "text/html",
   ".js": "text/javascript",
