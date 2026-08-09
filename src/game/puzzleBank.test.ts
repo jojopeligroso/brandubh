@@ -13,8 +13,8 @@
 // move would add another `ai.test.ts`; this pass costs seconds.
 
 import { describe, expect, it } from "vitest";
-import { resetTT, scoreRootMoves } from "./ai";
-import { allMoves, applyMove, isGameOver } from "./engine";
+import { resetTT, scoreRootMoves } from "./engine";
+import { allMoves, applyMove, isGameOver } from "./rules";
 import { encodeMove, rulesFingerprint } from "./openingBook";
 import { canonicalKey } from "./solver";
 import { bandOf, gradeOf } from "./grade";

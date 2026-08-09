@@ -1,7 +1,7 @@
 // ── Game file (PGN-style import / export) ─────────────────────────────────────
 // Chess has PGN: a header of [Tag "value"] lines, a blank line, then the moves.
 // Tafl has no universal standard, so this is the same shape wrapped around the
-// notation the app already emits (engine.ts `moveName` / `squareName`, which is
+// notation the app already emits (rules.ts `moveName` / `squareName`, which is
 // aagenielsen.dk-compatible):
 //
 //   [Format "brandubh-1"]
@@ -28,7 +28,7 @@
 // line and the reason (see replay.ts — the position always comes from replaying
 // through `applyMove`, never from anything asserted in the file).
 
-import { moveName, winnerOf } from "./engine";
+import { moveName, winnerOf } from "./rules";
 import { isExternalStatus, replayPlies, type PlyInput, type ReplayError } from "./replay";
 import { BOARD_SIZE, type GameState, type GameStatus, type Square } from "./types";
 import {

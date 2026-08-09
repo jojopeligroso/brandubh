@@ -90,7 +90,7 @@ describe("anchors", () => {
   });
 
   it("span the grade range and land on eight different grades", () => {
-    // The failure this guards: 92 of 161 puzzles grade at exactly 30, so eight
+    // The failure this guards: 89 of 158 puzzles grade at exactly 30, so eight
     // evenly-spaced *pool positions* would put five anchors on one grade and the
     // binary search would be comparing against five copies of one reference.
     const grades = A.map((p) => p.grade);
@@ -511,7 +511,7 @@ describe("least squares", () => {
   });
 
   it("gives a column that does not vary a coefficient near zero", () => {
-    // `grade.ts` records that `lineLength` is 1 on 160 of 161 puzzles, so its
+    // `grade.ts` records that `lineLength` is 1 on 157 of 158 puzzles, so its
     // column is nearly constant and the normal equations are nearly singular.
     // The truthful answer for a measurement with no variation is "no evidence
     // for any weight", not an enormous coefficient fitted to one puzzle.
@@ -709,7 +709,7 @@ describe("holdout accuracy", () => {
   });
 
   it("counts a tie as wrong, not as half right", () => {
-    // 92 of 161 puzzles share a grade under the shipped table. A rule that
+    // 89 of 158 puzzles share a grade under the shipped table. A rule that
     // rewarded ties would flatter exactly the failure this measurement exists
     // to catch.
     const pairs: Pair[] = [{ harder: "00002", easier: "00002", grader: "t" }];

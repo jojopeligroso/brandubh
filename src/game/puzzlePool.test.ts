@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import type { Puzzle } from "./puzzleBank";
 import { MOTIFS, PLAIN_TAGS, type Tag } from "./motifs";
 import { translations, type Lang } from "../i18n";
@@ -35,7 +35,7 @@ describe("pool order", () => {
   });
 
   it("breaks ties by puzzle number, because most of the bank is one grade", () => {
-    // `grade.ts` records that 92 of 161 puzzles grade at exactly 30. Without the
+    // `grade.ts` records that 89 of 158 puzzles grade at exactly 30. Without the
     // tie break the order would be whatever the data module happened to be
     // written in, and would move under any regeneration.
     const puzzles = [puz("00009", 30, "easy"), puz("00002", 30, "easy"), puz("00005", 30, "easy")];
@@ -51,9 +51,9 @@ describe("pool order", () => {
 
 describe("named sets", () => {
   it("are empty when no motif has been recognised — the state of the bank today", () => {
-    // 161 puzzles, `motif` null on every one of them. This is the normal case
+    // 158 puzzles, `motif` null on every one of them. This is the normal case
     // and not a degraded one: most puzzles have no motif and live in the Pool.
-    const puzzles = Array.from({ length: 161 }, (_, i) =>
+    const puzzles = Array.from({ length: 158 }, (_, i) =>
       puz(String(i).padStart(5, "0"), 30, "easy"),
     );
     expect(namedSets(puzzles)).toEqual([]);

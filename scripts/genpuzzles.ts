@@ -70,7 +70,7 @@
  *     moves the game went on to play. A game is now played to completion first
  *     and its candidates assessed after, which removes the coupling
  *     structurally rather than defending against it. `analysePosition`
- *     (`ai.ts:1295-1315`) records the same hazard found the same way.
+ *     (`engine.ts:1295-1315`) records the same hazard found the same way.
  *
  * ## What "verified" means here, and what it does not
  *
@@ -125,8 +125,8 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { chooseMove, resetTT, scoreRootMoves } from "../src/game/ai";
-import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "../src/game/engine";
+import { chooseMove, resetTT, scoreRootMoves } from "../src/game/engine";
+import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "../src/game/rules";
 import { encodeMove, rulesFingerprint } from "../src/game/openingBook";
 import { encodePosition, parsePosition } from "../src/game/position";
 import { canonicalKey, solve } from "../src/game/solver";
@@ -160,7 +160,7 @@ import {
 } from "../src/game/motifs";
 import { BOARD_SIZE, type GameState, type Move, type Side, type Square } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
-import { CORNERS, isCorner } from "../src/game/engine";
+import { CORNERS, isCorner } from "../src/game/rules";
 import {
   handAddProblemReport,
   mergeHandAddWarning,
@@ -573,7 +573,10 @@ function assess(c: Candidate): Assessed | Reason {
   // in fact it was abandoned half-examined.
   if (typeof built === "string") return overBudget() ? "budget_exceeded" : built;
 
-  // The fast-suite invariant, enforced here so it is true of what ships.
+  // The fast-suite invariant, checked here so a candidate that fails it is never
+  // mined into a shard in the first place. It is checked AGAIN at merge time (see
+  // `stillUniqueAtVerifyDepth`), because this check is only as true as the
+  // evaluation that ran it, and shards outlive that.
   let state = c.start;
   for (let i = 0; i < built.line.length; i++) {
     if (i % 2 === 0) {
@@ -689,6 +692,38 @@ function tagOf(p: Assessed & { id: string; key: string }, ledger: Ledger): Tagge
   return { motif, tags: computeTags({ side: solver, states, motifs: found, primary: motif }), byHand };
 }
 
+/**
+ * Is every solver move in a *stored* line still uniquely best at VERIFY depth?
+ *
+ * The same invariant `assess` enforces at mine time, re-applied at merge time to
+ * what is already on disk. It has to be both places, and mine time alone is the
+ * weaker half: a shard records the answer an evaluation gave months ago, and
+ * `--merge` re-bands and re-tags but never re-searched, so an evaluation change
+ * silently shipped puzzles whose "unique" solution had acquired an equal. That is
+ * not hypothetical — widening the defender endgame recognizer to accept a
+ * corner-adjacent lane gave three shipped puzzles (00021, 00088, 00159) a second
+ * winning move, each the mirror-image king run to the other corner. `npm test`
+ * caught it, which is the right outcome but the wrong place: the suite asserts
+ * the invariant, the generator is supposed to guarantee it.
+ *
+ * Costs one depth-VERIFY search per solver ply over the whole bank, a few tens of
+ * seconds against a merge that is otherwise instant. Cheap for a gate that stops
+ * the bank telling a learner they are wrong for a move that wins.
+ */
+function stillUniqueAtVerifyDepth(p: Assessed): boolean {
+  const parsed = parsePosition(p.position);
+  if (!parsed.ok) return false;
+  let state = applyMove(parsed.state, p.leadIn, rules);
+  for (let i = 0; i < p.line.length; i++) {
+    if (i % 2 === 0) {
+      const cheap = bestAt(state, VERIFY);
+      if (cheap.moves.length !== 1 || !sameMove(cheap.moves[0], p.line[i])) return false;
+    }
+    state = applyMove(state, p.line[i], rules);
+  }
+  return true;
+}
+
 /** Re-prove a shipped line from scratch, at the end, once. The expensive check
  *  lives here and only here: `npm test` re-checks the cheap invariants, and the
  *  suite staying fast is what makes the split worth having. */
@@ -714,7 +749,7 @@ function reproof(p: Assessed): boolean {
 
 /**
  * Seeded self-play with a third of moves played at random — `easy`'s blunder
- * rate (`ai.ts:1141`), and the `scripts/annotate-calibrate.ts` precedent. Real
+ * rate (`engine.ts:1141`), and the `scripts/annotate-calibrate.ts` precedent. Real
  * errors are what leave puzzles behind: two perfect players never blunder into
  * one, and a bank mined from perfect play would be a bank of positions nobody
  * ever reaches.
@@ -1121,8 +1156,17 @@ function emit(shards: Shard[]): void {
       // Numbers are assigned in order of first appearance and never reused, keyed
       // on the position alone — so a re-run that reaches this position again gives
       // it back the same number even if the answer has changed.
+      const assessed = fromStored(st);
+      // Re-check the fast-suite invariant against the *current* evaluation, not the
+      // one that mined the shard. A number is assigned first and kept: the ledger
+      // keys on position and never reuses a number, so a puzzle dropped here keeps
+      // its id if a later change makes it unique again.
       const entry = (ledger[st.key] ??= { id: String(number++).padStart(5, "0") });
-      found.push({ ...fromStored(st), id: entry.id });
+      if (!stillUniqueAtVerifyDepth(assessed)) {
+        rej.verify_depth_tie++;
+        continue;
+      }
+      found.push({ ...assessed, id: entry.id });
     }
   }
   const candidates = cands;

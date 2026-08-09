@@ -30,7 +30,7 @@
  * wolf about the one outcome the pipeline is entitled to reach.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { allMoves, applyMove } from "../src/game/engine";
+import { allMoves, applyMove } from "../src/game/rules";
 import { encodeMove } from "../src/game/openingBook";
 import { parsePosition } from "../src/game/position";
 import { canonicalKey } from "../src/game/solver";

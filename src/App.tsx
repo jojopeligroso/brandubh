@@ -15,7 +15,7 @@ import {
   type Attempt,
 } from "./game/attempt";
 import type { GameFileMeta, ParsedGame } from "./game/gameFile";
-import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/ai";
+import { ANALYSIS_WEIGHTS, DIFFICULTIES, evaluate, type Difficulty } from "./game/engine";
 import { useAiWorker } from "./game/useAiWorker";
 import { useAnalysisWorker } from "./game/useAnalysisWorker";
 import EvalBar from "./components/EvalBar";
@@ -27,7 +27,7 @@ import {
   moveName,
   sideOf,
   winnerOf,
-} from "./game/engine";
+} from "./game/rules";
 import type { GameState, GameStatus, Move, PlayMode, Side, Square } from "./game/types";
 import {
   clearSavedGame,

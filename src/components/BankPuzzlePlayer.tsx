@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Board, { Emblem } from "./Board";
 import type { Emblems } from "./ObjectivesContent";
 import type { Translations } from "../i18n";
-import { applyMove, isGameOver, movesFrom, sideOf } from "../game/engine";
+import { applyMove, isGameOver, movesFrom, sideOf } from "../game/rules";
 import { parsePosition, stateFromBoard } from "../game/position";
 import { isFinished, judge, retryStep, type Attempt, type LineStep } from "../game/attempt";
 import { completionNote } from "../game/completionNote";

@@ -18,7 +18,7 @@ import {
   tipOfLine,
   treeLines,
 } from "./moveTree";
-import { allMoves, applyMove, initialState } from "./engine";
+import { allMoves, applyMove, initialState } from "./rules";
 import { DEFAULT_VARIANT, VARIANTS } from "./variants";
 import type { GameState, Move } from "./types";
 

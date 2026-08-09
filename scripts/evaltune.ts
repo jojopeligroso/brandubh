@@ -9,8 +9,8 @@
  * shield and liberties were worse; blocker-aware king distance was neutral. So
  * DEFAULT_WEIGHTS ships as-is. Re-run this when adding a variant (e.g. Tablut) —
  * the balance there may favour different terms. */
-import { DEFAULT_WEIGHTS, FULL_CONFIG, pickMove, resetTT, type EvalWeights } from "../src/game/ai";
-import { applyMove, initialState, isGameOver, winnerOf } from "../src/game/engine";
+import { DEFAULT_WEIGHTS, FULL_CONFIG, pickMove, resetTT, type EvalWeights } from "../src/game/engine";
+import { applyMove, initialState, isGameOver, winnerOf } from "../src/game/rules";
 import type { GameState, Side } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 

@@ -45,7 +45,7 @@ custom-rule editor.
 ## AI engine — next levers
 
 The search core (iterative deepening + transposition table + quiescence + move
-ordering) landed in `ai.ts`; it is board-size-agnostic and variant-driven, so it
+ordering) landed in `engine.ts`; it is board-size-agnostic and variant-driven, so it
 carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 - [x] **Move search to a Web Worker** — done. `src/game/ai.worker.ts` runs the
@@ -68,7 +68,7 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   that remains future work.
 - [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is
   added, revisit the `hard` time budget and eval weights for the larger board.
-- [x] **Board-symmetry (D4) root-move folding** — done (`ai.ts`: `stabilizer` /
+- [x] **Board-symmetry (D4) root-move folding** — done (`engine.ts`: `stabilizer` /
   `foldRootMoves`). The opening's 40 first moves fold to 5 at symmetric positions,
   buying ~1 ply and cutting opening nodes ~2×. Applied per-turn at the root only;
   TT-key canonicalisation deliberately skipped (per-node hashing cost for little
@@ -78,7 +78,7 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
 
 - [x] **Shieldwall capture** — done (`72a7e19`), and this line claimed "no code, no
   RuleSet flags" for every commit since. It is a `RuleSet` flag
-  (`shieldwallCapture`, `src/game/variants.ts`), resolved in `src/game/engine.ts`
+  (`shieldwallCapture`, `src/game/variants.ts`), resolved in `src/game/rules.ts`
   (`resolveShieldwallCaptures`), offered in the custom-rule editor with copy in all
   three locales, and covered by an `engine.test.ts` block. **Off in both shipped
   presets** (a Copenhagen innovation, not part of WTF Brandubh), which is why it

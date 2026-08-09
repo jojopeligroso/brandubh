@@ -33,7 +33,7 @@
 //     PGN-style text format (see docs/design/game-import-export.md) is a
 //     separate, human-facing serialization, free to evolve independently.
 
-import { DIFFICULTIES, type Difficulty } from "./ai";
+import { DIFFICULTIES, type Difficulty } from "./engine";
 import type { GameState, GameStatus, PlayMode, Side } from "./types";
 import type { Match, PlayerId } from "./matchSet";
 import type { ClockBanks } from "./clockLine";

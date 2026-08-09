@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allMoves, applyMove, isGameOver, winnerOf } from "./engine";
+import { allMoves, applyMove, isGameOver, winnerOf } from "./rules";
 import { mv, parseRows, sq } from "./tutorials";
 import { VARIANTS, type RuleSet } from "./variants";
 import type { GameState, Move, Side } from "./types";

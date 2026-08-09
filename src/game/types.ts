@@ -53,6 +53,13 @@ export interface GameState {
   history: HistoryEntry[];
   /** How many defender/attacker soldiers have been captured (king excluded). */
   captured: { attackers: number; defenders: number };
+  /**
+   * Plies since the last capture, carried so the repetition check can be
+   * skipped when repetition is impossible — see `computeStatus` in `rules.ts`.
+   * Optional: a hand-built state may omit it, and the fallback there assumes
+   * no captures at all, which only ever makes the check run *more* often.
+   */
+  sinceCapture?: number;
 }
 
 export interface HistoryEntry {

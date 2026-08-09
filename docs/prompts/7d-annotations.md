@@ -21,7 +21,7 @@ before starting; a previous session's brief asserted a dependency that was ficti
 ## WHAT EXISTS
 
 - **The engine can evaluate and search any position.** `evaluate(state, weights,
-  rules)` (`src/game/ai.ts:378`) is a static score; `pickMove(state, rules, limits,
+  rules)` (`src/game/engine.ts:378`) is a static score; `pickMove(state, rules, limits,
   config, rng, weights, now)` (`:890`) returns a `SearchResult` carrying
   `depth` / `nodes` / `score`. Scores are attacker-positive (`WIN = 1_000_000`,
   `DECISIVE = WIN - 1000` marks a forced mate), so a defender-favourable position is

@@ -2,10 +2,10 @@
 // Regenerate: npx tsx scripts/genpuzzles.ts --games 160 --depth 6 --verify 4 --target 80 --seed 12345
 // Or, from the checked-in shards in data/puzzle-shards/ and without re-mining:
 //   npx tsx scripts/genpuzzles.ts --merge
-// 161 puzzles (regicide: 13, escape: 0, crushing: 146, advantage: 2), 0 truncated, 39.9% of 404 candidates.
-// By band: easy: 106, medium: 22, hard: 29, ollamh: 4.
+// 158 puzzles (regicide: 13, escape: 0, crushing: 143, advantage: 2), 0 truncated, 39.1% of 404 candidates.
+// By band: easy: 103, medium: 22, hard: 29, ollamh: 4.
 // By primary motif, zeros included (ADR-0003): guillotine: 1, snapTrap: 0, clamp: 0, spring: 0, balling: 0, cordon: 0, cornerFight: 7, twinTowers: 0,
-// none: 153.
+// none: 150.
 // Format: one line per puzzle, `id|pos|leadIn|line|goal|flags|dtm|depthToFind|salience|motif|tags`
 // — see src/game/puzzleBank.ts for the exact contract.
 
@@ -49,7 +49,6 @@ export const BANK_DATA: string = `00001|3A3/A6/7/AA1KDA1/3A2D/2D4/4A2 a|0305|330
 00018|1A5/1AA4/D3D2/A2K2A/2DD1A1/3A3/3A3 a|5350|3303|crushing||-|1|kt||defenders,moves1
 00019|1A5/1AA4/D3D2/A2K2A/2D1DA1/A6/3A3 a|4565|3303|crushing||-|1|kt||defenders,moves1
 00020|5A1/1AD2A1/D6/D4AA/1K5/7/3A3 a|3646|4140|crushing||-|1|kt||defenders,moves1
-00021|5A1/1A5/3D3/4DA1/1K4A/2A4/3A3 a|5262|4140|crushing||-|1|kt||defenders,moves1
 00022|3A3/7/6D/A2KDAA/3D3/4A2/2DA3 a|3031|3313|crushing||-|3|kt||defenders,moves1
 00023|7/2AA3/2D4/1D3AA/2A4/A6/2DKD2 a|1315|6303|crushing||-|1|k||defenders,moves1
 00024|3A3/1DD4/4AAA/4K1A/7/2AA3/3D1A1 a|3656|3430|crushing||-|1|kt||defenders,moves1
@@ -116,7 +115,6 @@ export const BANK_DATA: string = `00001|3A3/A6/7/AA1KDA1/3A2D/2D4/4A2 a|0305|330
 00085|2A4/3A3/D6/3KDAA/D6/2D1A2/1A1A3 a|6162|3331|crushing||-|4|kt||defenders,moves1
 00086|7/3A1A1/2D4/1A1KD1A/1D5/2D4/2AAA2 a|3646|2221|crushing||-|3|ct||defenders,moves1
 00087|7/7/1AA4/A1K1AA1/A2D3/3A1D1/3A3 d|3262|2161|regicide||1|1|t||attackers,moves1
-00088|3A3/A6/7/A1D2KA/2D4/2A4/3AD2 a|0323|3505|crushing||-|1|kt||defenders,moves1
 00089|2A4/4A2/3K3/1AD1DAA/2AD3/3A3/3A3 a|1413|2320|crushing||-|1|kt||defenders,moves1
 00090|1AA4/3A3/4K2/D4AA/2ADD2/3A3/4A2 d|2426|1316|regicide||1|1|t||attackers,moves1
 00091|7/A2A2D/2A2D1/1AD1K1A/5D1/4A2/3A3 a|6365|3404|crushing||-|1|kt||defenders,moves1
@@ -187,6 +185,5 @@ export const BANK_DATA: string = `00001|3A3/A6/7/AA1KDA1/3A2D/2D4/4A2 a|0305|330
 00156|7/D6/2D1A2/1A1KA2/3D3/3A3/3A3 a|2404|3303|crushing||-|1|kt||defenders,moves1
 00157|4A2/D6/D6/1A1KA2/5D1/2A4/3A3 a|5232|3353|crushing||-|3|kt||defenders,moves1
 00158|4A2/D6/D6/1AA1A2/3K1D1/7/3A3 a|6353|4535|crushing||-|3|c||defenders,moves1
-00159|4A2/D6/D6/1AA2D1/7/3K3/3A3 a|6364|5356|crushing||-|1|kt||defenders,moves1
 00160|4D2/3A3/3D3/1A3AA/A2K3/2D2A1/3A3 a|6364|4363|crushing||-|1|kt||defenders,moves1
 00161|2AA1A1/7/3D3/A1D1K1A/1A1D3/3A3/2A4 a|4151|3404|crushing||-|1|ckt|cornerFight|defenders,moves1`;

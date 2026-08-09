@@ -14,7 +14,7 @@ import {
   type GameSnapshotInput,
   type SavedGame,
 } from "./persist";
-import { allMoves, applyMove, initialState } from "./engine";
+import { allMoves, applyMove, initialState } from "./rules";
 import type { GameState, Move } from "./types";
 import { newMatch, recordMatchGame } from "./matchSet";
 import { CUSTOM_RULE_DEFAULTS, VARIANTS, type CustomRuleSet } from "./variants";

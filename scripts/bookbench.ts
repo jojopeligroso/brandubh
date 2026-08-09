@@ -9,8 +9,8 @@
  * Deterministic where it matters: seeded rng, fixed-depth self-play; only the
  * latency section runs ollamh's real wall-clock budget.
  */
-import { chooseMoveDetailed, FULL_CONFIG, OPENING_BOOK, pickMove, resetTT } from "../src/game/ai";
-import { allMoves, applyMove, hashBoard, initialState, isGameOver, moveName, winnerOf } from "../src/game/engine";
+import { chooseMoveDetailed, FULL_CONFIG, OPENING_BOOK, pickMove, resetTT } from "../src/game/engine";
+import { allMoves, applyMove, hashBoard, initialState, isGameOver, moveName, winnerOf } from "../src/game/rules";
 import type { GameState, Move, Side } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";
 
@@ -44,7 +44,7 @@ function mulberry32(seed: number): () => number {
 }
 
 /** The book side's move: a legal booked candidate (seeded pick) or null.
- *  Mirrors bookMove in ai.ts (which is internal by design). */
+ *  Mirrors bookMove in engine.ts (which is internal by design). */
 function bookPick(s: GameState, rng: () => number): Move | null {
   const hits = OPENING_BOOK[hashBoard(s.board, s.turn)];
   if (!hits || hits.length === 0) return null;

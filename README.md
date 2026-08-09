@@ -141,7 +141,7 @@ World Tafl Federation ruleset via search.
 If you want the recorded games imported (e.g. as replayable PGN-style game
 records or an opening book for the AI), run the scrape from a machine with
 network access to that domain and drop the parsed games into `src/game/` — the
-move-notation format (`moveName()` in `engine.ts`, e.g. `d2-d4`) is already
+move-notation format (`moveName()` in `rules.ts`, e.g. `d2-d4`) is already
 compatible with a simple game-record replay.
 
 ---
@@ -153,14 +153,14 @@ src/
   game/
     types.ts         core types (board, move, state)
     variants.ts      rule presets (Walker, WTF) + RuleSet flags
-    engine.ts        move generation, captures, king capture, win detection, notation
-    engine.test.ts   vitest unit tests for the engine
+    rules.ts         move generation, captures, king capture, win detection, notation
+    rules.test.ts    vitest unit tests for the rules
     matchSet.ts      over-the-board set scoring (side swap, tiebreak by moves)
     matchSet.test.ts vitest unit tests for set scoring
-    ai.ts            iterative-deepening alpha–beta (TT, quiescence, ordering) + evaluation
+    engine.ts        iterative-deepening alpha–beta (TT, quiescence, ordering) + evaluation
+    engine.test.ts   vitest tactics, quiescence, self-play & perf tests for the engine
     ai.worker.ts     runs the search off the main thread (bundled, offline)
     useAiWorker.ts   React hook: worker lifecycle, cancellation, sync fallback
-    ai.test.ts       vitest tactics, quiescence, self-play & perf tests for the AI
   components/
     Board.tsx        the board grid + piece emblems
     RulesModal.tsx   in-app how-to-play

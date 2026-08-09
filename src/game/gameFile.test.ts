@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allMoves, applyMove, initialState, isGameOver, moveName } from "./engine";
+import { allMoves, applyMove, initialState, isGameOver, moveName } from "./rules";
 import {
   exportFileName,
   exportGame,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonicalKey, solve } from "./solver";
-import { applyMove } from "./engine";
+import { applyMove } from "./rules";
 import type { Board, GameState, Piece, Side } from "./types";
 import { VARIANTS } from "./variants";
 

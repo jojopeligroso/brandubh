@@ -8,7 +8,7 @@
 // it is never persisted or exported, so the replay-from-initialState()
 // invariant (see game/replay.ts) is untouched.
 
-import { allMoves, applyMove, isGameOver, winnerOf } from "./engine";
+import { allMoves, applyMove, isGameOver, winnerOf } from "./rules";
 import {
   BOARD_SIZE,
   type Board,

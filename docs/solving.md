@@ -111,7 +111,7 @@ guessing. That is why it is trustworthy for the parts it *can* decide.
   more than typical play.
 
 These feed a real improvement even without a full solve: proven moves can drop
-into `OPENING_BOOK` (in `ai.ts`) and the **Ollamh** tier plays them instantly.
+into `OPENING_BOOK` (in `engine.ts`) and the **Ollamh** tier plays them instantly.
 
 **Update (roadmap Session 6):** the book is no longer empty — but what filled it
 is *not* a solve, and it is deliberately not labelled as one. The shipped book is

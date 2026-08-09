@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BAND_CUTS, BANDS, GRADE_WEIGHTS, bandOf, gradeOf, type Salience } from "./grade";
-import { DIFFICULTIES } from "./ai";
+import { DIFFICULTIES } from "./engine";
 
 const bland: Salience = {
   capture: false,

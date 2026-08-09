@@ -3,7 +3,7 @@
  *
  * Deep-searches the D4-folded opening tree and emits src/game/openingBook.data.ts,
  * the compact book the app bundles (loaded by src/game/openingBook.ts and served
- * to `ollamh` via OPENING_BOOK in ai.ts). The book is *deep-search best-effort* —
+ * to `ollamh` via OPENING_BOOK in engine.ts). The book is *deep-search best-effort* —
  * each booked position is searched at a fixed depth at least as deep as ollamh's
  * live opening search — NOT a solve; see docs/solving.md for why the opening
  * cannot be solved, and docs/ROADMAP.md Session 6 for the measured results.
@@ -39,9 +39,9 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resetTT, scoreRootMoves } from "../src/game/ai";
+import { resetTT, scoreRootMoves } from "../src/game/engine";
 import { canonicalHash, transformMove } from "../src/game/d4";
-import { allMoves, applyMove, hashBoard, isGameOver } from "../src/game/engine";
+import { allMoves, applyMove, hashBoard, isGameOver } from "../src/game/rules";
 import { encodeMove, rulesFingerprint } from "../src/game/openingBook";
 import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side } from "../src/game/types";
 import { VARIANTS } from "../src/game/variants";

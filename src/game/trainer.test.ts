@@ -10,7 +10,7 @@ import {
   recordAttempt,
   type TrainerState,
 } from "./trainer";
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import type { Puzzle } from "./puzzleBank";
 
 // The trainer reads only `id` and `band`; everything else is along for the

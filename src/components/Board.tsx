@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { isCorner, isThrone, movesFrom, sideOf } from "../game/engine";
+import { isCorner, isThrone, movesFrom, sideOf } from "../game/rules";
 import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, type Square } from "../game/types";
 import {
   fileLabel,

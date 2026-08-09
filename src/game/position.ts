@@ -31,7 +31,7 @@
 // three piece kinds and no castling/en-passant baggage to carry.
 
 import { BOARD_SIZE, type Board, type GameState, type Piece, type Side } from "./types";
-import { isCorner, isRestricted, isThrone } from "./engine";
+import { isCorner, isRestricted, isThrone } from "./rules";
 
 const PIECE_TO_CHAR: Record<Piece, string> = {
   attacker: "A",

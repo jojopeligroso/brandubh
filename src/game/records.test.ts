@@ -7,7 +7,7 @@ import {
   type GameRecords,
 } from "./records";
 import { snapshotGame, type GameSnapshotInput, type SavedGame } from "./persist";
-import { allMoves, applyMove, initialState } from "./engine";
+import { allMoves, applyMove, initialState } from "./rules";
 import { newMatch, recordMatchGame } from "./matchSet";
 import { CUSTOM_RULE_DEFAULTS, VARIANTS } from "./variants";
 import type { GameState, Move } from "./types";

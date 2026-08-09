@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import type { Puzzle } from "./puzzleBank";
 import {
   UNLOCK_PROPORTION,

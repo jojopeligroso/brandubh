@@ -113,12 +113,12 @@ overlay; `useAnalysisWorker` runs the search.
 
 - **The score is now threaded end to end.** `pickMove` always returned one; every
   layer above it dropped it on the floor. It rides `MoveInfo` → `AiResponse` →
-  `AiMove` now, and `WIN`/`DECISIVE` are exported from `ai.ts` rather than
+  `AiMove` now, and `WIN`/`DECISIVE` are exported from `engine.ts` rather than
   re-declared, so "decisive" cannot come to mean two different numbers.
 - **Analysis gets its own worker instance, not a second request type on the
   same one.** Play hard-cancels by *terminating* its worker; sharing an instance
   would mean each cursor step could kill the AI's move mid-search and vice
-  versa. Separate instances also keep `ai.ts`'s module-global transposition
+  versa. Separate instances also keep `engine.ts`'s module-global transposition
   table separate, which matters because analysis searches with different
   weights. Measured at peak 2 workers alive simultaneously.
 - **The bar's ends are the two chairs, and it flips with the north–south

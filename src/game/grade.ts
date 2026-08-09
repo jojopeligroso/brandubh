@@ -15,7 +15,7 @@
 // are noisy. A simple model of a judge routinely outperforms the judge for
 // exactly that reason (ADR-0005).
 
-import { DIFFICULTIES, type Difficulty } from "./ai";
+import { DIFFICULTIES, type Difficulty } from "./engine";
 
 /**
  * What the eye lands on first.
@@ -106,9 +106,9 @@ export const GRADE_WEIGHTS = {
  *   dtf 2   n=  2   120          dtf 4   n=  4   330–370
  * ```
  *
- * The cuts sit in those gaps (30→50, 120→220, 290→330), giving **106 / 22 / 29
- * / 4**. Percentiles were not usable and the reason is worth recording: 92 of
- * 161 puzzles grade at exactly 30, so p25, p50 and p75 cannot separate them. A
+ * The cuts sit in those gaps (30→50, 120→220, 290→330), giving **103 / 22 / 29
+ * / 4**. Percentiles were not usable and the reason is worth recording: 89 of
+ * 158 puzzles grade at exactly 30, so p25, p50 and p75 cannot separate them. A
  * distribution with a spike that large is not cut by quantiles, it is cut by
  * where it stops being flat.
  *
@@ -119,10 +119,10 @@ export const GRADE_WEIGHTS = {
  * the bands look even — that would be tuning the ruler to flatter the thing
  * being measured. Two measurements are barely varying:
  *
- *  - **`depthToFind` is 1 for 126 of 161.** The dominant term is nearly a
+ *  - **`depthToFind` is 1 for 123 of 158.** The dominant term is nearly a
  *    constant. `assess()` already moved its decisiveness gate deeper once for
  *    this exact reason and it was not enough.
- *  - **`lineLength` is 1 for 160 of 161**, so `linePastFirst` contributes
+ *  - **`lineLength` is 1 for 157 of 158**, so `linePastFirst` contributes
  *    nothing at all. ADR-0001's uniqueness requirement is what does it: a line
  *    can only continue while every solver move stays uniquely best, and in
  *    practice the second step almost always has a rival. A four-move bank puzzle

@@ -29,7 +29,7 @@
 // is near.) That is the point: the picture stays consistent with the seat you
 // are looking from.
 
-import { DECISIVE, DEFAULT_WEIGHTS } from "./game/ai";
+import { DECISIVE, DEFAULT_WEIGHTS } from "./game/engine";
 import type { Side } from "./game/types";
 
 /**

@@ -12,7 +12,7 @@
 // row to own.
 
 import type { Translations } from "../i18n";
-import type { Difficulty } from "./ai";
+import type { Difficulty } from "./engine";
 import { MOTIF_SET_THRESHOLD, type Motif, type Tag } from "./motifs";
 import type { Puzzle } from "./puzzleBank";
 
@@ -68,7 +68,7 @@ export interface NamedSet {
  * The **Pool** order: easiest first, ties broken by **Puzzle number**.
  *
  * Grade rather than band, so the order inside a band is meaningful too. The tie
- * break is not cosmetic — `grade.ts` records that 92 of 161 puzzles grade at
+ * break is not cosmetic — `grade.ts` records that 89 of 158 puzzles grade at
  * exactly 30, so without it the order would be whatever the data module happened
  * to be written in, and would move under any regeneration.
  */

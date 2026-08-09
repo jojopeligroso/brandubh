@@ -29,8 +29,8 @@
 // the board-shape motifs are recognised from the line the learner actually
 // plays.
 
-import { CORNERS, findKing } from "./engine";
-import { clearPathToCorner, kingCornerMoves } from "./ai";
+import { CORNERS, findKing } from "./rules";
+import { clearPathToCorner, kingCornerMoves } from "./engine";
 import { BOARD_SIZE, type GameState, type Move, type Side, type Square } from "./types";
 import type { RuleSet } from "./variants";
 

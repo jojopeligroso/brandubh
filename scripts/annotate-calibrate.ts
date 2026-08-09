@@ -20,8 +20,8 @@
  *
  * Re-run this if DEFAULT_WEIGHTS ever changes: bands calibrated against a
  * different evaluation are bands that mean nothing. Deterministic (seeded). */
-import { DEFAULT_WEIGHTS, chooseMove, pickMove, resetTT } from "../src/game/ai";
-import { allMoves, applyMove, initialState, isGameOver } from "../src/game/engine";
+import { DEFAULT_WEIGHTS, chooseMove, pickMove, resetTT } from "../src/game/engine";
+import { allMoves, applyMove, initialState, isGameOver } from "../src/game/rules";
 import { DEFAULT_VARIANT, VARIANTS } from "../src/game/variants";
 import { lossFor } from "../src/game/annotate";
 
