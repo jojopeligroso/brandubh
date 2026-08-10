@@ -311,6 +311,71 @@ most likely to want a timed game.
 
 ---
 
+### Sessions 11–17 — from the landscape analysis
+
+Sixty-four GitHub tafl repositories were surveyed and six read at source
+(August 2026). The findings are briefed session-by-session in
+[`docs/prompts/`](./prompts/README.md), with a standing
+[do-not-rebuild register](./prompts/00-deferred.md). Two facts set the priorities:
+
+- **No competitor has puzzles, analysis, an eval bar, an opening book or a
+  solver.** On the things an improving player uses, this project is unopposed.
+- **On variant breadth it is the weakest serious project in the field**, by
+  choice (ADR-0006) — and that is the axis both the best libraries and the
+  commercial mobile apps compete on.
+
+Nothing in tafl has ever published a **perft suite**, an **endgame tablebase**,
+or an **openly licensed puzzle corpus**. Those are the unclaimed niches, and
+sessions 12–14 take two of them.
+
+### Session 11 — Close the record *(S)*
+Settle the contested throne-adjacent king-capture rule — it turns out **both
+shipped presets are attested**, per a Brandubh tournament game annotated by Tim
+Millar, one of the three Copenhagen rules authors. Fix the README's king-capture
+bullet, which contradicts `flankHostile`. Fix `loadCustomIncrement`, whose
+default is dead. New ADR 0007. → [`11-close-the-record.md`](./prompts/11-close-the-record.md)
+
+### Session 12 — Exit fort + perft *(M)*
+The last unimplemented rule in `TASKS.md`, built the way `shieldwallCapture` was,
+plus the first published **perft** table for any tafl variant. Both live in
+`rules.ts`, which is why they batch.
+→ [`12-rules-engine.md`](./prompts/12-rules-engine.md)
+
+### Session 13 — OpenTafl Notation, core *(L — starts from its design doc)*
+`.tafl` is a good format that talks only to itself. OTN is the only interchange
+standard the game has: a rules string that encodes the *variant itself*, a
+position record, a move record whose redundant capture data cross-checks our own
+move generator, and an `.otg` game record with puzzle tags. Pure module, no UI.
+→ [`13-otn-core.md`](./prompts/13-otn-core.md)
+
+### Session 14 — OTN surfaces + puzzles as open data *(M)*
+OTN beside `.tafl` in the panel, and the 158-puzzle bank emitted as MIT-licensed
+`.otg` — the first openly licensed tafl puzzle corpus in existence.
+→ [`14-otn-surfaces.md`](./prompts/14-otn-surfaces.md)
+
+### Session 15 — The evaluator's second opinion *(M)*
+OpenTafl's evaluator retunes explicitly for 7×7 and spends a third of its
+evaluation on rank-and-file control and a piece-square table — the two things
+this engine has at `0` and absent. Gauntlet them. **"Dropped, measured" is a
+successful outcome**, per the PVS precedent.
+→ [`15-evaluation-second-opinion.md`](./prompts/15-evaluation-second-opinion.md)
+
+### Session 16 — Installable, and a third language *(M)*
+The app already makes zero runtime network calls; it is a manifest and a service
+worker away from competing with the sub-25 MB mobile apps. Plus the compact
+header (which must be **rewritten** — it is not recoverable from history, despite
+what `TASKS.md` said) and one new locale.
+→ [`16-installable-and-a-third-language.md`](./prompts/16-installable-and-a-third-language.md)
+
+### Session 17 — A Brandubh endgame tablebase *(L, optional, may fail)*
+Deferred below as an engine-strength measure, and it probably still is. But no
+tafl tablebase exists publicly for any variant, so the narrow version — smallest
+material signatures, done completely, with the wall published — is a claim worth
+having even when it does not help play.
+→ [`17-endgame-tablebase.md`](./prompts/17-endgame-tablebase.md)
+
+---
+
 ## Deferred / not worth it (with rationale)
 
 - **Material endgame tablebases** — decisive endgames keep too many attackers to tabulate (~10⁸–10¹⁴); the tabulatable ones are foregone. See `docs/solving.md`.
