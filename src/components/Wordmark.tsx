@@ -30,7 +30,12 @@ import {
  * on the compound's seam and bleed into one another across ±this much, so the
  * end of "Bran" warms and the "d" of "duḃ" starts already part-gold rather than
  * switching at a hard edge. Widen it for a softer wash, shrink it towards 0 for
- * the old abrupt split.
+ * an abrupt split.
+ *
+ * 0.042 was chosen from rendered comparisons at 0.000 / 0.020 / 0.042 / 0.075 /
+ * 0.130. Judge any change on a warm-gold theme: the default theme's gold is a
+ * blue very close to its parchment, so the transition is nearly invisible there
+ * whatever this is set to.
  */
 const BLEED = 0.042;
 
@@ -38,10 +43,10 @@ const BLEED = 0.042;
  * "Branduḃ" — the raven of the game's name.
  *
  * Brandubh is **bran** (raven) + **dubh** (black), and the colour follows that
- * compound: the inherited parchment through "Bran", gold through "duḃ", bleeding
- * across the join. Both morphemes are filled from one user-space gradient, so
- * the transition lands identically no matter which of the two paths a given
- * stretch of letterform belongs to.
+ * compound: silver through "Bran", red gold through "duḃ", bleeding across the
+ * join. Both morphemes are filled from one user-space gradient, so the
+ * transition lands identically no matter which of the two paths a given stretch
+ * of letterform belongs to.
  */
 export function Wordmark({ className }: { className?: string }) {
   // Instance-scoped: several wordmarks can be mounted at once (header, drawer,
@@ -63,9 +68,12 @@ export function Wordmark({ className }: { className?: string }) {
       <defs>
         {/* userSpaceOnUse, spanning the whole mark: the morphemes are separate
             paths, so the default objectBoundingBox units would restart the ramp
-            on each of them and colour both halves identically. `currentColor`
-            and --color-gold keep the two ends following the active theme
-            exactly as the old solid fills did. */}
+            on each of them and colour both halves identically.
+
+            Both stops are brand tokens, not theme tokens — the mark holds its
+            silver and gold in every theme (see index.css). That is why this
+            ignores the `text-parchment` on its parent: a logo should not
+            reskin. */}
         <linearGradient
           id={gradientId}
           gradientUnits="userSpaceOnUse"
@@ -74,8 +82,8 @@ export function Wordmark({ className }: { className?: string }) {
           x2={WORDMARK_WIDTH}
           y2="0"
         >
-          <stop offset={WORDMARK_SEAM - BLEED} style={{ stopColor: "currentColor" }} />
-          <stop offset={WORDMARK_SEAM + BLEED} style={{ stopColor: "var(--color-gold)" }} />
+          <stop offset={WORDMARK_SEAM - BLEED} style={{ stopColor: "var(--wordmark-silver)" }} />
+          <stop offset={WORDMARK_SEAM + BLEED} style={{ stopColor: "var(--wordmark-gold)" }} />
         </linearGradient>
       </defs>
       <path d={WORDMARK_BRAN_PATH} fill={`url(#${gradientId})`} />

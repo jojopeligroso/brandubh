@@ -18,6 +18,21 @@
   --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* ── Wordmark brand colours ────────────────────────────────────────────────────
+   Deliberately NOT theme tokens: the wordmark is a mark of identity, so it holds
+   the same two colours in every theme rather than reskinning with the board. All
+   twelve themes are dark, so the silver stays legible on each.
+
+   Chosen against Pantone references. The hex values are the screen stand-ins —
+   Pantone metallic inks cannot be expressed in RGB, so anything going to print
+   should be specified by the Pantone number, not by these. For print silver,
+   specify PANTONE 877 C (the true metallic); Cool Gray 1 C is the screen
+   substitute, because 877 C's RGB approximation is a muddy mid-grey. */
+:root {
+  --wordmark-silver: #d9d9d6; /* PANTONE Cool Gray 1 C — print: PANTONE 877 C */
+  --wordmark-gold: #a76d11; /* PANTONE 146 C — amber/red gold */
+}
+
 /* No cló Gaelach font is bundled. The only text ever set in that face was the
    "Branduḃ" wordmark and the "Ollaṁ" difficulty label — both fixed strings — so
    they ship as outlines instead (src/wordmark.ts, components/Wordmark.tsx) and
