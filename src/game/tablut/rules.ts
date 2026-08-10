@@ -461,9 +461,9 @@ export function hashBoard(b: Board, turn: Side): string {
  * the ring.
  *
  * Under `escape: "edges"` this is very nearly "White can never win", which is
- * why `encirclementWin` is off in every shipped preset — see variants.ts. The
- * function is still needed for the corner-escape variant, and the search uses it
- * as an evaluation term regardless of whether it ends the game.
+ * why the minimal presets leave `encirclementWin` off — see variants.ts. The
+ * Linnaeus/WTF default and the corner-escape variant both turn it on, and the
+ * search uses it as an evaluation term regardless of whether it ends the game.
  */
 export function isEncircled(b: Board): boolean {
   const king = findKing(b);

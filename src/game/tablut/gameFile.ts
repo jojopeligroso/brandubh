@@ -47,7 +47,6 @@ import { isExternalStatus, replayPlies, type PlyInput, type ReplayError } from "
 import { BOARD_SIZE, type GameState, type GameStatus, type Square } from "./types";
 import {
   CUSTOM_RULE_DEFAULTS,
-  DEFAULT_VARIANT,
   VARIANTS,
   rulesFor,
   type CustomRuleSet,
@@ -357,7 +356,7 @@ export function parseGame(text: string): ParseResult {
       },
     };
   if (!variantTag)
-    warnings.push(`No [Variant] tag — assuming "${DEFAULT_VARIANT}".`);
+    warnings.push(`No [Variant] tag — assuming "${UNTAGGED_VARIANT}".`);
 
   let variantId = resolved;
   let rules: RuleSet;
@@ -422,11 +421,19 @@ export function parseGame(text: string): ParseResult {
   };
 }
 
+/**
+ * What a file with no `[Variant]` tag is assumed to be. Deliberately the
+ * baseline rather than `DEFAULT_VARIANT`: the picker's default can move (and
+ * has), but a file that asserts nothing should replay under the ruleset that
+ * asserts nothing — the six undisputed rules — with a warning saying so.
+ */
+const UNTAGGED_VARIANT = "tablut";
+
 /** Map a `Variant` tag to a ruleset id. Accepts ids, display names and the
- *  common shorthands people actually type. Empty → the default variant. */
+ *  common shorthands people actually type. Empty → the untagged fallback. */
 function resolveVariant(tag: string): string | "unknown" {
   const v = tag.trim().toLowerCase();
-  if (!v) return DEFAULT_VARIANT;
+  if (!v) return UNTAGGED_VARIANT;
   if (v === "custom") return "custom";
   if (VARIANTS[v]) return v;
   for (const r of Object.values(VARIANTS)) {

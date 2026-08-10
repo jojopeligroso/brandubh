@@ -62,6 +62,29 @@ describe("the shipped presets", () => {
     expect(VARIANTS["tablut-gulo"].throneAnvil).toBe("defenders");
   });
 
+  it("makes the Linnaeus reading the default, with the strong king it describes", () => {
+    // The rules bug this guards against shipped once: a king captured by two
+    // soldiers on his own throne. Linnaeus's account — corroborated by every
+    // secondary source docs/tablut-rules.md cites — needs four attackers on the
+    // throne and three plus the throne beside it, so the flags that implement
+    // that reading must all be on in the preset the picker starts from.
+    expect(DEFAULT_VARIANT).toBe("tablut-linnaeus");
+    expect(VARIANTS["tablut-linnaeus"]).toMatchObject<Partial<TablutRuleSet>>({
+      escape: "edges",
+      firstMove: "defenders",
+      armedKing: true,
+      throneAnvil: "both",
+      throneHostileToKing: true,
+      strongKingOnThrone: true,
+      strongKingAdjacentToThrone: true,
+      cornersRestricted: false,
+      cornersHostile: false,
+      shieldwallCapture: false,
+      encirclementWin: true,
+      repetitionResult: "loss_for_defenders",
+    });
+  });
+
   it("marks the unverified tournament preset as unverified in its own blurb", () => {
     // The source could not be reached to check the wording (see
     // docs/tablut-rules.md). If someone verifies it and drops the warning, this
@@ -76,9 +99,14 @@ describe("the shipped presets", () => {
     expect(v.cornersHostile).toBe(true);
   });
 
-  it("leaves encirclement off wherever the rim is the goal", () => {
-    for (const v of Object.values(VARIANTS))
-      if (v.escape === "edges") expect(v.encirclementWin).toBe(false);
+  it("keeps encirclement out of the minimal presets, and in the tournament reading", () => {
+    // The baseline asserts only the six undisputed rules, and gulo/Dimetr is the
+    // baseline plus exactly two changes — neither may grow an encirclement win.
+    // The Linnaeus/WTF preset *does* carry one, because the federation's rules
+    // do: an unbroken ring of attackers around every defender ends the game.
+    expect(VARIANTS.tablut.encirclementWin).toBe(false);
+    expect(VARIANTS["tablut-gulo"].encirclementWin).toBe(false);
+    expect(VARIANTS["tablut-linnaeus"].encirclementWin).toBe(true);
   });
 
   it("never ships the Copenhagen shieldwall, which is not a Tablut rule", () => {

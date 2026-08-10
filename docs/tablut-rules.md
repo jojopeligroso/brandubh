@@ -33,6 +33,54 @@ Two of these are worth flagging because they invert a tafl habit:
   are both off and why the board draws no corner emblem. Getting this wrong is
   not a cosmetic matter: see "the unsound shortcut" below.
 
+## `tablut-linnaeus` — the default, and why it moved
+
+The first release shipped with the bare baseline as the default, and the owner
+reported it as a rules bug within a day: the app took the king with two soldiers
+on and beside his own throne. That capture is not Tablut. Linnaeus's account —
+and every secondary source below that reads it — gives the king three tiers of
+protection:
+
+- **On the throne (konakis): four attackers**, one on each side.
+- **Beside the throne: three attackers**, the empty throne itself standing in as
+  the fourth hostile wall.
+- **Anywhere else: the ordinary two**, as for a soldier.
+
+The `tablut-linnaeus` preset asserts that reading, plus the rest of the
+federation's game, and `DEFAULT_VARIANT` now points at it:
+
+```
+throneAnvil: "both"          strongKingOnThrone: true
+throneHostileToKing: true    strongKingAdjacentToThrone: true
+encirclementWin: true        repetitionResult: "loss_for_defenders"
+```
+
+Sourcing, honestly stated: aagenielsen.dk, worldtafl.com, tafl.cyningstan.com
+and heroicage.net (Ashton, *Linnaeus's Game of Tablut*) are all blocked by this
+environment's egress proxy for direct reads, so the corroboration came through
+search excerpts of those pages rather than full text. The three-tier king
+capture is attested independently by several of them in matching words ("a king
+is captured by quadruple custodianship only when it is still at the central
+square … and by triple custodianship … where the fourth vacant side is the
+konakis"), which is why it ships as the default; the surrounding details
+(hostile throne, encirclement, repetition falling on White) follow the same
+tournament reading as `tablut-aage` below. Anyone able to reach the sites should
+re-verify the wording and tighten this note.
+
+Two flags stay at the baseline value despite murkier sources: `firstMove`
+remains White (translations disagree — one has "the Muscovites begin" — and the
+federation plays White first), and `kingMayReoccupyThrone` remains true (one
+translation forbids the return; the custom editor exposes both).
+
+With encirclement now shipping in an edge-escape preset, the earlier note that
+it is "off in every shipped preset" no longer holds: the federation's rules do
+include it, and the search's `isEncircled` term was already computed either way.
+The minimal presets (`tablut`, `tablut-gulo`) still leave it off.
+
+`tablut-aage` asserted nearly the same flags while marked UNVERIFIED, so it is
+now hidden from the picker rather than offered beside a near-duplicate — still
+resolvable, per the hiding rules at the bottom of this file.
+
 ## What the baseline leaves open
 
 Everything the other presets disagree about. The throne is the main one — the six

@@ -2,13 +2,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   GAME_SCHEMA_VERSION,
   GAME_STORAGE_KEY,
+  SURFACE_STORAGE_KEY,
   clearSavedGame,
   loadResumableGame,
   parseSavedGame,
+  rememberSurfaceOpen,
   restoreGame,
   saveGame,
   serializeGame,
   snapshotGame,
+  wasSurfaceOpen,
   type SavedGame,
 } from "./persist";
 import { GAME_STORAGE_KEY as BRANDUBH_KEY } from "../persist";
@@ -105,6 +108,34 @@ describe("the storage key", () => {
     clearSavedGame();
     expect(localStorage.getItem(BRANDUBH_KEY)).toBe("brandubh-save");
     expect(localStorage.getItem(GAME_STORAGE_KEY)).toBeNull();
+  });
+});
+
+// ── The surface flag ──────────────────────────────────────────────────────────
+// Which game the app is *in* survives a reload alongside the game itself: a
+// refresh mid-Tablut must land back on the 9×9 board, and only the player's own
+// back button clears the flag.
+
+describe("surface persistence", () => {
+  it("keeps its own key beside the game save", () => {
+    expect(SURFACE_STORAGE_KEY).toBe("tablut.surface.v1");
+    expect(SURFACE_STORAGE_KEY).not.toBe(GAME_STORAGE_KEY);
+  });
+
+  it("round-trips open and closed, and defaults to closed", () => {
+    expect(wasSurfaceOpen()).toBe(false);
+    rememberSurfaceOpen(true);
+    expect(wasSurfaceOpen()).toBe(true);
+    rememberSurfaceOpen(false);
+    expect(wasSurfaceOpen()).toBe(false);
+  });
+
+  it("does not disturb the game save either way", () => {
+    saveGame(snapshotOf(play(SHORT)));
+    const saved = localStorage.getItem(GAME_STORAGE_KEY);
+    rememberSurfaceOpen(true);
+    rememberSurfaceOpen(false);
+    expect(localStorage.getItem(GAME_STORAGE_KEY)).toBe(saved);
   });
 });
 

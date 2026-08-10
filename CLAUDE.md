@@ -19,10 +19,11 @@ overlays.
   after touching `.evalbar-*` in `src/index.css`
 - `npm run check:tablut` — driven-browser assertions for the Tablut surface: 9×9
   tracks, coordinates a–i/1–9, a baseline corner drawn as ordinary ground, the
-  drawer's More games section, the Tablut worker replying, and a Brandubh save
-  surviving the visit. Run it after touching `.board`/`.tablut-screen` in
-  `src/index.css`, `components/Board.tsx`, `orientation.ts` or anything under
-  `src/game/tablut/`
+  drawer's More games section, the Tablut worker replying, a Brandubh save
+  surviving the visit, and a Tablut game (and the surface itself) surviving
+  leave/re-entry and a full reload. Run it after touching
+  `.board`/`.tablut-screen` in `src/index.css`, `components/Board.tsx`,
+  `orientation.ts` or anything under `src/game/tablut/`
 
 ## Two boardgames, forked on purpose
 
@@ -31,6 +32,13 @@ first, the king escapes to any edge square) lives in `src/game/tablut/` with its
 own rules, engine, save key (`tablut.game.v1`), `.tafl` format (`tablut-1`) and
 screen (`components/TablutScreen.tsx`), reached from the drawer's collapsed *More
 games* section.
+
+Tablut's default ruleset is `tablut-linnaeus` — the three-tier king capture
+(four attackers on the throne, three plus the hostile throne beside it, two
+elsewhere); see `docs/tablut-rules.md` for the sourcing. The surface is fully
+persistent: the game autosaves under `tablut.game.v1`, and `tablut.surface.v1`
+records that the player is *in* Tablut, so a reload lands back on the 9×9 board
+until they leave by the back button.
 
 The duplication is an accepted decision, not drift — read
 `docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md` and its
