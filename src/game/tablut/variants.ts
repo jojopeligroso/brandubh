@@ -127,11 +127,12 @@ export interface TablutRuleSet {
    * Attackers win by encircling the king and all remaining defenders with an
    * unbroken ring (board edges do not count as part of the ring).
    *
-   * False in every shipped Tablut preset, and deliberately so: under edge escape
-   * "the king cannot reach the rim" is very nearly the same statement as "the
-   * king is encircled", so turning this on ends games early and often, in a way
-   * the six baseline rules do not ask for. Under `escape: "corners"` it is the
-   * ordinary tafl rule and reasonable to enable.
+   * Off in the minimal presets (`tablut`, `tablut-gulo`), because under edge
+   * escape "the king cannot reach the rim" is very nearly the same statement as
+   * "the king is encircled", and the six baseline rules do not ask for it. On in
+   * the Linnaeus/WTF default — the federation's rules include it — where it
+   * mostly ends games a search would call lost anyway, a little sooner. Under
+   * `escape: "corners"` it is the ordinary tafl rule.
    */
   encirclementWin: boolean;
 
@@ -167,6 +168,25 @@ const BASELINE: Omit<TablutRuleSet, "id" | "name" | "blurb"> = {
 };
 
 export const VARIANTS: Record<string, TablutRuleSet> = {
+  "tablut-linnaeus": {
+    id: "tablut-linnaeus",
+    name: "Tablut · Linnaeus 1732",
+    blurb:
+      "The rules Linnaeus recorded in Lapland in 1732, as the World Tafl " +
+      "Federation reads them. The king falls to four attackers on his throne, to " +
+      "three when the empty throne stands in as the fourth wall beside it, and " +
+      "to the ordinary two anywhere else. The empty throne is hostile, the king " +
+      "escapes to any edge square, an unbroken ring of attackers wins for Black, " +
+      "and a repeated position is on White to break.",
+    ...BASELINE,
+    throneAnvil: "both",
+    throneHostileToKing: true,
+    strongKingOnThrone: true,
+    strongKingAdjacentToThrone: true,
+    encirclementWin: true,
+    repetitionResult: "loss_for_defenders",
+  },
+
   tablut: {
     id: "tablut",
     name: "Tablut · baseline",
@@ -239,13 +259,20 @@ export const VARIANTS: Record<string, TablutRuleSet> = {
  * it from this list only stops it being offered.
  */
 export const VISIBLE_VARIANTS: string[] = [
+  "tablut-linnaeus",
   "tablut",
   "tablut-gulo",
-  "tablut-aage",
   "tablut-corners",
 ];
 
-export const DEFAULT_VARIANT = "tablut";
+/**
+ * The Linnaeus/WTF reading leads, because it is the game as the sources describe
+ * it: a king captured by two soldiers *on or beside his own throne* is not
+ * Tablut, and shipping that as the default was reported as a rules bug the day
+ * it went out. `tablut-aage` is hidden rather than removed — it asserted almost
+ * the same flags while UNVERIFIED, and saves and files under it still resolve.
+ */
+export const DEFAULT_VARIANT = "tablut-linnaeus";
 
 /** A ruleset without its identity — what the custom rule editor edits. */
 export type CustomRuleSet = Omit<TablutRuleSet, "id" | "name" | "blurb">;

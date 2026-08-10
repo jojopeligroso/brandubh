@@ -22,6 +22,7 @@ const baseline = VARIANTS.tablut;
 const gulo = VARIANTS["tablut-gulo"];
 const aage = VARIANTS["tablut-aage"];
 const corners = VARIANTS["tablut-corners"];
+const linnaeus = VARIANTS["tablut-linnaeus"];
 
 /** A one-off ruleset for a rule that no shipped preset turns on. */
 const withRules = (over: Partial<TablutRuleSet>): TablutRuleSet =>
@@ -471,6 +472,45 @@ describe("kingIsCaptured", () => {
 
   it("treats a missing king as captured", () => {
     expect(kingIsCaptured(empty(), baseline, { row: 0, col: 0 })).toBe(true);
+  });
+
+  // The three-tier rule under the default preset, spelled out as Linnaeus gives
+  // it. This is the exact bug report that repointed the default: a king taken by
+  // two soldiers on or beside his own throne is not Tablut.
+  describe("under the default Linnaeus preset", () => {
+    it("needs four attackers when the king is on his throne", () => {
+      const b = empty();
+      b[4][4] = "king";
+      b[3][4] = "attacker";
+      b[5][4] = "attacker";
+      b[4][3] = "attacker";
+      expect(kingIsCaptured(b, linnaeus, { row: 4, col: 3 })).toBe(false); // three is not enough
+
+      b[4][5] = "attacker";
+      expect(kingIsCaptured(b, linnaeus, { row: 4, col: 5 })).toBe(true);
+    });
+
+    it("needs three attackers and the empty throne when the king stands beside it", () => {
+      const b = empty();
+      b[3][4] = "king"; // one square above the throne
+      b[3][3] = "attacker";
+      b[3][5] = "attacker";
+      // A true opposite pair — a capture anywhere else, and under the baseline
+      // preset even here — is not enough beside the throne.
+      expect(kingIsCaptured(b, baseline, { row: 3, col: 5 })).toBe(true);
+      expect(kingIsCaptured(b, linnaeus, { row: 3, col: 5 })).toBe(false);
+
+      b[2][4] = "attacker"; // third man; the throne at (4,4) is his fourth wall
+      expect(kingIsCaptured(b, linnaeus, { row: 2, col: 4 })).toBe(true);
+    });
+
+    it("still falls to the ordinary two anywhere else", () => {
+      const b = empty();
+      b[2][2] = "king";
+      b[2][1] = "attacker";
+      b[2][3] = "attacker";
+      expect(kingIsCaptured(b, linnaeus, { row: 2, col: 3 })).toBe(true);
+    });
   });
 });
 

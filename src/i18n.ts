@@ -974,6 +974,10 @@ const en: Translations = {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 World Tafl Federation",
     custom: "Custom",
+    "tablut-linnaeus": "Tablut \u00b7 Linnaeus 1732",
+    tablut: "Tablut \u00b7 baseline",
+    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-corners": "Tablut \u00b7 corner escape",
   },
   variantBlurbs: {
     walker:
@@ -981,6 +985,8 @@ const en: Translations = {
     wtf:
       "Official WTF tournament rules (aagenielsen.dk). The empty throne is hostile to soldiers but never to the king. King on the throne needs all four sides surrounded. Encirclement wins. Repetition is a loss for the defending side.",
     custom: "Your custom ruleset.",
+    "tablut-linnaeus":
+      "The rules Linnaeus recorded in Lapland in 1732, as the World Tafl Federation reads them. The king falls to four attackers on his throne, to three when the empty throne stands in as the fourth wall beside it, and to the ordinary two anywhere else. The empty throne is hostile, the king escapes to any edge square, an unbroken ring of attackers wins for Black, and a repeated position is on White to break.",
   },
   gameFileTitle: "Export / import game",
   exportLabel: "Export this game",
@@ -1630,6 +1636,10 @@ const es: Translations = {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Federaci\u00f3n Mundial de Tafl",
     custom: "Personalizado",
+    "tablut-linnaeus": "Tablut \u00b7 Linneo 1732",
+    tablut: "Tablut \u00b7 b\u00e1sico",
+    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-corners": "Tablut \u00b7 escape por esquinas",
   },
   variantBlurbs: {
     walker:
@@ -1637,6 +1647,8 @@ const es: Translations = {
     wtf:
       "Reglas oficiales del torneo FMT (aagenielsen.dk). El trono vac\u00edo es hostil para los soldados pero nunca para el rey. El rey en el trono necesita los cuatro lados rodeados. El cerco gana. La repetici\u00f3n es una derrota para el bando defensor.",
     custom: "Tu conjunto de reglas personalizado.",
+    "tablut-linnaeus":
+      "Las reglas que Linneo anot\u00f3 en Laponia en 1732, tal como las lee la Federaci\u00f3n Mundial de Tafl. El rey cae ante cuatro atacantes en su trono, ante tres cuando el trono vac\u00edo hace de cuarta pared a su lado, y ante los dos de siempre en cualquier otro lugar. El trono vac\u00edo es hostil, el rey escapa por cualquier casilla del borde, un anillo cerrado de atacantes gana para las negras, y romper una repetici\u00f3n corresponde a las blancas.",
   },
   gameFileTitle: "Exportar / importar partida",
   exportLabel: "Exportar esta partida",
@@ -2303,6 +2315,12 @@ const ga: Translations = {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Cumann Domhanda Tafl",
     custom: "Saincheaptha",
+    // Draft translations, unreviewed \u2014 like the rest of this table (see
+    // VISIBLE_LANGS: the ga locale stays hidden until a human signs off).
+    "tablut-linnaeus": "Tablut \u00b7 Linnaeus 1732",
+    tablut: "Tablut \u00b7 bunl\u00ednte",
+    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-corners": "Tablut \u00b7 \u00e9al\u00fa c\u00fainne",
   },
   variantBlurbs: {
     walker:
@@ -2310,6 +2328,8 @@ const ga: Translations = {
     wtf:
       "Rialacha oifigi\u00fala com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don taobh cosanta.",
     custom: "Do shraith rialacha f\u00e9in.",
+    "tablut-linnaeus":
+      "Na rialacha a bhreac Linnaeus s\u00edos sa Laplainn sa bhliain 1732, mar a l\u00e9ann an Cumann Domhanda Tafl iad. Titeann an r\u00ed le ceathrar ionsaitheoir\u00ed ar a r\u00edchathaoir, le tri\u00far nuair a sheasann an r\u00edchathaoir fholamh mar an ceathr\u00fa balla lena thaobh, agus leis an mbeirt ghn\u00e1ch in \u00e1it ar bith eile. T\u00e1 an r\u00edchathaoir fholamh naimhdeach, \u00e9ala\u00edonn an r\u00ed chuig cearn\u00f3g imill ar bith, buann fainne dobhriste ionsaitheoir\u00ed do na Dubha, agus is ar na Bana at\u00e1 s\u00e9 athr\u00e1 a bhriseadh.",
   },
   gameFileTitle: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il cluiche",
   exportLabel: "Easp\u00f3rt\u00e1il an cluiche seo",
