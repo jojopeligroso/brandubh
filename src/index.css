@@ -362,6 +362,51 @@ body {
   font-family: "Gadelica", var(--font-display);
 }
 
+/* ── Wordmark brand colours ────────────────────────────────────────────────────
+   Branduḃ is a compound — **bran** (raven) + **dubh** (black) — and the wordmark
+   is coloured on that seam: silver through "Bran", red gold through "duḃ", the
+   two bleeding into one another rather than meeting at a hard edge.
+
+   Deliberately NOT theme tokens. The wordmark is a mark of identity, so it holds
+   these two colours in every theme instead of reskinning with the board; that is
+   why it overrides the `text-parchment` on its parent. Every theme is dark, so
+   the silver stays legible on all of them.
+
+   Chosen against Pantone references. The hex values are screen stand-ins only —
+   Pantone metallic inks have no faithful RGB form — so anything bound for print
+   or vinyl should be specified by number, and print silver should be PANTONE
+   877 C (the true metallic, whose RGB approximation is a muddy mid-grey and so
+   is useless here).
+
+   The stops are percentages of the *text* width, which is why this must sit on an
+   inline element: on the block-level h1/p it would span the whole column and the
+   seam would drift off the word. 57.62% is where "Bran" ends, measured from the
+   font's own advance widths; ±4.2% is the bleed. */
+:root {
+  --wordmark-silver: #d9d9d6; /* PANTONE Cool Gray 1 C — print: PANTONE 877 C */
+  --wordmark-gold: #a76d11; /* PANTONE 146 C — amber / red gold */
+}
+
+.wordmark {
+  background-image: linear-gradient(
+    90deg,
+    var(--wordmark-silver) 53.42%,
+    var(--wordmark-gold) 61.82%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Any engine without background-clip:text would render the word invisible, so
+   fall back to the flat silver rather than to nothing. */
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .wordmark {
+    background-image: none;
+    color: var(--wordmark-silver);
+  }
+}
+
 /* A Gaelic locale (Irish/Scottish Gaelic): the app sets data-lang-gaelic on the
    document root, and display headings + board coordinates render in the cló
    face. Body/UI text keeps the system font; move notation stays monospace. */
