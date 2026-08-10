@@ -2700,11 +2700,11 @@ function Header({
               title={t.backToStart}
               data-testid="wordmark-home"
             >
-              {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+              <span className="wordmark">{toSeanchlo("Brandubh")}</span>
             </button>
           ) : (
             <>
-              {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+              <span className="wordmark">{toSeanchlo("Brandubh")}</span>
             </>
           )}
         </h1>
@@ -3927,7 +3927,7 @@ function ModeOverlay({
           </div>
         </div>
         <h2 className="gaelic text-3xl text-parchment">
-          {toSeanchlo("Brand")}<span className="text-gold">{toSeanchlo("ubh")}</span>
+          <span className="wordmark">{toSeanchlo("Brandubh")}</span>
         </h2>
         {resume ? (
           <>

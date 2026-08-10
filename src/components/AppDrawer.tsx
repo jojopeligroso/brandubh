@@ -103,8 +103,7 @@ export default function AppDrawer({
       >
         <div className="drawer-head">
           <p className="gaelic text-2xl leading-none text-parchment">
-            {toSeanchlo("Brand")}
-            <span className="text-gold">{toSeanchlo("ubh")}</span>
+            <span className="wordmark">{toSeanchlo("Brandubh")}</span>
           </p>
           <p className="drawer-status">{status}</p>
         </div>
