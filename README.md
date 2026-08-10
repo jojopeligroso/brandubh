@@ -124,8 +124,31 @@ Both variants use an armed king (the king can participate in captures). They
 share the same board, setup, movement, and corner rules; they differ in throne
 hostility, strong-king behaviour, encirclement, and repetition handling. All
 flags are wired through a declarative `RuleSet` in `src/game/variants.ts`, so
-adding further variants is a matter of flipping flags — or use the in-app
+adding further Brandubh variants is a matter of flipping flags — or use the in-app
 custom rule editor to experiment live.
+
+### Tablut (a second boardgame)
+
+Under the drawer's collapsed **More games** section. Tablut is 9×9, White moves
+first, and the king wins by reaching **any edge square** — so it is a *boardgame*
+rather than a Brandubh variant, and it has its own rules, engine, save file and
+`.tafl` interchange format under `src/game/tablut/`. The reasoning for forking
+rather than parameterising is
+`docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md`; the
+presets, their sources and what is *not* verified about them are in
+`docs/tablut-rules.md`.
+
+Four presets ship — the undisputed baseline, the July 2025 gulo/Dimetr proposal
+(the throne cannot be crossed by Black; the throne is friendly to White), an
+⚠ unverified tournament reading, and a corner-escape reconstruction — plus a
+custom rule editor covering every flag. Hiding a preset is one line in
+`VISIBLE_VARIANTS`.
+
+Playable against the engine or over the board. The shell features (clock,
+analysis, review, match sets, import/export, puzzles, tutorials) are Brandubh's
+for now and are waiting on `App` becoming generic in its ruleset — see the ADR
+addendum. `npm run check:tablut` is the driven-browser check that the 9×9 board,
+its coordinates, its worker and Brandubh's save all survive each other.
 
 ---
 

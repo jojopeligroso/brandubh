@@ -14,9 +14,39 @@ overlays.
 - `npm run screenshot` — playwright-core driven-browser capture; the project
   convention is a manual driven-browser pass for UI changes
 - `npm run check:evalbar` — driven-browser assertion that the eval bar fills
-  from the bottom. The one UI check that can fail: the suites are pure logic and
-  the screenshot does not frame the bar, which is how an inverted bar shipped in
-  `05c187e` and survived. Run it after touching `.evalbar-*` in `src/index.css`
+  from the bottom. The suites are pure logic and the screenshot does not frame the
+  bar, which is how an inverted bar shipped in `05c187e` and survived. Run it
+  after touching `.evalbar-*` in `src/index.css`
+- `npm run check:tablut` — driven-browser assertions for the Tablut surface: 9×9
+  tracks, coordinates a–i/1–9, a baseline corner drawn as ordinary ground, the
+  drawer's More games section, the Tablut worker replying, and a Brandubh save
+  surviving the visit. Run it after touching `.board`/`.tablut-screen` in
+  `src/index.css`, `components/Board.tsx`, `orientation.ts` or anything under
+  `src/game/tablut/`
+
+## Two boardgames, forked on purpose
+
+Brandubh (7×7, corner escape) lives in `src/game/`. **Tablut** (9×9, White moves
+first, the king escapes to any edge square) lives in `src/game/tablut/` with its
+own rules, engine, save key (`tablut.game.v1`), `.tafl` format (`tablut-1`) and
+screen (`components/TablutScreen.tsx`), reached from the drawer's collapsed *More
+games* section.
+
+The duplication is an accepted decision, not drift — read
+`docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md` and its
+addendum before merging anything across. In short: corner-escape geometry is baked
+into the evaluation and teaching layers, and it is *meaningless* when the whole rim
+wins, so a shared core would have to carry that distinction inside the search. One
+concrete trap — Brandubh proves a forced win from a single open lane when the king
+touches a corner (no soldier may stand on a corner); the same shortcut is
+**unsound** under edge escape, where an attacker can occupy the escape square.
+
+What *is* shared, and should stay shared: `Board` (via the optional geometry in
+`src/games/geometry.ts`), `orientation.ts`, `gameOverText.ts`, and the already
+game-agnostic `clock`/`clockLine`/`matchSet`/`records`/`puzzleProgress`/`trainer`/
+`grade`/`sides`. Tablut's presets and their sourcing — including one preset marked
+⚠ UNVERIFIED because aagenielsen.dk is 403 behind the egress proxy — are in
+`docs/tablut-rules.md`.
 
 ## Decisions to respect
 
