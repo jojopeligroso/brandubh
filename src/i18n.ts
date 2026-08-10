@@ -324,6 +324,39 @@ export interface Translations {
   demoCapThrone: string;
   demoThroneKing: string;
 
+  // ── Tablut (a second boardgame, reached from the drawer's More games) ────────
+  // Tablut is a Boardgame rather than a Brandubh variant (see
+  // docs/adr/0006-…), so its copy is its own block rather than more `demo*`/
+  // `rule*` keys. `tablutRules` / `tablutRuleHints` are keyed by the flag names
+  // in game/tablut/variants.ts, which is what makes `tsc` notice a rule that has
+  // been added to the ruleset but not explained to the player.
+  /** The collapsed drawer section these games live under. */
+  drawerMoreGames: string;
+  gameBrandubh: string;
+  gameTablut: string;
+  /** One line on the setup card: what the game is. */
+  tablutBlurb: string;
+  tablutKingAt: string;
+  tablutLegalMoves: string;
+  tablutMoves: string;
+  tablutLastMove: string;
+  tablutUndo: string;
+  tablutRestart: string;
+  tablutOpponent: string;
+  tablutStrength: string;
+  tablutPlay: string;
+  tablutWhite: string;
+  tablutBlack: string;
+  tablutHotseat: string;
+  /** Engine strength, keyed by the difficulty ids in game/tablut/engine.ts. */
+  tablutDifficulties: Record<string, string>;
+  /** Rule names, keyed by flag name. */
+  tablutRules: Record<string, string>;
+  /** One line each on what the rule actually does. */
+  tablutRuleHints: Record<string, string>;
+  /** Labels for the enum rules' values, keyed by value. */
+  tablutRuleValues: Record<string, string>;
+
   // Variant display
   variantNames: Record<string, string>;
   variantBlurbs: Record<string, string>;
@@ -872,6 +905,70 @@ const en: Translations = {
   demoCapCorner: "A corner counts as a raider too.",
   demoCapThrone: "An empty throne counts as a raider too.",
   demoThroneKing: "The throne cannot hurt the King, but the corners can.",
+
+  drawerMoreGames: "More games",
+  gameBrandubh: "Brandubh",
+  gameTablut: "Tablut",
+  tablutBlurb:
+    "The Lapland game Linnaeus recorded in 1732. Nine by nine: White moves first and wins by walking the king out to any edge square; Black wins by capturing him.",
+  tablutKingAt: "King",
+  tablutLegalMoves: "Moves available",
+  tablutMoves: "Moves",
+  tablutLastMove: "Last move",
+  tablutUndo: "Take back",
+  tablutRestart: "Restart",
+  tablutOpponent: "You play",
+  tablutStrength: "Strength",
+  tablutPlay: "Play",
+  tablutWhite: "White (the king)",
+  tablutBlack: "Black (the attackers)",
+  tablutHotseat: "Two players",
+  tablutDifficulties: { easy: "Easy", medium: "Medium", hard: "Hard", ollamh: "Ollamh" },
+  tablutRules: {
+    escape: "The king escapes to",
+    firstMove: "First move",
+    armedKing: "Armed king",
+    kingMayReoccupyThrone: "King may return to the throne",
+    throneBlocks: "The throne blocks",
+    throneAnvil: "The empty throne helps capture for",
+    throneHostileToKing: "Throne walls the king",
+    cornersRestricted: "Corners are the king's alone",
+    cornersHostile: "Corners help capture",
+    edgeHostileToSoldiers: "The board edge helps capture",
+    strongKingOnThrone: "Strong king on the throne",
+    strongKingAdjacentToThrone: "Strong king beside the throne",
+    shieldwallCapture: "Shieldwall capture",
+    encirclementWin: "Encirclement wins",
+    repetitionResult: "Threefold repetition",
+  },
+  tablutRuleHints: {
+    escape: "Any edge square is the baseline rule; corners make it a different game.",
+    firstMove: "White leads under the baseline rules, unlike most tafl games.",
+    armedKing: "The king can take part in captures himself.",
+    kingMayReoccupyThrone: "He may step back onto the centre square after leaving it.",
+    throneBlocks: "Whether soldiers may slide across the empty centre square.",
+    throneAnvil: "Whose captures may pin a soldier against the empty throne.",
+    throneHostileToKing: "The empty throne counts as one of the walls closing on the king.",
+    cornersRestricted: "Soldiers may not stand on them. Off under the baseline.",
+    cornersHostile: "A soldier can be pinned against a corner. Off under the baseline.",
+    edgeHostileToSoldiers: "A soldier on the rim falls to a single attacker. Not a baseline rule.",
+    strongKingOnThrone: "On the throne he must be surrounded on all four sides.",
+    strongKingAdjacentToThrone: "Beside the throne he must be surrounded on all four sides.",
+    shieldwallCapture: "A bracketed row along the edge falls together. A Copenhagen rule, not a Tablut one.",
+    encirclementWin: "Black wins by ringing the king in. Off where the rim is the goal.",
+    repetitionResult: "What happens when the same position comes round a third time.",
+  },
+  tablutRuleValues: {
+    edges: "Any edge",
+    corners: "A corner",
+    defenders: "White",
+    attackers: "Black",
+    none: "Nobody",
+    both: "Both sides",
+    soldiers: "Both sides",
+    draw: "Draw",
+    loss_for_defenders: "White loses",
+  },
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
@@ -1464,6 +1561,70 @@ const es: Translations = {
   demoCapCorner: "Una esquina cuenta como un asaltante m\u00e1s.",
   demoCapThrone: "El trono vac\u00edo cuenta como un asaltante m\u00e1s.",
   demoThroneKing: "El trono no puede da\u00f1ar al Rey, pero las esquinas s\u00ed.",
+
+  drawerMoreGames: "M\u00e1s juegos",
+  gameBrandubh: "Brandubh",
+  gameTablut: "Tablut",
+  tablutBlurb:
+    "El juego lapon que Linneo anot\u00f3 en 1732. Nueve por nueve: las blancas mueven primero y ganan llevando al rey a cualquier casilla del borde; las negras ganan captur\u00e1ndolo.",
+  tablutKingAt: "Rey",
+  tablutLegalMoves: "Movimientos posibles",
+  tablutMoves: "Movimientos",
+  tablutLastMove: "\u00daltima jugada",
+  tablutUndo: "Deshacer",
+  tablutRestart: "Reiniciar",
+  tablutOpponent: "Juegas con",
+  tablutStrength: "Dificultad",
+  tablutPlay: "Jugar",
+  tablutWhite: "Blancas (el rey)",
+  tablutBlack: "Negras (los atacantes)",
+  tablutHotseat: "Dos jugadores",
+  tablutDifficulties: { easy: "F\u00e1cil", medium: "Media", hard: "Dif\u00edcil", ollamh: "Ollamh" },
+  tablutRules: {
+    escape: "El rey escapa a",
+    firstMove: "Primera jugada",
+    armedKing: "Rey armado",
+    kingMayReoccupyThrone: "El rey puede volver al trono",
+    throneBlocks: "El trono bloquea a",
+    throneAnvil: "El trono vac\u00edo ayuda a capturar a",
+    throneHostileToKing: "El trono cierra sobre el rey",
+    cornersRestricted: "Las esquinas son solo del rey",
+    cornersHostile: "Las esquinas ayudan a capturar",
+    edgeHostileToSoldiers: "El borde ayuda a capturar",
+    strongKingOnThrone: "Rey fuerte en el trono",
+    strongKingAdjacentToThrone: "Rey fuerte junto al trono",
+    shieldwallCapture: "Captura en muro de escudos",
+    encirclementWin: "El cerco gana",
+    repetitionResult: "Triple repetici\u00f3n",
+  },
+  tablutRuleHints: {
+    escape: "Cualquier casilla del borde es la regla base; las esquinas hacen otro juego.",
+    firstMove: "Las blancas empiezan en las reglas base, al contrario que en casi todo el tafl.",
+    armedKing: "El rey puede participar en las capturas.",
+    kingMayReoccupyThrone: "Puede volver a la casilla central despu\u00e9s de dejarla.",
+    throneBlocks: "Si los soldados pueden cruzar la casilla central vac\u00eda.",
+    throneAnvil: "Qui\u00e9n puede atrapar a un soldado contra el trono vac\u00edo.",
+    throneHostileToKing: "El trono vac\u00edo cuenta como uno de los muros que cierran sobre el rey.",
+    cornersRestricted: "Los soldados no pueden ocuparlas. Desactivado en las reglas base.",
+    cornersHostile: "Un soldado puede quedar atrapado contra una esquina. Desactivado en las reglas base.",
+    edgeHostileToSoldiers: "Un soldado en el borde cae ante un solo atacante. No es regla base.",
+    strongKingOnThrone: "En el trono hay que rodearlo por los cuatro lados.",
+    strongKingAdjacentToThrone: "Junto al trono hay que rodearlo por los cuatro lados.",
+    shieldwallCapture: "Una fila del borde cae junta. Regla de Copenhague, no de Tablut.",
+    encirclementWin: "Las negras ganan cercando al rey. Desactivado cuando el borde es la meta.",
+    repetitionResult: "Qu\u00e9 pasa cuando la misma posici\u00f3n se repite por tercera vez.",
+  },
+  tablutRuleValues: {
+    edges: "Cualquier borde",
+    corners: "Una esquina",
+    defenders: "Blancas",
+    attackers: "Negras",
+    none: "Nadie",
+    both: "Ambos bandos",
+    soldiers: "Ambos bandos",
+    draw: "Tablas",
+    loss_for_defenders: "Pierden las blancas",
+  },
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
@@ -2071,6 +2232,72 @@ const ga: Translations = {
   demoCapCorner: "\u00c1ir\u00edtear c\u00fainne mar fhoghla\u00ed freisin.",
   demoCapThrone: "\u00c1ir\u00edtear r\u00edchathaoir fholamh mar fhoghla\u00ed freisin.",
   demoThroneKing: "N\u00ed f\u00e9idir leis an r\u00edchathaoir dochar a dh\u00e9anamh don R\u00ed, ach is f\u00e9idir leis na c\u00fainn\u00ed.",
+
+  // DRAFT (unreviewed machine translation), like the rest of this table \u2014
+  // 'ga' stays out of VISIBLE_LANGS until a human Irish speaker signs it off.
+  drawerMoreGames: "Tuilleadh cluichi",
+  gameBrandubh: "Brandubh",
+  gameTablut: "Tablut",
+  tablutBlurb:
+    "An cluiche Laplannach a bhreac Linnaeus sios in 1732. Naoi faoi naoi: bogann na Bana ar dtus agus buann siad an ri a threorú go cearnóg imill ar bith; buann na Dubha e a ghabhail.",
+  tablutKingAt: "Ri",
+  tablutLegalMoves: "Bearta ar fail",
+  tablutMoves: "Bearta",
+  tablutLastMove: "An beart deireanach",
+  tablutUndo: "Cealaigh",
+  tablutRestart: "Atosaigh",
+  tablutOpponent: "Imrionn tu",
+  tablutStrength: "Neart",
+  tablutPlay: "Imir",
+  tablutWhite: "Bana (an ri)",
+  tablutBlack: "Dubha (na hionsaitheoiri)",
+  tablutHotseat: "Beirt imreoiri",
+  tablutDifficulties: { easy: "Furasta", medium: "Meanach", hard: "Crua", ollamh: "Ollamh" },
+  tablutRules: {
+    escape: "Ealaionn an ri go",
+    firstMove: "An chead bheart",
+    armedKing: "Ri armtha",
+    kingMayReoccupyThrone: "Feadfaidh an ri filleadh ar an richathaoir",
+    throneBlocks: "Cuireann an richathaoir bac ar",
+    throneAnvil: "Cabhraionn an richathaoir fholamh le gabhail do",
+    throneHostileToKing: "Duntar an richathaoir ar an ri",
+    cornersRestricted: "Is leis an ri amhain na cuinni",
+    cornersHostile: "Cabhraionn na cuinni le gabhail",
+    edgeHostileToSoldiers: "Cabhraionn imeall an chlair le gabhail",
+    strongKingOnThrone: "Ri laidir ar an richathaoir",
+    strongKingAdjacentToThrone: "Ri laidir taobh leis an richathaoir",
+    shieldwallCapture: "Gabhail bhalla sciath",
+    encirclementWin: "Buann iadh timpeall",
+    repetitionResult: "Athra tri huaire",
+  },
+  tablutRuleHints: {
+    escape: "Is cearnog imill ar bith an bhunriail; deanann na cuinni cluiche eile de.",
+    firstMove: "Tosaionn na Bana faoi na bunrialacha, murab ionann agus an chuid is mo den tafl.",
+    armedKing: "Feadfaidh an ri pairt a ghlacadh i ngabhalacha.",
+    kingMayReoccupyThrone: "Feadfaidh se filleadh ar an gcearnog lair tar eis di a fhagail.",
+    throneBlocks: "Ar feidir le saighdiuiri dul thar an gcearnog lair fholamh.",
+    throneAnvil: "Ce a fheadfaidh saighdiuir a shainniu in aghaidh na richathaoireach folaimhe.",
+    throneHostileToKing: "Airitear an richathaoir fholamh mar cheann de na ballai a dhruideann ar an ri.",
+    cornersRestricted: "Ni feidir le saighdiuiri seasamh orthu. As faoi na bunrialacha.",
+    cornersHostile: "Is feidir saighdiuir a shainniu in aghaidh cuinne. As faoi na bunrialacha.",
+    edgeHostileToSoldiers: "Titeann saighdiuir ar an imeall le hionsaitheoir amhain. Ni bunriail e.",
+    strongKingOnThrone: "Ar an richathaoir ni mor iadh timpeall air ar na ceithre thaobh.",
+    strongKingAdjacentToThrone: "Taobh leis an richathaoir ni mor iadh timpeall air ar na ceithre thaobh.",
+    shieldwallCapture: "Titeann sraith ar an imeall le cheile. Riail Chopenhagen, nach ceann Tablut.",
+    encirclementWin: "Buann na Dubha an ri a iadh isteach. As nuair is e an imeall an sprioc.",
+    repetitionResult: "Cad a tharlaionn nuair a thagann an ionad ceanna timpeall an triu huair.",
+  },
+  tablutRuleValues: {
+    edges: "Imeall ar bith",
+    corners: "Cuinne",
+    defenders: "Bana",
+    attackers: "Dubha",
+    none: "Duine ar bith",
+    both: "An da thaobh",
+    soldiers: "An da thaobh",
+    draw: "Cluiche cothrom",
+    loss_for_defenders: "Cailleann na Bana",
+  },
 
   variantNames: {
     walker: "Brandubh \u00b7 Walker",

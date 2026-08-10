@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { gameOverText } from "./gameOverText";
 import Board from "./components/Board";
 import AppDrawer from "./components/AppDrawer";
 import LearnModal, { type LearnView } from "./components/LearnModal";
 import VictoryOverlay from "./components/VictoryOverlay";
+import TablutScreen from "./components/TablutScreen";
 import GameFilePanel from "./components/GameFilePanel";
 import GameReview from "./components/GameReview";
 import PuzzlePanel from "./components/PuzzlePanel";
@@ -222,32 +224,6 @@ function sideLabel(s: Side, t: Translations): string {
 
 /** The localized one-liner for a finished game — shared by the status bar and
  *  the victory overlay so the two can never drift apart. */
-function gameOverText(status: GameStatus, t: Translations): string {
-  switch (status) {
-    case "defenders_win_escape":
-      return t.defendersWinEscape;
-    case "attackers_win_capture":
-      return t.attackersWinCapture;
-    case "attackers_win_encirclement":
-      return t.attackersWinEncirclement;
-    case "attackers_win_repetition":
-      return t.attackersWinRepetition;
-    case "attackers_win_no_moves":
-      return t.attackersWinNoMoves;
-    case "attackers_win_resign":
-      return t.attackersWinResign;
-    case "defenders_win_resign":
-      return t.defendersWinResign;
-    case "attackers_win_time":
-      return t.attackersWinTime;
-    case "defenders_win_time":
-      return t.defendersWinTime;
-    case "draw_repetition":
-      return t.drawMessage;
-    default:
-      return t.defendersWinNoMoves;
-  }
-}
 
 export default function App() {
   // Language: persisted choice, else browser detection (see i18n.loadLang).
@@ -562,6 +538,17 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showGameFile, setShowGameFile] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  /**
+   * The Tablut surface, reached from the drawer's More games section.
+   *
+   * A sibling overlay rather than anything woven into the shell's state: Tablut is
+   * a separate Boardgame with its own ruleset *type* (see ADR-0006 and the note in
+   * TablutScreen), so it owns its own game, engine worker and rule editor, and
+   * this shell owns nothing of it beyond whether it is open. Nothing below this
+   * line reads it, which is the point — opening Tablut cannot disturb a Brandubh
+   * game in progress, and closing it cannot have lost one.
+   */
+  const [showTablut, setShowTablut] = useState(false);
 
   const rules: RuleSet =
     variantId === "custom"
@@ -2405,6 +2392,7 @@ export default function App() {
           onTutorials={() => setLearnView("tutorials")}
           onPuzzles={() => setLearnView("puzzles")}
           onGameFile={() => setShowGameFile(true)}
+          onTablut={() => setShowTablut(true)}
           onSettings={() => setShowDesign(true)}
           onAbout={() => setShowAbout(true)}
         />
@@ -2414,6 +2402,17 @@ export default function App() {
           moved out of the gear ⚙ modal, where import/export never quite
           belonged. Same refusal as the in-page panel, for the same reason: no
           move list back to the opening, nothing a game file can honestly say. */}
+      {showTablut && (
+        <TablutScreen
+          t={t}
+          attackerEmblem={emblemSet.attackerEmblem}
+          kingEmblem={emblemSet.kingEmblem}
+          defenderEmblem={emblemSet.defenderEmblem}
+          cornerEmblem={emblemSet.cornerEmblem}
+          onClose={() => setShowTablut(false)}
+        />
+      )}
+
       {showGameFile && (
         <div
           className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
