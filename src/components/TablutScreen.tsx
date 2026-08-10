@@ -1,4 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  clearSavedGame,
+  loadResumableGame,
+  newGameId,
+  saveGame,
+  snapshotGame,
+  type RestoredGame,
+} from "../game/tablut/persist";
 import Board from "./Board";
 import VictoryOverlay from "./VictoryOverlay";
 import type { BoardGeometry } from "../games/geometry";
@@ -58,6 +66,15 @@ import { useDialogFocus } from "../useDialogFocus";
  * games. What is here is a complete game of Tablut — every shipped variant, the
  * custom rule editor, both seats against the engine or two people sharing the
  * board, undo, and a legal conclusion.
+ *
+ * ## Persistence
+ *
+ * The same contract as the Brandubh shell: a refresh must never lose a game in
+ * progress. The screen restores its save silently on mount — no setup modal over
+ * a game already underway — and autosaves on every move through
+ * `game/tablut/persist.ts`, under Tablut's own key. App keeps the surface itself
+ * persistent (see `tablut.surface.v1`), so closing the tab mid-game and coming
+ * back lands on this board, not the 7×7 one.
  */
 export default function TablutScreen({
   t,
@@ -76,18 +93,44 @@ export default function TablutScreen({
 }) {
   const screenRef = useDialogFocus<HTMLDivElement>();
 
-  const [variantId, setVariantId] = useState<string>(DEFAULT_VARIANT);
-  const [customRules, setCustomRules] = useState<CustomRuleSet>(CUSTOM_RULE_DEFAULTS);
-  const [playMode, setPlayMode] = useState<PlayMode>("defenders");
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  // The saved game, restored once per mount. Restoring is silent — the player
+  // left a board and gets the same board back; only a first visit (or a game
+  // already concluded and replaced) opens on the setup sheet.
+  const [restored] = useState<RestoredGame | null>(loadResumableGame);
+
+  const [variantId, setVariantId] = useState<string>(restored?.variantId ?? DEFAULT_VARIANT);
+  const [customRules, setCustomRules] = useState<CustomRuleSet>(
+    restored?.customRules ?? CUSTOM_RULE_DEFAULTS,
+  );
+  const [playMode, setPlayMode] = useState<PlayMode>(restored?.playMode ?? "defenders");
+  const [difficulty, setDifficulty] = useState<Difficulty>(restored?.difficulty ?? "medium");
 
   const rules = useMemo(() => rulesFor(variantId, customRules), [variantId, customRules]);
 
-  const [states, setStates] = useState<GameState[]>(() => [initialState(rules)]);
+  const [states, setStates] = useState<GameState[]>(
+    () => restored?.states ?? [initialState(rulesFor(DEFAULT_VARIANT, CUSTOM_RULE_DEFAULTS))],
+  );
   const [selected, setSelected] = useState<Square | null>(null);
   const [thinking, setThinking] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
-  const [showSetup, setShowSetup] = useState(true);
+  const [showSetup, setShowSetup] = useState(restored === null);
+  // Restart over an unfinished game is destructive — the autosave is replaced —
+  // so it asks first, exactly as the Brandubh shell's new-game path does.
+  const [confirmRestart, setConfirmRestart] = useState(false);
+
+  // The game's identity for the autosave: a resumed game keeps its id and start
+  // time — it is the same game, not a copy — and `startGame` mints fresh ones.
+  const gameId = useRef<string>(restored?.id ?? newGameId());
+  const gameStartedAt = useRef<number>(restored?.createdAt ?? Date.now());
+
+  // Which position the engine was already asked about — see the engine effect.
+  const askedFor = useRef<string>("");
+  // Whether the previous render was already a finished game. Seeded from the
+  // restore so re-entering a concluded game shows the final board quietly
+  // rather than replaying the victory curtain.
+  const wasOver = useRef(
+    restored ? isGameOver(restored.states[restored.states.length - 1].status) : false,
+  );
 
   const { requestMove, cancel } = useAiWorker();
 
@@ -96,41 +139,80 @@ export default function TablutScreen({
   const humanSide = humanSideOf(playMode);
   const aiSide = aiSideOf(playMode);
 
-  // A new ruleset is a new game: the opening position itself depends on it
-  // (`firstMove`), so keeping the old timeline would be describing a game nobody
-  // played. Same reasoning as `changeVariant` in App.
-  const reset = useCallback(
-    (next: TablutRuleSet) => {
+  /**
+   * Begin a fresh game under the given setup, committed in one step. The setup
+   * sheet drafts these values locally, so browsing it — toggling a seat, reading
+   * a variant blurb — never touches the game behind it; the old wiring reset the
+   * live board the moment anything was clicked, which lost games. A new ruleset
+   * is necessarily a new game (the opening depends on `firstMove`), and a new
+   * game is a new identity, so the previous save is superseded rather than
+   * silently continued.
+   */
+  const startGame = useCallback(
+    (setup: GameSetup) => {
       cancel();
-      setStates([initialState(next)]);
+      setVariantId(setup.variantId);
+      setCustomRules(setup.customRules);
+      setPlayMode(setup.playMode);
+      setDifficulty(setup.difficulty);
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
+      setStates([initialState(rulesFor(setup.variantId, setup.customRules))]);
       setSelected(null);
       setThinking(false);
       setShowVictory(false);
+      setShowSetup(false);
+      // A fresh opening can repeat an old key (same length, same turn), so the
+      // engine must be free to be asked again — this is what un-stalls Restart
+      // when the engine has the first move.
+      askedFor.current = "";
+      wasOver.current = false;
     },
     [cancel],
   );
-
-  const changeVariant = (id: string) => {
-    setVariantId(id);
-    reset(rulesFor(id, customRules));
-  };
-  const changeCustomRules = (flags: CustomRuleSet) => {
-    setCustomRules(flags);
-    if (variantId === "custom") reset(rulesFor("custom", flags));
-  };
 
   const push = useCallback((move: Move, from: GameState, rs: TablutRuleSet) => {
     setStates((prev) => [...prev, applyMove(from, move, rs)]);
     setSelected(null);
   }, []);
 
+  // ── Autosave ────────────────────────────────────────────────────────────────
+  // Written on every move, exactly as the Brandubh shell does. An untouched
+  // opening is nothing worth resuming, so it clears instead — which is also how
+  // a superseded game's save is forgotten when a new one starts.
+  useEffect(() => {
+    if (states.length <= 1) {
+      clearSavedGame();
+      return;
+    }
+    saveGame(
+      snapshotGame({
+        id: gameId.current,
+        createdAt: gameStartedAt.current,
+        states,
+        cursor: states.length - 1,
+        variantId,
+        customRules,
+        playMode,
+        difficulty,
+        recorded: false,
+        // No clock and no match sets on this surface yet; the save format
+        // carries both for the day the shell holds two games.
+        clock: null,
+        match: null,
+        gamesPerSet: 1,
+        names: { p1: "", p2: "" },
+      }),
+    );
+  }, [states, variantId, customRules, playMode, difficulty]);
+
   // ── The engine's turn ───────────────────────────────────────────────────────
-  // Keyed on the position rather than on a move counter, so an undo that lands
-  // back on the engine's turn asks again rather than sitting still.
-  const askedFor = useRef<string>("");
+  // Keyed on the game's identity and position rather than on a move counter, so
+  // an undo that lands back on the engine's turn asks again rather than sitting
+  // still — and a fresh game can never be confused with the one before it.
   useEffect(() => {
     if (gameOver || aiSide === null || game.turn !== aiSide || showSetup) return;
-    const key = `${states.length}:${game.turn}`;
+    const key = `${gameId.current}:${states.length}:${game.turn}`;
     if (askedFor.current === key) return;
     askedFor.current = key;
     let live = true;
@@ -146,19 +228,37 @@ export default function TablutScreen({
   }, [game, states.length, aiSide, gameOver, difficulty, rules, requestMove, push, showSetup]);
 
   // The victory curtain fires once, on the transition into a finished game.
-  const wasOver = useRef(false);
+  // (`wasOver` is seeded from the restore above, so a game that was already
+  // finished when the screen mounted stays quiet.)
   useEffect(() => {
     if (gameOver && !wasOver.current) setShowVictory(true);
     wasOver.current = gameOver;
   }, [gameOver]);
 
+  // Escape unwinds one layer at a time — curtain, then sheet, then the surface
+  // itself — rather than dropping the player back to the 7×7 board from under a
+  // modal. Leaving the game space is only ever the player's own deliberate step.
+  const canCancelSetup = states.length > 1;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (showVictory) {
+        setShowVictory(false);
+        return;
+      }
+      if (confirmRestart) {
+        setConfirmRestart(false);
+        return;
+      }
+      if (showSetup && canCancelSetup) {
+        setShowSetup(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, showVictory, confirmRestart, showSetup, canCancelSetup]);
 
   // ── Interaction ─────────────────────────────────────────────────────────────
   const controllable: Side | null = humanSide;
@@ -250,7 +350,6 @@ export default function TablutScreen({
         <TablutSeat
           t={t}
           side={opposite(seatSideOf(playMode))}
-          rules={rules}
           game={game}
           thinking={thinking && aiSide === opposite(seatSideOf(playMode))}
           aiSide={aiSide}
@@ -277,7 +376,6 @@ export default function TablutScreen({
         <TablutSeat
           t={t}
           side={seatSideOf(playMode)}
-          rules={rules}
           game={game}
           thinking={thinking && aiSide === seatSideOf(playMode)}
           aiSide={aiSide}
@@ -302,7 +400,16 @@ export default function TablutScreen({
           <button className="btn flex-1" onClick={undo} disabled={states.length <= 1}>
             {t.tablutUndo}
           </button>
-          <button className="btn flex-1" onClick={() => reset(rules)}>
+          <button
+            className="btn flex-1"
+            onClick={() =>
+              // A finished game (or an untouched board) has nothing to lose;
+              // mid-game the restart asks first.
+              !gameOver && states.length > 1
+                ? setConfirmRestart(true)
+                : startGame({ variantId, customRules, playMode, difficulty })
+            }
+          >
             {t.tablutRestart}
           </button>
         </div>
@@ -317,23 +424,35 @@ export default function TablutScreen({
       {showSetup && (
         <TablutSetup
           t={t}
-          variantId={variantId}
-          customRules={customRules}
-          playMode={playMode}
-          difficulty={difficulty}
-          onVariant={changeVariant}
-          onCustomRules={changeCustomRules}
-          onPlayMode={(m) => {
-            setPlayMode(m);
-            reset(rules);
-          }}
-          onDifficulty={setDifficulty}
-          onStart={() => {
-            setShowSetup(false);
-            reset(rules);
-            askedFor.current = "";
-          }}
+          initial={{ variantId, customRules, playMode, difficulty }}
+          onStart={startGame}
+          // Backing out is only offered over a game worth returning to; the
+          // first visit has nothing behind the sheet.
+          onCancel={canCancelSetup ? () => setShowSetup(false) : null}
         />
+      )}
+
+      {confirmRestart && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="card mx-4 w-full max-w-sm space-y-5 p-8 text-center">
+            <p className="font-display text-lg text-parchment">{t.newGameTitle}</p>
+            <p className="text-sm text-parchment-dim">{t.newGameBody}</p>
+            <div className="flex justify-center gap-3">
+              <button className="btn" onClick={() => setConfirmRestart(false)}>
+                {t.back}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setConfirmRestart(false);
+                  startGame({ variantId, customRules, playMode, difficulty });
+                }}
+              >
+                {t.tablutRestart}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showVictory && winner && (
@@ -361,6 +480,14 @@ export default function TablutScreen({
 /** Which side sits at the bottom of the board — the human's, or White in hotseat. */
 const seatSideOf = (mode: PlayMode): Side => (mode === "hotseat" ? "defenders" : mode);
 
+/** Everything the setup sheet chooses, committed in one step when Play is pressed. */
+interface GameSetup {
+  variantId: string;
+  customRules: CustomRuleSet;
+  playMode: PlayMode;
+  difficulty: Difficulty;
+}
+
 /** One seat: who it is, and what they have taken. */
 function TablutSeat({
   t,
@@ -372,7 +499,6 @@ function TablutSeat({
 }: {
   t: Translations;
   side: Side;
-  rules: TablutRuleSet;
   game: GameState;
   thinking: boolean;
   aiSide: Side | null;
@@ -395,42 +521,52 @@ function TablutSeat({
   );
 }
 
-/** Opponent, seat, strength and rules — everything chosen before the first move. */
+/**
+ * Opponent, seat, strength and rules — everything chosen before the first move.
+ *
+ * The sheet drafts its choices locally and commits them all at once through
+ * `onStart`. Nothing here reaches the live game while the sheet is open, so it
+ * can be browsed — and backed out of, when `onCancel` is offered — over a game
+ * in progress without disturbing it.
+ */
 function TablutSetup({
   t,
-  variantId,
-  customRules,
-  playMode,
-  difficulty,
-  onVariant,
-  onCustomRules,
-  onPlayMode,
-  onDifficulty,
+  initial,
   onStart,
+  onCancel,
 }: {
   t: Translations;
-  variantId: string;
-  customRules: CustomRuleSet;
-  playMode: PlayMode;
-  difficulty: Difficulty;
-  onVariant: (id: string) => void;
-  onCustomRules: (flags: CustomRuleSet) => void;
-  onPlayMode: (m: PlayMode) => void;
-  onDifficulty: (d: Difficulty) => void;
-  onStart: () => void;
+  initial: GameSetup;
+  onStart: (setup: GameSetup) => void;
+  onCancel: (() => void) | null;
 }) {
   const ref = useDialogFocus<HTMLDivElement>();
+  const [variantId, setVariantId] = useState(initial.variantId);
+  const [customRules, setCustomRules] = useState(initial.customRules);
+  const [playMode, setPlayMode] = useState(initial.playMode);
+  const [difficulty, setDifficulty] = useState(initial.difficulty);
   const rules = rulesFor(variantId, customRules);
   return (
     <div className="modal-backdrop">
       <div className="modal" ref={ref} role="dialog" aria-modal="true" tabIndex={-1}>
-        <h2 className="font-display text-xl text-parchment">{t.gameTablut}</h2>
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="font-display text-xl text-parchment">{t.gameTablut}</h2>
+          {onCancel && (
+            <button className="btn" onClick={onCancel} aria-label={t.close}>
+              ✕
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-sm text-parchment-dim">{t.tablutBlurb}</p>
 
         <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
           {t.variant}
         </label>
-        <select className="btn mt-1 w-full" value={variantId} onChange={(e) => onVariant(e.target.value)}>
+        <select
+          className="btn mt-1 w-full"
+          value={variantId}
+          onChange={(e) => setVariantId(e.target.value)}
+        >
           {/* Driven by VISIBLE_VARIANTS, so hiding a preset is a one-line change
               in game/tablut/variants.ts rather than a hand-edit here. */}
           {VISIBLE_VARIANTS.map((id) => (
@@ -443,7 +579,7 @@ function TablutSetup({
         <p className="mt-1 text-xs text-parchment-dim">{t.variantBlurbs[rules.id] ?? rules.blurb}</p>
 
         {variantId === "custom" && (
-          <TablutRuleEditor t={t} rules={customRules} onChange={onCustomRules} />
+          <TablutRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
         )}
 
         <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
@@ -454,7 +590,7 @@ function TablutSetup({
             <button
               key={m}
               className={playMode === m ? "on" : ""}
-              onClick={() => onPlayMode(m)}
+              onClick={() => setPlayMode(m)}
               aria-pressed={playMode === m}
             >
               {m === "hotseat" ? t.tablutHotseat : m === "defenders" ? t.tablutWhite : t.tablutBlack}
@@ -472,7 +608,7 @@ function TablutSetup({
                 <button
                   key={d}
                   className={difficulty === d ? "on" : ""}
-                  onClick={() => onDifficulty(d)}
+                  onClick={() => setDifficulty(d)}
                   aria-pressed={difficulty === d}
                 >
                   {t.tablutDifficulties[d]}
@@ -482,7 +618,10 @@ function TablutSetup({
           </>
         )}
 
-        <button className="btn primary mt-5 w-full" onClick={onStart}>
+        <button
+          className="btn primary mt-5 w-full"
+          onClick={() => onStart({ variantId, customRules, playMode, difficulty })}
+        >
           {t.tablutPlay}
         </button>
       </div>

@@ -14,7 +14,12 @@
 //   • the engine actually replies, which is the only check that the Tablut Web
 //     Worker resolves at all in a real browser;
 //   • opening Tablut leaves a Brandubh game in progress byte-identical, which is
-//     the whole reason the two games have separate storage keys.
+//     the whole reason the two games have separate storage keys;
+//   • a Tablut game survives leaving the surface and coming back, resumed
+//     silently with no setup sheet in the way;
+//   • a full page reload lands back on the Tablut surface with the same game —
+//     the game space is only left by the player's own back button, which is
+//     what clears the surface flag.
 //
 // Same Chromium discovery list as screenshot.mjs and evalbar-geometry.mjs; keep
 // the three in step.
@@ -175,6 +180,43 @@ const bcols = await bboard.evaluate(
 check(bcols === 7, "the Brandubh board is 7 columns again", `saw ${bcols}`);
 const savedAfter = await page.evaluate(() => localStorage.getItem("brandubh.game.v1"));
 check(savedAfter === savedBefore, "the Brandubh save is untouched by the Tablut visit");
+
+// ── Back in: the Tablut game must have survived the visit out ────────────────
+await page.getByTestId("menu-toggle").click();
+await page.waitForSelector('[data-testid="app-drawer"]');
+await page.getByTestId("drawer-more-games").locator("summary").click();
+await page.getByTestId("drawer-tablut").click();
+await tb.waitFor();
+check(
+  (await page.getByRole("button", { name: "Play", exact: true }).count()) === 0,
+  "re-entry resumes the saved game with no setup sheet in the way",
+);
+check(
+  /Moves:\s*2/.test(await page.evaluate(() => document.body.innerText)),
+  "the two moves survived leaving the surface",
+);
+
+// ── Reload: the surface itself persists, and so does the game ────────────────
+await page.reload({ waitUntil: "networkidle" });
+const tbAfterReload = page.getByRole("grid", { name: "Tablut board" });
+const surfaceSurvived = await tbAfterReload
+  .waitFor({ timeout: 10000 })
+  .then(() => true)
+  .catch(() => false);
+check(surfaceSurvived, "a reload lands back on the Tablut surface");
+if (surfaceSurvived) {
+  check(
+    /Moves:\s*2/.test(await page.evaluate(() => document.body.innerText)),
+    "the game survived the reload",
+  );
+  // ── And leaving is the player's own choice, which clears the flag ──────────
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await bboard.waitFor();
+  check(
+    (await page.evaluate(() => localStorage.getItem("tablut.surface.v1"))) === null,
+    "the back button clears the surface flag",
+  );
+}
 
 check(pageErrors.length === 0, "no uncaught page errors", pageErrors.join(" | "));
 

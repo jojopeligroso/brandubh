@@ -41,6 +41,10 @@ import {
   type RestoredGame,
 } from "./game/persist";
 import {
+  rememberSurfaceOpen as rememberTablutSurface,
+  wasSurfaceOpen as wasTablutSurfaceOpen,
+} from "./game/tablut/persist";
+import {
   matchTotals,
   newMatch,
   recordMatchGame,
@@ -547,8 +551,15 @@ export default function App() {
    * this shell owns nothing of it beyond whether it is open. Nothing below this
    * line reads it, which is the point — opening Tablut cannot disturb a Brandubh
    * game in progress, and closing it cannot have lost one.
+   *
+   * Whether it is open *persists*: a reload mid-Tablut must land back on the
+   * Tablut board, exactly as a reload mid-Brandubh lands on the Brandubh one.
+   * The 7×7 shell is only returned to by the player's own back button.
    */
-  const [showTablut, setShowTablut] = useState(false);
+  const [showTablut, setShowTablut] = useState(wasTablutSurfaceOpen);
+  useEffect(() => {
+    rememberTablutSurface(showTablut);
+  }, [showTablut]);
 
   const rules: RuleSet =
     variantId === "custom"

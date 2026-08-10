@@ -499,6 +499,30 @@ export function loadResumableGame(now: number = Date.now()): RestoredGame | null
   return restored;
 }
 
+// ── Surface persistence ──────────────────────────────────────────────────────
+// Which game the app is *in* survives a reload, exactly as the game itself
+// does. Without this a refresh mid-Tablut lands back on the 7×7 board — the
+// game space must only be left by the player's own choice, the back button.
+
+export const SURFACE_STORAGE_KEY = "tablut.surface.v1";
+
+export function rememberSurfaceOpen(open: boolean): void {
+  try {
+    if (open) localStorage.setItem(SURFACE_STORAGE_KEY, "1");
+    else localStorage.removeItem(SURFACE_STORAGE_KEY);
+  } catch {
+    /* storage unavailable — the surface simply won't survive a reload */
+  }
+}
+
+export function wasSurfaceOpen(): boolean {
+  try {
+    return localStorage.getItem(SURFACE_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** True when a match carries a score worth keeping (games played or sets banked). */
 export function hasMatchProgress(match: Match | null): boolean {
   if (!match) return false;
