@@ -35,20 +35,36 @@ export const BOARD_FLIP_V_KEY = "brandubh.boardFlippedV";
  *
  * This is an *involution* — applying it twice returns the original index — so
  * the same function serves both directions.
+ *
+ * `size` defaults to Brandubh's board. Every function in this module takes it the
+ * same way, so a second boardgame with a different board (Tablut, 9×9) reuses the
+ * mapping rather than restating it — the flip logic is geometry, not rules, and
+ * one copy of it is what stops a drawn cell resolving to a different square than
+ * the one under the cursor.
  */
-export const viewIndex = (i: number, flipped: boolean): number =>
-  flipped ? BOARD_SIZE - 1 - i : i;
+export const viewIndex = (i: number, flipped: boolean, size: number = BOARD_SIZE): number =>
+  flipped ? size - 1 - i : i;
 
 /** Where a board square is drawn. */
-export const toView = (sq: Square, flipH: boolean, flipV: boolean): Square => ({
-  row: viewIndex(sq.row, flipV),
-  col: viewIndex(sq.col, flipH),
+export const toView = (
+  sq: Square,
+  flipH: boolean,
+  flipV: boolean,
+  size: number = BOARD_SIZE,
+): Square => ({
+  row: viewIndex(sq.row, flipV, size),
+  col: viewIndex(sq.col, flipH, size),
 });
 
 /** Which board square a drawn cell stands for — what a click resolves to. */
-export const fromView = (sq: Square, flipH: boolean, flipV: boolean): Square => ({
-  row: viewIndex(sq.row, flipV),
-  col: viewIndex(sq.col, flipH),
+export const fromView = (
+  sq: Square,
+  flipH: boolean,
+  flipV: boolean,
+  size: number = BOARD_SIZE,
+): Square => ({
+  row: viewIndex(sq.row, flipV, size),
+  col: viewIndex(sq.col, flipH, size),
 });
 
 /**
@@ -59,9 +75,14 @@ export const fromView = (sq: Square, flipH: boolean, flipV: boolean): Square => 
  * takes its endpoints from here is orientation-aware for free, and can never
  * point at a different square than the one the board is showing.
  */
-export function viewCenter(sq: Square, flipH: boolean, flipV: boolean): { x: number; y: number } {
-  const v = toView(sq, flipH, flipV);
-  return { x: (v.col + 0.5) / BOARD_SIZE, y: (v.row + 0.5) / BOARD_SIZE };
+export function viewCenter(
+  sq: Square,
+  flipH: boolean,
+  flipV: boolean,
+  size: number = BOARD_SIZE,
+): { x: number; y: number } {
+  const v = toView(sq, flipH, flipV, size);
+  return { x: (v.col + 0.5) / size, y: (v.row + 0.5) / size };
 }
 
 /** Both endpoints of a move in view space, ready to be drawn as an arrow. */
@@ -69,10 +90,11 @@ export function viewArrow(
   move: Move,
   flipH: boolean,
   flipV: boolean,
+  size: number = BOARD_SIZE,
 ): { from: { x: number; y: number }; to: { x: number; y: number } } {
   return {
-    from: viewCenter(move.from, flipH, flipV),
-    to: viewCenter(move.to, flipH, flipV),
+    from: viewCenter(move.from, flipH, flipV, size),
+    to: viewCenter(move.to, flipH, flipV, size),
   };
 }
 
@@ -88,16 +110,23 @@ const FILES = "abcdefg";
 export const squareName = (sq: Square): string =>
   `${FILES[sq.col]}${BOARD_SIZE - sq.row}`;
 
-/** The file letter for a board column. */
-export const fileLabel = (col: number): string => FILES[col];
+/** The file letter for a board column. Tablut passes its own alphabet (a–i). */
+export const fileLabel = (col: number, files: string = FILES): string => files[col];
 
 /** The rank number for a board row. */
-export const rankLabel = (row: number): string => String(BOARD_SIZE - row);
+export const rankLabel = (row: number, size: number = BOARD_SIZE): string =>
+  String(size - row);
 
 /** True when this board row is drawn along the bottom edge, so it carries the files. */
-export const isLabelledFileRow = (row: number, flipV: boolean): boolean =>
-  viewIndex(row, flipV) === BOARD_SIZE - 1;
+export const isLabelledFileRow = (
+  row: number,
+  flipV: boolean,
+  size: number = BOARD_SIZE,
+): boolean => viewIndex(row, flipV, size) === size - 1;
 
 /** True when this board column is drawn along the left edge, so it carries the ranks. */
-export const isLabelledRankCol = (col: number, flipH: boolean): boolean =>
-  viewIndex(col, flipH) === 0;
+export const isLabelledRankCol = (
+  col: number,
+  flipH: boolean,
+  size: number = BOARD_SIZE,
+): boolean => viewIndex(col, flipH, size) === 0;

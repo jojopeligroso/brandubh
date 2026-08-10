@@ -373,9 +373,13 @@ body {
 /* ── Board ─────────────────────────────────────────────────────────────────── */
 .board {
   --line: color-mix(in srgb, var(--motif-ink) 45%, transparent);
+  /* Squares per side. Brandubh is 7; Tablut sets --n: 9 inline. Same pattern as
+     .demo-grid's --cols/--rows below — the board is square either way, so one
+     variable does for both axes. */
+  --n: 7;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(7, 1fr);
+  grid-template-columns: repeat(var(--n), 1fr);
+  grid-template-rows: repeat(var(--n), 1fr);
   aspect-ratio: 1 / 1;
   width: 100%;
   border-radius: 14px;
@@ -950,6 +954,32 @@ body {
   width: 1.25rem;
   height: 1.25rem;
 }
+/* The drawer's one collapsed section (More games). Styled to sit flush with the
+   flat `.drawer-section` headers above it, so opening it reads as the same list
+   growing rather than a different kind of control appearing. */
+.drawer-details > .drawer-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.drawer-details > .drawer-summary::-webkit-details-marker {
+  display: none;
+}
+.drawer-details > .drawer-summary::after {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 140ms ease;
+}
+.drawer-details[open] > .drawer-summary::after {
+  transform: rotate(45deg);
+}
+
 .drawer-foot {
   padding: 0.6rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom, 0));
   border-top: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
@@ -2379,11 +2409,34 @@ button.settings-row:hover {
    A puzzle is a place, not a dialog: the layer is opaque, so the live game —
    its board, its toolbar — is never visible behind an exercise. Same canvas as
    the app body, so arriving reads as a change of room rather than a curtain. */
-.puzzle-screen {
+/* Two full-screen *places* that mount over the shell rather than beside it: the
+   puzzle trainer and the Tablut board. Both need the app's own background, not
+   transparency — without it the shell's seats, toolbar and wordmark show through
+   and the header buttons collide with the hamburger behind them. Found in the
+   driven-browser pass, which is what that pass is for. */
+.puzzle-screen,
+.tablut-screen {
   background:
     radial-gradient(1200px 600px at 50% -10%, var(--app-bg-radial) 0%, transparent 60%),
     linear-gradient(160deg, var(--app-bg-1) 0%, var(--app-bg-2) 100%);
   background-color: var(--app-bg-2);
+}
+
+/* The seat dots on the Tablut bars, matching the piece colours the board draws. */
+.seat-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid color-mix(in srgb, var(--motif-ink) 55%, transparent);
+}
+/* --def / --atk are the piece colours the board itself draws with, so the dots
+   follow the player's chosen colour scheme rather than restating one. */
+.seat-dot.defenders {
+  background: var(--def);
+}
+.seat-dot.attackers {
+  background: var(--atk);
 }
 
 /* The verdict roundel — lichess's ✓/✗ pinned to the square the guess landed
