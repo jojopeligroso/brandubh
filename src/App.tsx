@@ -180,12 +180,16 @@ import {
 } from "./analysis";
 import {
   ANNOTATE_DIFFICULTY,
+  lessonMoves,
   type Mark,
   markGlyph,
   marksFromScores,
   terminalScore,
   type WorstMove,
 } from "./game/annotate";
+import { stateFromBoard } from "./game/position";
+import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
+import { bounce } from "./uiTiming";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
 // Difficulty, variant and side survive a page refresh (a reload otherwise silently
@@ -699,17 +703,25 @@ export default function App() {
         // exploration. It is still committed to the tree either way, so a wrong
         // guess is on the board where you can see what it does — being told
         // "no" without seeing why teaches nothing.
-        if (acceptsGuess(attemptRef.current)) {
+        const guessing = attemptRef.current;
+        if (guessing && acceptsGuess(guessing)) {
           // A review mistake is one step, and its accepted answer is the
           // worker's whole equal-best set with no scripted reply — so `isLast`
           // is always true and the returned `play` is just the move, which the
           // tree above has already taken.
-          setAttempt((a) =>
-            a
-              ? judge(a, move, { accepted: solutionRef.current?.bestMoves ?? null, reply: null }, true)
-                  .attempt
-              : a,
-          );
+          const judged = judge(
+            guessing,
+            move,
+            { accepted: solutionRef.current?.bestMoves ?? null, reply: null },
+            true,
+          ).attempt;
+          setAttempt(judged);
+          // The board wears the verdict on the square the guess landed on —
+          // the same ✓/✗ roundel the bank puzzles pin there. A wrong guess
+          // also arms the feedback track; the auto-revert below bounces the
+          // move back, and the track is what keeps the panel red after it has.
+          setAttemptVerdict({ square: move.to, ok: judged.stage !== "wrong" });
+          setAttemptFeedback(judged.stage === "wrong" ? "wrong" : null);
         }
         return;
       }
@@ -831,6 +843,15 @@ export default function App() {
   // mistakes and blunders in game order, each opened as the Attempt above. Null
   // when one was opened on its own from the costliest-moves list.
   const [lesson, setLesson] = useState<{ queue: WorstMove[]; index: number } | null>(null);
+  // The lichess fail loop's two display tracks (the same pair the bank puzzle
+  // player holds). The verdict is the ✓/✗ roundel on the square the guess
+  // landed on; the feedback track keeps the panel saying "not quite" after the
+  // wrong move has been bounced back — the revert returns the Attempt to
+  // `guessing`, and the accent must outlive it until the next guess.
+  const [attemptVerdict, setAttemptVerdict] = useState<{ square: Square; ok: boolean } | null>(
+    null,
+  );
+  const [attemptFeedback, setAttemptFeedback] = useState<"wrong" | null>(null);
 
   const showEval = analysis && evalOn && showExtra("eval") && !hidesEngine(attempt);
   // Read by `commitMove`, which must not be rebuilt on every stage change.
@@ -1147,6 +1168,8 @@ export default function App() {
     (ply: number, mover: Side) => {
       if (ply < 1) return;
       setAttemptAnswer(null);
+      setAttemptVerdict(null);
+      setAttemptFeedback(null);
       setAttempt({ source: { kind: "review", ply }, mover, stage: "guessing", step: 0, attempts: 0 });
       jumpToPly(ply - 1);
     },
@@ -1156,6 +1179,8 @@ export default function App() {
   const exitAttempt = useCallback(() => {
     setAttempt(null);
     setAttemptAnswer(null);
+    setAttemptVerdict(null);
+    setAttemptFeedback(null);
     setLesson(null);
   }, []);
 
@@ -1190,6 +1215,8 @@ export default function App() {
 
   /** Give up and be shown. A legitimate ending, not a lesser one. */
   const revealSolution = useCallback(() => {
+    setAttemptVerdict(null);
+    setAttemptFeedback(null);
     setAttempt((a) => (a ? { ...a, stage: "revealed" } : a));
   }, []);
 
@@ -1208,10 +1235,55 @@ export default function App() {
       setNodeId(parent);
     }
     setSelected(null);
+    setAttemptVerdict(null);
     // Back to the *same* step. Removing the branch is this caller's half of it;
     // a bank puzzle rewinds differently and `retryStep` is blind to which.
+    // The feedback track is deliberately NOT cleared here: the revert is
+    // automatic, and the panel must keep saying what just happened.
     setAttempt((a) => (a ? retryStep(a) : a));
   }, [tree, nodeId]);
+
+  // The lichess bounce, brought to review attempts: a wrong guess stays on the
+  // board just long enough to see what it does and the ✗ it earned, then it is
+  // taken back automatically — wiped, never kept. The same rhythm the bank
+  // puzzle player has always had, so a learner meets one verdict everywhere.
+  const reducedMotion = usePrefersReducedMotion();
+  useEffect(() => {
+    if (attempt?.stage !== "wrong") return;
+    const timer = window.setTimeout(tryAgain, bounce(reducedMotion));
+    return () => window.clearTimeout(timer);
+  }, [attempt, tryAgain, reducedMotion]);
+
+  /**
+   * The panel's Try Again. While the wrong move is still on the board it takes
+   * it back at once (the impatient path past the bounce); after the auto-revert
+   * it only clears the fail accent — the branch is already gone, and removing
+   * a node again would eat the position itself.
+   */
+  const panelTryAgain = useCallback(() => {
+    if (attemptRef.current?.stage === "wrong") tryAgain();
+    setAttemptVerdict(null);
+    setAttemptFeedback(null);
+  }, [tryAgain]);
+
+  /**
+   * Play on from a finished attempt — the found (or shown) move stays on the
+   * board and the position becomes a live game against the computer, exactly
+   * as a bank puzzle's "play from here" works. Handed over as a *position*
+   * with the history dropped, for the same reason the bank player drops it:
+   * the moves on this board belong to the review, not to the new game
+   * (`playFromPosition` closes the autosave and the export — the
+   * replay-from-opening invariant).
+   */
+  const continueFromAttempt = useCallback(() => {
+    const a = attemptRef.current;
+    if (!a || !attemptFinished(a)) return;
+    const pos = states[cursor];
+    if (isGameOver(pos.status)) return;
+    const side = a.mover;
+    exitAttempt();
+    playFromPosition(stateFromBoard(pos.board, pos.turn), side);
+  }, [states, cursor, exitAttempt, playFromPosition]);
 
   // Fetch the answer when an Attempt opens — deep, and quietly. The shallow pass
   // is tuned to re-run on every cursor step; a question someone has stopped to
@@ -1363,6 +1435,34 @@ export default function App() {
     // Only on a change of game identity, not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variantId, playMode]);
+
+  // ── The game-over CTA band ──────────────────────────────────────────────────
+  // "King wins · d4 · Analyse deeper" is engine-operator language, and it was
+  // the first thing a finished game showed. The first thing is now the point of
+  // being here at all: learn from your mistakes. The band sits where the ceval
+  // strip sits and replaces it while a terminal position is on screen; stepping
+  // back into the game brings the strip back.
+  const lineMovers = useMemo(
+    () => lineStates[lineEnd].history.map((h) => h.sideThatMoved),
+    [lineStates, lineEnd],
+  );
+  /** The lesson the band offers: your own mistakes when you played a side;
+   *  over the board, the loser's (their mistakes decided it), falling back to
+   *  whichever side has more to learn from. */
+  const ctaQueue = useMemo(() => {
+    if (!annotation || annotation.key !== lineKey) return [];
+    const { scores, marks: lineMarks } = annotation;
+    if (humanSide) return lessonMoves(scores, lineMovers, lineMarks, humanSide);
+    const winner = winnerOf(lineStates[lineEnd].status);
+    const attackersQ = lessonMoves(scores, lineMovers, lineMarks, "attackers");
+    const defendersQ = lessonMoves(scores, lineMovers, lineMarks, "defenders");
+    const loserQ =
+      winner === "attackers" ? defendersQ : winner === "defenders" ? attackersQ : [];
+    if (loserQ.length > 0) return loserQ;
+    return attackersQ.length >= defendersQ.length ? attackersQ : defendersQ;
+  }, [annotation, lineKey, humanSide, lineMovers, lineStates, lineEnd]);
+  const showCtaBand =
+    analysis && isGameOver(game.status) && !attempt && (annotating !== null || marks !== null);
 
   // ── Human interaction ───────────────────────────────────────────────────────
   const interactive = boardIsInteractive({
@@ -2057,6 +2157,7 @@ export default function App() {
                 : null
           }
           alsoBest={attempt ? [] : showEval ? altBestMoves : []}
+            verdict={attemptVerdict}
             markBadge={
               // Lichess's on-board judgement glyph: ?!/?/?? on the square the
               // marked move landed on. Never while a guess is outstanding —
@@ -2072,7 +2173,43 @@ export default function App() {
 
       <div className="mt-3">{renderPlayerBar(bottomClockSide, "bottom")}</div>
 
-      {showEval && evalInfo && (
+      {/* The finished game's front door: one loud, plain offer — learn from
+          your mistakes. It takes the ceval strip's slot while a terminal
+          position is on screen, because "King wins · d4" restates what the
+          curtain already said, in units nobody is reading. */}
+      {showCtaBand && (
+        <section className="review-cta card mt-2 p-3" data-testid="review-cta">
+          {annotating ? (
+            <>
+              <button className="btn btn-primary w-full py-3 text-base" disabled>
+                {t.reviewLearn}
+              </button>
+              <div className="annotate-progress mt-2" role="status">
+                <div className="annotate-bar" aria-hidden>
+                  <span
+                    style={{ width: `${Math.round((annotating.done / annotating.total) * 100)}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-parchment-dim">
+                  {t.reviewCtaPreparing} {annotating.done}/{annotating.total}
+                </p>
+              </div>
+            </>
+          ) : ctaQueue.length > 0 ? (
+            <button
+              className="btn btn-primary w-full py-3 text-base"
+              onClick={() => startLesson(ctaQueue)}
+            >
+              {t.reviewLearn} · {ctaQueue.length}
+            </button>
+          ) : (
+            // A clean game is a result, not an empty state.
+            <p className="puzzle-hint">{t.reviewClean}</p>
+          )}
+        </section>
+      )}
+
+      {showEval && evalInfo && !showCtaBand && (
         // Lichess's ceval strip: the score reads big on the left, the engine's
         // depth beside it, and the deepen control on the right.
         <div className="ceval mt-2">
@@ -2085,14 +2222,20 @@ export default function App() {
                 : t.evalDefendersWin
               : formatEvalScore(evalInfo.score, bottomClockSide)}
           </span>
-          <span className="ceval-depth font-mono">d{evalInfo.depth}</span>
-          <button
-            className="btn btn-sm ceval-deeper"
-            onClick={() => setDeepRequest((n) => n + 1)}
-            disabled={evalPending}
-          >
-            {evalPending && deepRequest > 0 ? t.thinkingDeeper : t.thinkHarder}
-          </button>
+          <span className="ceval-depth font-mono" title={t.evalDepthLabel}>
+            d{evalInfo.depth}
+          </span>
+          {/* A verdict cannot be "analysed deeper" in any way a reader could
+              see, so the deepen control only shows beside a live score. */}
+          {!decisiveWinner(evalInfo.score) && (
+            <button
+              className="btn btn-sm ceval-deeper"
+              onClick={() => setDeepRequest((n) => n + 1)}
+              disabled={evalPending}
+            >
+              {evalPending && deepRequest > 0 ? t.thinkingDeeper : t.thinkHarder}
+            </button>
+          )}
         </div>
       )}
 
@@ -2102,12 +2245,16 @@ export default function App() {
           attempt={attempt}
           sideLabel={(side) => sideLabel(side, t)}
           waiting={attemptAnswer === null}
+          feedback={attemptFeedback}
           lesson={lesson ? { index: lesson.index, total: lesson.queue.length } : null}
-          onTryAgain={tryAgain}
+          onTryAgain={panelTryAgain}
           onReveal={revealSolution}
           onSkip={advanceLesson}
           onNext={advanceLesson}
           onExit={exitAttempt}
+          onPlayFromHere={
+            attemptFinished(attempt) && !isGameOver(game.status) ? continueFromAttempt : null
+          }
         />
       )}
 
@@ -2298,28 +2445,11 @@ export default function App() {
         <PositionPanel t={t} state={game} onLoad={loadPosition} />
       )}
 
-      {/* Export/import the whole mainline — always the tip, never the position
-          currently under review (see docs/design/game-import-export.md).
-
-          A board that did not come from the opening is the case this must
-          refuse, in either of the two shapes it arrives in: a tree rooted on a
-          pasted position (7e), and a game played on from a puzzle. The file
-          format records a move list replayed from `initialState()`, and neither
-          has a path back to one, so exporting the moves would write a file that
-          replays into a completely different game. The panel is replaced by the
-          reason rather than silently vanishing. */}
-      {showExtra("gamefile") &&
-        (positionRooted ? (
-          <p className="card mt-4 p-4 text-xs text-parchment-dim">{positionExportRefusal}</p>
-        ) : (
-          <GameFilePanel
-            t={t}
-            state={states[tip]}
-            rules={rules}
-            meta={exportMeta}
-            onImport={loadImportedGame}
-          />
-        ))}
+      {/* The game file no longer has an in-page card: file tooling is a
+          deliberate, occasional act, and a second mount on the play screen's
+          scroll is what made it read as the save system rather than as backup
+          and sharing. Its single home is the drawer's Tools row (the modal
+          below), and the autosave explains itself in the resume overlay. */}
 
       {aiSide !== null && lastAiInfo && (
         <p className="mt-1 text-center font-mono text-[11px] text-parchment-dim/70 tabular-nums">
@@ -3267,7 +3397,6 @@ function ZenSettings({
     resign: t.resign,
     pause: t.pause,
     settings: t.zenElSettings,
-    gamefile: t.zenElGameFile,
     flip: t.flipBoard,
     analysis: t.analysisMode,
     eval: t.zenElEval,

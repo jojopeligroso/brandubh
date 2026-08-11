@@ -33,7 +33,6 @@ export type ZenExtraId =
   | "resign"
   | "pause"
   | "settings"
-  | "gamefile"
   | "flip"
   | "analysis"
   | "eval"
@@ -51,7 +50,6 @@ export const ZEN_EXTRAS: ZenExtraId[] = [
   "resign",
   "pause",
   "settings",
-  "gamefile",
   "flip",
   "analysis",
   "eval",

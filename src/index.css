@@ -2436,6 +2436,29 @@ button.settings-row:hover {
 }
 .puzzle.is-wrong {
   border-left-color: var(--color-blood, #c34043);
+  animation: puzzle-fail-pulse 600ms ease-out 1;
+}
+/* One soft red wash that fades — a verdict, not a punishment. The inset
+   box-shadow layers over the card's own background without fighting it. */
+@keyframes puzzle-fail-pulse {
+  from {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--color-blood, #c34043) 12%, transparent);
+  }
+  to {
+    box-shadow: inset 0 0 0 999px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .puzzle.is-wrong {
+    animation: none;
+  }
+}
+
+/* The game-over CTA band — the finished game's front door, sitting where the
+   ceval strip sits. Same left-border accent language as .puzzle, in gold: the
+   offer is a lesson, not an alarm. */
+.review-cta {
+  border-left: 3px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
 }
 .puzzle.is-solved,
 .puzzle.is-revealed {

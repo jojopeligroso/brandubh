@@ -10,16 +10,7 @@ import { puzzleStart, solverSide, type Puzzle } from "../game/puzzleBank";
 import type { GameState, Move, Side, Square } from "../game/types";
 import type { RuleSet } from "../game/variants";
 import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
-
-/** How long the board rests before a move that was not the learner's plays.
- *  Reduced motion keeps the beat and shortens it to nearly nothing: the
- *  position still changes in two steps, it just does not linger. */
-const beat = (reduced: boolean): number => (reduced ? 60 : 620);
-
-/** How long a wrong guess stays on the board before it is bounced back —
- *  lichess's revert. Long enough to see what the move does and the ✗ it earned,
- *  short enough that the bounce reads as a verdict rather than a freeze. */
-const bounce = (reduced: boolean): number => (reduced ? 120 : 800);
+import { beat, bounce } from "../uiTiming";
 
 /**
  * What the feedback strip says while a guess is outstanding. Deliberately a
