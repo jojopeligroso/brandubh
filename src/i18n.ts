@@ -386,7 +386,10 @@ export interface Translations {
   importErrMovesAfterEnd: string;
   importErrCaptureMismatch: string;
   importErrUnreadableFile: string;
-  zenElGameFile: string;
+  /** The one line that severs "game file" from "autosave" in the reader's
+   *  head: the current game is already kept automatically; the file is for
+   *  keeping and sharing. Shown at the top of the game-file modal. */
+  gameFileAutosaveNote: string;
 
   // Board tools — flip + analysis (Session 7b)
   flipBoard: string;
@@ -429,8 +432,22 @@ export interface Translations {
   puzzleSkip: string;
   puzzleNext: string;
   puzzleLessonDone: string;
+  /** The fail state's hint: the wrong move is bounced back automatically, and
+   *  this says so — otherwise the revert reads as the board glitching. */
+  puzzleTakenBack: string;
+  /** The solved state's primary in a lesson: on to the next queued mistake. */
+  puzzleNextMistake: string;
+  /** The solved state's primary on the lesson's last mistake. */
+  puzzleFinishLesson: string;
+  /** Under "Play from here": starting a live game from this position closes
+   *  the review and replaces the autosave — a cost worth stating first. */
+  puzzlePlayFromHereHint: string;
   thinkHarder: string;
   thinkingDeeper: string;
+  /** Title text on the ceval strip's depth readout. */
+  evalDepthLabel: string;
+  /** The game-over CTA band while the review pass is still running. */
+  reviewCtaPreparing: string;
   reviewTitle: string;
   reviewWorst: string;
   reviewYourWorst: string;
@@ -833,7 +850,7 @@ const en: Translations = {
   chooseDifficulty: "Choose difficulty",
   chooseTime: "Choose a time control",
   startGame: "Start game",
-  resumeBody: "You have a game in progress.",
+  resumeBody: "Your game is saved automatically — pick up where you left off?",
   resumeGame: "Resume game",
 
   continueFromMove: "Continue from move",
@@ -988,15 +1005,15 @@ const en: Translations = {
     "tablut-linnaeus":
       "The rules Linnaeus recorded in Lapland in 1732, as the World Tafl Federation reads them. The king falls to four attackers on his throne, to three when the empty throne stands in as the fourth wall beside it, and to the ordinary two anywhere else. The empty throne is hostile, the king escapes to any edge square, an unbroken ring of attackers wins for Black, and a repeated position is on White to break.",
   },
-  gameFileTitle: "Export / import game",
-  exportLabel: "Export this game",
+  gameFileTitle: "Game file (.tafl)",
+  exportLabel: "Back up or share this game",
   exportDownload: "Download",
   exportCopy: "Copy",
   exportCopied: "Copied",
   exportCopyFailed: "Copy failed",
   exportHint: "A plain-text .tafl file: a tag header plus the move list, like a chess PGN.",
   exportNothingYet: "Play a move first \u2014 there is nothing to export yet.",
-  importLabel: "Import a game",
+  importLabel: "Open a game file",
   importPlaceholder: "Paste a game here\u2026",
   importLoad: "Load game",
   importChooseFile: "Choose file\u2026",
@@ -1013,7 +1030,8 @@ const en: Translations = {
   importErrMovesAfterEnd: "the move list carries on after the game had ended.",
   importErrCaptureMismatch: "the captures do not match this ruleset.",
   importErrUnreadableFile: "that file could not be read.",
-  zenElGameFile: "Export / import",
+  gameFileAutosaveNote:
+    "Your current game is already saved automatically. This file is for keeping games, or sharing them with someone else.",
 
   flipBoard: "Flip board",
   flipBoardH: "Flip board left-right",
@@ -1049,8 +1067,15 @@ const en: Translations = {
   puzzleSkip: "Skip",
   puzzleNext: "Next",
   puzzleLessonDone: "That was the last one — lesson complete.",
-  thinkHarder: "Think harder",
+  puzzleTakenBack: "Your move is taken back — try another.",
+  puzzleNextMistake: "Next mistake",
+  puzzleFinishLesson: "Finish lesson",
+  puzzlePlayFromHereHint:
+    "Starts a new game from this position — the review closes and this game's autosave is replaced.",
+  thinkHarder: "Analyse deeper",
   thinkingDeeper: "Thinking\u2026",
+  evalDepthLabel: "Search depth",
+  reviewCtaPreparing: "Reviewing your game\u2026",
   reviewTitle: "Game review",
   reviewWorst: "Costliest moves",
   reviewYourWorst: "Your costliest moves",
@@ -1490,7 +1515,7 @@ const es: Translations = {
   chooseDifficulty: "Elige la dificultad",
   chooseTime: "Elige el ritmo de juego",
   startGame: "Empezar partida",
-  resumeBody: "Tienes una partida en curso.",
+  resumeBody: "Tu partida se guarda automáticamente — ¿continúas donde la dejaste?",
   resumeGame: "Reanudar partida",
 
   continueFromMove: "\u00bfContinuar desde el movimiento",
@@ -1650,15 +1675,15 @@ const es: Translations = {
     "tablut-linnaeus":
       "Las reglas que Linneo anot\u00f3 en Laponia en 1732, tal como las lee la Federaci\u00f3n Mundial de Tafl. El rey cae ante cuatro atacantes en su trono, ante tres cuando el trono vac\u00edo hace de cuarta pared a su lado, y ante los dos de siempre en cualquier otro lugar. El trono vac\u00edo es hostil, el rey escapa por cualquier casilla del borde, un anillo cerrado de atacantes gana para las negras, y romper una repetici\u00f3n corresponde a las blancas.",
   },
-  gameFileTitle: "Exportar / importar partida",
-  exportLabel: "Exportar esta partida",
+  gameFileTitle: "Archivo de partida (.tafl)",
+  exportLabel: "Guarda una copia o comparte esta partida",
   exportDownload: "Descargar",
   exportCopy: "Copiar",
   exportCopied: "Copiado",
   exportCopyFailed: "Fall\u00f3 la copia",
   exportHint: "Un archivo .tafl de texto: cabecera de etiquetas m\u00e1s la lista de jugadas, como un PGN de ajedrez.",
   exportNothingYet: "Haz una jugada primero \u2014 a\u00fan no hay nada que exportar.",
-  importLabel: "Importar una partida",
+  importLabel: "Abrir un archivo de partida",
   importPlaceholder: "Pega una partida aqu\u00ed\u2026",
   importLoad: "Cargar partida",
   importChooseFile: "Elegir archivo\u2026",
@@ -1675,7 +1700,8 @@ const es: Translations = {
   importErrMovesAfterEnd: "la lista de jugadas contin\u00faa despu\u00e9s de terminar la partida.",
   importErrCaptureMismatch: "las capturas no cuadran con este reglamento.",
   importErrUnreadableFile: "no se pudo leer ese archivo.",
-  zenElGameFile: "Exportar / importar",
+  gameFileAutosaveNote:
+    "Tu partida actual ya se guarda automáticamente. Este archivo sirve para conservar partidas o compartirlas con otra persona.",
 
   flipBoard: "Girar el tablero",
   flipBoardH: "Girar el tablero izquierda-derecha",
@@ -1711,8 +1737,15 @@ const es: Translations = {
   puzzleSkip: "Saltar",
   puzzleNext: "Siguiente",
   puzzleLessonDone: "Era el último — lección completada.",
-  thinkHarder: "Pensar m\u00e1s",
+  puzzleTakenBack: "Tu jugada se deshace \u2014 prueba otra.",
+  puzzleNextMistake: "Siguiente error",
+  puzzleFinishLesson: "Terminar la lecci\u00f3n",
+  puzzlePlayFromHereHint:
+    "Empieza una partida nueva desde esta posici\u00f3n \u2014 la revisi\u00f3n se cierra y se sustituye la partida guardada.",
+  thinkHarder: "Analizar m\u00e1s a fondo",
   thinkingDeeper: "Pensando\u2026",
+  evalDepthLabel: "Profundidad de b\u00fasqueda",
+  reviewCtaPreparing: "Revisando tu partida\u2026",
   reviewTitle: "Revisi\u00f3n de la partida",
   reviewWorst: "Jugadas m\u00e1s costosas",
   reviewYourWorst: "Tus jugadas m\u00e1s costosas",
@@ -2165,7 +2198,8 @@ const ga: Translations = {
   // DRAFT (overlay time step) — unreviewed, like the rest of this table.
   chooseTime: "Roghnaigh rialú ama",
   startGame: "Tosaigh an cluiche",
-  resumeBody: "Tá cluiche ar siúl agat.",
+  // DRAFT (unreviewed) — like the rest of this table.
+  resumeBody: "Sábháiltear do chluiche go huathoibríoch — ar mhaith leat leanúint ar aghaidh?",
   resumeGame: "Lean ar aghaidh leis an gcluiche",
 
   continueFromMove: "Lean ar aghaidh \u00f3 bhogadh",
@@ -2331,15 +2365,15 @@ const ga: Translations = {
     "tablut-linnaeus":
       "Na rialacha a bhreac Linnaeus s\u00edos sa Laplainn sa bhliain 1732, mar a l\u00e9ann an Cumann Domhanda Tafl iad. Titeann an r\u00ed le ceathrar ionsaitheoir\u00ed ar a r\u00edchathaoir, le tri\u00far nuair a sheasann an r\u00edchathaoir fholamh mar an ceathr\u00fa balla lena thaobh, agus leis an mbeirt ghn\u00e1ch in \u00e1it ar bith eile. T\u00e1 an r\u00edchathaoir fholamh naimhdeach, \u00e9ala\u00edonn an r\u00ed chuig cearn\u00f3g imill ar bith, buann fainne dobhriste ionsaitheoir\u00ed do na Dubha, agus is ar na Bana at\u00e1 s\u00e9 athr\u00e1 a bhriseadh.",
   },
-  gameFileTitle: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il cluiche",
-  exportLabel: "Easp\u00f3rt\u00e1il an cluiche seo",
+  gameFileTitle: "Comhad cluiche (.tafl)",
+  exportLabel: "Coinnigh c\u00f3ip n\u00f3 roinn an cluiche seo",
   exportDownload: "\u00cdosl\u00f3d\u00e1il",
   exportCopy: "C\u00f3ipe\u00e1il",
   exportCopied: "C\u00f3ipe\u00e1ilte",
   exportCopyFailed: "Theip ar an gc\u00f3ipe\u00e1il",
   exportHint: "Comhad t\u00e9acs .tafl: ceannt\u00e1sc clibeanna agus liosta na mbeart, ar n\u00f3s PGN fichille.",
   exportNothingYet: "D\u00e9an beart ar dt\u00fas \u2014 n\u00edl aon rud le heasp\u00f3rt\u00e1il go f\u00f3ill.",
-  importLabel: "Iomp\u00f3rt\u00e1il cluiche",
+  importLabel: "Oscail comhad cluiche",
   importPlaceholder: "Greamaigh cluiche isteach anseo\u2026",
   importLoad: "Luchtaigh cluiche",
   importChooseFile: "Roghnaigh comhad\u2026",
@@ -2356,7 +2390,9 @@ const ga: Translations = {
   importErrMovesAfterEnd: "leanann liosta na mbeart ar aghaidh tar \u00e9is dheireadh an chluiche.",
   importErrCaptureMismatch: "n\u00ed r\u00e9it\u00edonn na gabh\u00e1lacha leis an sraith rialacha seo.",
   importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
-  zenElGameFile: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  gameFileAutosaveNote:
+    "S\u00e1bh\u00e1iltear do chluiche reatha go huathoibr\u00edoch cheana f\u00e9in. Is le haghaidh cluich\u00ed a choinne\u00e1il n\u00f3 a roinnt le duine eile an comhad seo.",
 
   // DRAFT (Session 7b) \u2014 unreviewed, like the rest of this table. Present so
   // the locale stays complete while it waits for review; `ga` is not offered.
@@ -2400,8 +2436,16 @@ const ga: Translations = {
   puzzleSkip: "L\u00e9im thairis",
   puzzleNext: "Ar aghaidh",
   puzzleLessonDone: "B'in an ceann deireanach \u2014 ceacht cr\u00edochnaithe.",
-  thinkHarder: "Smaoinigh n\u00edos doimhne",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  puzzleTakenBack: "Tarraing\u00edtear do bheart siar \u2014 bain triail as ceann eile.",
+  puzzleNextMistake: "An ch\u00e9ad bhot\u00fan eile",
+  puzzleFinishLesson: "Cr\u00edochnaigh an ceacht",
+  puzzlePlayFromHereHint:
+    "Tosa\u00edonn cluiche nua \u00f3n su\u00edomh seo \u2014 d\u00fantar an t-athbhreithni\u00fa agus cuirtear cluiche nua in \u00e1it an chinn sh\u00e1bh\u00e1ilte.",
+  thinkHarder: "Anail\u00edsigh n\u00edos doimhne",
   thinkingDeeper: "Ag smaoineamh\u2026",
+  evalDepthLabel: "Doimhneacht an chuardaigh",
+  reviewCtaPreparing: "Ag athbhreithni\u00fa do chluiche\u2026",
   reviewTitle: "Athbhreithni\u00fa ar an gcluiche",
   reviewWorst: "Na bearta ba chostasa\u00ed",
   reviewYourWorst: "Do bhearta ba chostasa\u00ed",

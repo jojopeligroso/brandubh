@@ -161,15 +161,33 @@ check(files === "abcdefghi", "the files run a-i", files);
 check(ranks === "987654321", "the ranks run 9-1", ranks);
 
 // ── A move, and the engine's reply ───────────────────────────────────────────
+// The move count lives on the bottom PlayerBar (the shell's own seat bar),
+// which renders in Zen and out of it — the old "Moves: n" stats line is a
+// non-Zen extra now.
+const movedTwice = () =>
+  page
+    .waitForFunction(
+      () =>
+        (document.querySelector(".tablut-screen .playerbar-movecount")?.textContent ?? "") === "2",
+      undefined,
+      { timeout: 40000 },
+    )
+    .then(() => true)
+    .catch(() => false);
 await tb.locator('[role=gridcell][aria-label^="e7"]').click();
 const dots = await tb.locator(".dot").count();
 check(dots > 0, "selecting a defender offers legal destinations", `saw ${dots}`);
 await tb.locator('[role=gridcell][aria-label^="b7"]').click();
-const replied = await page
-  .waitForFunction(() => /Moves:\s*2/.test(document.body.innerText), undefined, { timeout: 40000 })
-  .then(() => true)
-  .catch(() => false);
-check(replied, "the engine replies from its worker");
+check(await movedTwice(), "the engine replies from its worker (bottom seat shows 2 moves)");
+// The shell furniture is actually on the surface: seats and the bottom toolbar.
+check(
+  (await page.locator(".tablut-screen .playerbar").count()) === 2,
+  "both PlayerBar seats render on the Tablut surface",
+);
+check(
+  (await page.locator('.tablut-screen [data-testid="toolbar-menu"]').count()) === 1,
+  "the shell's bottom toolbar renders on the Tablut surface",
+);
 
 // ── Back out; the Brandubh game must be exactly as it was ────────────────────
 await page.getByRole("button", { name: "Back", exact: true }).click();
@@ -191,10 +209,7 @@ check(
   (await page.getByRole("button", { name: "Play", exact: true }).count()) === 0,
   "re-entry resumes the saved game with no setup sheet in the way",
 );
-check(
-  /Moves:\s*2/.test(await page.evaluate(() => document.body.innerText)),
-  "the two moves survived leaving the surface",
-);
+check(await movedTwice(), "the two moves survived leaving the surface");
 
 // ── Reload: the surface itself persists, and so does the game ────────────────
 await page.reload({ waitUntil: "networkidle" });
@@ -205,10 +220,7 @@ const surfaceSurvived = await tbAfterReload
   .catch(() => false);
 check(surfaceSurvived, "a reload lands back on the Tablut surface");
 if (surfaceSurvived) {
-  check(
-    /Moves:\s*2/.test(await page.evaluate(() => document.body.innerText)),
-    "the game survived the reload",
-  );
+  check(await movedTwice(), "the game survived the reload");
   // ── And leaving is the player's own choice, which clears the flag ──────────
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await bboard.waitFor();
