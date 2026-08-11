@@ -2549,6 +2549,8 @@ export default function App() {
       {showTablut && (
         <TablutScreen
           t={t}
+          zen={zen}
+          onZenEnabled={setZenEnabled}
           attackerEmblem={emblemSet.attackerEmblem}
           kingEmblem={emblemSet.kingEmblem}
           defenderEmblem={emblemSet.defenderEmblem}
