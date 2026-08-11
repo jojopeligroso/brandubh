@@ -2481,6 +2481,18 @@ export default function App() {
               <p>{t.aboutBody2}</p>
               <p>{t.aboutBody3}</p>
             </div>
+            <div className="mt-4">
+              <a
+                className="btn"
+                href={`mailto:eoinmaleoin@gmail.com?subject=${encodeURIComponent(
+                  "Brandubh & Tablut — UX test script",
+                )}&body=${encodeURIComponent(
+                  "UX test script for Brandubh/Tablut:\n\nhttps://claude.ai/code/artifact/f0e85027-3212-46da-9b8c-1832fc3f790d",
+                )}`}
+              >
+                {t.aboutUxTestLink}
+              </a>
+            </div>
           </div>
         </div>
       )}

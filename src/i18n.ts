@@ -78,6 +78,7 @@ export interface Translations {
   aboutBody1: string;
   aboutBody2: string;
   aboutBody3: string;
+  aboutUxTestLink: string;
 
   // Side labels
   raiders: string;
@@ -669,6 +670,7 @@ const en: Translations = {
     "No complete medieval rulebook survives, so every published ruleset is a reconstruction. The variants here follow the common modern readings; where sources genuinely disagree, the custom ruleset lets you pick a side of the argument.",
   aboutBody3:
     "Everything is free and runs in your browser — games, settings and progress stay on this device. Nothing is sent anywhere.",
+  aboutUxTestLink: "Email me the UX test script",
 
   raiders: "Raiders",
   kingsSide: "King\u2019s side",
@@ -1321,6 +1323,7 @@ const es: Translations = {
     "No sobrevive ning\u00fan reglamento medieval completo, as\u00ed que todo reglamento publicado es una reconstrucci\u00f3n. Las variantes de aqu\u00ed siguen las lecturas modernas m\u00e1s comunes; donde las fuentes discrepan de verdad, el reglamento personalizado te deja elegir un lado de la discusi\u00f3n.",
   aboutBody3:
     "Todo es gratuito y funciona en tu navegador: partidas, ajustes y progreso se quedan en este dispositivo. No se env\u00eda nada a ninguna parte.",
+  aboutUxTestLink: "Enviarme el guion de pruebas de UX por correo",
 
   raiders: "Asaltantes",
   kingsSide: "Bando del Rey",
@@ -1992,6 +1995,7 @@ const ga: Translations = {
     "Ní mhaireann aon leabhar rialacha meánaoiseach iomlán, mar sin is atógáil gach riail fhoilsithe. Leanann na leaganacha anseo na léamha nua-aimseartha is coitianta; nuair a easaontaíonn na foinsí dáiríre, ligeann na rialacha saincheaptha duit taobh a roghnú.",
   aboutBody3:
     "Tá gach rud saor in aisce agus ritheann sé i do bhrabhsálaí — fanann cluichí, socruithe agus dul chun cinn ar an ngléas seo. Ní sheoltar aon rud áit ar bith.",
+  aboutUxTestLink: "Seol script na trialach UX chugam trí ríomhphost",
 
   raiders: "Foghlaithe",
   kingsSide: "Taobh an R\u00ed",
