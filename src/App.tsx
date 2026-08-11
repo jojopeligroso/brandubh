@@ -158,6 +158,9 @@ import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
 import { BOARD_FLIP_H_KEY, BOARD_FLIP_V_KEY } from "./orientation";
 import MoveTreePanel from "./components/MoveTreePanel";
 import PositionPanel from "./components/PositionPanel";
+import MoveLog from "./components/MoveLog";
+import ReviewBar from "./components/ReviewBar";
+import ZenSwitch from "./components/ZenSwitch";
 import {
   addMove as treeAddMove,
   createTree,
@@ -182,7 +185,6 @@ import {
   ANNOTATE_DIFFICULTY,
   lessonMoves,
   type Mark,
-  markGlyph,
   marksFromScores,
   terminalScore,
   type WorstMove,
@@ -2427,6 +2429,7 @@ export default function App() {
         game={lineStates[lineEnd]}
         activeIndex={cursor - 1}
         marks={marks}
+        moveName={moveName}
         onMoveClick={(i) => jumpToPly(i + 1)}
       />
 
@@ -2752,52 +2755,6 @@ export default function App() {
 // where everything you reach for between games now lives (language, learning,
 // game file, settings, about). The drawer itself is rendered by App, so the
 // header only reports the button; see AppDrawer for what is behind it.
-/**
- * The Zen control. A switch, not an icon button: Zen is a state you leave
- * turned on, so the control has to show which way it is set without being
- * pressed. `role="switch"` + `aria-checked` is the same promise made to a
- * screen reader. The word carries the meaning, so there is no icon to decode —
- * and, where the icon button was a second gold circle a glance away from the
- * eval toggle in the board tools, this cannot be mistaken for one.
- *
- * Rendered in two places, which is why it is a component rather than markup in
- * the header: its standard seat up in the header, and again at the foot of the
- * page while Zen is on. The header scrolls away with the page, and Zen is now
- * where a new player starts (see zen.ts), so the way back out has to be within
- * reach from wherever they have scrolled to — scrolling down past the board is
- * exactly what someone does when looking for the thing that put them here.
- */
-function ZenSwitch({
-  t,
-  on,
-  onChange,
-  testId,
-}: {
-  t: Translations;
-  on: boolean;
-  onChange: (v: boolean) => void;
-  /** Distinct per placement, so a driven browser can tell the two apart. */
-  testId: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      className={`switch${on ? " on" : ""}`}
-      onClick={() => onChange(!on)}
-      aria-label={t.zenMode}
-      title={t.zenMode}
-      data-testid={testId}
-    >
-      <span>{t.zenShort}</span>
-      <span className="switch-track" aria-hidden>
-        <span className="switch-knob" />
-      </span>
-    </button>
-  );
-}
-
 function Header({
   t,
   zenOn,
@@ -3075,54 +3032,6 @@ function SetScoreboard({
 // Offered only where the engine is free (a finished game, or analysis), so the
 // pass never races the AI for the one worker. Progress is shown move by move and
 // can be stopped: a forty-move game is a couple of seconds, but a slow phone is
-function ReviewBar({
-  t,
-  reviewing,
-  moveNumber,
-  totalMoves,
-  viewedTerminal,
-  showVsAi,
-  onLatest,
-  onPlay,
-  onPlayVsAi,
-}: {
-  t: Translations;
-  reviewing: boolean;
-  moveNumber: number;
-  totalMoves: number;
-  viewedTerminal: boolean;
-  showVsAi: boolean;
-  onLatest: () => void;
-  onPlay: () => void;
-  onPlayVsAi: () => void;
-}) {
-  return (
-    <div className="card mt-3 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm text-parchment-dim">
-          {reviewing ? `${t.reviewingLabel} · ${moveNumber}/${totalMoves}` : t.playFromHere}
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {reviewing && (
-            <button className="btn" onClick={onLatest}>
-              {t.latest}
-            </button>
-          )}
-          <button className="btn btn-primary" onClick={onPlay} disabled={viewedTerminal}>
-            {t.playFromHere}
-          </button>
-          {showVsAi && (
-            <button className="btn" onClick={onPlayVsAi} disabled={viewedTerminal}>
-              {t.playFromHereVsAi}
-            </button>
-          )}
-        </div>
-      </div>
-      {viewedTerminal && <p className="mt-2 text-xs text-parchment-dim">{t.branchHint}</p>}
-    </div>
-  );
-}
-
 function Settings({
   t,
   variantId,
@@ -4306,54 +4215,6 @@ function CustomRuleControls({
         </div>
       </div>
     </div>
-  );
-}
-
-function MoveLog({
-  t,
-  game,
-  activeIndex,
-  marks,
-  onMoveClick,
-}: {
-  t: Translations;
-  game: GameState;
-  activeIndex: number;
-  /** Per-ply annotations, index-aligned with `game.history` (Session 7d). */
-  marks: (Mark | null)[] | null;
-  onMoveClick: (i: number) => void;
-}) {
-  if (game.history.length === 0) return null;
-  return (
-    <details className="card mt-4 p-4" open>
-      <summary className="cursor-pointer text-sm font-semibold text-parchment-dim">
-        {t.moveLog} ({game.history.length})
-      </summary>
-      <ol className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs text-parchment-dim sm:grid-cols-3">
-        {game.history.map((h, i) => (
-          <li
-            key={i}
-            className={`cursor-pointer rounded px-1 hover:bg-parchment/10 ${
-              i === activeIndex ? "bg-parchment/15 ring-1 ring-gold/60" : ""
-            }`}
-            onClick={() => onMoveClick(i)}
-          >
-            <span className="text-parchment/50">{i + 1}.</span>{" "}
-            <span className={h.sideThatMoved === "attackers" ? "text-blood/90" : "text-gold/90"}>
-              {moveName(h.move)}
-            </span>
-            {marks?.[i] && (
-              // The glyph carries the meaning for anyone reading it; the colour
-              // is a second channel, never the only one.
-              <span className={`mark mark-${marks[i]}`} title={t[`mark_${marks[i] as Mark}`]}>
-                {markGlyph(marks[i] as Mark)}
-                <span className="sr-only"> {t[`mark_${marks[i] as Mark}`]}</span>
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
-    </details>
   );
 }
 
