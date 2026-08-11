@@ -3,6 +3,7 @@
 // module enumerates the themes for the picker and handles persistence + default.
 
 export type ThemeId =
+  | "gokstad"
   | "everforest"
   | "carved-wood"
   | "rose-pine"
@@ -31,6 +32,9 @@ export interface ThemeMeta {
 
 // Softer, earthier themes lead; the more saturated ones follow.
 export const THEMES: ThemeMeta[] = [
+  // Dark bog oak with a pale-oak incised grid — the two colours the Gokstad
+  // board's own timber is attested in (see the theme note in index.css).
+  { id: "gokstad", name: "Gokstad", chips: ["#d9c398", "#241a10"] },
   { id: "everforest", name: "Everforest", chips: ["#475258", "#3e484d"] },
   { id: "carved-wood", name: "Carved Wood", chips: ["#b6864e", "#a77a46"] },
   { id: "rose-pine", name: "Rosé Pine", chips: ["#232135", "#2c2a3f"] },
@@ -46,8 +50,8 @@ export const THEMES: ThemeMeta[] = [
   { id: "lichess-purple", name: "Lichess Purple", chips: ["#e0d3ec", "#9a6bbd"] },
 ];
 
-/** Ultimate fallback if a random default cannot be chosen. */
-export const DEFAULT_THEME: ThemeId = "everforest";
+/** First-visit default theme. */
+export const DEFAULT_THEME: ThemeId = "gokstad";
 
 export const THEME_STORAGE_KEY = "brandubh.theme";
 
@@ -57,7 +61,7 @@ export function isThemeId(value: unknown): value is ThemeId {
   return typeof value === "string" && THEME_IDS.has(value);
 }
 
-/** First-visit default: always Everforest. */
+/** First-visit default: always Gokstad. */
 export function pickDefaultTheme(): ThemeId {
   return DEFAULT_THEME;
 }
@@ -73,8 +77,8 @@ export function loadTheme(): ThemeId {
 }
 
 // ── Custom piece colours ─────────────────────────────────────────────────────
-// Piece colours are decoupled from the board theme: black raiders, white
-// defenders, a gold king, on every theme. A `null` here means "use that
+// Piece colours are decoupled from the board theme: red-gold raiders, silver
+// defenders and king, on every theme. A `null` here means "use that
 // default"; a hex value overrides it. The pieces read `--atk` / `--def` /
 // `--king` (and matching `-ink` for the emblem on top), which index.css sets
 // once on `:root` — no `[data-theme]` block may set them, or switching board
@@ -87,14 +91,15 @@ export type PieceKey = "atk" | "def" | "king";
  *
  *  The white silver and red gold are the wordmark's own brand pair — PANTONE
  *  Cool Gray 1 C and PANTONE 146 C, the two colours the title "Branduḃ" is
- *  drawn in (see the wordmark note in index.css). Silver defenders and a red
- *  gold king put the brand on the board itself; the raiders stay raven black,
- *  because *bran dubh* — "black raven" — is the name of the game, and the
- *  attacking pieces are the ravens it names. */
+ *  drawn in (see the wordmark note in index.css) — split on the same seam:
+ *  the king's side (king and defenders alike) takes "Bran"'s silver, the
+ *  raiders take "duḃ"'s red gold. King and defenders share a colour because
+ *  they share a side; the crown emblem, not the stone colour, is what tells
+ *  the king apart on the board. */
 export const DEFAULT_PIECE_COLORS: Record<PieceKey, string> = {
-  atk: "#1a1c1e",
+  atk: "#a76d11",
   def: "#d9d9d6",
-  king: "#a76d11",
+  king: "#d9d9d6",
 };
 
 export interface PieceColors {

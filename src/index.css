@@ -57,18 +57,54 @@
   --motif-ink: #0d0e18;
 
   /* Unthemed piece defaults — keep in step with DEFAULT_PIECE_COLORS.
-     Silver defenders and a red gold king are the wordmark's brand pair
-     (--wordmark-silver / --wordmark-gold: PANTONE Cool Gray 1 C and 146 C);
-     the raiders stay raven black — *bran dubh*, "black raven", is the game. */
-  --atk: #1a1c1e;
-  --atk-ink: #e8e4dc;
+     Split on the wordmark's own seam: the king's side (king and defenders
+     alike) takes the silver of "Bran", the raiders take the red gold of
+     "duḃ" (--wordmark-silver / --wordmark-gold: PANTONE Cool Gray 1 C and
+     146 C). King and defenders share a colour on purpose — they're one
+     side — and stay told apart by their emblem, same as every other theme. */
+  --atk: #a76d11;
+  --atk-ink: #f4f1e8;
   --def: #d9d9d6;
   --def-ink: #24272b;
-  --king: #a76d11;
-  --king-ink: #f4f1e8;
+  --king: #d9d9d6;
+  --king-ink: #24272b;
 }
 
 /* ── Themes (Omarchy-inspired) ─────────────────────────────────────────────── */
+
+/* Gokstad — the ship-burial board's own two colours, not a decorator's guess.
+   The Gokstad ship (and the game-board fragment found aboard it, now in the
+   Museum of the Viking Age, Oslo) is oak, and no pigment or paint survives on
+   the fragment — tafl boards weren't chequered, they were a single board
+   incised with a grid. So "the colours it is believed to have been" is really
+   the two colours the timber itself is attested in: pale oak as it would have
+   been cut, and the near-black patina waterlogged oak takes on after a
+   thousand years in the mound's anaerobic blue clay — the state the surviving
+   fragment is actually in. Dark bog oak is the board surface; pale oak is the
+   incised grid reading through it. Default theme, paired with the wordmark's
+   silver-and-red-gold stones below. */
+[data-theme="gokstad"] {
+  --color-night: #150f09;
+  --color-night-2: #201810;
+  --color-parchment: #e8dcc3;
+  --color-parchment-dim: #a89878;
+  --color-wood: #4a3826;
+  --color-wood-dark: #2b2015;
+  --color-gold: #a76d11;
+  --color-blood: #a8452f;
+  --color-moss: #6b7d4a;
+  --on-accent: #150f09;
+
+  --app-bg-radial: #2e2115;
+  --app-bg-1: #1a130c;
+  --app-bg-2: #110c07;
+
+  --board-c1: #4a3826;
+  --board-c2: #382a1c;
+  --board-c3: #241a10;
+  --cell-dark: #d9c398;
+  --motif-ink: #140d07;
+}
 
 /* Catppuccin (Mocha) — soft pastel lavender on dark. */
 [data-theme="catppuccin"] {
@@ -705,7 +741,7 @@ body {
 /* Backlight glow on the pieces of the side whose turn it is. A soft, slowly
    pulsing halo painted behind the stone (negative z-index within the piece's
    stacking context). Tinted by the always-vivid side accents so it reads even
-   on dark stones (e.g. Everforest's black raiders). */
+   on dark stones (a custom colour override can still set either side black). */
 .piece.active-turn::before {
   content: "";
   position: absolute;
