@@ -57,15 +57,17 @@
   --motif-ink: #0d0e18;
 
   /* Unthemed piece defaults — keep in step with DEFAULT_PIECE_COLORS.
-     Silver defenders and a red gold king are the wordmark's brand pair
-     (--wordmark-silver / --wordmark-gold: PANTONE Cool Gray 1 C and 146 C);
-     the raiders stay raven black — *bran dubh*, "black raven", is the game. */
-  --atk: #1a1c1e;
-  --atk-ink: #e8e4dc;
+     Split on the wordmark's own seam: the king's side (king and defenders
+     alike) takes the silver of "Bran", the raiders take the red gold of
+     "duḃ" (--wordmark-silver / --wordmark-gold: PANTONE Cool Gray 1 C and
+     146 C). King and defenders share a colour on purpose — they're one
+     side — and stay told apart by their emblem, same as every other theme. */
+  --atk: #a76d11;
+  --atk-ink: #f4f1e8;
   --def: #d9d9d6;
   --def-ink: #24272b;
-  --king: #a76d11;
-  --king-ink: #f4f1e8;
+  --king: #d9d9d6;
+  --king-ink: #24272b;
 }
 
 /* ── Themes (Omarchy-inspired) ─────────────────────────────────────────────── */
@@ -739,7 +741,7 @@ body {
 /* Backlight glow on the pieces of the side whose turn it is. A soft, slowly
    pulsing halo painted behind the stone (negative z-index within the piece's
    stacking context). Tinted by the always-vivid side accents so it reads even
-   on dark stones (e.g. Everforest's black raiders). */
+   on dark stones (a custom colour override can still set either side black). */
 .piece.active-turn::before {
   content: "";
   position: absolute;
