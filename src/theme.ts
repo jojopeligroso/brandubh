@@ -40,10 +40,10 @@ export const THEMES: ThemeMeta[] = [
   { id: "tokyo-night", name: "Tokyo Night", chips: ["#22273c", "#272e46"] },
   { id: "gruvbox", name: "Gruvbox", chips: ["#504945", "#453f3b"] },
   // Classic chess-board palettes (light boards, à la Lichess).
-  { id: "lichess-brown", name: "Lichess Brown", chips: ["#f0d9b5", "#b58863"] },
-  { id: "lichess-blue", name: "Lichess Blue", chips: ["#dee3e6", "#8ca2ad"] },
-  { id: "lichess-green", name: "Lichess Green", chips: ["#edeed1", "#779952"] },
-  { id: "lichess-purple", name: "Lichess Purple", chips: ["#e0d3ec", "#9a6bbd"] },
+  { id: "lichess-brown", name: "liBrown", chips: ["#f0d9b5", "#b58863"] },
+  { id: "lichess-blue", name: "liBlue", chips: ["#dee3e6", "#8ca2ad"] },
+  { id: "lichess-green", name: "liGreen", chips: ["#edeed1", "#779952"] },
+  { id: "lichess-purple", name: "liPurple", chips: ["#e0d3ec", "#9a6bbd"] },
 ];
 
 /** Ultimate fallback if a random default cannot be chosen. */

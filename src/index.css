@@ -235,7 +235,7 @@
   --motif-ink: #16161d;
 }
 
-/* Lichess Brown — the classic cream-and-brown chessboard on a dark frame. */
+/* liBrown — the classic cream-and-brown chessboard on a dark frame. */
 [data-theme="lichess-brown"] {
   --color-night: #211f1c;
   --color-night-2: #2b2825;
@@ -259,7 +259,7 @@
   --motif-ink: #6b4a2e;
 }
 
-/* Lichess Blue — cool blue-grey board. */
+/* liBlue — cool blue-grey board. */
 [data-theme="lichess-blue"] {
   --color-night: #1c2024;
   --color-night-2: #262b30;
@@ -283,7 +283,7 @@
   --motif-ink: #4a5a63;
 }
 
-/* Lichess Green — pale board with olive-green squares. */
+/* liGreen — pale board with olive-green squares. */
 [data-theme="lichess-green"] {
   --color-night: #1b1f1a;
   --color-night-2: #252a22;
@@ -307,7 +307,7 @@
   --motif-ink: #4a5f2f;
 }
 
-/* Lichess Purple — soft lilac board. */
+/* liPurple — soft lilac board. */
 [data-theme="lichess-purple"] {
   --color-night: #201c24;
   --color-night-2: #2a252f;
@@ -1573,6 +1573,23 @@ button.settings-row:hover {
   display: block;
   width: 22px;
   height: 26px;
+}
+
+/* First-visit board-preset card (see BoardPresetCard, App.tsx): a .btn made
+   full-width and left-aligned so its preview strip (ThemeChips, piece dots,
+   emblem glyphs — all reused from Settings) has room to read left to right. */
+.board-preset {
+  width: 100%;
+}
+.board-preset-emblems {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-parchment-dim);
+}
+.board-preset-emblems svg {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 /* Sub-pages that aren't lists (zen / clock / rules) get plain page padding. */
 .settings-page {

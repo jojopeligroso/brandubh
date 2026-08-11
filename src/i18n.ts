@@ -249,6 +249,9 @@ export interface Translations {
   moveLog: string;
 
   // Mode overlay
+  /** Heading of the first-visit-only board-preset step, ahead of "mode". */
+  chooseBoard: string;
+  chooseBoardHint: string;
   chooseGame: string;
   /** Accessible name for the header wordmark, which reopens the setup overlay. */
   backToStart: string;
@@ -792,6 +795,8 @@ const en: Translations = {
 
   moveLog: "Move log",
 
+  chooseBoard: "Choose your board",
+  chooseBoardHint: "Pick a look to start with — change it anytime in Settings.",
   chooseGame: "Choose your game",
   backToStart: "Back to the start screen",
   playVsAi: "Play vs AI",
@@ -1379,6 +1384,8 @@ const es: Translations = {
 
   moveLog: "Registro de jugadas",
 
+  chooseBoard: "Elige tu tablero",
+  chooseBoardHint: "Elige un estilo para empezar — puedes cambiarlo cuando quieras en Ajustes.",
   chooseGame: "Elige tu juego",
   backToStart: "Volver a la pantalla de inicio",
   playVsAi: "Contra la IA",
@@ -1983,6 +1990,9 @@ const ga: Translations = {
 
   moveLog: "Loga bogtha",
 
+  // DRAFT (first-visit board-preset step) — unreviewed, like the rest of this table.
+  chooseBoard: "Roghnaigh do chlár",
+  chooseBoardHint: "Roghnaigh cuma le tosú — is féidir leat í a athrú am ar bith sna Socruithe.",
   chooseGame: "Roghnaigh do chluiche",
   backToStart: "Ar ais go dtí an scáileán tosaigh",
   playVsAi: "In aghaidh an r\u00edomhaire",

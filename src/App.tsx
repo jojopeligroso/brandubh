@@ -148,6 +148,12 @@ import {
   loadDefenderEmblem,
   VISIBLE_DEFENDER_EMBLEMS,
 } from "./defenderEmblems";
+import {
+  BOARD_PRESETS,
+  hasSeenBoardPresets,
+  markBoardPresetsSeen,
+  type BoardPreset,
+} from "./boardPresets";
 import { aiSideOf, clockPlacement, humanSideOf, opposite } from "./game/sides";
 import { BOARD_FLIP_H_KEY, BOARD_FLIP_V_KEY } from "./orientation";
 import MoveTreePanel from "./components/MoveTreePanel";
@@ -318,6 +324,20 @@ export default function App() {
       /* ignore persistence failures */
     }
   }, [defenderEmblem]);
+
+  // Applies a first-visit board preset's theme, piece colours and all four
+  // emblems together, then marks the step done so it never resurfaces. Each
+  // setter's own effect (above) takes care of applying and persisting its
+  // field — this just fires all six at once.
+  const applyBoardPreset = useCallback((preset: BoardPreset) => {
+    setTheme(preset.theme);
+    setPieceColors(preset.pieceColors);
+    setAttackerEmblem(preset.attackerEmblem);
+    setKingEmblem(preset.kingEmblem);
+    setDefenderEmblem(preset.defenderEmblem);
+    setCornerEmblem(preset.cornerEmblem);
+    markBoardPresetsSeen();
+  }, []);
 
   const [variantId, setVariantId] = useState(() =>
     loadSetting(VARIANT_KEY, [...Object.keys(VARIANTS), "custom"], DEFAULT_VARIANT),
@@ -2376,6 +2396,7 @@ export default function App() {
           resume={pendingResume}
           onResume={resumeSavedGame}
           onDiscardResume={discardSavedGame}
+          onBoardPreset={applyBoardPreset}
           onCancel={modeOverlayCancelable ? closeSetupOverlay : null}
           onChoose={(m, d, c) => {
             // Reopened over a game worth keeping? Ask before wiping it. The
@@ -3818,6 +3839,61 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+// A first-visit board preset: name plus a preview strip built from the same
+// swatch pieces the Settings screens use (ThemeChips, the piece-colour dots,
+// EmblemGlyph) — so a preset looks, on this one-off card, exactly like the
+// choices it is standing in for.
+function BoardPresetCard({
+  preset,
+  onSelect,
+}: {
+  preset: BoardPreset;
+  onSelect: () => void;
+}) {
+  const chips = THEMES.find((m) => m.id === preset.theme)?.chips ?? THEMES[0].chips;
+  const atk = preset.pieceColors.atk ?? DEFAULT_PIECE_COLORS.atk;
+  const def = preset.pieceColors.def ?? DEFAULT_PIECE_COLORS.def;
+  const king = preset.pieceColors.king ?? DEFAULT_PIECE_COLORS.king;
+  const attacker = emblemById(preset.attackerEmblem);
+  const kingGlyph = kingEmblemById(preset.kingEmblem);
+  const defender = defenderEmblemById(preset.defenderEmblem);
+  const corner = cornerEmblemById(preset.cornerEmblem);
+
+  return (
+    <button
+      type="button"
+      className="btn board-preset flex flex-col items-start gap-2.5 py-3.5 text-left"
+      onClick={onSelect}
+    >
+      <span className="text-base font-semibold">{preset.name}</span>
+      <span className="flex items-center gap-3">
+        <ThemeChips chips={chips} />
+        <span className="row-chips">
+          <i style={{ background: atk }} />
+          <i style={{ background: def }} />
+          <i style={{ background: king }} />
+        </span>
+        <span className="board-preset-emblems">
+          <EmblemGlyph
+            viewBox={attacker.viewBox}
+            path={attacker.path}
+            scale={attacker.scale}
+            fillRule={attacker.fillRule}
+          />
+          <EmblemGlyph viewBox={kingGlyph.viewBox} path={kingGlyph.path} scale={kingGlyph.scale} />
+          <EmblemGlyph
+            viewBox={defender.viewBox}
+            path={defender.path}
+            scale={defender.scale}
+            ring={defender.outerRing}
+          />
+          <EmblemGlyph viewBox={corner.viewBox} path={corner.path} />
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function ModeOverlay({
   t,
   lang,
@@ -3829,6 +3905,7 @@ function ModeOverlay({
   resume,
   onResume,
   onDiscardResume,
+  onBoardPreset,
   onCancel,
   onChoose,
 }: {
@@ -3846,6 +3923,8 @@ function ModeOverlay({
   resume: RestoredGame | null;
   onResume: () => void;
   onDiscardResume: () => void;
+  /** Applies a whole board preset (theme + piece colours + emblems) at once. */
+  onBoardPreset: (preset: BoardPreset) => void;
   /**
    * Non-null when the overlay was reopened over a live board (drawer → New
    * game): a way back out that keeps the game untouched. Null at boot, where
@@ -3864,7 +3943,15 @@ function ModeOverlay({
   // time control. The last step of either path is what starts the game and puts
   // the board up. A saved game, if there is one, gets asked about first: resume
   // it, or drop it and set a new game up.
-  const [step, setStep] = useState<"mode" | "side" | "difficulty" | "time">("mode");
+  //
+  // "board" — the first-visit-only board-preset step — comes first of all,
+  // ahead of "mode" and therefore ahead of "side". `onCancel` is null only at
+  // boot (see its doc comment above), so a reopened overlay (drawer → New
+  // game) never re-offers it even mid-session; the seen-flag then keeps it
+  // gone for good once a preset is picked.
+  const [step, setStep] = useState<"board" | "mode" | "side" | "difficulty" | "time">(() =>
+    !onCancel && !hasSeenBoardPresets() ? "board" : "mode",
+  );
   // Held here until a difficulty is picked, since that's the step that starts
   // the game (and starting it resets the board, so it must happen once).
   const [chosenSide, setChosenSide] = useState<Side>(side);
@@ -3946,6 +4033,25 @@ function ModeOverlay({
               <button className="btn py-3 text-base" onClick={onDiscardResume}>
                 {t.newGame}
               </button>
+            </div>
+          </>
+        ) : step === "board" ? (
+          <>
+            <div className="space-y-1">
+              <p className="text-xl font-semibold text-parchment">{t.chooseBoard}</p>
+              <p className="text-sm text-parchment-dim">{t.chooseBoardHint}</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              {BOARD_PRESETS.map((preset) => (
+                <BoardPresetCard
+                  key={preset.id}
+                  preset={preset}
+                  onSelect={() => {
+                    onBoardPreset(preset);
+                    setStep("mode");
+                  }}
+                />
+              ))}
             </div>
           </>
         ) : step === "side" ? (

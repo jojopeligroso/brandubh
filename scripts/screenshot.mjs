@@ -75,9 +75,15 @@ const page = await browser.newPage({
 // without this the cover image re-rolls its entire palette on every
 // regeneration and the diff is never just the UI change you made. Everforest is
 // DEFAULT_THEME and the majority roll, so it is what this pins.
+//
+// Also mark the first-visit board-preset step (src/boardPresets.ts) seen: a
+// bare Chromium context has no localStorage at all, which is exactly what
+// that step is gated on, so without this it would intercept the click below
+// meant for the mode step's "with a friend in person" button.
 await page.addInitScript(() => {
   try {
     localStorage.setItem("brandubh.theme", "everforest");
+    localStorage.setItem("brandubh.boardPresetSeen", "1");
   } catch {
     /* localStorage unavailable — fall back to whatever the app picks */
   }
