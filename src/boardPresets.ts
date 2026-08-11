@@ -6,7 +6,7 @@
 // partial. The player can still change any individual piece afterwards from
 // Settings — this is a starting point, not a lock-in.
 
-import { EMPTY_PIECE_COLORS, type PieceColors, type ThemeId } from "./theme";
+import { DEFAULT_THEME, EMPTY_PIECE_COLORS, type PieceColors, type ThemeId } from "./theme";
 import { DEFAULT_ATTACKER_EMBLEM, type AttackerEmblemId } from "./emblems";
 import { DEFAULT_KING_EMBLEM, type KingEmblemId } from "./kingEmblems";
 import { DEFAULT_DEFENDER_EMBLEM, type DefenderEmblemId } from "./defenderEmblems";
@@ -28,7 +28,10 @@ export const BOARD_PRESETS: BoardPreset[] = [
   {
     id: "classic",
     name: "Classic",
-    theme: "everforest",
+    // A reference, not a copy: whatever DEFAULT_THEME is, "current default"
+    // means this preset follows it — it should not still say Everforest now
+    // that the app-wide default has moved on to Gokstad.
+    theme: DEFAULT_THEME,
     pieceColors: EMPTY_PIECE_COLORS,
     attackerEmblem: DEFAULT_ATTACKER_EMBLEM,
     kingEmblem: DEFAULT_KING_EMBLEM,
@@ -39,11 +42,14 @@ export const BOARD_PRESETS: BoardPreset[] = [
     id: "everforest-ornate",
     name: "Everforest",
     theme: "everforest",
-    // Black raider, white defender — the app-wide default — but the king
-    // trades the saturated default gold (#e8b13a) for Everforest's own paler
-    // accent gold, so the crown reads as part of this theme rather than a
-    // universal constant sitting on top of it.
-    pieceColors: { atk: null, def: null, king: "#dbbc7f" },
+    // Explicit black/white, not `null` (= "follow the app-wide default"):
+    // that default used to *be* black/white but is now the wordmark's
+    // red-gold/silver pair, and this preset's brief was "black and white"
+    // specifically, not "whatever the default becomes". The king alone
+    // trades the saturated default gold (#e8b13a, itself now superseded)
+    // for Everforest's own paler accent gold, so the crown reads as part of
+    // this theme rather than a universal constant sitting on top of it.
+    pieceColors: { atk: "#1a1c1e", def: "#f0ece4", king: "#dbbc7f" },
     attackerEmblem: "triquetra",
     kingEmblem: "crown-sword",
     defenderEmblem: "ornate-knot",

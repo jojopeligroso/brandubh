@@ -1,17 +1,19 @@
 <!doctype html>
-<html lang="en" data-theme="everforest">
+<html lang="en" data-theme="gokstad">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#2d353b" />
+    <meta name="theme-color" content="#150f09" />
     <script>
-      // Apply the saved theme before first paint to avoid a flash. First-time
-      // visitors get a weighted default: Everforest 66%, Carved Wood 34%.
+      // Apply the saved theme before first paint to avoid a flash. Must be
+      // kept in step with DEFAULT_THEME / pickDefaultTheme in src/theme.ts —
+      // this inline copy exists only because that module can't run before
+      // the first paint it's guarding against.
       try {
         var t = localStorage.getItem("brandubh.theme");
         if (!t) {
-          t = Math.random() < 0.66 ? "everforest" : "carved-wood";
+          t = "gokstad";
           localStorage.setItem("brandubh.theme", t);
         }
         document.documentElement.setAttribute("data-theme", t);

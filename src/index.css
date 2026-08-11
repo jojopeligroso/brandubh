@@ -56,16 +56,55 @@
   --cell-dark: rgba(130, 170, 255, 0.05);
   --motif-ink: #0d0e18;
 
-  /* Unthemed piece defaults — keep in step with DEFAULT_PIECE_COLORS. */
-  --atk: #1a1c1e;
-  --atk-ink: #e8e4dc;
-  --def: #f0ece4;
+  /* Unthemed piece defaults — keep in step with DEFAULT_PIECE_COLORS.
+     Split on the wordmark's own seam: the king's side (king and defenders
+     alike) takes the silver of "Bran", the raiders take the red gold of
+     "duḃ" (--wordmark-silver / --wordmark-gold: PANTONE Cool Gray 1 C and
+     146 C). King and defenders share a colour on purpose — they're one
+     side — and stay told apart by their emblem, same as every other theme. */
+  --atk: #a76d11;
+  --atk-ink: #f4f1e8;
+  --def: #d9d9d6;
   --def-ink: #24272b;
-  --king: #e8b13a;
-  --king-ink: #3a2600;
+  --king: #d9d9d6;
+  --king-ink: #24272b;
 }
 
 /* ── Themes (Omarchy-inspired) ─────────────────────────────────────────────── */
+
+/* Gokstad — the ship-burial board's own two colours, not a decorator's guess.
+   The Gokstad ship (and the game-board fragment found aboard it, now in the
+   Museum of the Viking Age, Oslo) is oak, and no pigment or paint survives on
+   the fragment — tafl boards weren't chequered, they were a single board
+   incised with a grid. So "the colours it is believed to have been" is really
+   the two colours the timber itself is attested in: pale oak as it would have
+   been cut, and the near-black patina waterlogged oak takes on after a
+   thousand years in the mound's anaerobic blue clay — the state the surviving
+   fragment is actually in. Dark bog oak is the board surface; pale oak is the
+   incised grid reading through it. Default theme, paired with the wordmark's
+   silver-and-red-gold stones below. */
+[data-theme="gokstad"] {
+  --color-night: #150f09;
+  --color-night-2: #201810;
+  --color-parchment: #e8dcc3;
+  --color-parchment-dim: #a89878;
+  --color-wood: #4a3826;
+  --color-wood-dark: #2b2015;
+  --color-gold: #a76d11;
+  --color-blood: #a8452f;
+  --color-moss: #6b7d4a;
+  --on-accent: #150f09;
+
+  --app-bg-radial: #2e2115;
+  --app-bg-1: #1a130c;
+  --app-bg-2: #110c07;
+
+  --board-c1: #4a3826;
+  --board-c2: #382a1c;
+  --board-c3: #241a10;
+  --cell-dark: #d9c398;
+  --motif-ink: #140d07;
+}
 
 /* Catppuccin (Mocha) — soft pastel lavender on dark. */
 [data-theme="catppuccin"] {
@@ -362,6 +401,51 @@ body {
   font-family: "Gadelica", var(--font-display);
 }
 
+/* ── Wordmark brand colours ────────────────────────────────────────────────────
+   Branduḃ is a compound — **bran** (raven) + **dubh** (black) — and the wordmark
+   is coloured on that seam: silver through "Bran", red gold through "duḃ", the
+   two bleeding into one another rather than meeting at a hard edge.
+
+   Deliberately NOT theme tokens. The wordmark is a mark of identity, so it holds
+   these two colours in every theme instead of reskinning with the board; that is
+   why it overrides the `text-parchment` on its parent. Every theme is dark, so
+   the silver stays legible on all of them.
+
+   Chosen against Pantone references. The hex values are screen stand-ins only —
+   Pantone metallic inks have no faithful RGB form — so anything bound for print
+   or vinyl should be specified by number, and print silver should be PANTONE
+   877 C (the true metallic, whose RGB approximation is a muddy mid-grey and so
+   is useless here).
+
+   The stops are percentages of the *text* width, which is why this must sit on an
+   inline element: on the block-level h1/p it would span the whole column and the
+   seam would drift off the word. 57.62% is where "Bran" ends, measured from the
+   font's own advance widths; ±4.2% is the bleed. */
+:root {
+  --wordmark-silver: #d9d9d6; /* PANTONE Cool Gray 1 C — print: PANTONE 877 C */
+  --wordmark-gold: #a76d11; /* PANTONE 146 C — amber / red gold */
+}
+
+.wordmark {
+  background-image: linear-gradient(
+    90deg,
+    var(--wordmark-silver) 53.42%,
+    var(--wordmark-gold) 61.82%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Any engine without background-clip:text would render the word invisible, so
+   fall back to the flat silver rather than to nothing. */
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .wordmark {
+    background-image: none;
+    color: var(--wordmark-silver);
+  }
+}
+
 /* A Gaelic locale (Irish/Scottish Gaelic): the app sets data-lang-gaelic on the
    document root, and display headings + board coordinates render in the cló
    face. Body/UI text keeps the system font; move notation stays monospace. */
@@ -373,9 +457,13 @@ body {
 /* ── Board ─────────────────────────────────────────────────────────────────── */
 .board {
   --line: color-mix(in srgb, var(--motif-ink) 45%, transparent);
+  /* Squares per side. Brandubh is 7; Tablut sets --n: 9 inline. Same pattern as
+     .demo-grid's --cols/--rows below — the board is square either way, so one
+     variable does for both axes. */
+  --n: 7;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(7, 1fr);
+  grid-template-columns: repeat(var(--n), 1fr);
+  grid-template-rows: repeat(var(--n), 1fr);
   aspect-ratio: 1 / 1;
   width: 100%;
   border-radius: 14px;
@@ -653,7 +741,7 @@ body {
 /* Backlight glow on the pieces of the side whose turn it is. A soft, slowly
    pulsing halo painted behind the stone (negative z-index within the piece's
    stacking context). Tinted by the always-vivid side accents so it reads even
-   on dark stones (e.g. Everforest's black raiders). */
+   on dark stones (a custom colour override can still set either side black). */
 .piece.active-turn::before {
   content: "";
   position: absolute;
@@ -950,6 +1038,32 @@ body {
   width: 1.25rem;
   height: 1.25rem;
 }
+/* The drawer's one collapsed section (More games). Styled to sit flush with the
+   flat `.drawer-section` headers above it, so opening it reads as the same list
+   growing rather than a different kind of control appearing. */
+.drawer-details > .drawer-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.drawer-details > .drawer-summary::-webkit-details-marker {
+  display: none;
+}
+.drawer-details > .drawer-summary::after {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 140ms ease;
+}
+.drawer-details[open] > .drawer-summary::after {
+  transform: rotate(45deg);
+}
+
 .drawer-foot {
   padding: 0.6rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom, 0));
   border-top: 1px solid color-mix(in srgb, var(--color-parchment) 10%, transparent);
@@ -2375,6 +2489,29 @@ button.settings-row:hover {
 }
 .puzzle.is-wrong {
   border-left-color: var(--color-blood, #c34043);
+  animation: puzzle-fail-pulse 600ms ease-out 1;
+}
+/* One soft red wash that fades — a verdict, not a punishment. The inset
+   box-shadow layers over the card's own background without fighting it. */
+@keyframes puzzle-fail-pulse {
+  from {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--color-blood, #c34043) 12%, transparent);
+  }
+  to {
+    box-shadow: inset 0 0 0 999px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .puzzle.is-wrong {
+    animation: none;
+  }
+}
+
+/* The game-over CTA band — the finished game's front door, sitting where the
+   ceval strip sits. Same left-border accent language as .puzzle, in gold: the
+   offer is a lesson, not an alarm. */
+.review-cta {
+  border-left: 3px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
 }
 .puzzle.is-solved,
 .puzzle.is-revealed {
@@ -2396,11 +2533,34 @@ button.settings-row:hover {
    A puzzle is a place, not a dialog: the layer is opaque, so the live game —
    its board, its toolbar — is never visible behind an exercise. Same canvas as
    the app body, so arriving reads as a change of room rather than a curtain. */
-.puzzle-screen {
+/* Two full-screen *places* that mount over the shell rather than beside it: the
+   puzzle trainer and the Tablut board. Both need the app's own background, not
+   transparency — without it the shell's seats, toolbar and wordmark show through
+   and the header buttons collide with the hamburger behind them. Found in the
+   driven-browser pass, which is what that pass is for. */
+.puzzle-screen,
+.tablut-screen {
   background:
     radial-gradient(1200px 600px at 50% -10%, var(--app-bg-radial) 0%, transparent 60%),
     linear-gradient(160deg, var(--app-bg-1) 0%, var(--app-bg-2) 100%);
   background-color: var(--app-bg-2);
+}
+
+/* The seat dots on the Tablut bars, matching the piece colours the board draws. */
+.seat-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid color-mix(in srgb, var(--motif-ink) 55%, transparent);
+}
+/* --def / --atk are the piece colours the board itself draws with, so the dots
+   follow the player's chosen colour scheme rather than restating one. */
+.seat-dot.defenders {
+  background: var(--def);
+}
+.seat-dot.attackers {
+  background: var(--atk);
 }
 
 /* The verdict roundel — lichess's ✓/✗ pinned to the square the guess landed

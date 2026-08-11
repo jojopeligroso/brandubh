@@ -179,6 +179,11 @@ export default function GameFilePanel({
         {t.gameFileTitle}
       </summary>
 
+      {/* The one sentence that severs this panel from the autosave in the
+          reader's head: the current game is already kept; a file is for
+          keeping and sharing. */}
+      <p className="mt-2 text-xs text-parchment-dim">{t.gameFileAutosaveNote}</p>
+
       {/* ── Export ── */}
       <section className="mt-3">
         <span className="text-xs font-semibold uppercase tracking-wide text-parchment-dim">

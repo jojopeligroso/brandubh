@@ -65,3 +65,52 @@ hostility, corner anvils, and the contested `strongKingAdjacentToThrone` rule
 third implementation a shared core would have paid for itself. The right moment
 to extract one is then: from two working implementations, rather than guessed
 from one.
+
+## Addendum: what the fork actually looked like
+
+Written after doing it, so the next reader gets the outcome and not only the
+prediction. The decision held; three details are worth recording.
+
+**The boundary fell in a different place than "a registry".** The plan above
+names one — `initialState`, `legalMoves`, `applyMove`, `status`, notation, a move
+from the engine — consumed by a shell that does not care which game it is showing.
+That shell does not exist: `App.tsx` is built around a `RuleSet`, and Tablut's is
+a *different type* (it carries an escape condition and a first mover, which are not
+Brandubh flags). Threading both through one shell means `RuleSet | TablutRuleSet`
+and a narrowing at every site that touches it, which makes the shell worse for
+both games. So Tablut got its own screen (`components/TablutScreen.tsx`), and what
+is actually shared is smaller and lower down:
+
+- `Board` takes an optional geometry (size, files, which squares are marked) plus
+  an optional legal-move closure, defaulting to Brandubh. The geometry
+  deliberately holds **no ruleset** — that is what lets one component serve two
+  games whose ruleset types are unrelated.
+- `orientation.ts` takes an optional size and file alphabet. Flip mapping is
+  geometry, not rules.
+- `gameOverText` moved out of `App.tsx`. `GameStatus` is the one part of the
+  domain both games share verbatim.
+- `clock.ts`, `clockLine.ts`, `matchSet.ts`, `records.ts`, `puzzleProgress.ts`,
+  `trainer.ts`, `grade.ts`, `sides.ts` were reused untouched, as predicted.
+
+Making `App` generic in its ruleset is still the right move, and is what the
+shell-level features (clock, analysis, review, match sets, import/export, the
+learn screens) are waiting on. It is a large mechanical refactor, not a design
+question.
+
+**The one-directional-risk claim paid off exactly as argued.** Nothing under
+`src/game/*.ts` changed. The shared edits were all additive with Brandubh
+defaults, so no existing call site changed either, and Brandubh's ~800 tests
+were the witness that the fork cost it nothing.
+
+**One thing that looked portable was unsound.** Brandubh proves a forced win from
+a *single* open lane when the king touches the corner, because no soldier may ever
+stand on a corner. Under edge escape the rim is ordinary ground and an attacker
+can occupy the escape square, so the shortcut is false there — the Tablut
+recognizer requires two lanes. This is the sharpest argument in the file for
+forking: a shared "how close is the king to winning" would have had to carry that
+distinction *inside* it, in the most safety-critical code in the project, where
+the failure mode is a search handed a false terminal it cannot detect.
+
+The "revisit at a third tafl boardgame" trigger stands, with an addition: revisit
+sooner if the second game starts wanting the shell features, because the answer
+then is a generic shell rather than a shared rules core.

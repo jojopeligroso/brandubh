@@ -10,6 +10,9 @@
 # `npm test` is ~40-90s depending on machine load, with puzzleBank.test.ts
 # alone accounting for most of it. That is CI-sized, not hook-sized: it does
 # not belong in a pre-commit hook.
+#
+# Two of the three jobs below drive a real browser, because two of this repo's
+# invariants are only observable in one.
 name: CI
 
 on:
@@ -90,3 +93,41 @@ jobs:
 
       # Builds as part of the script.
       - run: npm run check:evalbar
+
+  # The second driven-browser check, added with Tablut and for the same reason
+  # the evalbar job exists: the suites are pure logic, so nothing in them can
+  # fail when a second board *draws* wrong. The specific failures only this can
+  # catch are a `.board` grid stuck at seven tracks, a Tablut corner drawn as a
+  # marked square when under edge escape it is ordinary ground, Brandubh's
+  # coordinates leaking onto a 9x9 board, the Tablut Web Worker not resolving in
+  # a real browser at all, and a Brandubh save being clobbered by a visit to
+  # Tablut.
+  #
+  # It is verified to fail rather than assumed to: reinstating `repeat(7, 1fr)`
+  # reports "FAIL the CSS grid is 9 columns wide — saw 7".
+  #
+  # Its own job rather than another step on `evalbar`, on the same reasoning as
+  # the comment above — when a browser check fails, "which invariant broke?" is
+  # a much easier question when the answer is the job name. It costs ~15s, most
+  # of it the build.
+  tablut:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+
+      # Same candidate list as check:evalbar; see the note in that job for why
+      # there is no `playwright install` here.
+      - name: Show available browsers
+        run: |
+          for p in /usr/bin/google-chrome-stable /usr/bin/chromium \
+                   /usr/bin/chromium-browser; do
+            [ -e "$p" ] && echo "present: $p" || echo "absent:  $p"
+          done
+
+      # Builds as part of the script.
+      - run: npm run check:tablut

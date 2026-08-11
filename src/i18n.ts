@@ -327,6 +327,39 @@ export interface Translations {
   demoCapThrone: string;
   demoThroneKing: string;
 
+  // ── Tablut (a second boardgame, reached from the drawer's More games) ────────
+  // Tablut is a Boardgame rather than a Brandubh variant (see
+  // docs/adr/0006-…), so its copy is its own block rather than more `demo*`/
+  // `rule*` keys. `tablutRules` / `tablutRuleHints` are keyed by the flag names
+  // in game/tablut/variants.ts, which is what makes `tsc` notice a rule that has
+  // been added to the ruleset but not explained to the player.
+  /** The collapsed drawer section these games live under. */
+  drawerMoreGames: string;
+  gameBrandubh: string;
+  gameTablut: string;
+  /** One line on the setup card: what the game is. */
+  tablutBlurb: string;
+  tablutKingAt: string;
+  tablutLegalMoves: string;
+  tablutMoves: string;
+  tablutLastMove: string;
+  tablutUndo: string;
+  tablutRestart: string;
+  tablutOpponent: string;
+  tablutStrength: string;
+  tablutPlay: string;
+  tablutWhite: string;
+  tablutBlack: string;
+  tablutHotseat: string;
+  /** Engine strength, keyed by the difficulty ids in game/tablut/engine.ts. */
+  tablutDifficulties: Record<string, string>;
+  /** Rule names, keyed by flag name. */
+  tablutRules: Record<string, string>;
+  /** One line each on what the rule actually does. */
+  tablutRuleHints: Record<string, string>;
+  /** Labels for the enum rules' values, keyed by value. */
+  tablutRuleValues: Record<string, string>;
+
   // Variant display
   variantNames: Record<string, string>;
   variantBlurbs: Record<string, string>;
@@ -356,7 +389,10 @@ export interface Translations {
   importErrMovesAfterEnd: string;
   importErrCaptureMismatch: string;
   importErrUnreadableFile: string;
-  zenElGameFile: string;
+  /** The one line that severs "game file" from "autosave" in the reader's
+   *  head: the current game is already kept automatically; the file is for
+   *  keeping and sharing. Shown at the top of the game-file modal. */
+  gameFileAutosaveNote: string;
 
   // Board tools — flip + analysis (Session 7b)
   flipBoard: string;
@@ -399,8 +435,22 @@ export interface Translations {
   puzzleSkip: string;
   puzzleNext: string;
   puzzleLessonDone: string;
+  /** The fail state's hint: the wrong move is bounced back automatically, and
+   *  this says so — otherwise the revert reads as the board glitching. */
+  puzzleTakenBack: string;
+  /** The solved state's primary in a lesson: on to the next queued mistake. */
+  puzzleNextMistake: string;
+  /** The solved state's primary on the lesson's last mistake. */
+  puzzleFinishLesson: string;
+  /** Under "Play from here": starting a live game from this position closes
+   *  the review and replaces the autosave — a cost worth stating first. */
+  puzzlePlayFromHereHint: string;
   thinkHarder: string;
   thinkingDeeper: string;
+  /** Title text on the ceval strip's depth readout. */
+  evalDepthLabel: string;
+  /** The game-over CTA band while the review pass is still running. */
+  reviewCtaPreparing: string;
   reviewTitle: string;
   reviewWorst: string;
   reviewYourWorst: string;
@@ -805,7 +855,7 @@ const en: Translations = {
   chooseDifficulty: "Choose difficulty",
   chooseTime: "Choose a time control",
   startGame: "Start game",
-  resumeBody: "You have a game in progress.",
+  resumeBody: "Your game is saved automatically — pick up where you left off?",
   resumeGame: "Resume game",
 
   continueFromMove: "Continue from move",
@@ -878,10 +928,78 @@ const en: Translations = {
   demoCapThrone: "An empty throne counts as a raider too.",
   demoThroneKing: "The throne cannot hurt the King, but the corners can.",
 
+  drawerMoreGames: "More games",
+  gameBrandubh: "Brandubh",
+  gameTablut: "Tablut",
+  tablutBlurb:
+    "The Lapland game Linnaeus recorded in 1732. Nine by nine: White moves first and wins by walking the king out to any edge square; Black wins by capturing him.",
+  tablutKingAt: "King",
+  tablutLegalMoves: "Moves available",
+  tablutMoves: "Moves",
+  tablutLastMove: "Last move",
+  tablutUndo: "Take back",
+  tablutRestart: "Restart",
+  tablutOpponent: "You play",
+  tablutStrength: "Strength",
+  tablutPlay: "Play",
+  tablutWhite: "White (the king)",
+  tablutBlack: "Black (the attackers)",
+  tablutHotseat: "Two players",
+  tablutDifficulties: { easy: "Easy", medium: "Medium", hard: "Hard", ollamh: "Ollamh" },
+  tablutRules: {
+    escape: "The king escapes to",
+    firstMove: "First move",
+    armedKing: "Armed king",
+    kingMayReoccupyThrone: "King may return to the throne",
+    throneBlocks: "The throne blocks",
+    throneAnvil: "The empty throne helps capture for",
+    throneHostileToKing: "Throne walls the king",
+    cornersRestricted: "Corners are the king's alone",
+    cornersHostile: "Corners help capture",
+    edgeHostileToSoldiers: "The board edge helps capture",
+    strongKingOnThrone: "Strong king on the throne",
+    strongKingAdjacentToThrone: "Strong king beside the throne",
+    shieldwallCapture: "Shieldwall capture",
+    encirclementWin: "Encirclement wins",
+    repetitionResult: "Threefold repetition",
+  },
+  tablutRuleHints: {
+    escape: "Any edge square is the baseline rule; corners make it a different game.",
+    firstMove: "White leads under the baseline rules, unlike most tafl games.",
+    armedKing: "The king can take part in captures himself.",
+    kingMayReoccupyThrone: "He may step back onto the centre square after leaving it.",
+    throneBlocks: "Whether soldiers may slide across the empty centre square.",
+    throneAnvil: "Whose captures may pin a soldier against the empty throne.",
+    throneHostileToKing: "The empty throne counts as one of the walls closing on the king.",
+    cornersRestricted: "Soldiers may not stand on them. Off under the baseline.",
+    cornersHostile: "A soldier can be pinned against a corner. Off under the baseline.",
+    edgeHostileToSoldiers: "A soldier on the rim falls to a single attacker. Not a baseline rule.",
+    strongKingOnThrone: "On the throne he must be surrounded on all four sides.",
+    strongKingAdjacentToThrone: "Beside the throne he must be surrounded on all four sides.",
+    shieldwallCapture: "A bracketed row along the edge falls together. A Copenhagen rule, not a Tablut one.",
+    encirclementWin: "Black wins by ringing the king in. Off where the rim is the goal.",
+    repetitionResult: "What happens when the same position comes round a third time.",
+  },
+  tablutRuleValues: {
+    edges: "Any edge",
+    corners: "A corner",
+    defenders: "White",
+    attackers: "Black",
+    none: "Nobody",
+    both: "Both sides",
+    soldiers: "Both sides",
+    draw: "Draw",
+    loss_for_defenders: "White loses",
+  },
+
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 World Tafl Federation",
     custom: "Custom",
+    "tablut-linnaeus": "Tablut \u00b7 Linnaeus 1732",
+    tablut: "Tablut \u00b7 baseline",
+    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-corners": "Tablut \u00b7 corner escape",
   },
   variantBlurbs: {
     walker:
@@ -889,16 +1007,18 @@ const en: Translations = {
     wtf:
       "Official WTF tournament rules (aagenielsen.dk). The empty throne is hostile to soldiers but never to the king. King on the throne needs all four sides surrounded. Encirclement wins. Repetition is a loss for the defending side.",
     custom: "Your custom ruleset.",
+    "tablut-linnaeus":
+      "The rules Linnaeus recorded in Lapland in 1732, as the World Tafl Federation reads them. The king falls to four attackers on his throne, to three when the empty throne stands in as the fourth wall beside it, and to the ordinary two anywhere else. The empty throne is hostile, the king escapes to any edge square, an unbroken ring of attackers wins for Black, and a repeated position is on White to break.",
   },
-  gameFileTitle: "Export / import game",
-  exportLabel: "Export this game",
+  gameFileTitle: "Game file (.tafl)",
+  exportLabel: "Back up or share this game",
   exportDownload: "Download",
   exportCopy: "Copy",
   exportCopied: "Copied",
   exportCopyFailed: "Copy failed",
   exportHint: "A plain-text .tafl file: a tag header plus the move list, like a chess PGN.",
   exportNothingYet: "Play a move first \u2014 there is nothing to export yet.",
-  importLabel: "Import a game",
+  importLabel: "Open a game file",
   importPlaceholder: "Paste a game here\u2026",
   importLoad: "Load game",
   importChooseFile: "Choose file\u2026",
@@ -915,7 +1035,8 @@ const en: Translations = {
   importErrMovesAfterEnd: "the move list carries on after the game had ended.",
   importErrCaptureMismatch: "the captures do not match this ruleset.",
   importErrUnreadableFile: "that file could not be read.",
-  zenElGameFile: "Export / import",
+  gameFileAutosaveNote:
+    "Your current game is already saved automatically. This file is for keeping games, or sharing them with someone else.",
 
   flipBoard: "Flip board",
   flipBoardH: "Flip board left-right",
@@ -951,8 +1072,15 @@ const en: Translations = {
   puzzleSkip: "Skip",
   puzzleNext: "Next",
   puzzleLessonDone: "That was the last one — lesson complete.",
-  thinkHarder: "Think harder",
+  puzzleTakenBack: "Your move is taken back — try another.",
+  puzzleNextMistake: "Next mistake",
+  puzzleFinishLesson: "Finish lesson",
+  puzzlePlayFromHereHint:
+    "Starts a new game from this position — the review closes and this game's autosave is replaced.",
+  thinkHarder: "Analyse deeper",
   thinkingDeeper: "Thinking\u2026",
+  evalDepthLabel: "Search depth",
+  reviewCtaPreparing: "Reviewing your game\u2026",
   reviewTitle: "Game review",
   reviewWorst: "Costliest moves",
   reviewYourWorst: "Your costliest moves",
@@ -1394,7 +1522,7 @@ const es: Translations = {
   chooseDifficulty: "Elige la dificultad",
   chooseTime: "Elige el ritmo de juego",
   startGame: "Empezar partida",
-  resumeBody: "Tienes una partida en curso.",
+  resumeBody: "Tu partida se guarda automáticamente — ¿continúas donde la dejaste?",
   resumeGame: "Reanudar partida",
 
   continueFromMove: "\u00bfContinuar desde el movimiento",
@@ -1472,10 +1600,78 @@ const es: Translations = {
   demoCapThrone: "El trono vac\u00edo cuenta como un asaltante m\u00e1s.",
   demoThroneKing: "El trono no puede da\u00f1ar al Rey, pero las esquinas s\u00ed.",
 
+  drawerMoreGames: "M\u00e1s juegos",
+  gameBrandubh: "Brandubh",
+  gameTablut: "Tablut",
+  tablutBlurb:
+    "El juego lapon que Linneo anot\u00f3 en 1732. Nueve por nueve: las blancas mueven primero y ganan llevando al rey a cualquier casilla del borde; las negras ganan captur\u00e1ndolo.",
+  tablutKingAt: "Rey",
+  tablutLegalMoves: "Movimientos posibles",
+  tablutMoves: "Movimientos",
+  tablutLastMove: "\u00daltima jugada",
+  tablutUndo: "Deshacer",
+  tablutRestart: "Reiniciar",
+  tablutOpponent: "Juegas con",
+  tablutStrength: "Dificultad",
+  tablutPlay: "Jugar",
+  tablutWhite: "Blancas (el rey)",
+  tablutBlack: "Negras (los atacantes)",
+  tablutHotseat: "Dos jugadores",
+  tablutDifficulties: { easy: "F\u00e1cil", medium: "Media", hard: "Dif\u00edcil", ollamh: "Ollamh" },
+  tablutRules: {
+    escape: "El rey escapa a",
+    firstMove: "Primera jugada",
+    armedKing: "Rey armado",
+    kingMayReoccupyThrone: "El rey puede volver al trono",
+    throneBlocks: "El trono bloquea a",
+    throneAnvil: "El trono vac\u00edo ayuda a capturar a",
+    throneHostileToKing: "El trono cierra sobre el rey",
+    cornersRestricted: "Las esquinas son solo del rey",
+    cornersHostile: "Las esquinas ayudan a capturar",
+    edgeHostileToSoldiers: "El borde ayuda a capturar",
+    strongKingOnThrone: "Rey fuerte en el trono",
+    strongKingAdjacentToThrone: "Rey fuerte junto al trono",
+    shieldwallCapture: "Captura en muro de escudos",
+    encirclementWin: "El cerco gana",
+    repetitionResult: "Triple repetici\u00f3n",
+  },
+  tablutRuleHints: {
+    escape: "Cualquier casilla del borde es la regla base; las esquinas hacen otro juego.",
+    firstMove: "Las blancas empiezan en las reglas base, al contrario que en casi todo el tafl.",
+    armedKing: "El rey puede participar en las capturas.",
+    kingMayReoccupyThrone: "Puede volver a la casilla central despu\u00e9s de dejarla.",
+    throneBlocks: "Si los soldados pueden cruzar la casilla central vac\u00eda.",
+    throneAnvil: "Qui\u00e9n puede atrapar a un soldado contra el trono vac\u00edo.",
+    throneHostileToKing: "El trono vac\u00edo cuenta como uno de los muros que cierran sobre el rey.",
+    cornersRestricted: "Los soldados no pueden ocuparlas. Desactivado en las reglas base.",
+    cornersHostile: "Un soldado puede quedar atrapado contra una esquina. Desactivado en las reglas base.",
+    edgeHostileToSoldiers: "Un soldado en el borde cae ante un solo atacante. No es regla base.",
+    strongKingOnThrone: "En el trono hay que rodearlo por los cuatro lados.",
+    strongKingAdjacentToThrone: "Junto al trono hay que rodearlo por los cuatro lados.",
+    shieldwallCapture: "Una fila del borde cae junta. Regla de Copenhague, no de Tablut.",
+    encirclementWin: "Las negras ganan cercando al rey. Desactivado cuando el borde es la meta.",
+    repetitionResult: "Qu\u00e9 pasa cuando la misma posici\u00f3n se repite por tercera vez.",
+  },
+  tablutRuleValues: {
+    edges: "Cualquier borde",
+    corners: "Una esquina",
+    defenders: "Blancas",
+    attackers: "Negras",
+    none: "Nadie",
+    both: "Ambos bandos",
+    soldiers: "Ambos bandos",
+    draw: "Tablas",
+    loss_for_defenders: "Pierden las blancas",
+  },
+
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Federaci\u00f3n Mundial de Tafl",
     custom: "Personalizado",
+    "tablut-linnaeus": "Tablut \u00b7 Linneo 1732",
+    tablut: "Tablut \u00b7 b\u00e1sico",
+    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-corners": "Tablut \u00b7 escape por esquinas",
   },
   variantBlurbs: {
     walker:
@@ -1483,16 +1679,18 @@ const es: Translations = {
     wtf:
       "Reglas oficiales del torneo FMT (aagenielsen.dk). El trono vac\u00edo es hostil para los soldados pero nunca para el rey. El rey en el trono necesita los cuatro lados rodeados. El cerco gana. La repetici\u00f3n es una derrota para el bando defensor.",
     custom: "Tu conjunto de reglas personalizado.",
+    "tablut-linnaeus":
+      "Las reglas que Linneo anot\u00f3 en Laponia en 1732, tal como las lee la Federaci\u00f3n Mundial de Tafl. El rey cae ante cuatro atacantes en su trono, ante tres cuando el trono vac\u00edo hace de cuarta pared a su lado, y ante los dos de siempre en cualquier otro lugar. El trono vac\u00edo es hostil, el rey escapa por cualquier casilla del borde, un anillo cerrado de atacantes gana para las negras, y romper una repetici\u00f3n corresponde a las blancas.",
   },
-  gameFileTitle: "Exportar / importar partida",
-  exportLabel: "Exportar esta partida",
+  gameFileTitle: "Archivo de partida (.tafl)",
+  exportLabel: "Guarda una copia o comparte esta partida",
   exportDownload: "Descargar",
   exportCopy: "Copiar",
   exportCopied: "Copiado",
   exportCopyFailed: "Fall\u00f3 la copia",
   exportHint: "Un archivo .tafl de texto: cabecera de etiquetas m\u00e1s la lista de jugadas, como un PGN de ajedrez.",
   exportNothingYet: "Haz una jugada primero \u2014 a\u00fan no hay nada que exportar.",
-  importLabel: "Importar una partida",
+  importLabel: "Abrir un archivo de partida",
   importPlaceholder: "Pega una partida aqu\u00ed\u2026",
   importLoad: "Cargar partida",
   importChooseFile: "Elegir archivo\u2026",
@@ -1509,7 +1707,8 @@ const es: Translations = {
   importErrMovesAfterEnd: "la lista de jugadas contin\u00faa despu\u00e9s de terminar la partida.",
   importErrCaptureMismatch: "las capturas no cuadran con este reglamento.",
   importErrUnreadableFile: "no se pudo leer ese archivo.",
-  zenElGameFile: "Exportar / importar",
+  gameFileAutosaveNote:
+    "Tu partida actual ya se guarda automáticamente. Este archivo sirve para conservar partidas o compartirlas con otra persona.",
 
   flipBoard: "Girar el tablero",
   flipBoardH: "Girar el tablero izquierda-derecha",
@@ -1545,8 +1744,15 @@ const es: Translations = {
   puzzleSkip: "Saltar",
   puzzleNext: "Siguiente",
   puzzleLessonDone: "Era el último — lección completada.",
-  thinkHarder: "Pensar m\u00e1s",
+  puzzleTakenBack: "Tu jugada se deshace \u2014 prueba otra.",
+  puzzleNextMistake: "Siguiente error",
+  puzzleFinishLesson: "Terminar la lecci\u00f3n",
+  puzzlePlayFromHereHint:
+    "Empieza una partida nueva desde esta posici\u00f3n \u2014 la revisi\u00f3n se cierra y se sustituye la partida guardada.",
+  thinkHarder: "Analizar m\u00e1s a fondo",
   thinkingDeeper: "Pensando\u2026",
+  evalDepthLabel: "Profundidad de b\u00fasqueda",
+  reviewCtaPreparing: "Revisando tu partida\u2026",
   reviewTitle: "Revisi\u00f3n de la partida",
   reviewWorst: "Jugadas m\u00e1s costosas",
   reviewYourWorst: "Tus jugadas m\u00e1s costosas",
@@ -2002,7 +2208,8 @@ const ga: Translations = {
   // DRAFT (overlay time step) — unreviewed, like the rest of this table.
   chooseTime: "Roghnaigh rialú ama",
   startGame: "Tosaigh an cluiche",
-  resumeBody: "Tá cluiche ar siúl agat.",
+  // DRAFT (unreviewed) — like the rest of this table.
+  resumeBody: "Sábháiltear do chluiche go huathoibríoch — ar mhaith leat leanúint ar aghaidh?",
   resumeGame: "Lean ar aghaidh leis an gcluiche",
 
   continueFromMove: "Lean ar aghaidh \u00f3 bhogadh",
@@ -2082,10 +2289,82 @@ const ga: Translations = {
   demoCapThrone: "\u00c1ir\u00edtear r\u00edchathaoir fholamh mar fhoghla\u00ed freisin.",
   demoThroneKing: "N\u00ed f\u00e9idir leis an r\u00edchathaoir dochar a dh\u00e9anamh don R\u00ed, ach is f\u00e9idir leis na c\u00fainn\u00ed.",
 
+  // DRAFT (unreviewed machine translation), like the rest of this table \u2014
+  // 'ga' stays out of VISIBLE_LANGS until a human Irish speaker signs it off.
+  drawerMoreGames: "Tuilleadh cluichi",
+  gameBrandubh: "Brandubh",
+  gameTablut: "Tablut",
+  tablutBlurb:
+    "An cluiche Laplannach a bhreac Linnaeus sios in 1732. Naoi faoi naoi: bogann na Bana ar dtus agus buann siad an ri a threorú go cearnóg imill ar bith; buann na Dubha e a ghabhail.",
+  tablutKingAt: "Ri",
+  tablutLegalMoves: "Bearta ar fail",
+  tablutMoves: "Bearta",
+  tablutLastMove: "An beart deireanach",
+  tablutUndo: "Cealaigh",
+  tablutRestart: "Atosaigh",
+  tablutOpponent: "Imrionn tu",
+  tablutStrength: "Neart",
+  tablutPlay: "Imir",
+  tablutWhite: "Bana (an ri)",
+  tablutBlack: "Dubha (na hionsaitheoiri)",
+  tablutHotseat: "Beirt imreoiri",
+  tablutDifficulties: { easy: "Furasta", medium: "Meanach", hard: "Crua", ollamh: "Ollamh" },
+  tablutRules: {
+    escape: "Ealaionn an ri go",
+    firstMove: "An chead bheart",
+    armedKing: "Ri armtha",
+    kingMayReoccupyThrone: "Feadfaidh an ri filleadh ar an richathaoir",
+    throneBlocks: "Cuireann an richathaoir bac ar",
+    throneAnvil: "Cabhraionn an richathaoir fholamh le gabhail do",
+    throneHostileToKing: "Duntar an richathaoir ar an ri",
+    cornersRestricted: "Is leis an ri amhain na cuinni",
+    cornersHostile: "Cabhraionn na cuinni le gabhail",
+    edgeHostileToSoldiers: "Cabhraionn imeall an chlair le gabhail",
+    strongKingOnThrone: "Ri laidir ar an richathaoir",
+    strongKingAdjacentToThrone: "Ri laidir taobh leis an richathaoir",
+    shieldwallCapture: "Gabhail bhalla sciath",
+    encirclementWin: "Buann iadh timpeall",
+    repetitionResult: "Athra tri huaire",
+  },
+  tablutRuleHints: {
+    escape: "Is cearnog imill ar bith an bhunriail; deanann na cuinni cluiche eile de.",
+    firstMove: "Tosaionn na Bana faoi na bunrialacha, murab ionann agus an chuid is mo den tafl.",
+    armedKing: "Feadfaidh an ri pairt a ghlacadh i ngabhalacha.",
+    kingMayReoccupyThrone: "Feadfaidh se filleadh ar an gcearnog lair tar eis di a fhagail.",
+    throneBlocks: "Ar feidir le saighdiuiri dul thar an gcearnog lair fholamh.",
+    throneAnvil: "Ce a fheadfaidh saighdiuir a shainniu in aghaidh na richathaoireach folaimhe.",
+    throneHostileToKing: "Airitear an richathaoir fholamh mar cheann de na ballai a dhruideann ar an ri.",
+    cornersRestricted: "Ni feidir le saighdiuiri seasamh orthu. As faoi na bunrialacha.",
+    cornersHostile: "Is feidir saighdiuir a shainniu in aghaidh cuinne. As faoi na bunrialacha.",
+    edgeHostileToSoldiers: "Titeann saighdiuir ar an imeall le hionsaitheoir amhain. Ni bunriail e.",
+    strongKingOnThrone: "Ar an richathaoir ni mor iadh timpeall air ar na ceithre thaobh.",
+    strongKingAdjacentToThrone: "Taobh leis an richathaoir ni mor iadh timpeall air ar na ceithre thaobh.",
+    shieldwallCapture: "Titeann sraith ar an imeall le cheile. Riail Chopenhagen, nach ceann Tablut.",
+    encirclementWin: "Buann na Dubha an ri a iadh isteach. As nuair is e an imeall an sprioc.",
+    repetitionResult: "Cad a tharlaionn nuair a thagann an ionad ceanna timpeall an triu huair.",
+  },
+  tablutRuleValues: {
+    edges: "Imeall ar bith",
+    corners: "Cuinne",
+    defenders: "Bana",
+    attackers: "Dubha",
+    none: "Duine ar bith",
+    both: "An da thaobh",
+    soldiers: "An da thaobh",
+    draw: "Cluiche cothrom",
+    loss_for_defenders: "Cailleann na Bana",
+  },
+
   variantNames: {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Cumann Domhanda Tafl",
     custom: "Saincheaptha",
+    // Draft translations, unreviewed \u2014 like the rest of this table (see
+    // VISIBLE_LANGS: the ga locale stays hidden until a human signs off).
+    "tablut-linnaeus": "Tablut \u00b7 Linnaeus 1732",
+    tablut: "Tablut \u00b7 bunl\u00ednte",
+    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-corners": "Tablut \u00b7 \u00e9al\u00fa c\u00fainne",
   },
   variantBlurbs: {
     walker:
@@ -2093,16 +2372,18 @@ const ga: Translations = {
     wtf:
       "Rialacha oifigi\u00fala com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don taobh cosanta.",
     custom: "Do shraith rialacha f\u00e9in.",
+    "tablut-linnaeus":
+      "Na rialacha a bhreac Linnaeus s\u00edos sa Laplainn sa bhliain 1732, mar a l\u00e9ann an Cumann Domhanda Tafl iad. Titeann an r\u00ed le ceathrar ionsaitheoir\u00ed ar a r\u00edchathaoir, le tri\u00far nuair a sheasann an r\u00edchathaoir fholamh mar an ceathr\u00fa balla lena thaobh, agus leis an mbeirt ghn\u00e1ch in \u00e1it ar bith eile. T\u00e1 an r\u00edchathaoir fholamh naimhdeach, \u00e9ala\u00edonn an r\u00ed chuig cearn\u00f3g imill ar bith, buann fainne dobhriste ionsaitheoir\u00ed do na Dubha, agus is ar na Bana at\u00e1 s\u00e9 athr\u00e1 a bhriseadh.",
   },
-  gameFileTitle: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il cluiche",
-  exportLabel: "Easp\u00f3rt\u00e1il an cluiche seo",
+  gameFileTitle: "Comhad cluiche (.tafl)",
+  exportLabel: "Coinnigh c\u00f3ip n\u00f3 roinn an cluiche seo",
   exportDownload: "\u00cdosl\u00f3d\u00e1il",
   exportCopy: "C\u00f3ipe\u00e1il",
   exportCopied: "C\u00f3ipe\u00e1ilte",
   exportCopyFailed: "Theip ar an gc\u00f3ipe\u00e1il",
   exportHint: "Comhad t\u00e9acs .tafl: ceannt\u00e1sc clibeanna agus liosta na mbeart, ar n\u00f3s PGN fichille.",
   exportNothingYet: "D\u00e9an beart ar dt\u00fas \u2014 n\u00edl aon rud le heasp\u00f3rt\u00e1il go f\u00f3ill.",
-  importLabel: "Iomp\u00f3rt\u00e1il cluiche",
+  importLabel: "Oscail comhad cluiche",
   importPlaceholder: "Greamaigh cluiche isteach anseo\u2026",
   importLoad: "Luchtaigh cluiche",
   importChooseFile: "Roghnaigh comhad\u2026",
@@ -2119,7 +2400,9 @@ const ga: Translations = {
   importErrMovesAfterEnd: "leanann liosta na mbeart ar aghaidh tar \u00e9is dheireadh an chluiche.",
   importErrCaptureMismatch: "n\u00ed r\u00e9it\u00edonn na gabh\u00e1lacha leis an sraith rialacha seo.",
   importErrUnreadableFile: "n\u00edorbh fh\u00e9idir an comhad sin a l\u00e9amh.",
-  zenElGameFile: "Easp\u00f3rt\u00e1il / iomp\u00f3rt\u00e1il",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  gameFileAutosaveNote:
+    "S\u00e1bh\u00e1iltear do chluiche reatha go huathoibr\u00edoch cheana f\u00e9in. Is le haghaidh cluich\u00ed a choinne\u00e1il n\u00f3 a roinnt le duine eile an comhad seo.",
 
   // DRAFT (Session 7b) \u2014 unreviewed, like the rest of this table. Present so
   // the locale stays complete while it waits for review; `ga` is not offered.
@@ -2163,8 +2446,16 @@ const ga: Translations = {
   puzzleSkip: "L\u00e9im thairis",
   puzzleNext: "Ar aghaidh",
   puzzleLessonDone: "B'in an ceann deireanach \u2014 ceacht cr\u00edochnaithe.",
-  thinkHarder: "Smaoinigh n\u00edos doimhne",
+  // DRAFT (unreviewed) \u2014 like the rest of this table.
+  puzzleTakenBack: "Tarraing\u00edtear do bheart siar \u2014 bain triail as ceann eile.",
+  puzzleNextMistake: "An ch\u00e9ad bhot\u00fan eile",
+  puzzleFinishLesson: "Cr\u00edochnaigh an ceacht",
+  puzzlePlayFromHereHint:
+    "Tosa\u00edonn cluiche nua \u00f3n su\u00edomh seo \u2014 d\u00fantar an t-athbhreithni\u00fa agus cuirtear cluiche nua in \u00e1it an chinn sh\u00e1bh\u00e1ilte.",
+  thinkHarder: "Anail\u00edsigh n\u00edos doimhne",
   thinkingDeeper: "Ag smaoineamh\u2026",
+  evalDepthLabel: "Doimhneacht an chuardaigh",
+  reviewCtaPreparing: "Ag athbhreithni\u00fa do chluiche\u2026",
   reviewTitle: "Athbhreithni\u00fa ar an gcluiche",
   reviewWorst: "Na bearta ba chostasa\u00ed",
   reviewYourWorst: "Do bhearta ba chostasa\u00ed",

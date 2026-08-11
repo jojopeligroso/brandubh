@@ -45,8 +45,12 @@ custom-rule editor.
 ## AI engine — next levers
 
 The search core (iterative deepening + transposition table + quiescence + move
-ordering) landed in `engine.ts`; it is board-size-agnostic and variant-driven, so it
-carries over to future tafl variants (Tablut, etc.) without change. Remaining:
+ordering) landed in `engine.ts`. It is board-size-agnostic and variant-driven, so
+the *machinery* carried over to Tablut unchanged — but "without change" was too
+strong, and the Tablut work is what showed it: everything answering "how close is
+the king to winning" had to be rewritten, because corner-escape geometry is
+meaningless when the whole rim wins. See `docs/adr/0006-…` (and its addendum) and
+`src/game/tablut/engine.ts`. Remaining:
 
 - [x] **Move search to a Web Worker** — done. `src/game/ai.worker.ts` runs the
   search off the main thread (bundled into `dist/`, so still 100% offline);
@@ -66,8 +70,14 @@ carries over to future tafl variants (Tablut, etc.) without change. Remaining:
   first two moves of each side, played instantly by ollamh with seeded variety.
   Not the aagenielsen.dk game-import flavour of book once envisioned below —
   that remains future work.
-- [ ] **Per-variant tuning hooks** — when a new variant (e.g. Tablut 9×9) is
-  added, revisit the `hard` time budget and eval weights for the larger board.
+- [ ] **Tune the Tablut eval weights** — `src/game/tablut/engine.ts`'s
+  `DEFAULT_WEIGHTS` are reasoned, not measured, and say so. Brandubh's came off an
+  A/B gauntlet over hundreds of games (`scripts/evaltune.ts`); Tablut needs its own
+  arm, because 16 v 8 pieces, four possible escape lanes and 81 squares are not a
+  rescaling of 8 v 4 / two / 49. `usePVS` ships on there as a considered default
+  and wants the same treatment. The timed tiers already self-adjust, and the depth
+  floors and the effective-branching-factor cap *were* measured — see the notes in
+  that file.
 - [x] **Board-symmetry (D4) root-move folding** — done (`engine.ts`: `stabilizer` /
   `foldRootMoves`). The opening's 40 first moves fold to 5 at symmetric positions,
   buying ~1 ply and cutting opening nodes ~2×. Applied per-turn at the root only;

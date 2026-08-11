@@ -1,13 +1,14 @@
 import { useMemo } from "react";
-import { isCorner, isThrone, movesFrom, sideOf } from "../game/rules";
-import { BOARD_SIZE, type Board as BoardT, type Move, type Piece, type Side, type Square } from "../game/types";
+import { movesFrom, sideOf } from "../game/rules";
+import type { Board as BoardT, Move, Piece, Side, Square } from "../game/types";
+import type { BoardGeometry, LegalFrom } from "../games/geometry";
+import { BRANDUBH_GEOMETRY } from "../games/geometry";
 import {
   fileLabel,
   fromView,
   isLabelledFileRow,
   isLabelledRankCol,
   rankLabel,
-  squareName,
   viewArrow,
 } from "../orientation";
 import type { RuleSet } from "../game/variants";
@@ -89,7 +90,22 @@ export function Emblem({
 
 interface BoardProps {
   board: BoardT;
-  rules: RuleSet;
+  /**
+   * Which ruleset the legal-move dots are drawn under. Brandubh's; a board for
+   * another boardgame passes `geom` instead and leaves this out.
+   */
+  rules?: RuleSet;
+  /**
+   * The board's geometry and rules, for a boardgame that is not Brandubh.
+   *
+   * Optional, and defaulting to Brandubh, so that adding a second board changed
+   * nothing at any existing call site — the alternative was editing App,
+   * TutorialPlayer and BankPuzzlePlayer to pass a value they would all have
+   * spelled the same way. See src/games/geometry.ts.
+   */
+  geom?: BoardGeometry;
+  /** How the board works out legal destinations, when `rules` is not the answer. */
+  legalFrom?: LegalFrom;
   turn: Side;
   selected: Square | null;
   lastMove: Move | null;
@@ -158,15 +174,18 @@ function BestMoveArrow({
   move,
   flippedH,
   flippedV,
+  size,
   secondary = false,
 }: {
   move: Move;
   flippedH: boolean;
   flippedV: boolean;
+  /** Squares per side, so the head and tail gaps scale with the cell. */
+  size: number;
   /** An equal-best alternative rather than the move the engine returned. */
   secondary?: boolean;
 }) {
-  const { from, to } = viewArrow(move, flippedH, flippedV);
+  const { from, to } = viewArrow(move, flippedH, flippedV, size);
   const x1 = from.x * 100;
   const y1 = from.y * 100;
   const x2 = to.x * 100;
@@ -180,11 +199,15 @@ function BestMoveArrow({
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len;
   const uy = dy / len;
-  const HEAD = 4.6; // arrowhead half-length, in viewBox units
-  // A cell is 100/7 ≈ 14.3 viewBox units across and a piece is 74% of one, so
-  // its radius is ~5.3. Starting the shaft just past that keeps the arrow off
-  // the piece it is telling you to move rather than through it.
-  const TAIL_GAP = 5.6;
+  // A cell is 100/size viewBox units across and a piece is 74% of one, so its
+  // radius is ~0.37 of a cell. Both constants were tuned against Brandubh's 7
+  // (HEAD 4.6, TAIL_GAP 5.6) and are expressed as fractions of a cell here so a
+  // 9×9 board gets a proportionate arrow rather than an oversized one.
+  const cell = 100 / size;
+  const HEAD = 0.32 * cell; // arrowhead half-length, in viewBox units
+  // Starting the shaft just past the piece's radius keeps the arrow off the piece
+  // it is telling you to move rather than through it.
+  const TAIL_GAP = 0.39 * cell;
   const sx = x1 + ux * TAIL_GAP;
   const sy = y1 + uy * TAIL_GAP;
   // The shaft ends where the head begins, so the two never overlap and the
@@ -200,9 +223,9 @@ function BestMoveArrow({
       aria-hidden
       focusable="false"
     >
-      <line x1={sx} y1={sy} x2={ex} y2={ey} strokeWidth={2.6} strokeLinecap="butt" />
+      <line x1={sx} y1={sy} x2={ex} y2={ey} strokeWidth={0.18 * cell} strokeLinecap="butt" />
       <polygon
-        points={`${-HEAD},${-3.4} ${-HEAD},${3.4} 0,0`}
+        points={`${-HEAD},${-0.24 * cell} ${-HEAD},${0.24 * cell} 0,0`}
         transform={`translate(${x2} ${y2}) rotate(${angle})`}
       />
     </svg>
@@ -212,6 +235,8 @@ function BestMoveArrow({
 export default function Board({
   board,
   rules,
+  geom,
+  legalFrom,
   turn,
   selected,
   lastMove,
@@ -230,10 +255,14 @@ export default function Board({
   verdict = null,
   onSquareClick,
 }: BoardProps) {
+  const g = geom ?? BRANDUBH_GEOMETRY;
   const legal = useMemo<Square[]>(() => {
     if (!selected) return [];
-    return movesFrom(board, selected.row, selected.col, rules);
-  }, [selected, board, rules]);
+    // Brandubh keeps passing `rules`; anything else supplies its own mover.
+    return legalFrom
+      ? legalFrom(board, selected.row, selected.col)
+      : movesFrom(board, selected.row, selected.col, rules!);
+  }, [selected, board, rules, legalFrom]);
 
   const legalSet = useMemo(() => new Set(legal.map((s) => s.row * 10 + s.col)), [legal]);
   const fadeSet = useMemo(
@@ -255,13 +284,18 @@ export default function Board({
   // labels below move to whichever drawn edge is now the bottom/left, but
   // they never rename a square.
   return (
-    <div className="board" role="grid" aria-label="Brandubh board">
-      {Array.from({ length: BOARD_SIZE }, (_, viewRow) =>
-        Array.from({ length: BOARD_SIZE }, (_, viewCol) => {
-          const { row: r, col: c } = fromView({ row: viewRow, col: viewCol }, flippedH, flippedV);
+    <div
+      className="board"
+      role="grid"
+      aria-label={g.label}
+      style={{ "--n": g.size } as React.CSSProperties}
+    >
+      {Array.from({ length: g.size }, (_, viewRow) =>
+        Array.from({ length: g.size }, (_, viewCol) => {
+          const { row: r, col: c } = fromView({ row: viewRow, col: viewCol }, flippedH, flippedV, g.size);
           const piece = board[r][c];
           const key = r * 10 + c;
-          const special = isThrone(r, c) || isCorner(r, c);
+          const special = g.isThrone(r, c) || g.isSpecialCorner(r, c);
           const isSel = selected?.row === r && selected?.col === c;
           const isLegal = legalSet.has(key);
           const capHere = isLegal && piece !== null;
@@ -269,8 +303,8 @@ export default function Board({
           const lastFrom = lastMove && lastMove.from.row === r && lastMove.from.col === c;
           const dark = (r + c) % 2 === 1;
           const pickable = canPick({ row: r, col: c }) || isLegal;
-          const file = isLabelledFileRow(r, flippedV) ? fileLabel(c) : null;
-          const rank = isLabelledRankCol(c, flippedH) ? rankLabel(r) : null;
+          const file = isLabelledFileRow(r, flippedV, g.size) ? fileLabel(c, g.files) : null;
+          const rank = isLabelledRankCol(c, flippedH, g.size) ? rankLabel(r, g.size) : null;
 
           return (
             <div
@@ -278,12 +312,16 @@ export default function Board({
               role="gridcell"
               // The square's own name, so what a screen reader reads stays true
               // under flip — the labels below are decorative duplicates of it.
-              aria-label={piece ? `${squareName({ row: r, col: c })} ${piece}` : squareName({ row: r, col: c })}
+              aria-label={
+                piece
+                  ? `${g.squareName({ row: r, col: c })} ${piece}`
+                  : g.squareName({ row: r, col: c })
+              }
               className={[
                 "cell",
                 dark ? "dark" : "",
                 special ? "special" : "",
-                isCorner(r, c) ? "corner" : "",
+                g.isSpecialCorner(r, c) ? "corner" : "",
                 isSel ? "selected" : "",
                 lastTo || lastFrom ? "lastmove" : "",
                 pickable ? "playable" : "",
@@ -302,7 +340,7 @@ export default function Board({
                   {file}
                 </span>
               )}
-              {isCorner(r, c) && !piece && (
+              {g.isSpecialCorner(r, c) && !piece && (
                 <span className="corner-emblem" aria-hidden>
                   <svg viewBox={cornerEmblem.viewBox} fill="currentColor" fillRule="evenodd">
                     <path d={cornerEmblem.path} />
@@ -343,9 +381,9 @@ export default function Board({
         }),
       )}
       {/* The arrow overlay is absolutely positioned, so it is out of flow and
-          never becomes a grid item — the 7×7 auto-placement above is untouched.
+          never becomes a grid item — the auto-placement above is untouched.
           `aria-hidden` keeps it out of the accessibility tree entirely, so the
-          grid's accessible children are still 49 gridcells and nothing else. */}
+          grid's accessible children are still size² gridcells and nothing else. */}
       {/* Alternatives first, so the primary arrow is drawn over them. */}
       {alsoBest.map((m, i) => (
         <BestMoveArrow
@@ -353,10 +391,13 @@ export default function Board({
           move={m}
           flippedH={flippedH}
           flippedV={flippedV}
+          size={g.size}
           secondary
         />
       ))}
-      {bestMove && <BestMoveArrow move={bestMove} flippedH={flippedH} flippedV={flippedV} />}
+      {bestMove && (
+        <BestMoveArrow move={bestMove} flippedH={flippedH} flippedV={flippedV} size={g.size} />
+      )}
     </div>
   );
 }

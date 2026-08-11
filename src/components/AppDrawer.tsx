@@ -16,6 +16,13 @@ import { useDialogFocus } from "../useDialogFocus";
  *
  * In-game actions (resign, takeback, flips) deliberately stay in the bottom
  * toolbar's action sheet: this drawer is the app's navigation, not the game's.
+ *
+ * The one collapsed section is **More games**, which is where a second boardgame
+ * lives (Tablut, 9x9 — see docs/adr/0006-…). It is collapsed because Brandubh is
+ * what this app is, and an always-open list of alternatives would say otherwise;
+ * it uses a native `<details>`, which is the app's existing collapsible idiom
+ * (GameFilePanel, PositionPanel, MoveTreePanel, MoveLog all use the same pair of
+ * elements) rather than a new accordion nobody else would share.
  */
 export default function AppDrawer({
   t,
@@ -29,6 +36,7 @@ export default function AppDrawer({
   onTutorials,
   onPuzzles,
   onGameFile,
+  onTablut,
   onSettings,
   onAbout,
 }: {
@@ -44,6 +52,8 @@ export default function AppDrawer({
   onTutorials: () => void;
   onPuzzles: () => void;
   onGameFile: () => void;
+  /** Open the Tablut surface (see components/TablutScreen). */
+  onTablut: () => void;
   onSettings: () => void;
   onAbout: () => void;
 }) {
@@ -93,8 +103,7 @@ export default function AppDrawer({
       >
         <div className="drawer-head">
           <p className="gaelic text-2xl leading-none text-parchment">
-            {toSeanchlo("Brand")}
-            <span className="text-gold">{toSeanchlo("ubh")}</span>
+            <span className="wordmark">{toSeanchlo("Brandubh")}</span>
           </p>
           <p className="drawer-status">{status}</p>
         </div>
@@ -111,6 +120,12 @@ export default function AppDrawer({
 
           <p className="drawer-section">{t.drawerTools}</p>
           {item(t.gameFileTitle, <FileIcon />, onGameFile, "drawer-game-file")}
+
+          {/* Collapsed by default: Brandubh is the app, and these are the others. */}
+          <details className="drawer-details" data-testid="drawer-more-games">
+            <summary className="drawer-section drawer-summary">{t.drawerMoreGames}</summary>
+            {item(t.gameTablut, <GridIcon />, onTablut, "drawer-tablut")}
+          </details>
         </nav>
 
         <div className="drawer-foot">
@@ -193,6 +208,16 @@ function FileIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
       <path d="M9 8l3-3 3 3M12 5v9" />
+    </svg>
+  );
+}
+
+/** A denser grid — the 9x9 board, against BoardIcon's quartered 7x7. */
+function GridIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+      <path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17" />
     </svg>
   );
 }
