@@ -234,4 +234,6 @@ full set lives at [`docs/design/icons.html`](docs/design/icons.html).
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+Proprietary — all rights reserved, © Michael Malone Engineering. See
+[LICENSE](LICENSE). Third-party assets keep their own terms — see
+[NOTICE](NOTICE.md).
