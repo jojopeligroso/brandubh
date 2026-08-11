@@ -83,11 +83,18 @@ export function loadTheme(): ThemeId {
 
 export type PieceKey = "atk" | "def" | "king";
 
-/** The stone colours every theme starts from; mirrors `:root` in index.css. */
+/** The stone colours every theme starts from; mirrors `:root` in index.css.
+ *
+ *  The white silver and red gold are the wordmark's own brand pair — PANTONE
+ *  Cool Gray 1 C and PANTONE 146 C, the two colours the title "Branduḃ" is
+ *  drawn in (see the wordmark note in index.css). Silver defenders and a red
+ *  gold king put the brand on the board itself; the raiders stay raven black,
+ *  because *bran dubh* — "black raven" — is the name of the game, and the
+ *  attacking pieces are the ravens it names. */
 export const DEFAULT_PIECE_COLORS: Record<PieceKey, string> = {
   atk: "#1a1c1e",
-  def: "#f0ece4",
-  king: "#e8b13a",
+  def: "#d9d9d6",
+  king: "#a76d11",
 };
 
 export interface PieceColors {

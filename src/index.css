@@ -56,13 +56,16 @@
   --cell-dark: rgba(130, 170, 255, 0.05);
   --motif-ink: #0d0e18;
 
-  /* Unthemed piece defaults — keep in step with DEFAULT_PIECE_COLORS. */
+  /* Unthemed piece defaults — keep in step with DEFAULT_PIECE_COLORS.
+     Silver defenders and a red gold king are the wordmark's brand pair
+     (--wordmark-silver / --wordmark-gold: PANTONE Cool Gray 1 C and 146 C);
+     the raiders stay raven black — *bran dubh*, "black raven", is the game. */
   --atk: #1a1c1e;
   --atk-ink: #e8e4dc;
-  --def: #f0ece4;
+  --def: #d9d9d6;
   --def-ink: #24272b;
-  --king: #e8b13a;
-  --king-ink: #3a2600;
+  --king: #a76d11;
+  --king-ink: #f4f1e8;
 }
 
 /* ── Themes (Omarchy-inspired) ─────────────────────────────────────────────── */
