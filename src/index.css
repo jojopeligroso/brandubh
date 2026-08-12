@@ -533,13 +533,15 @@ body {
   background:
     radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-gold) 30%, transparent), transparent 62%),
     color-mix(in srgb, var(--color-gold) 12%, var(--cell-dark));
-  /* A clear silver outline marks every restricted square — the throne and all
+  /* A soft silver outline marks every restricted square — the throne and all
      four corners share this class — at a glance, on any board theme. This is
      the wordmark's own silver (--wordmark-silver), not a theme token, so it
-     reads the same regardless of what the two board tones underneath it are. */
+     reads the same regardless of what the two board tones underneath it are.
+     1px wide with a 1px blur and reduced opacity so it reads as a soft edge,
+     not a hard ring competing with the carved motif underneath. */
   box-shadow:
     inset 0 0 0 1px var(--line),
-    inset 0 0 0 2px var(--wordmark-silver);
+    inset 0 0 1px 1px color-mix(in srgb, var(--wordmark-silver) 55%, transparent);
 }
 /* Throne: Celtic cross with interlace knot pattern */
 .cell.special::before {
@@ -628,7 +630,7 @@ body {
   box-shadow:
     inset 0 0 0 1px var(--line),
     inset 0 0 12px 2px color-mix(in srgb, var(--color-gold) 18%, transparent),
-    inset 0 0 0 2px var(--wordmark-silver);
+    inset 0 0 1px 1px color-mix(in srgb, var(--wordmark-silver) 55%, transparent);
 }
 .cell.lastmove:not(.special)::before {
   content: "";
