@@ -533,6 +533,13 @@ body {
   background:
     radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-gold) 30%, transparent), transparent 62%),
     color-mix(in srgb, var(--color-gold) 12%, var(--cell-dark));
+  /* A clear silver outline marks every restricted square — the throne and all
+     four corners share this class — at a glance, on any board theme. This is
+     the wordmark's own silver (--wordmark-silver), not a theme token, so it
+     reads the same regardless of what the two board tones underneath it are. */
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    inset 0 0 0 2px var(--wordmark-silver);
 }
 /* Throne: Celtic cross with interlace knot pattern */
 .cell.special::before {
@@ -610,6 +617,18 @@ body {
   box-shadow:
     inset 0 0 0 1px var(--line),
     inset 0 0 12px 2px color-mix(in srgb, var(--color-gold) 18%, transparent);
+}
+/* Equal specificity to .cell.special's own box-shadow (two classes each) means
+   source order alone would pick whichever rule is declared last — and that's
+   exactly backwards for the case that matters most here: the king's winning
+   move lands ON a corner, so without this the silver outline would vanish at
+   the very moment it's framing the win. Three classes outranks two on
+   specificity, so this combined rule wins regardless of declaration order. */
+.cell.lastmove.special {
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    inset 0 0 12px 2px color-mix(in srgb, var(--color-gold) 18%, transparent),
+    inset 0 0 0 2px var(--wordmark-silver);
 }
 .cell.lastmove:not(.special)::before {
   content: "";
