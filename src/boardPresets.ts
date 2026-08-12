@@ -1,5 +1,5 @@
 // ── First-visit board presets ────────────────────────────────────────────────
-// Three complete looks — board theme, piece colours and all four piece emblems
+// Four complete looks — board theme, piece colours and all four piece emblems
 // at once — offered on the very first visit only, before any other choice (the
 // "board" step of ModeOverlay in App.tsx, ahead of "mode" and therefore ahead
 // of "side"). Picking one applies every field together; nothing here is
@@ -13,7 +13,7 @@ import { DEFAULT_DEFENDER_EMBLEM, type DefenderEmblemId } from "./defenderEmblem
 import { DEFAULT_CORNER_EMBLEM, type CornerEmblemId } from "./cornerEmblems";
 
 export interface BoardPreset {
-  id: "classic" | "everforest-ornate" | "ligreen-knotwork";
+  id: "classic" | "gokstad" | "everforest-ornate" | "ligreen-knotwork";
   /** Shown on the picker card; matches the board theme's own name where borrowed. */
   name: string;
   theme: ThemeId;
@@ -37,6 +37,22 @@ export const BOARD_PRESETS: BoardPreset[] = [
     kingEmblem: DEFAULT_KING_EMBLEM,
     defenderEmblem: DEFAULT_DEFENDER_EMBLEM,
     cornerEmblem: DEFAULT_CORNER_EMBLEM,
+  },
+  {
+    id: "gokstad",
+    name: "Gokstad",
+    // Hardcoded like Everforest below, not a DEFAULT_THEME/DEFAULT_* reference
+    // like Classic above: this card means "the Gokstad timber board and the
+    // wordmark's own red-gold/silver stones", specifically — not "whatever
+    // the app currently leads with". It happens to look identical to Classic
+    // today only because Gokstad *is* the current default; if that default
+    // ever moves on, Classic follows it and this stays put as the named look.
+    theme: "gokstad",
+    pieceColors: { atk: "#a76d11", def: "#d9d9d6", king: "#d9d9d6" },
+    attackerEmblem: "crow",
+    kingEmblem: "crown-triquetra",
+    defenderEmblem: "shield-knot",
+    cornerEmblem: "tree-oak",
   },
   {
     id: "everforest-ornate",
