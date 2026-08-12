@@ -1,19 +1,19 @@
 // ── First-visit board presets ────────────────────────────────────────────────
-// Four complete looks — board theme, piece colours and all four piece emblems
+// Three complete looks — board theme, piece colours and all four piece emblems
 // at once — offered on the very first visit only, before any other choice (the
 // "board" step of ModeOverlay in App.tsx, ahead of "mode" and therefore ahead
 // of "side"). Picking one applies every field together; nothing here is
 // partial. The player can still change any individual piece afterwards from
 // Settings — this is a starting point, not a lock-in.
 
-import { DEFAULT_THEME, EMPTY_PIECE_COLORS, type PieceColors, type ThemeId } from "./theme";
-import { DEFAULT_ATTACKER_EMBLEM, type AttackerEmblemId } from "./emblems";
-import { DEFAULT_KING_EMBLEM, type KingEmblemId } from "./kingEmblems";
+import { EMPTY_PIECE_COLORS, type PieceColors, type ThemeId } from "./theme";
+import { type AttackerEmblemId } from "./emblems";
+import { type KingEmblemId } from "./kingEmblems";
 import { DEFAULT_DEFENDER_EMBLEM, type DefenderEmblemId } from "./defenderEmblems";
-import { DEFAULT_CORNER_EMBLEM, type CornerEmblemId } from "./cornerEmblems";
+import { type CornerEmblemId } from "./cornerEmblems";
 
 export interface BoardPreset {
-  id: "classic" | "gokstad" | "everforest-ornate" | "ligreen-knotwork";
+  id: "gokstad" | "everforest-ornate" | "ligreen-knotwork";
   /** Shown on the picker card; matches the board theme's own name where borrowed. */
   name: string;
   theme: ThemeId;
@@ -26,27 +26,15 @@ export interface BoardPreset {
 
 export const BOARD_PRESETS: BoardPreset[] = [
   {
-    id: "classic",
-    name: "Classic",
-    // A reference, not a copy: whatever DEFAULT_THEME is, "current default"
-    // means this preset follows it — it should not still say Everforest now
-    // that the app-wide default has moved on to Gokstad.
-    theme: DEFAULT_THEME,
-    pieceColors: EMPTY_PIECE_COLORS,
-    attackerEmblem: DEFAULT_ATTACKER_EMBLEM,
-    kingEmblem: DEFAULT_KING_EMBLEM,
-    defenderEmblem: DEFAULT_DEFENDER_EMBLEM,
-    cornerEmblem: DEFAULT_CORNER_EMBLEM,
-  },
-  {
     id: "gokstad",
     name: "Gokstad",
-    // Hardcoded like Everforest below, not a DEFAULT_THEME/DEFAULT_* reference
-    // like Classic above: this card means "the Gokstad timber board and the
-    // wordmark's own red-gold/silver stones", specifically — not "whatever
-    // the app currently leads with". It happens to look identical to Classic
-    // today only because Gokstad *is* the current default; if that default
-    // ever moves on, Classic follows it and this stays put as the named look.
+    // Hardcoded, not a DEFAULT_THEME/DEFAULT_* reference: this card means "the
+    // Gokstad timber board and the wordmark's own red-gold/silver stones",
+    // specifically — not "whatever the app currently leads with". It used to
+    // sit alongside a "Classic" card that *was* that live reference, but
+    // Classic was removed once it went pixel-identical to this one (Gokstad
+    // is the current app-wide default); this card stays pinned to the named
+    // look even if that default moves on later.
     theme: "gokstad",
     pieceColors: { atk: "#a76d11", def: "#d9d9d6", king: "#d9d9d6" },
     attackerEmblem: "crow",
