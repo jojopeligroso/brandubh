@@ -197,6 +197,7 @@ import {
 } from "./game/annotate";
 import { stateFromBoard } from "./game/position";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
+import { useAiReveal } from "./useAiReveal";
 import { bounce } from "./uiTiming";
 
 // ── Match-setup persistence ───────────────────────────────────────────────────
@@ -671,6 +672,15 @@ export default function App() {
   const [showVictory, setShowVictory] = useState(false);
   const tipStatus = states[tip].status;
   const prevTipStatusRef = useRef<GameStatus>(tipStatus);
+  /**
+   * How long the move just committed is still being *shown* for — the engine's
+   * travelling stone (see useAiReveal), zero for a human move, which is drawn
+   * where it was played. `commitMove` writes it on every move, so it always
+   * describes the last one. The curtain below waits it out: a game that ends on
+   * the engine's move ends when the stone lands, and dropping the curtain over
+   * a stone still in the air hides the move that won.
+   */
+  const revealDelay = useRef(0);
   useEffect(() => {
     const prev = prevTipStatusRef.current;
     prevTipStatusRef.current = tipStatus;
@@ -678,8 +688,15 @@ export default function App() {
     // curtain. (The ref is still advanced, so leaving analysis, which restores
     // it from the live timeline, cannot raise one either.)
     if (analysis) return;
-    if (prev === "playing" && isGameOver(tipStatus)) setShowVictory(true);
-    else if (!isGameOver(tipStatus)) setShowVictory(false);
+    if (prev === "playing" && isGameOver(tipStatus)) {
+      if (!revealDelay.current) {
+        setShowVictory(true);
+        return;
+      }
+      const id = window.setTimeout(() => setShowVictory(true), revealDelay.current);
+      return () => window.clearTimeout(id);
+    }
+    if (!isGameOver(tipStatus)) setShowVictory(false);
   }, [tipStatus, analysis]);
 
   const lastMove: Move | null = game.history.length
@@ -706,6 +723,25 @@ export default function App() {
 
   const aiTimer = useRef<number | null>(null);
   const { requestMove, cancel: cancelAi } = useAiWorker();
+  const reducedMotion = usePrefersReducedMotion();
+  // How the engine's move is shown: the stone travelling, and the square it
+  // left held lit behind it. Decoration over a committed position — see
+  // src/useAiReveal.ts.
+  const {
+    slide: aiSlide,
+    origin: aiOrigin,
+    reveal: revealAiMove,
+    endSlide: endAiSlide,
+    clear: clearAiReveal,
+  } = useAiReveal(reducedMotion);
+  // Everything the previous move left drawn on the board. Starting, restoring or
+  // rewinding a position drops all of it together: a capture flash or a lit
+  // origin square that outlives the position it described is a lie about the
+  // one that replaced it.
+  const clearMoveDecoration = useCallback(() => {
+    setFadingCaptures([]);
+    clearAiReveal();
+  }, [clearAiReveal]);
   // Guards the set recorder so a finished game is counted exactly once, even as
   // the cursor is moved back and forth over the terminal position.
   const recorded = useRef(false);
@@ -717,11 +753,20 @@ export default function App() {
 
   // ── Applying a move (shared by human + AI) ──────────────────────────────────
   const commitMove = useCallback(
-    (move: Move) => {
+    /**
+     * `flashDelayMs` holds the capture flash back until the engine's stone has
+     * finished travelling (see useAiReveal). The capture belongs to the arrival,
+     * so flashing it as the stone sets off would show the pincer closing before
+     * the piece that closes it has got there. Zero for a human move, which is
+     * drawn the instant it is played.
+     */
+    (move: Move, flashDelayMs = 0) => {
+      revealDelay.current = flashDelayMs;
       if (move.captures && move.captures.length) {
         const caps = move.captures;
-        setFadingCaptures(caps);
-        window.setTimeout(() => setFadingCaptures([]), 340);
+        if (flashDelayMs) window.setTimeout(() => setFadingCaptures(caps), flashDelayMs);
+        else setFadingCaptures(caps);
+        window.setTimeout(() => setFadingCaptures([]), flashDelayMs + 340);
       }
       // In analysis a move extends the *tree* (Session 7c). Playing from a
       // position that already has a continuation adds a sibling rather than
@@ -798,7 +843,14 @@ export default function App() {
         if (cancelled) return;
         setThinking(false);
         setLastAiInfo({ depth: res.depth, nodes: res.nodes, elapsedMs: res.elapsedMs, difficulty });
-        if (res.move) commitMove(res.move);
+        if (!res.move) return;
+        // Announced against the position it is played *from* — the stone is
+        // still standing on its origin square there, and so are anything it
+        // takes. The move is then committed immediately, as it always was; the
+        // reveal only decides what is drawn over the result, and hands back how
+        // long the flight lasts so the capture flash can wait for the landing.
+        const travelMs = revealAiMove(res.move, game.board);
+        commitMove(res.move, travelMs);
       }, wait);
     });
     return () => {
@@ -813,6 +865,7 @@ export default function App() {
     rules,
     gameOver,
     commitMove,
+    revealAiMove,
     clock.paused,
     analysis,
     requestMove,
@@ -1042,7 +1095,7 @@ export default function App() {
     setZenEnabled(false);
     setThinking(false);
     setSelected(null);
-    setFadingCaptures([]);
+    clearMoveDecoration();
     setShowTakeback(false);
   }, [liveStates, liveCursor, cancelAi, setZenEnabled]);
 
@@ -1054,7 +1107,7 @@ export default function App() {
     setPastedRoot(false);
     setThinking(false);
     setSelected(null);
-    setFadingCaptures([]);
+    clearMoveDecoration();
     // The live game was never touched, so it needs no restoring — but the board
     // is about to jump from a variation back to it, and neither the clock nor
     // the victory curtain may read that as something that just happened (the
@@ -1087,7 +1140,7 @@ export default function App() {
       setAnalysis(true);
       setThinking(false);
       setSelected(null);
-      setFadingCaptures([]);
+      clearMoveDecoration();
       setShowTakeback(false);
       setShowVictory(false);
     },
@@ -1146,7 +1199,7 @@ export default function App() {
       setStates([position]);
       setCursor(0);
       setSelected(null);
-      setFadingCaptures([]);
+      clearMoveDecoration();
       setThinking(false);
       setShowTakeback(false);
       setClockLine(initialClockLine(timeControl));
@@ -1280,7 +1333,7 @@ export default function App() {
   // board just long enough to see what it does and the ✗ it earned, then it is
   // taken back automatically — wiped, never kept. The same rhythm the bank
   // puzzle player has always had, so a learner meets one verdict everywhere.
-  const reducedMotion = usePrefersReducedMotion();
+  // (`reducedMotion` is read once, up with the engine's reveal.)
   useEffect(() => {
     if (attempt?.stage !== "wrong") return;
     const timer = window.setTimeout(tryAgain, bounce(reducedMotion));
@@ -1564,7 +1617,7 @@ export default function App() {
     setStates([initialState()]);
     setCursor(0);
     setSelected(null);
-    setFadingCaptures([]);
+    clearMoveDecoration();
     setThinking(false);
     setShowTakeback(false);
     setClockLine(initialClockLine(timeControl));
@@ -1620,7 +1673,7 @@ export default function App() {
       setStates(imported.states);
       setCursor(tipIndex);
       setSelected(null);
-      setFadingCaptures([]);
+      clearMoveDecoration();
       setThinking(false);
       setShowTakeback(false);
       setClockLine(initialClockLine(timeControl));
@@ -1683,7 +1736,7 @@ export default function App() {
     setStates(r.states);
     setCursor(r.cursor);
     setSelected(null);
-    setFadingCaptures([]);
+    clearMoveDecoration();
     setThinking(false);
     if (
       r.clock &&
@@ -1849,7 +1902,7 @@ export default function App() {
       const sideToMove = states[cursor].turn;
       rewindTo(cursor);
       setSelected(null);
-      setFadingCaptures([]);
+      clearMoveDecoration();
       setThinking(false);
       if (vsComputer) {
         // The human keeps the side to move; the computer takes the other side.
@@ -1879,7 +1932,7 @@ export default function App() {
     rewindTo(tip - 1);
     setCursor(tip - 1);
     setSelected(null);
-    setFadingCaptures([]);
+    clearMoveDecoration();
     setThinking(false);
   }, [tip, rewindTo, analysis]);
 
@@ -2191,6 +2244,9 @@ export default function App() {
           }
           alsoBest={attempt ? [] : showEval ? altBestMoves : []}
             verdict={attemptVerdict}
+            aiSlide={aiSlide}
+            aiOrigin={aiOrigin}
+            onAiSlideEnd={endAiSlide}
             markBadge={
               // Lichess's on-board judgement glyph: ?!/?/?? on the square the
               // marked move landed on. Never while a guess is outstanding —

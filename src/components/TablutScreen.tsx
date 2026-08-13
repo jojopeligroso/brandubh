@@ -67,6 +67,8 @@ import type { DefenderEmblemDef } from "../defenderEmblems";
 import type { EmblemDef } from "../emblems";
 import type { KingEmblemDef } from "../kingEmblems";
 import { useDialogFocus } from "../useDialogFocus";
+import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
+import { useAiReveal } from "../useAiReveal";
 
 /**
  * The Tablut surface — a full-screen place, reached from the drawer's More games
@@ -193,6 +195,18 @@ export default function TablutScreen({
   );
 
   const { requestMove, cancel } = useAiWorker();
+  const reducedMotion = usePrefersReducedMotion();
+  // How the engine's move is shown — the same reveal the 7×7 board uses; it is
+  // presentation over a committed position, so it is shared rather than forked.
+  const {
+    slide: aiSlide,
+    origin: aiOrigin,
+    reveal: revealAiMove,
+    endSlide: endAiSlide,
+    clear: clearAiReveal,
+  } = useAiReveal(reducedMotion);
+  /** How long the move just pushed is still being shown for. See `push`. */
+  const revealDelay = useRef(0);
 
   // ── Clock (the shell's own hook and book-keeping, reused whole) ─────────────
   // The selection is seeded from the restored game's control, so a timed game
@@ -311,6 +325,7 @@ export default function TablutScreen({
       setStates([initialState(rulesFor(setup.variantId, setup.customRules))]);
       setCursor(0);
       setSelected(null);
+      clearAiReveal();
       setThinking(false);
       setShowVictory(false);
       setShowSetup(false);
@@ -331,15 +346,23 @@ export default function TablutScreen({
       askedFor.current = "";
       wasOver.current = false;
     },
-    [cancel, clock],
+    [cancel, clearAiReveal, clock],
   );
 
   // Live play only ever commits from the tip, so this appends and follows.
-  const push = useCallback((move: Move, from: GameState, rs: TablutRuleSet) => {
-    setStates((prev) => [...prev, applyMove(from, move, rs)]);
-    setCursor((c) => c + 1);
-    setSelected(null);
-  }, []);
+  // `revealMs` is how long the move is still being *shown* for afterwards — the
+  // engine's travelling stone (see useAiReveal), zero for a human move. The
+  // curtain below waits it out so a game that ends on the engine's move is not
+  // curtained over a stone still in the air.
+  const push = useCallback(
+    (move: Move, from: GameState, rs: TablutRuleSet, revealMs = 0) => {
+      revealDelay.current = revealMs;
+      setStates((prev) => [...prev, applyMove(from, move, rs)]);
+      setCursor((c) => c + 1);
+      setSelected(null);
+    },
+    [],
+  );
 
   // ── Autosave ────────────────────────────────────────────────────────────────
   // Written on every move and cursor step, exactly as the Brandubh shell does,
@@ -418,19 +441,43 @@ export default function TablutScreen({
     requestMove(tipState, difficulty, rules).then((info) => {
       if (!live) return;
       setThinking(false);
-      if (info.move) push(info.move, tipState, rules);
+      if (!info.move) return;
+      // Announced against the position it is played from — the stone, and
+      // anything it takes, are still standing there. The move itself commits
+      // immediately, exactly as before.
+      const travelMs = revealAiMove(info.move, tipState.board);
+      push(info.move, tipState, rules, travelMs);
     });
     return () => {
       live = false;
     };
-  }, [tipState, states.length, atTip, aiSide, gameOver, difficulty, rules, requestMove, push, showSetup]);
+  }, [
+    tipState,
+    states.length,
+    atTip,
+    aiSide,
+    gameOver,
+    difficulty,
+    rules,
+    requestMove,
+    revealAiMove,
+    push,
+    showSetup,
+  ]);
 
   // The victory curtain fires once, on the transition into a finished game.
   // (`wasOver` is seeded from the restore above, so a game that was already
   // finished when the screen mounted stays quiet.)
   useEffect(() => {
-    if (gameOver && !wasOver.current) setShowVictory(true);
+    const rising = gameOver && !wasOver.current;
     wasOver.current = gameOver;
+    if (!rising) return;
+    if (!revealDelay.current) {
+      setShowVictory(true);
+      return;
+    }
+    const id = window.setTimeout(() => setShowVictory(true), revealDelay.current);
+    return () => window.clearTimeout(id);
   }, [gameOver]);
 
   // Escape unwinds one layer at a time — curtain, menu, confirms, then sheet,
@@ -490,9 +537,11 @@ export default function TablutScreen({
         clock.resumeAt(banksAt(clockLine, ply, timeControl), states[ply].turn, ply > 0);
       }
       setSelected(null);
+      // The engine's reveal describes a position this rewind has just replaced.
+      clearAiReveal();
       askedFor.current = "";
     },
-    [cancel, clock, clockLine, states, timeControl],
+    [cancel, clearAiReveal, clock, clockLine, states, timeControl],
   );
 
   // Step back past the engine's reply as well as your own move, so a takeback
@@ -667,6 +716,9 @@ export default function TablutScreen({
             selected={selected}
             lastMove={lastMove}
             fadingCaptures={[]}
+            aiSlide={aiSlide}
+            aiOrigin={aiOrigin}
+            onAiSlideEnd={endAiSlide}
             interactive={interactive}
             controllable={controllable}
             attackerEmblem={attackerEmblem}

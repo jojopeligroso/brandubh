@@ -2270,6 +2270,121 @@ button.settings-row:hover {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
 }
 
+/* ── The engine's move, shown ─────────────────────────────────────────────── */
+/* A human knows what they just played; the engine's move otherwise simply
+   *appears*, one stone somewhere else than it was a frame ago. Three marks
+   answer "what did it do?": the stone travels instead of teleporting, the
+   square it left stays lit behind it, and anything it takes stays standing
+   until it arrives. The move is committed before any of this is drawn — it is
+   decoration over a finished position, never a step in play. Both durations
+   come from src/useAiReveal.ts via --ai-slide / --ai-origin, set on .board, so
+   the CSS and the JS timers that expire this state cannot drift apart. */
+
+/* The travelling stone. Same containing-block reasoning as .best-move-arrow
+   above: abspos against .board's padding box, hence the matching inset — and
+   `--board-pad` rather than a literal for the reason that variable exists at
+   all, which is that Ballinderry widens the margin into an ornament band. A
+   hardcoded 10px here would put the flight up to 20px off its own grid on that
+   board alone, and nowhere else. */
+.ai-mover-layer {
+  position: absolute;
+  inset: var(--board-pad); /* = .board padding, so it covers exactly the tracks */
+  z-index: 4; /* above the stones (2) and the suggestion arrow (3) */
+  pointer-events: none;
+}
+.ai-mover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Exactly one cell, translated by whole cells — the .demo-mover pattern the
+     how-to-play vignettes use, on the real board. */
+  width: calc(100% / var(--n));
+  height: calc(100% / var(--n));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ai-slide var(--ai-slide, 520ms) cubic-bezier(0.4, 0.03, 0.2, 1) forwards;
+}
+@keyframes ai-slide {
+  from {
+    transform: translate(calc(var(--fc) * 100%), calc(var(--fr) * 100%));
+  }
+  to {
+    transform: translate(calc(var(--tc) * 100%), calc(var(--tr) * 100%));
+  }
+}
+/* The overlay stone is a copy in transit, not an arrival: no place-pop, and no
+   turn halo. It lifts off the board and sets back down, which is what makes the
+   travel read as a move rather than as a slid decal. */
+.ai-mover .piece {
+  animation: ai-lift var(--ai-slide, 520ms) ease-in-out;
+}
+@keyframes ai-lift {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+  45% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 6px 7px rgba(0, 0, 0, 0.55));
+  }
+}
+/* The real stone on the destination, waiting under the overlay. Hidden rather
+   than unmounted, so its own place-pop runs and finishes out of sight and the
+   overlay lifts onto a stone already standing there. */
+.piece.in-flight {
+  visibility: hidden;
+}
+/* A stone this move has taken, still standing while the stone that takes it is
+   on its way. It did not arrive, so it does not pop. */
+.piece.is-ghost {
+  animation: none;
+}
+
+/* The square the stone left. A ring the size of the stone that stood there, not
+   another tinted square: .lastmove already tints both ends of every move, and a
+   fourth shade of gold over the top would say nothing. */
+.ai-origin {
+  position: absolute;
+  width: 74%; /* = .piece, so the ring stands exactly where the stone did */
+  height: 74%;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--color-gold) 82%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 13%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-gold) 30%, transparent);
+  z-index: 1; /* over the square's carved motifs, under the stones */
+  pointer-events: none;
+  animation: ai-origin var(--ai-origin, 1400ms) ease-out forwards;
+}
+@keyframes ai-origin {
+  0% {
+    opacity: 0;
+    transform: scale(0.62);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  62% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No flight is requested at all under reduced motion (see useAiReveal), so
+     the lit origin square carries the whole explanation — and it holds still
+     rather than breathing in and out. */
+  .ai-origin {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .evalbar-fill,
   .evalbar.is-pending .evalbar-track,
