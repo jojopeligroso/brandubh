@@ -101,6 +101,13 @@ page.on("pageerror", (e) => pageErrors.push(e.message));
 await page.addInitScript(() => {
   try {
     localStorage.setItem("brandubh.theme", "everforest");
+    // Mark the first-visit board-preset step (src/boardPresets.ts) seen. A bare
+    // Chromium context has no localStorage at all, which is exactly what that
+    // step is gated on, so without this it opens over everything and swallows
+    // the click below meant for the mode step — and this whole check times out
+    // on its first `waitFor` without ever reaching an assertion. screenshot.mjs
+    // carries the same line for the same reason; keep the two in step.
+    localStorage.setItem("brandubh.boardPresetSeen", "1");
   } catch {
     /* localStorage unavailable */
   }
@@ -229,6 +236,62 @@ if (surfaceSurvived) {
     "the back button clears the surface flag",
   );
 }
+
+// ── Ballinderry is a Brandubh board and must not follow the player here ──────
+// Ballinderry draws 49 drilled holes on a 7×7 grid, traced back to a real
+// object (docs/ballinderry-board.md); painted on the 9×9 it would draw an
+// 81-hole board that never existed. resolveTheme in src/theme.ts falls it back
+// to Gokstad on this surface, and theme.test.ts pins that function — but only
+// this check can see whether the *document* actually ends up wearing it, which
+// is the half that shipped wrong before (see the eval-bar note in CLAUDE.md).
+const paintedTheme = () => page.evaluate(() => document.documentElement.dataset.theme);
+const storedTheme = () => page.evaluate(() => localStorage.getItem("brandubh.theme"));
+
+// Registered as a second init script rather than written with `evaluate`: the
+// one at the top of this file runs on *every* navigation and would put the
+// theme back to everforest on the next reload. Init scripts run in order, so
+// this one lands after it and wins.
+await page.addInitScript(() => {
+  try {
+    localStorage.setItem("brandubh.theme", "ballinderry");
+  } catch {
+    /* localStorage unavailable */
+  }
+});
+await page.reload({ waitUntil: "networkidle" });
+// Any reload landing on Brandubh with a save offers to resume it first.
+await page.getByRole("button", { name: "Resume game" }).click();
+await bboard.waitFor();
+check((await paintedTheme()) === "ballinderry", "Ballinderry paints on the Brandubh board");
+
+await page.getByTestId("menu-toggle").click();
+await page.waitForSelector('[data-testid="app-drawer"]');
+await page.getByTestId("drawer-more-games").locator("summary").click();
+await page.getByTestId("drawer-tablut").click();
+await tb.waitFor();
+const onSurface = await paintedTheme();
+check(onSurface === "gokstad", "Ballinderry falls back to Gokstad on Tablut", `saw ${onSurface}`);
+// The fallback is a paint, not a preference: the player still chose Ballinderry.
+check(
+  (await storedTheme()) === "ballinderry",
+  "the stored theme choice is left alone by the fallback",
+);
+
+// A reload mid-Tablut is the case the inline pre-paint script in index.html
+// has to handle by itself, before any module runs.
+await page.reload({ waitUntil: "networkidle" });
+await tb.waitFor();
+const afterReload = await paintedTheme();
+check(afterReload === "gokstad", "the fallback survives a reload onto Tablut", `saw ${afterReload}`);
+
+await page.getByRole("button", { name: "Back", exact: true }).click();
+await bboard.waitFor();
+const backOnBrandubh = await paintedTheme();
+check(
+  backOnBrandubh === "ballinderry",
+  "Ballinderry comes back on leaving Tablut",
+  `saw ${backOnBrandubh}`,
+);
 
 check(pageErrors.length === 0, "no uncaught page errors", pageErrors.join(" | "));
 

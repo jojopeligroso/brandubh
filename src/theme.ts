@@ -4,6 +4,7 @@
 
 export type ThemeId =
   | "gokstad"
+  | "ballinderry"
   | "everforest"
   | "carved-wood"
   | "rose-pine"
@@ -35,6 +36,11 @@ export const THEMES: ThemeMeta[] = [
   // Dark bog oak with a pale-oak incised grid — the two colours the Gokstad
   // board's own timber is attested in (see the theme note in index.css).
   { id: "gokstad", name: "Gokstad", chips: ["#d9c398", "#241a10"] },
+  // The one theme whose swatch is not two square tones, because its board has
+  // none: Ballinderry is a board of drilled holes (see the theme note in
+  // index.css), so the honest pair is the yew and the hole cut into it —
+  // `--board-c2` and `--hole-ink`, not `--cell-dark`, which this theme empties.
+  { id: "ballinderry", name: "Ballinderry", chips: ["#c7a173", "#4b2f14"] },
   { id: "everforest", name: "Everforest", chips: ["#475258", "#3e484d"] },
   { id: "carved-wood", name: "Carved Wood", chips: ["#b6864e", "#a77a46"] },
   { id: "rose-pine", name: "Rosé Pine", chips: ["#232135", "#2c2a3f"] },
@@ -160,8 +166,38 @@ export function applyPieceColors(colors: PieceColors): void {
   }
 }
 
-export function applyTheme(theme: ThemeId): void {
-  document.documentElement.setAttribute("data-theme", theme);
+// ── Themes that belong to one board ──────────────────────────────────────────
+// Ballinderry is not a palette, it is a *board*: 49 holes in a 7×7 grid, drawn
+// from the object the theme is named for (NMI 1932:6583, see
+// docs/ballinderry-board.md). Tablut is 9×9 and was never a peg board, so
+// carrying this theme onto it would render an 81-hole board that never existed
+// and quietly claim it did. The chosen theme is left alone — this is about what
+// gets *painted* on a surface it does not describe, not about the player's
+// choice, which persists untouched and is what the picker keeps showing.
+
+const BOARD_SPECIFIC_THEMES = new Set<ThemeId>(["ballinderry"]);
+
+/** What a board-specific theme falls back to away from its own board. */
+export const OFF_BOARD_FALLBACK: ThemeId = "gokstad";
+
+/**
+ * The theme to paint, given the player's choice and which board is on screen.
+ * Pure, so the fallback is testable without a document — the reason it is a
+ * function of its own rather than a branch inside `applyTheme`.
+ */
+export function resolveTheme(theme: ThemeId, onTablut: boolean): ThemeId {
+  return onTablut && BOARD_SPECIFIC_THEMES.has(theme) ? OFF_BOARD_FALLBACK : theme;
+}
+
+/**
+ * Paint `theme` and remember it.
+ *
+ * `onTablut` changes what is painted and never what is stored: a player who
+ * chose Ballinderry still has Ballinderry chosen while they are looking at the
+ * Tablut board, and gets it back on the way out.
+ */
+export function applyTheme(theme: ThemeId, onTablut = false): void {
+  document.documentElement.setAttribute("data-theme", resolveTheme(theme, onTablut));
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {

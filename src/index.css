@@ -106,6 +106,49 @@
   --motif-ink: #140d07;
 }
 
+/* Ballinderry — the 10th-century yew gaming board from Ballinderry crannog,
+   Co. Westmeath (NMI 1932:6583), the closest thing there is to a physical
+   ancestor for this app: 49 holes in a 7×7 grid, the centre and corner holes
+   marked off, the king driven to a corner.
+
+   It is the one theme whose board is *not* a chequer, because the object is
+   not one — the pieces are pegs and the playing positions are drilled holes.
+   The `--cell-dark: transparent` here is what switches the chequer off; the
+   holes themselves are drawn in the Ballinderry surface section further down.
+
+   The timber tones are the light end of yew heartwood, which is where a board
+   in use would sit: this is the only theme with a light board *and* a warm
+   one, so it needs its own three tones rather than borrowing Gokstad's bog
+   oak. The app chrome around it stays dark and warm — the wordmark holds its
+   silver and red gold on every theme and needs a dark ground to do it (see the
+   wordmark note below). --hole-ink / --hole-lip are the bore and the lit far
+   wall of a drilled hole and are used nowhere else. */
+[data-theme="ballinderry"] {
+  --color-night: #17100a;
+  --color-night-2: #241a11;
+  --color-parchment: #ecdcc0;
+  --color-parchment-dim: #ab967a;
+  --color-wood: #4f3b24;
+  --color-wood-dark: #2e2216;
+  --color-gold: #a76d11;
+  --color-blood: #a8452f;
+  --color-moss: #6b7d4a;
+  --on-accent: #17100a;
+
+  --app-bg-radial: #2f2114;
+  --app-bg-1: #1a130c;
+  --app-bg-2: #110c07;
+
+  --board-c1: #d3b285;
+  --board-c2: #c7a173;
+  --board-c3: #b58956;
+  --cell-dark: transparent;
+  --motif-ink: #5b3a1e;
+
+  --hole-ink: #4b2f14;
+  --hole-lip: #e2c89e;
+}
+
 /* Catppuccin (Mocha) — soft pastel lavender on dark. */
 [data-theme="catppuccin"] {
   --color-night: #161620;
@@ -461,13 +504,20 @@ body {
      .demo-grid's --cols/--rows below — the board is square either way, so one
      variable does for both axes. */
   --n: 7;
+  /* The margin between the board's edge and the tracks. A variable rather than
+     a literal because `.best-move-arrow` has to match it exactly (see its rule
+     near the bottom of this file) and because the Ballinderry theme widens it
+     into an ornament band. It stays equal on all four sides: the board is
+     `aspect-ratio: 1/1` and `box-sizing: border-box`, so uneven padding would
+     make the *tracks* non-square and the round pieces would render as ovals. */
+  --board-pad: 10px;
   display: grid;
   grid-template-columns: repeat(var(--n), 1fr);
   grid-template-rows: repeat(var(--n), 1fr);
   aspect-ratio: 1 / 1;
   width: 100%;
   border-radius: 14px;
-  padding: 10px;
+  padding: var(--board-pad);
   background:
     /* fine diagonal hatching (surface grain) */
     repeating-linear-gradient(
@@ -638,6 +688,133 @@ body {
   inset: 0;
   background: color-mix(in srgb, var(--color-gold) 14%, transparent);
   pointer-events: none;
+}
+
+/* ── Ballinderry: a board of holes, not squares ───────────────────────────────
+   The one theme that changes the board's *construction* and not just its
+   colours, because the object it is named for is built differently: the
+   Ballinderry board (NMI 1932:6583) is a plank of yew with 49 holes drilled in
+   a 7×7 grid for pegged pieces. There is no chequer on it and no incised grid
+   between the holes, so this theme has neither.
+
+   Switching both off costs two tokens and no new selectors, which is the point
+   of doing it this way: `--cell-dark: transparent` in the theme block above
+   empties the chequer, and `--line: transparent` here empties the 1px grid
+   line that `.cell` draws. Every state on top of that — .selected, .lastmove,
+   .special's silver outline, the corner emblems, the legal-move dots — keeps
+   its own rule untouched and goes on working. Nothing above this comment is
+   overridden and nothing here is scoped to a cell state, so a new state added
+   later inherits the right behaviour for free.
+
+   The holes belong to the board, not to the cells: they are drilled in the
+   timber, and a cell is only the click target standing over one. So they are
+   painted once, as a tile on the board's own surface, which also keeps them
+   out of the way of every `.cell` background rule there is. */
+[data-theme="ballinderry"] .board {
+  --line: transparent;
+  /* Wide enough for the ornament panels below. Proportional so the band keeps
+     its share of the board at any size, with a floor that keeps it drawable on
+     a phone and a ceiling that stops it eating the tracks on a big screen. */
+  --board-pad: clamp(15px, 4.4%, 30px);
+  /* The shared board draws three concentric inlay channels 2/5/7px in from the
+     edge — a gilded rim for a dark board with nothing else happening at its
+     margin. Here the margin *is* the ornament, and those channels sit straight
+     on top of the panels: the ring-chain loses its outer third to them. So this
+     theme keeps the outer rim and the drop shadow, which read as the edge of a
+     thick plank, and trades the inlay for a single incised channel at the very
+     edge — a line the carved panels can sit inside rather than under. */
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--motif-ink) 34%, transparent),
+    inset 0 2px 24px color-mix(in srgb, var(--motif-ink) 20%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--board-c3) 60%, #000 40%),
+    0 0 0 8px color-mix(in srgb, #000 70%, transparent),
+    0 20px 45px -20px rgba(0, 0, 0, 0.9),
+    0 3px 8px rgba(0, 0, 0, 0.4);
+}
+[data-theme="ballinderry"] .board::before,
+[data-theme="ballinderry"] .demo-grid::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  /* One drilled hole per cell. The bore sits high and the lit far wall of the
+     hole shows below it, so the light reads as coming from above — same
+     direction as the board's own inset highlight. Drawn as a first child, so
+     the cells and everything in them paint over it in DOM order. */
+  background-image:
+    radial-gradient(circle at 50% 45%, var(--hole-ink) 0 20%, transparent 21.5%),
+    radial-gradient(circle at 50% 56%, var(--hole-lip) 0 20%, transparent 21.5%);
+}
+/* An abspos child of a grid container is laid out against the container's
+   *padding* box, so this inset is what puts the tile grid over the tracks
+   exactly — the same reason `.best-move-arrow` insets by the same variable. */
+[data-theme="ballinderry"] .board::before {
+  inset: var(--board-pad);
+  background-size: calc(100% / var(--n)) calc(100% / var(--n));
+}
+/* The Learn screens' little boards are the same board, so they get the same
+   holes — without this they would be blank tan, having lost the chequer that
+   was the only thing marking their squares. They have no padding and their own
+   two axes. */
+[data-theme="ballinderry"] .demo-grid::before {
+  inset: 0;
+  background-size: calc(100% / var(--cols)) calc(100% / var(--rows));
+}
+
+/* The carved frame. Four panels of the object's own ornament, laid into the
+   margin the widened `--board-pad` opens up: the two long edges carry plain
+   plait, and two diagonally opposite corners carry Borre ring-chain, which is
+   how the NMI describes the eight panels it survives with. The other four are
+   attested as interlace but not described, so they are left as plain timber
+   rather than invented — see docs/ballinderry-board.md, which also records
+   that these are reconstructions from published descriptions and NOT traces of
+   the object, and what to replace when a trace becomes possible.
+
+   Masks rather than images: the panels are alpha, the ink comes from the
+   theme's own `--motif-ink`, so the ornament cannot drift away from the rest
+   of the carving. Each SVG is small enough that the build inlines it.
+
+   `inset: 0` here is the padding box (the note above applies), which is
+   exactly the frame plus the tracks — so 0% and 100% land on the frame's
+   outer edges. */
+[data-theme="ballinderry"] .board::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--motif-ink);
+  opacity: 0.66;
+  /* A one-pixel pale offset under the incision — the far wall of the cut. */
+  filter: drop-shadow(0 1px 0 color-mix(in srgb, #fff 28%, transparent));
+  -webkit-mask-image:
+    url("./ballinderry/plait-6.svg"), url("./ballinderry/plait-5.svg"),
+    url("./ballinderry/ring-chain-v.svg"), url("./ballinderry/ring-chain-v.svg");
+  mask-image:
+    url("./ballinderry/plait-6.svg"), url("./ballinderry/plait-5.svg"),
+    url("./ballinderry/ring-chain-v.svg"), url("./ballinderry/ring-chain-v.svg");
+  /* Tile aspects are 2:1 for the plaits and 1:2 for the two-unit ring-chain,
+     held here so neither pattern is stretched at any board size. */
+  -webkit-mask-size:
+    calc(var(--board-pad) * 2) var(--board-pad),
+    calc(var(--board-pad) * 2) var(--board-pad),
+    var(--board-pad) calc(var(--board-pad) * 3),
+    var(--board-pad) calc(var(--board-pad) * 3);
+  mask-size:
+    calc(var(--board-pad) * 2) var(--board-pad),
+    calc(var(--board-pad) * 2) var(--board-pad),
+    var(--board-pad) calc(var(--board-pad) * 3),
+    var(--board-pad) calc(var(--board-pad) * 3);
+  /* The ring-chain blocks start one band in from the top and bottom edges, so
+     they sit in the side bands under and over the plaits rather than fighting
+     them for the corner: a repeating layer cannot be stopped short of the
+     corner, and two inks over one another is a smudge, not interlace. */
+  -webkit-mask-position:
+    0 0, 0 100%, left 0 top var(--board-pad), right 0 bottom var(--board-pad);
+  mask-position:
+    0 0, 0 100%, left 0 top var(--board-pad), right 0 bottom var(--board-pad);
+  -webkit-mask-repeat: repeat-x, repeat-x, no-repeat, no-repeat;
+  mask-repeat: repeat-x, repeat-x, no-repeat, no-repeat;
 }
 
 /* chessboard-style coordinates: files a–g along the bottom, ranks 1–7 up the left */
@@ -2081,7 +2258,7 @@ button.settings-row:hover {
 }
 .best-move-arrow {
   position: absolute;
-  inset: 10px; /* = .board padding, so the overlay covers exactly the tracks */
+  inset: var(--board-pad); /* = .board padding, so it covers exactly the tracks */
   z-index: 3; /* above the pieces (z-index 2) — the suggestion is the point */
   pointer-events: none;
   overflow: visible;
