@@ -134,7 +134,10 @@ export default function GameReview({
 
       {/* Lichess's post-game analysis summary: one column per player — side
           dot, name, then "n inaccuracies / n mistakes / n blunders / average
-          loss". The lesson starts from here, one button per human player. */}
+          loss". The lesson starts from here, one button per side with
+          anything to show — your own mistakes when there is a human side,
+          and the opponent's under a label that says whose they are, because
+          "where did *they* go wrong" is a real question against the AI. */}
       {ready && scores && marks && counts && avg && (
         <div className="review-summary mt-3">
           {(["attackers", "defenders"] as Side[]).map((side) => {
@@ -159,9 +162,9 @@ export default function GameReview({
                     </li>
                   ))}
                 </ul>
-                {(humanSide === null || humanSide === side) && queue.length > 0 && (
+                {queue.length > 0 && (
                   <button className="btn btn-sm review-learn" onClick={() => onLesson(queue)}>
-                    {t.reviewLearn}
+                    {humanSide && humanSide !== side ? t.reviewLearnOpponent : t.reviewLearn}
                   </button>
                 )}
               </div>

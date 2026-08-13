@@ -471,6 +471,9 @@ export interface Translations {
   reviewAvgLoss: string;
   /** Starts the lesson stepping through one side's mistakes in game order. */
   reviewLearn: string;
+  /** Same lesson, offered for the *other* side's mistakes when there is a
+   *  human side — reviewing what the opponent gave up, not what you did. */
+  reviewLearnOpponent: string;
   markOne_inaccuracy: string;
   markOne_mistake: string;
   markOne_blunder: string;
@@ -1096,6 +1099,7 @@ const en: Translations = {
   annotateHint: "Re-searches every position and marks where the game swung.",
   reviewAvgLoss: "Average loss",
   reviewLearn: "Learn from your mistakes",
+  reviewLearnOpponent: "Learn from your opponent's mistakes",
   markOne_inaccuracy: "Inaccuracy",
   markOne_mistake: "Mistake",
   markOne_blunder: "Blunder",
@@ -1768,6 +1772,7 @@ const es: Translations = {
   annotateHint: "Vuelve a calcular cada posici\u00f3n y marca d\u00f3nde cambi\u00f3 la partida.",
   reviewAvgLoss: "P\u00e9rdida media",
   reviewLearn: "Aprende de tus errores",
+  reviewLearnOpponent: "Aprende de los errores de tu rival",
   markOne_inaccuracy: "Imprecisi\u00f3n",
   markOne_mistake: "Error",
   markOne_blunder: "Error grave",
@@ -2472,6 +2477,7 @@ const ga: Translations = {
   // DRAFT (unreviewed) \u2014 like the rest of this table.
   reviewAvgLoss: "Me\u00e1nchaillteanas",
   reviewLearn: "Foghlaim \u00f3 do bhot\u00fain",
+  reviewLearnOpponent: "Foghlaim \u00f3 bhot\u00fain an iomaitheora",
   markOne_inaccuracy: "M\u00edchruinneas",
   markOne_mistake: "Both\u00fan",
   markOne_blunder: "Droch-bhoth\u00fan",
