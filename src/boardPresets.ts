@@ -1,5 +1,5 @@
 // ── First-visit board presets ────────────────────────────────────────────────
-// Three complete looks — board theme, piece colours and all four piece emblems
+// Four complete looks — board theme, piece colours and all four piece emblems
 // at once — offered on the very first visit only, before any other choice (the
 // "board" step of ModeOverlay in App.tsx, ahead of "mode" and therefore ahead
 // of "side"). Picking one applies every field together; nothing here is
@@ -13,7 +13,7 @@ import { DEFAULT_DEFENDER_EMBLEM, type DefenderEmblemId } from "./defenderEmblem
 import { type CornerEmblemId } from "./cornerEmblems";
 
 export interface BoardPreset {
-  id: "gokstad" | "everforest-ornate" | "ligreen-knotwork";
+  id: "gokstad" | "ballinderry" | "everforest-ornate" | "ligreen-knotwork";
   /** Shown on the picker card; matches the board theme's own name where borrowed. */
   name: string;
   theme: ThemeId;
@@ -72,6 +72,26 @@ export const BOARD_PRESETS: BoardPreset[] = [
     // defender mark left that actually ships.
     defenderEmblem: DEFAULT_DEFENDER_EMBLEM,
     cornerEmblem: "tree-knot",
+  },
+  {
+    id: "ballinderry",
+    name: "Ballinderry",
+    // The brief for this card was exactly Gokstad's own stones and emblems —
+    // corner squares and every piece icon untouched — over the one theme that
+    // changes the board's *construction* rather than its colours: holes
+    // instead of squares, after the 10th-century yew board the theme is named
+    // for (NMI 1932:6583; see the theme note in index.css and
+    // docs/ballinderry-board.md, which also records that its ornament is
+    // reconstructed from published descriptions, not traced from the object).
+    // Literal values here, not a reference to the Gokstad object above, for
+    // the same reason Gokstad's own are literal: this card is pinned to a
+    // specific named look, not to "whatever Gokstad's card currently says".
+    theme: "ballinderry",
+    pieceColors: { atk: "#a76d11", def: "#d9d9d6", king: "#d9d9d6" },
+    attackerEmblem: "crow",
+    kingEmblem: "crown-triquetra",
+    defenderEmblem: "shield-knot",
+    cornerEmblem: "tree-oak",
   },
 ];
 
