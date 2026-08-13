@@ -20,10 +20,11 @@ overlays.
 - `npm run check:tablut` — driven-browser assertions for the Tablut surface: 9×9
   tracks, coordinates a–i/1–9, a baseline corner drawn as ordinary ground, the
   drawer's More games section, the Tablut worker replying, a Brandubh save
-  surviving the visit, and a Tablut game (and the surface itself) surviving
-  leave/re-entry and a full reload. Run it after touching
+  surviving the visit, a Tablut game (and the surface itself) surviving
+  leave/re-entry and a full reload, and the Ballinderry theme falling back to
+  Gokstad on the 9×9 without disturbing the stored choice. Run it after touching
   `.board`/`.tablut-screen` in `src/index.css`, `components/Board.tsx`,
-  `orientation.ts` or anything under `src/game/tablut/`
+  `orientation.ts`, `theme.ts` or anything under `src/game/tablut/`
 
 ## Two boardgames, forked on purpose
 
@@ -84,6 +85,25 @@ excused from it: `positionGame` in `App.tsx` closes the autosave (via
 reason, and starting one drops the save on disk, which describes a different
 game. Anything else that installs a non-opening board as the live game must set
 that flag — no custom starting position may reach `persist.ts` or `gameFile.ts`.
+
+### The Ballinderry theme's ornament is unverified
+
+`[data-theme="ballinderry"]` is the one theme that changes the board's
+construction — holes instead of squares, because the object it is named for
+(NMI 1932:6583) is a peg board — and the one whose ornament is **drawn from
+published descriptions, not traced from the artefact**: the NMI's photographs
+and the Discovery Programme's 3D model are both blocked by the egress proxy.
+Read `docs/ballinderry-board.md` before touching `src/ballinderry/` or the
+Ballinderry blocks in `index.css`; it records what is attested, what is filled
+in, and what to replace if the sources ever become reachable. Regenerate the
+panels with `node scripts/gen-ballinderry-ornament.mjs` — the geometry lives
+there and nowhere else.
+
+It is also the one theme that is **not** app-wide: `resolveTheme` in `theme.ts`
+falls it back to Gokstad on the Tablut surface (a 7×7 board of 49 holes is a
+lie about a 9×9), and `index.html`'s pre-paint script repeats the rule so a
+reload onto Tablut does not flash it. The fallback changes what is painted and
+never what is stored.
 
 ### Contested rule
 

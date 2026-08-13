@@ -262,9 +262,9 @@ export default function App() {
   }, [lang]);
 
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
-  useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+  // The effect that actually paints it is further down, next to `showTablut` —
+  // a board-specific theme falls back off its own board, so painting needs to
+  // know which board is on screen. See the note there.
 
   // Optional per-side stone colours layered over the theme (null = follow theme).
   const [pieceColors, setPieceColors] = useState<PieceColors>(loadPieceColors);
@@ -574,9 +574,11 @@ export default function App() {
    * A sibling overlay rather than anything woven into the shell's state: Tablut is
    * a separate Boardgame with its own ruleset *type* (see ADR-0006 and the note in
    * TablutScreen), so it owns its own game, engine worker and rule editor, and
-   * this shell owns nothing of it beyond whether it is open. Nothing below this
-   * line reads it, which is the point — opening Tablut cannot disturb a Brandubh
-   * game in progress, and closing it cannot have lost one.
+   * this shell owns nothing of it beyond whether it is open. No *game* state
+   * below this line reads it, which is the point — opening Tablut cannot disturb
+   * a Brandubh game in progress, and closing it cannot have lost one. The one
+   * thing that does read it is the theme effect below, which paints and owns
+   * nothing.
    *
    * Whether it is open *persists*: a reload mid-Tablut must land back on the
    * Tablut board, exactly as a reload mid-Brandubh lands on the Brandubh one.
@@ -586,6 +588,15 @@ export default function App() {
   useEffect(() => {
     rememberTablutSurface(showTablut);
   }, [showTablut]);
+
+  // Paint the theme. Down here rather than beside `useState(loadTheme)` because
+  // it needs `showTablut`: Ballinderry is a 7×7 board of drilled holes, not a
+  // palette, so it does not follow the player onto the 9×9 (see resolveTheme in
+  // theme.ts). The stored choice is unaffected either way, so the picker still
+  // reads Ballinderry on the Tablut surface and the board comes back on exit.
+  useEffect(() => {
+    applyTheme(theme, showTablut);
+  }, [theme, showTablut]);
 
   const rules: RuleSet =
     variantId === "custom"
