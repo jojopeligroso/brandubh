@@ -9,8 +9,10 @@ import {
   isLabelledFileRow,
   isLabelledRankCol,
   rankLabel,
+  toView,
   viewArrow,
 } from "../orientation";
+import { AI_ORIGIN_MS, AI_SLIDE_MS, type AiSlide } from "../useAiReveal";
 import type { RuleSet } from "../game/variants";
 import { markGlyph, type Mark } from "../game/annotate";
 import type { EmblemDef } from "../emblems";
@@ -158,6 +160,23 @@ interface BoardProps {
    * and click-through; the feedback strip carries the words.
    */
   verdict?: { square: Square; ok: boolean } | null;
+  /**
+   * The engine's move in flight: a stone drawn travelling from the square it
+   * left to the square it landed on, over a board that already holds the
+   * finished position. See src/useAiReveal.ts — the move is committed before
+   * this ever appears, so nothing here is on the path of play.
+   *
+   * The real stone on the destination is drawn but held invisible for the
+   * length of the flight, so the two never show at once and the overlay lifts
+   * onto a stone already standing where it left it.
+   */
+  aiSlide?: AiSlide | null;
+  /**
+   * The square the engine's stone came *from*, lit behind it. Outlasts the
+   * flight: it is the answer to "where did that come from?", which is asked
+   * after the stone has landed, not while it is moving.
+   */
+  aiOrigin?: Square | null;
   onSquareClick: (sq: Square) => void;
 }
 
@@ -253,6 +272,8 @@ export default function Board({
   alsoBest = [],
   markBadge = null,
   verdict = null,
+  aiSlide = null,
+  aiOrigin = null,
   onSquareClick,
 }: BoardProps) {
   const g = geom ?? BRANDUBH_GEOMETRY;
@@ -268,6 +289,13 @@ export default function Board({
   const fadeSet = useMemo(
     () => new Set(fadingCaptures.map((s) => s.row * 10 + s.col)),
     [fadingCaptures],
+  );
+
+  // Stones the engine's move has already taken off the board, redrawn for as
+  // long as its own stone is still travelling towards them.
+  const ghostSet = useMemo(
+    () => new Map((aiSlide?.captured ?? []).map((c) => [c.square.row * 10 + c.square.col, c.piece])),
+    [aiSlide],
   );
 
   const canPick = (sq: Square): boolean => {
@@ -288,7 +316,16 @@ export default function Board({
       className="board"
       role="grid"
       aria-label={g.label}
-      style={{ "--n": g.size } as React.CSSProperties}
+      // The two reveal durations are handed to CSS rather than restated there:
+      // they are timed against JS timers in src/useAiReveal.ts, and a stylesheet
+      // holding its own copy of 520ms is a copy that will one day disagree.
+      style={
+        {
+          "--n": g.size,
+          "--ai-slide": `${AI_SLIDE_MS}ms`,
+          "--ai-origin": `${AI_ORIGIN_MS}ms`,
+        } as React.CSSProperties
+      }
     >
       {Array.from({ length: g.size }, (_, viewRow) =>
         Array.from({ length: g.size }, (_, viewCol) => {
@@ -302,6 +339,11 @@ export default function Board({
           const lastTo = lastMove && lastMove.to.row === r && lastMove.to.col === c;
           const lastFrom = lastMove && lastMove.from.row === r && lastMove.from.col === c;
           const dark = (r + c) % 2 === 1;
+          // The engine's stone is drawn by the overlay while it travels, so the
+          // real one on the destination waits its turn — see `.piece.in-flight`.
+          const inFlight = !!aiSlide && aiSlide.move.to.row === r && aiSlide.move.to.col === c;
+          const ghost = ghostSet.get(key);
+          const aiFrom = aiOrigin?.row === r && aiOrigin?.col === c;
           const pickable = canPick({ row: r, col: c }) || isLegal;
           const file = isLabelledFileRow(r, flippedV, g.size) ? fileLabel(c, g.files) : null;
           const rank = isLabelledRankCol(c, flippedH, g.size) ? rankLabel(r, g.size) : null;
@@ -324,6 +366,7 @@ export default function Board({
                 g.isSpecialCorner(r, c) ? "corner" : "",
                 isSel ? "selected" : "",
                 lastTo || lastFrom ? "lastmove" : "",
+                aiFrom ? "ai-from" : "",
                 pickable ? "playable" : "",
               ]
                 .filter(Boolean)
@@ -347,13 +390,34 @@ export default function Board({
                   </svg>
                 </span>
               )}
+              {/* The square the engine's stone left, held lit behind it. A ring
+                  the size of the stone that stood here, not a tint on the whole
+                  square: `.lastmove` already tints both ends of every move, and
+                  a fourth shade of gold would say nothing. */}
+              {aiFrom && <span className="ai-origin" aria-hidden />}
               {piece && (
                 <div
-                  className={`piece ${piece}${sideOf(piece) === turn ? " active-turn" : ""}`}
+                  className={`piece ${piece}${sideOf(piece) === turn ? " active-turn" : ""}${
+                    inFlight ? " in-flight" : ""
+                  }`}
                   title={piece}
                 >
                   <Emblem
                     piece={piece}
+                    attackerEmblem={attackerEmblem}
+                    kingEmblem={kingEmblem}
+                    defenderEmblem={defenderEmblem}
+                  />
+                </div>
+              )}
+              {/* A stone this move has taken, still standing until the stone
+                  that takes it arrives. Decoration over a square the position
+                  already calls empty, so it is out of the accessibility tree —
+                  the gridcell's own label is the truth. */}
+              {!piece && ghost && (
+                <div className={`piece ${ghost} is-ghost`} aria-hidden>
+                  <Emblem
+                    piece={ghost}
                     attackerEmblem={attackerEmblem}
                     kingEmblem={kingEmblem}
                     defenderEmblem={defenderEmblem}
@@ -397,6 +461,47 @@ export default function Board({
       ))}
       {bestMove && (
         <BestMoveArrow move={bestMove} flippedH={flippedH} flippedV={flippedV} size={g.size} />
+      )}
+      {/* The engine's stone in flight. Same overlay contract as the arrow above
+          — absolutely positioned, so out of flow and never a grid item, and
+          `aria-hidden`, so the grid's accessible children are still size²
+          gridcells. The layer carries the arrow's `inset: 10px`, because an
+          abspos child of a grid container lays out against the container's
+          *padding* box; the stone inside is then sized and translated in whole
+          cells of that layer. `toView` puts it on the drawn board, so a flipped
+          board slides the right way round for free. */}
+      {aiSlide && (
+        <div className="ai-mover-layer" aria-hidden>
+          {(() => {
+            const from = toView(aiSlide.move.from, flippedH, flippedV, g.size);
+            const to = toView(aiSlide.move.to, flippedH, flippedV, g.size);
+            return (
+              <div
+                // Remounts per move, so a second flight starting before the
+                // first has faded restarts the travel rather than inheriting it.
+                key={`${aiSlide.move.from.row}${aiSlide.move.from.col}-${aiSlide.move.to.row}${aiSlide.move.to.col}`}
+                className="ai-mover"
+                style={
+                  {
+                    "--fr": from.row,
+                    "--fc": from.col,
+                    "--tr": to.row,
+                    "--tc": to.col,
+                  } as React.CSSProperties
+                }
+              >
+                <div className={`piece ${aiSlide.piece}`}>
+                  <Emblem
+                    piece={aiSlide.piece}
+                    attackerEmblem={attackerEmblem}
+                    kingEmblem={kingEmblem}
+                    defenderEmblem={defenderEmblem}
+                  />
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       )}
     </div>
   );

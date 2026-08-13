@@ -17,6 +17,14 @@ overlays.
   from the bottom. The suites are pure logic and the screenshot does not frame the
   bar, which is how an inverted bar shipped in `05c187e` and survived. Run it
   after touching `.evalbar-*` in `src/index.css`
+- `npm run check:ai-reveal` — driven-browser assertions that the engine's move is
+  *shown*: its stone travels between the two squares instead of teleporting,
+  lands on the square the move went to, keeps the real stone hidden underneath
+  while its copy is in flight, and leaves the square it came from lit after it
+  has landed. The suites are pure logic and cannot see a stone move, so a
+  keyframe that renders but never translates would look exactly like the old
+  behaviour and fail nothing. Run it after touching `.ai-mover`/`.ai-origin` in
+  `src/index.css` or `src/useAiReveal.ts`
 - `npm run check:tablut` — driven-browser assertions for the Tablut surface: 9×9
   tracks, coordinates a–i/1–9, a baseline corner drawn as ordinary ground, the
   drawer's More games section, the Tablut worker replying, a Brandubh save

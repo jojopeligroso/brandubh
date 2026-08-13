@@ -101,6 +101,12 @@ page.on("pageerror", (e) => pageErrors.push(e.message));
 await page.addInitScript(() => {
   try {
     localStorage.setItem("brandubh.theme", "everforest");
+    // Mark the first-visit board-preset step seen. A bare Chromium context has
+    // no localStorage at all, which is exactly what that step is gated on, so
+    // without this it intercepts the click below meant for the mode step —
+    // this check timed out on its very first action from the day the preset
+    // step landed. screenshot.mjs pins the same key for the same reason.
+    localStorage.setItem("brandubh.boardPresetSeen", "1");
   } catch {
     /* localStorage unavailable */
   }
