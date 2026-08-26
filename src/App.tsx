@@ -1371,6 +1371,19 @@ export default function App() {
     playFromPosition(stateFromBoard(pos.board, pos.turn), side);
   }, [states, cursor, exitAttempt, playFromPosition]);
 
+  /**
+   * Retry this mistake from the top: back to the position *before* it, with
+   * the engine's opinion hidden again — the same door `startAttempt` opens,
+   * taken a second time. Offered once the attempt is finished, whether solved
+   * or revealed, so seeing the answer is never a dead end for someone who
+   * wants another go at finding it themselves.
+   */
+  const retryAttempt = useCallback(() => {
+    const a = attemptRef.current;
+    if (!a || a.source.kind !== "review" || !attemptFinished(a)) return;
+    startAttempt(a.source.ply, a.mover);
+  }, [startAttempt]);
+
   // Fetch the answer when an Attempt opens — deep, and quietly. The shallow pass
   // is tuned to re-run on every cursor step; a question someone has stopped to
   // think about deserves the better answer, and there is one of them.
@@ -2341,6 +2354,7 @@ export default function App() {
           onSkip={advanceLesson}
           onNext={advanceLesson}
           onExit={exitAttempt}
+          onRetry={attempt.source.kind === "review" ? retryAttempt : null}
           onPlayFromHere={
             attemptFinished(attempt) && !isGameOver(game.status) ? continueFromAttempt : null
           }

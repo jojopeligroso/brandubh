@@ -37,6 +37,7 @@ export default function PuzzlePanel({
   onSkip,
   onNext,
   onExit,
+  onRetry,
   onPlayFromHere,
 }: {
   t: Translations;
@@ -68,6 +69,12 @@ export default function PuzzlePanel({
   /** The next queued mistake — lesson only; past the end it closes the panel. */
   onNext: () => void;
   onExit: () => void;
+  /**
+   * Start this same mistake over: back to the position before it, guessing
+   * again with the engine's opinion hidden. Null where the caller offers no
+   * way back (there is no earlier position to return to).
+   */
+  onRetry: (() => void) | null;
   /** Play the position on as a live game; null while there is no game left in
    *  it (or the caller does not offer one). */
   onPlayFromHere: (() => void) | null;
@@ -149,6 +156,13 @@ export default function PuzzlePanel({
             ) : (
               <button className="btn btn-sm" onClick={onExit}>
                 {t.puzzleDone}
+              </button>
+            )}
+            {onRetry && (
+              // The practice loop closing on itself: having seen the answer,
+              // stand in the mistake again and find it unaided.
+              <button className="btn btn-sm" onClick={onRetry}>
+                {t.puzzleTryAgain}
               </button>
             )}
             {onPlayFromHere && (
