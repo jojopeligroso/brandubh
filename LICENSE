@@ -1,13 +1,17 @@
-Copyright (c) 2026 Michael Malone Engineering. All rights reserved.
+Copyright (c) 2026 Eoin Malone. All rights reserved.
 
-This repository and its contents are proprietary and confidential. No part of
-this software, its source code, or associated documentation may be used,
-copied, modified, merged, published, distributed, sublicensed, or sold, in
-whole or in part, without the prior written permission of Michael Malone
-Engineering.
+This source code is published so that it can be read: by prospective employers,
+collaborators, reviewers, or anyone curious about how it works. You may view,
+clone, and build this repository for the purpose of evaluating it.
 
-Unauthorised copying, distribution, or use of this software, via any medium,
-is strictly prohibited.
+No other rights are granted. Without the prior written permission of the
+copyright holder you may not use, copy, modify, merge, distribute, sublicense,
+or sell this software or any part of it, and you may not incorporate it into
+another work.
 
-Third-party assets bundled in this repository (fonts, traced artwork, etc.)
-are licensed separately under their own terms — see NOTICE.md.
+This is deliberately not an open-source licence. If you want to reuse any of
+this, ask.
+
+Third-party assets bundled in this repository (fonts, traced artwork) are
+licensed separately under their own terms and are NOT covered by the grant or
+the restrictions above. See NOTICE.md.

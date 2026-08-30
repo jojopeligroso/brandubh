@@ -257,6 +257,6 @@ full set lives at [`docs/design/icons.html`](docs/design/icons.html).
 
 ## Licence
 
-Proprietary — all rights reserved, © Michael Malone Engineering. See
-[LICENSE](LICENSE). Third-party assets keep their own terms — see
-[NOTICE](NOTICE.md).
+Source-available — all rights reserved, © Eoin Malone. Read it, clone it, build
+it; reuse needs permission. See [LICENSE](LICENSE). Third-party assets keep
+their own terms — see [NOTICE](NOTICE.md).
