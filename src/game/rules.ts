@@ -150,8 +150,12 @@ export function hasAnyMove(b: Board, side: Side, rules: RuleSet): boolean {
 /**
  * A square acts as an "anvil" for capturing an enemy *soldier* when it holds a
  * friendly piece or is a hostile square (corner / empty throne, per variant).
+ *
+ * Exported so `engine.ts`'s `anvilThreat` eval term can ask "is this square
+ * already an anvil for side X" without re-deriving the friendly/hostile rule —
+ * the same discipline `previewAnvil` already follows for move ordering.
  */
-function isAnvilForSoldier(
+export function isAnvilForSoldier(
   b: Board,
   r: number,
   c: number,

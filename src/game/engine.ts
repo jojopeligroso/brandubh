@@ -5,15 +5,17 @@ import {
   findKing,
   hashBoard,
   inBounds,
+  isAnvilForSoldier,
   isCorner,
   isEnemy,
   isGameOver,
+  isRestricted,
   isThrone,
   movesFrom,
   sideOf,
   winnerOf,
 } from "./rules";
-import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side } from "./types";
+import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side, type Square } from "./types";
 import type { RuleSet } from "./variants";
 import { SYM } from "./d4";
 import { bookRulesMatch, loadOpeningBook } from "./openingBook";
@@ -135,6 +137,31 @@ export interface EvalWeights {
    *  real per-leaf cost. OFF by default (a per-variant / analysis knob), exactly as
    *  PVS ships off; see the note above `forcedAttackerWin`. */
   attackerRecognizer: boolean;
+  /** Per corner-quadrant containing at least one attacker (0-4). Attackers'
+   *  strategic plan is covering all four escape approaches, not just massing
+   *  near the king — a plan none of the other terms can see: `kingRegionSize`
+   *  and `clearPathToCorner` both tie (measured: 12 and 0 respectively) for
+   *  four attackers bunched in one quadrant (three corners wholly unguarded)
+   *  versus one attacker per quadrant (every corner covered), and `evaluate()`
+   *  returned the identical 139.5 for both. 0 ⇒ skip (untuned, opt-in). */
+  quadrantCoverage: number;
+  /** Per non-king piece of the side *not* to move that is one enemy slide from
+   *  a custodial capture: one flank already anvil-hostile
+   *  (`isAnvilForSoldier`, rules.ts) and the opposite flank empty and
+   *  reachable by a mover's-side soldier in one slide — a free capture this
+   *  ply. Turn-relative on purpose (only the side to move can execute a
+   *  capture *this* ply; scoring both sides symmetrically was tried first and
+   *  measured to net to zero on the motivating case, because that position
+   *  turned out to hold a genuine mutual threat — a defender could also net
+   *  the exposed attacker on *its* move — which a turn-blind count cannot
+   *  separate from "not a threat"). Existing terms have zero representation
+   *  of this: measured, moving a defender onto the anvil square that blocks a
+   *  real free capture (1 capturing attacker move ground-truthed via
+   *  `allMoves`/`applyMove` vs 0) moved `evaluate()` from −107.5 to −101.5 —
+   *  attacker-positive, so the *safer* defender position scored *worse* for
+   *  defenders, purely from an incidental `kingRegion` difference unrelated to
+   *  the capture threat. 0 ⇒ skip (untuned, opt-in). */
+  anvilThreat: number;
 }
 
 /**
@@ -158,6 +185,8 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   blockerAwareKingDist: false,
   endgameRecognizers: true,
   attackerRecognizer: false,
+  quadrantCoverage: 0,
+  anvilThreat: 0,
 };
 
 /** Cap on the king's flood-filled confinement region, so a wide-open board
@@ -247,6 +276,36 @@ export function kingCornerMoves(b: Board, kr: number, kc: number): number {
     }
   }
   return best;
+}
+
+/** The quarter of the board a corner owns, inclusive of the middle rank/file
+ *  so no square falls outside every quadrant (mirrors `motifs.ts`'s private
+ *  `inQuadrant`/`MID`, which tags a *played line* for the puzzle bank rather
+ *  than scoring a live board — two readers of the same corner geometry, kept
+ *  here per the convention above: engine.ts is canonical, motifs.ts consults
+ *  it for `kingCornerMoves`/`clearPathToCorner` already). */
+const QUADRANT_MID = Math.floor(BOARD_SIZE / 2);
+function inQuadrant(r: number, c: number, corner: Square): boolean {
+  const rowOk = corner.row === 0 ? r <= QUADRANT_MID : r >= QUADRANT_MID;
+  const colOk = corner.col === 0 ? c <= QUADRANT_MID : c >= QUADRANT_MID;
+  return rowOk && colOk;
+}
+
+/** How many of the four corner-quadrants contain at least one attacker
+ *  (0-4). A coarse coverage count, not a distance gradient: one attacker deep
+ *  in a quadrant counts the same as three, because the question this answers
+ *  is "are all four corner approaches contested at all", which `hug` (king-
+ *  local) and `escapeLane` (open-lane count, not attacker position) cannot
+ *  answer — see the `quadrantCoverage` doc on `EvalWeights` for the measured
+ *  blind spot. */
+export function quadrantCoverage(b: Board): number {
+  const seen = [false, false, false, false];
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (b[r][c] !== "attacker") continue;
+      for (let i = 0; i < CORNERS.length; i++) if (!seen[i] && inQuadrant(r, c, CORNERS[i])) seen[i] = true;
+    }
+  return seen.filter(Boolean).length;
 }
 
 // ── Exact endgame recognizers (proven defender wins) ──────────────────────────
@@ -543,6 +602,83 @@ export function forcedAttackerWin(state: GameState, rules: RuleSet): boolean {
     : defenderNetted(state, rules); // the king is netted, every reply loses it
 }
 
+// ── Anvil-threat term (hanging non-king pieces) ────────────────────────────────
+// A piece is "hanging" when a custodial capture against it is one enemy slide
+// away: one flank is already an anvil (`isAnvilForSoldier`, rules.ts — reused
+// verbatim, not re-derived) and the opposite flank is empty, landable, and
+// reachable by some enemy soldier's rook-slide this ply. Heuristic, not a
+// proof (unlike the recognizers above): it does not check whether the enemy
+// move is otherwise legal-and-not-losing, only that the geometry is there —
+// same spirit as `hug`/`shield`, which also count adjacency without proving a
+// capture follows.
+
+/** Can some soldier of `side` reach the empty, landable square (tr, tc) in one
+ *  rook-slide this ply? Mirrors `attackerMovesInto`'s reverse ray-scan (scan
+ *  outward from the target, not every piece's move list — the same reasoning
+ *  that made the recognizer's per-reply loop cheap applies here), generalised
+ *  to either side and short-circuited to a boolean since this only needs
+ *  existence, not the move. A weaponless king cannot initiate a capture by
+ *  sliding onto the anvil square, matching `previewCaptureCount`'s guard. */
+function soldierCanReach(b: Board, tr: number, tc: number, side: Side, rules: RuleSet): boolean {
+  for (const [dr, dc] of DIRS) {
+    let r = tr + dr;
+    let c = tc + dc;
+    while (inBounds(r, c)) {
+      const p = b[r][c];
+      if (p !== null) {
+        if (sideOf(p) === side && (p !== "king" || rules.armedKing)) return true;
+        break; // the first piece on the ray blocks it either way
+      }
+      if (isThrone(r, c) && !rules.soldiersPassThroughThrone) break;
+      r += dr;
+      c += dc;
+    }
+  }
+  return false;
+}
+
+/** Opposite-direction pairs, so each axis is checked with the anchor on
+ *  either end (the pre-existing enemy piece can be on the near or far side). */
+const AXIS_PAIRS: ReadonlyArray<readonly [readonly [number, number], readonly [number, number]]> = [
+  [DIRS[0], DIRS[1]],
+  [DIRS[2], DIRS[3]],
+];
+
+/** Is the non-king soldier at (r, c) one enemy slide from being custodially
+ *  captured? Checks both axes, both anchor orientations: one flank already an
+ *  anvil for the enemy (`isAnvilForSoldier`), the other flank empty, not a
+ *  restricted landing square (corner/throne — soldiers may never stop there),
+ *  and reachable (`soldierCanReach`). */
+function isHangingSoldier(b: Board, r: number, c: number, side: Side, rules: RuleSet): boolean {
+  const enemy: Side = side === "attackers" ? "defenders" : "attackers";
+  for (const [d1, d2] of AXIS_PAIRS) {
+    const aR = r + d1[0], aC = c + d1[1];
+    const bR = r + d2[0], bC = c + d2[1];
+    for (const [anchorR, anchorC, farR, farC] of [
+      [aR, aC, bR, bC],
+      [bR, bC, aR, aC],
+    ] as const) {
+      if (!isAnvilForSoldier(b, anchorR, anchorC, enemy, rules)) continue;
+      if (!inBounds(farR, farC) || b[farR][farC] !== null || isRestricted(farR, farC)) continue;
+      if (soldierCanReach(b, farR, farC, enemy, rules)) return true;
+    }
+  }
+  return false;
+}
+
+/** Count of `victimSide`'s non-king pieces hanging to the *other* side, one
+ *  board pass. Deliberately one-sided (see the `anvilThreat` doc on
+ *  `EvalWeights`): the caller always asks about the side not to move, since
+ *  only the side to move can execute a capture this ply. */
+export function countHangingSide(b: Board, victimSide: Side, rules: RuleSet): number {
+  const piece: Piece = victimSide === "attackers" ? "attacker" : "defender";
+  let n = 0;
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (b[r][c] === piece && isHangingSoldier(b, r, c, victimSide, rules)) n++;
+  return n;
+}
+
 export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rules?: RuleSet): number {
   if (isGameOver(state.status)) {
     const winner = winnerOf(state.status);
@@ -617,6 +753,17 @@ export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rul
     const am = allMoves(b, "attackers", rules).length;
     const dm = allMoves(b, "defenders", rules).length;
     score += (am - dm) * w.mobility;
+  }
+
+  // Perimeter/corner-approach coverage: attackers want every quadrant contested.
+  if (w.quadrantCoverage !== 0) score += quadrantCoverage(b) * w.quadrantCoverage;
+
+  // Hanging non-king pieces: the side *not* to move, one enemy (the mover's)
+  // slide from a free custodial capture this ply.
+  if (w.anvilThreat !== 0 && rules) {
+    const victim: Side = state.turn === "attackers" ? "defenders" : "attackers";
+    const hanging = countHangingSide(b, victim, rules);
+    score += (victim === "defenders" ? 1 : -1) * hanging * w.anvilThreat;
   }
 
   return score;
