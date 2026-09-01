@@ -70,8 +70,24 @@ export interface EvalWeights {
   escapeLane: number;
   /** Per attacker orthogonally adjacent to the king (capture pressure). */
   hug: number;
-  /** Per empty orthogonal square around the king that is *not* an open lane —
-   *  raw breathing room. Subtracted, so fewer liberties favour attackers. */
+  /** Per empty orthogonal square around the king — raw breathing room, counted
+   *  with no exclusions at all. Subtracted, so fewer liberties favour the
+   *  attackers. (This comment used to say "that is *not* an open lane". The
+   *  loop never filtered anything: it counts every empty in-bounds orthogonal
+   *  neighbour. Harmless while the term sat at 0; load-bearing now it ships
+   *  at 12. The Tablut fork's twin comment was correct all along.)
+   *
+   *  Edge geometry — an artifact of how the count is written, not an intended
+   *  effect: off-board neighbours are skipped by the `if (!inBounds(nr, nc))
+   *  continue;` guard rather than counted, so a king on a rim square has at
+   *  most 3 liberties where an interior king has 4. At weight 12 that is a
+   *  bounded 12 points (0.3 of a soldier at `material` 40) of purely geometric
+   *  attacker bias on the rim. It is outweighed on those same squares by
+   *  `kingCorner`, which pays 25 points *less* for an edge-aligned king
+   *  (crude distance 1 rather than 2) — a swing roughly twice the size, in the
+   *  opposite direction. Undocumented and untested until now, but inside the 120-pair
+   *  mirrored-pair measurement that justified shipping weight 12, so it is
+   *  part of what that result measured rather than something it missed. */
   liberties: number;
   /** Subtracted per defender orthogonally adjacent to the king (a shield that
    *  blocks custodial capture). */
@@ -143,7 +159,11 @@ export interface EvalWeights {
    *  and `clearPathToCorner` both tie (measured: 12 and 0 respectively) for
    *  four attackers bunched in one quadrant (three corners wholly unguarded)
    *  versus one attacker per quadrant (every corner covered), and `evaluate()`
-   *  returned the identical 139.5 for both. 0 ⇒ skip (untuned, opt-in). */
+   *  returned the identical 139.5 for both. Measured and REJECTED, not untuned:
+   *  gauntleted at weights 5, 10 and 15 on the mirrored-pair instrument and
+   *  negative at all three — at weight 10, 40 pairs, WW=0 LL=13 split=27,
+   *  net −13, p=0.000244, significantly *worse* than the shipped baseline and
+   *  never once winning a pair. Do not ship at any weight tested. 0 ⇒ skip. */
   quadrantCoverage: number;
   /** Per non-king piece of the side *not* to move that is one enemy slide from
    *  a custodial capture: one flank already anvil-hostile
@@ -160,7 +180,10 @@ export interface EvalWeights {
    *  `allMoves`/`applyMove` vs 0) moved `evaluate()` from −107.5 to −101.5 —
    *  attacker-positive, so the *safer* defender position scored *worse* for
    *  defenders, purely from an incidental `kingRegion` difference unrelated to
-   *  the capture threat. 0 ⇒ skip (untuned, opt-in). */
+   *  the capture threat. Measured and REJECTED, not untuned: gauntleted at
+   *  weights 15 and 20, 80 pairs in total — at weight 20, 60 pairs, WW=6 LL=10,
+   *  net −4, p=0.4545. A clean NULL: no measured benefit in either direction.
+   *  0 ⇒ skip. */
   anvilThreat: number;
 }
 
@@ -1559,6 +1582,27 @@ export function scoreRootMoves(
 // re-validated against the live legal moves before it is trusted — so a stale
 // or corrupt book can never produce an illegal move, only a silent fallthrough
 // to the normal search.
+//
+// ⚠ STALE AGAINST THE CURRENT EVAL WEIGHTS — recorded here, not fixed.
+// `openingBook.data.ts` was last generated (72a7e19, 2026-08-05) by
+// scripts/genbook.ts under `DEFAULT_WEIGHTS` with `liberties: 0`. This branch
+// ships `liberties: 12` and does NOT regenerate the book, so its moves are what
+// the *old* evaluation would have played. Nothing detects that: the book's only
+// staleness gate is `BOOK_RULES_FINGERPRINT` (openingBook.ts), which hashes
+// gameplay RULE flags only — eval weights are not in it, because the fingerprint
+// answers "is this book legal here", not "is it still the best move here". So
+// changing a weight leaves the book in place and still consulted, silently.
+//
+// Consequence, for the plies the book covers (ollamh only; other tiers never
+// consult it): the new `liberties: 12` weight has no effect there at all,
+// because a booked move is served instantly without any search. It takes effect
+// from the first out-of-book position onward.
+//
+// Regenerating the book under the new weights is OUTSTANDING WORK and is not a
+// mechanical rerun: genbook.ts's own header records that a book generated on
+// different terms was measured (margin-13 vs margin-0), so a re-generated book
+// needs its own paired-gauntlet measurement against this one before it replaces
+// it. Do not regenerate it without that measurement.
 export const OPENING_BOOK: Record<string, Move[]> = loadOpeningBook();
 
 function bookMove(state: GameState, rules: RuleSet, rng: () => number): Move | null {
