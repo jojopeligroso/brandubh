@@ -371,12 +371,28 @@ The engine's toolkit, in the order the search applies it:
 When the search must stop, `evaluate()` scores the position: **material** (40
 per attacker, defenders scarcer so weighted double), **king–corner distance**,
 **open escape lanes** (squared — one open lane is a worry, two is nearly a loss),
-**attacker pressure** beside the king, and **king confinement** (a capped
-flood-fill of the squares the king can reach — the gradient the encirclement
-win needs). Every weight earned its place in an A/B self-play gauntlet;
-candidate terms that measured neutral-or-worse (mobility, shield, liberties,
-blocker-aware distance) ship as opt-in knobs at weight zero, documented as
-tried. The scale matters for the book: "a third of a material unit" (~13
+**attacker pressure** beside the king, **king liberties** (raw breathing room
+around the king), and **king confinement** (a capped flood-fill of the squares
+the king can reach — the gradient the encirclement win needs). Every weight
+earned its place in a self-play gauntlet. `shield` and `blocker-aware king
+distance` measured neutral and ship as opt-in knobs at weight zero. `mobility`
+measured significant once (p=0.0118, marginal once corrected for testing four
+candidate terms at once) but unreplicated and redundant with `liberties` in a
+combined run, so it stays parked too.
+
+`liberties` did not stay parked. It was first parked on the same
+"neutral-or-worse" verdict as the other three, produced by a gauntlet
+(`scripts/evaltune.ts`) later shown to carry an 87.5% side bias — an
+identical-configuration A/A control split 21–3 to whichever side moved second,
+which is enough to hide a real signal the size of one eval term. Re-measured on
+a mirrored-pair gauntlet built to cancel that bias by construction
+(`scripts/pairgauntlet.ts`, itself validated before being trusted for
+anything), `liberties` measured significantly better across 120 mirrored
+pairs: 33W/5L, p=4.3e-6. It now ships at weight 12. That result is exactly what
+it says and no more — **one eval term measured significantly better across 120
+mirrored pairs on a validated instrument** — not a claim that the engine is
+stronger in any general sense; see Part V for the bounds this report holds
+itself to. The scale matters for the book: "a third of a material unit" (~13
 points) was the rejected variety margin in Part I.
 
 ### The proven layer: recognizers and the solver

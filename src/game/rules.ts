@@ -150,8 +150,12 @@ export function hasAnyMove(b: Board, side: Side, rules: RuleSet): boolean {
 /**
  * A square acts as an "anvil" for capturing an enemy *soldier* when it holds a
  * friendly piece or is a hostile square (corner / empty throne, per variant).
+ *
+ * Exported so `engine.ts`'s `anvilThreat` eval term can ask "is this square
+ * already an anvil for side X" without re-deriving the friendly/hostile rule —
+ * the same discipline `previewAnvil` already follows for move ordering.
  */
-function isAnvilForSoldier(
+export function isAnvilForSoldier(
   b: Board,
   r: number,
   c: number,
@@ -375,8 +379,11 @@ export function hashBoard(b: Board, turn: Side): string {
 /**
  * Returns true if the king and all remaining defenders are completely encircled
  * by attackers — no path from the king through empty/defender/king squares
- * reaches the board edge without crossing an attacker. Board edges do NOT count
- * as part of the ring (WTF rule).
+ * reaches the board edge without crossing an attacker, AND every remaining
+ * defender lies within that same reachable region (a defender the king's
+ * flood never reaches — free or sealed in its own separate pocket — is not
+ * encircled together with the king under one unbroken ring). Board edges do
+ * NOT count as part of the ring (WTF rule).
  */
 export function isEncircled(b: Board): boolean {
   const king = findKing(b);
@@ -405,6 +412,14 @@ export function isEncircled(b: Board): boolean {
       queue.push([nr, nc]);
     }
   }
+  // The king's own region is sealed. The contract is "the king AND all
+  // remaining defenders" under one unbroken ring, so a defender that the
+  // flood above never reached — whether it has its own free path to the
+  // edge, or sits in a separate attacker-sealed pocket — is not encircled
+  // together with the king and must fail the check.
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (b[r][c] === "defender" && !visited.has(r * BOARD_SIZE + c)) return false;
   return true;
 }
 

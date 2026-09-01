@@ -57,7 +57,15 @@ export function rulesFingerprint(rules: RuleSet): string {
 }
 
 /** True when `rules` plays identically to the ruleset the book was built for
- *  (the WTF default — including a "custom" ruleset with the same flags). */
+ *  (the WTF default — including a "custom" ruleset with the same flags).
+ *
+ *  ⚠ This is a LEGALITY gate, not a freshness one, and it is the book's only
+ *  gate. It compares gameplay rule flags; it says nothing about the
+ *  `EvalWeights` the book's moves were searched under, so changing an eval
+ *  weight leaves a book generated under the old weights matching, in place and
+ *  still served. That is the situation today: the bundled book predates
+ *  `liberties: 12`. See the `OPENING_BOOK` block in `engine.ts` for the full
+ *  note and what regenerating it would require. */
 export function bookRulesMatch(rules: RuleSet): boolean {
   return BOOK_RULES_FINGERPRINT !== "" && rulesFingerprint(rules) === BOOK_RULES_FINGERPRINT;
 }

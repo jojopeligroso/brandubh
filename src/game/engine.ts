@@ -5,15 +5,17 @@ import {
   findKing,
   hashBoard,
   inBounds,
+  isAnvilForSoldier,
   isCorner,
   isEnemy,
   isGameOver,
+  isRestricted,
   isThrone,
   movesFrom,
   sideOf,
   winnerOf,
 } from "./rules";
-import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side } from "./types";
+import { BOARD_SIZE, type Board, type GameState, type Move, type Piece, type Side, type Square } from "./types";
 import type { RuleSet } from "./variants";
 import { SYM } from "./d4";
 import { bookRulesMatch, loadOpeningBook } from "./openingBook";
@@ -68,8 +70,24 @@ export interface EvalWeights {
   escapeLane: number;
   /** Per attacker orthogonally adjacent to the king (capture pressure). */
   hug: number;
-  /** Per empty orthogonal square around the king that is *not* an open lane —
-   *  raw breathing room. Subtracted, so fewer liberties favour attackers. */
+  /** Per empty orthogonal square around the king — raw breathing room, counted
+   *  with no exclusions at all. Subtracted, so fewer liberties favour the
+   *  attackers. (This comment used to say "that is *not* an open lane". The
+   *  loop never filtered anything: it counts every empty in-bounds orthogonal
+   *  neighbour. Harmless while the term sat at 0; load-bearing now it ships
+   *  at 12. The Tablut fork's twin comment was correct all along.)
+   *
+   *  Edge geometry — an artifact of how the count is written, not an intended
+   *  effect: off-board neighbours are skipped by the `if (!inBounds(nr, nc))
+   *  continue;` guard rather than counted, so a king on a rim square has at
+   *  most 3 liberties where an interior king has 4. At weight 12 that is a
+   *  bounded 12 points (0.3 of a soldier at `material` 40) of purely geometric
+   *  attacker bias on the rim. It is outweighed on those same squares by
+   *  `kingCorner`, which pays 25 points *less* for an edge-aligned king
+   *  (crude distance 1 rather than 2) — a swing roughly twice the size, in the
+   *  opposite direction. Undocumented and untested until now, but inside the 120-pair
+   *  mirrored-pair measurement that justified shipping weight 12, so it is
+   *  part of what that result measured rather than something it missed. */
   liberties: number;
   /** Subtracted per defender orthogonally adjacent to the king (a shield that
    *  blocks custodial capture). */
@@ -135,29 +153,103 @@ export interface EvalWeights {
    *  real per-leaf cost. OFF by default (a per-variant / analysis knob), exactly as
    *  PVS ships off; see the note above `forcedAttackerWin`. */
   attackerRecognizer: boolean;
+  /** Per corner-quadrant containing at least one attacker (0-4). Attackers'
+   *  strategic plan is covering all four escape approaches, not just massing
+   *  near the king — a plan none of the other terms can see: `kingRegionSize`
+   *  and `clearPathToCorner` both tie (measured: 12 and 0 respectively) for
+   *  four attackers bunched in one quadrant (three corners wholly unguarded)
+   *  versus one attacker per quadrant (every corner covered), and `evaluate()`
+   *  returned the identical 139.5 for both. Measured and REJECTED, not untuned:
+   *  gauntleted at weights 5, 10 and 15 on the mirrored-pair instrument and
+   *  negative at all three — at weight 10, 40 pairs, WW=0 LL=13 split=27,
+   *  net −13, p=0.000244, significantly *worse* than the shipped baseline and
+   *  never once winning a pair. Do not ship at any weight tested. 0 ⇒ skip. */
+  quadrantCoverage: number;
+  /** Per non-king piece of the side *not* to move that is one enemy slide from
+   *  a custodial capture: one flank already anvil-hostile
+   *  (`isAnvilForSoldier`, rules.ts) and the opposite flank empty and
+   *  reachable by a mover's-side soldier in one slide — a free capture this
+   *  ply. Turn-relative on purpose (only the side to move can execute a
+   *  capture *this* ply; scoring both sides symmetrically was tried first and
+   *  measured to net to zero on the motivating case, because that position
+   *  turned out to hold a genuine mutual threat — a defender could also net
+   *  the exposed attacker on *its* move — which a turn-blind count cannot
+   *  separate from "not a threat"). Existing terms have zero representation
+   *  of this: measured, moving a defender onto the anvil square that blocks a
+   *  real free capture (1 capturing attacker move ground-truthed via
+   *  `allMoves`/`applyMove` vs 0) moved `evaluate()` from −107.5 to −101.5 —
+   *  attacker-positive, so the *safer* defender position scored *worse* for
+   *  defenders, purely from an incidental `kingRegion` difference unrelated to
+   *  the capture threat. Measured and REJECTED, not untuned: gauntleted at
+   *  weights 15 and 20, 80 pairs in total — at weight 20, 60 pairs, WW=6 LL=10,
+   *  net −4, p=0.4545. A clean NULL: no measured benefit in either direction.
+   *  0 ⇒ skip. */
+  anvilThreat: number;
 }
 
 /**
  * The shipping weights for Brandubh, set by A/B gauntlet (scripts/evaltune.ts).
- * The original hand-tuned terms held up: shield/liberties were worse (redundant
- * with the king-safety terms), mobility helped only at depth 2 (gone by depth 3)
- * and cost ~2× per node, and blocker-aware king distance was neutral. The one term
- * that *did* earn its keep is `kingRegion` (king confinement): at depth 4 it beat
- * the baseline 31–9 at weight 6 (24–16 at weight 8), so it ships at 6. The unused
- * terms remain as opt-in knobs for retuning on differently-balanced variants.
+ * `kingRegion` (king confinement) earned its keep there: at depth 4 it beat the
+ * baseline 31–9 at weight 6 (24–16 at weight 8), so it ships at 6 — that result
+ * still stands.
+ *
+ * The other four candidate terms (liberties, shield, mobility, blocker-aware
+ * king distance) were also called "neutral or worse" by that same gauntlet and
+ * parked at weight zero — but `scripts/evaltune.ts` plays unpaired A/B games,
+ * and an A/A control on that protocol (identical config both sides, depth 4,
+ * 24 games) came back 1–11 as attacker / 10–2 as defender: defenders won 21/24
+ * (87.5%) with byte-identical code on both sides. Any real signal from a
+ * candidate term this small is invisible under that much side bias, so every
+ * verdict it produced for these four terms was unreliable, not just "old".
+ *
+ * A mirrored-pair gauntlet (`scripts/pairgauntlet.ts`) was built to remove that
+ * bias — same opening played twice with roles swapped, scored as a pair so
+ * side bias cancels by construction — and validated (A/A control net 0 over 16
+ * pairs; known-positive calibration, depth 4 vs depth 3, 40 pairs, WW=10 LL=0,
+ * p=0.00195). Re-measured on it, depth 4, book2 openings:
+ *
+ *   liberties            60 pairs  18W/4L/38split  net +14  p=0.0043
+ *   liberties (replicate) 60 pairs 15W/1L/44split  net +14  p=0.00052
+ *   liberties (pooled)   120 pairs 33W/5L/82split  net +28  p=4.3e-6   SIGNIFICANT
+ *   mobility              60 pairs 16W/4L/40split  net +12  p=0.0118  marginal after
+ *                                                                     Bonferroni (×4 tests, 0.047),
+ *                                                                     unreplicated
+ *   shield                60 pairs  9W/8L/43split  net  +1  p=1.0000  neutral — VINDICATED
+ *   blockerAwareKingDist  60 pairs  5W/9L/46split  net  -4  p=0.4240  neutral — VINDICATED
+ *
+ * `liberties` overturns the original verdict and ships at 12 (see the comment
+ * on the field below). A combined mobility+liberties run (60 pairs, 22W/5L,
+ * net +17, p=0.0015) is statistically indistinguishable from liberties alone
+ * by Fisher's exact test on the win:loss ratio (p=1.0) — the extra net came
+ * from a higher decisive rate, not a better ratio, so there is no evidence
+ * mobility adds anything on top of liberties. `mobility` stays parked pending
+ * its own replication; `shield` and `blockerAwareKingDist` stay parked, now on
+ * much stronger evidence that parking them was correct all along. Do not
+ * re-propose mobility/shield/blockerAwareKingDist without new measurement on
+ * the paired instrument. See `docs/ROADMAP.md` for the session record.
  */
 export const DEFAULT_WEIGHTS: EvalWeights = {
   material: 40,
   kingCorner: 25,
   escapeLane: 120,
   hug: 30,
-  liberties: 0,
+  // Overturned 2026-09-01: parked at 0 by the original unpaired evaltune.ts
+  // gauntlet, whose A/A control was later shown to carry an 87.5% side bias
+  // (see the DEFAULT_WEIGHTS comment above). Re-measured on the validated
+  // mirrored-pair instrument (scripts/pairgauntlet.ts), pooled over 120 pairs:
+  // 33W/5L, net +28, p=4.3e-6 — significant and replicated on fresh seeds.
+  // Ships at 12. Someone will be tempted to re-park this on the strength of
+  // the old comment alone; don't — the old comment was measuring the harness,
+  // not the term.
+  liberties: 12,
   shield: 0,
   mobility: 0,
   kingRegion: 6,
   blockerAwareKingDist: false,
   endgameRecognizers: true,
   attackerRecognizer: false,
+  quadrantCoverage: 0,
+  anvilThreat: 0,
 };
 
 /** Cap on the king's flood-filled confinement region, so a wide-open board
@@ -247,6 +339,36 @@ export function kingCornerMoves(b: Board, kr: number, kc: number): number {
     }
   }
   return best;
+}
+
+/** The quarter of the board a corner owns, inclusive of the middle rank/file
+ *  so no square falls outside every quadrant (mirrors `motifs.ts`'s private
+ *  `inQuadrant`/`MID`, which tags a *played line* for the puzzle bank rather
+ *  than scoring a live board — two readers of the same corner geometry, kept
+ *  here per the convention above: engine.ts is canonical, motifs.ts consults
+ *  it for `kingCornerMoves`/`clearPathToCorner` already). */
+const QUADRANT_MID = Math.floor(BOARD_SIZE / 2);
+function inQuadrant(r: number, c: number, corner: Square): boolean {
+  const rowOk = corner.row === 0 ? r <= QUADRANT_MID : r >= QUADRANT_MID;
+  const colOk = corner.col === 0 ? c <= QUADRANT_MID : c >= QUADRANT_MID;
+  return rowOk && colOk;
+}
+
+/** How many of the four corner-quadrants contain at least one attacker
+ *  (0-4). A coarse coverage count, not a distance gradient: one attacker deep
+ *  in a quadrant counts the same as three, because the question this answers
+ *  is "are all four corner approaches contested at all", which `hug` (king-
+ *  local) and `escapeLane` (open-lane count, not attacker position) cannot
+ *  answer — see the `quadrantCoverage` doc on `EvalWeights` for the measured
+ *  blind spot. */
+export function quadrantCoverage(b: Board): number {
+  const seen = [false, false, false, false];
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (b[r][c] !== "attacker") continue;
+      for (let i = 0; i < CORNERS.length; i++) if (!seen[i] && inQuadrant(r, c, CORNERS[i])) seen[i] = true;
+    }
+  return seen.filter(Boolean).length;
 }
 
 // ── Exact endgame recognizers (proven defender wins) ──────────────────────────
@@ -543,6 +665,83 @@ export function forcedAttackerWin(state: GameState, rules: RuleSet): boolean {
     : defenderNetted(state, rules); // the king is netted, every reply loses it
 }
 
+// ── Anvil-threat term (hanging non-king pieces) ────────────────────────────────
+// A piece is "hanging" when a custodial capture against it is one enemy slide
+// away: one flank is already an anvil (`isAnvilForSoldier`, rules.ts — reused
+// verbatim, not re-derived) and the opposite flank is empty, landable, and
+// reachable by some enemy soldier's rook-slide this ply. Heuristic, not a
+// proof (unlike the recognizers above): it does not check whether the enemy
+// move is otherwise legal-and-not-losing, only that the geometry is there —
+// same spirit as `hug`/`shield`, which also count adjacency without proving a
+// capture follows.
+
+/** Can some soldier of `side` reach the empty, landable square (tr, tc) in one
+ *  rook-slide this ply? Mirrors `attackerMovesInto`'s reverse ray-scan (scan
+ *  outward from the target, not every piece's move list — the same reasoning
+ *  that made the recognizer's per-reply loop cheap applies here), generalised
+ *  to either side and short-circuited to a boolean since this only needs
+ *  existence, not the move. A weaponless king cannot initiate a capture by
+ *  sliding onto the anvil square, matching `previewCaptureCount`'s guard. */
+function soldierCanReach(b: Board, tr: number, tc: number, side: Side, rules: RuleSet): boolean {
+  for (const [dr, dc] of DIRS) {
+    let r = tr + dr;
+    let c = tc + dc;
+    while (inBounds(r, c)) {
+      const p = b[r][c];
+      if (p !== null) {
+        if (sideOf(p) === side && (p !== "king" || rules.armedKing)) return true;
+        break; // the first piece on the ray blocks it either way
+      }
+      if (isThrone(r, c) && !rules.soldiersPassThroughThrone) break;
+      r += dr;
+      c += dc;
+    }
+  }
+  return false;
+}
+
+/** Opposite-direction pairs, so each axis is checked with the anchor on
+ *  either end (the pre-existing enemy piece can be on the near or far side). */
+const AXIS_PAIRS: ReadonlyArray<readonly [readonly [number, number], readonly [number, number]]> = [
+  [DIRS[0], DIRS[1]],
+  [DIRS[2], DIRS[3]],
+];
+
+/** Is the non-king soldier at (r, c) one enemy slide from being custodially
+ *  captured? Checks both axes, both anchor orientations: one flank already an
+ *  anvil for the enemy (`isAnvilForSoldier`), the other flank empty, not a
+ *  restricted landing square (corner/throne — soldiers may never stop there),
+ *  and reachable (`soldierCanReach`). */
+function isHangingSoldier(b: Board, r: number, c: number, side: Side, rules: RuleSet): boolean {
+  const enemy: Side = side === "attackers" ? "defenders" : "attackers";
+  for (const [d1, d2] of AXIS_PAIRS) {
+    const aR = r + d1[0], aC = c + d1[1];
+    const bR = r + d2[0], bC = c + d2[1];
+    for (const [anchorR, anchorC, farR, farC] of [
+      [aR, aC, bR, bC],
+      [bR, bC, aR, aC],
+    ] as const) {
+      if (!isAnvilForSoldier(b, anchorR, anchorC, enemy, rules)) continue;
+      if (!inBounds(farR, farC) || b[farR][farC] !== null || isRestricted(farR, farC)) continue;
+      if (soldierCanReach(b, farR, farC, enemy, rules)) return true;
+    }
+  }
+  return false;
+}
+
+/** Count of `victimSide`'s non-king pieces hanging to the *other* side, one
+ *  board pass. Deliberately one-sided (see the `anvilThreat` doc on
+ *  `EvalWeights`): the caller always asks about the side not to move, since
+ *  only the side to move can execute a capture this ply. */
+export function countHangingSide(b: Board, victimSide: Side, rules: RuleSet): number {
+  const piece: Piece = victimSide === "attackers" ? "attacker" : "defender";
+  let n = 0;
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (b[r][c] === piece && isHangingSoldier(b, r, c, victimSide, rules)) n++;
+  return n;
+}
+
 export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rules?: RuleSet): number {
   if (isGameOver(state.status)) {
     const winner = winnerOf(state.status);
@@ -619,6 +818,17 @@ export function evaluate(state: GameState, w: EvalWeights = DEFAULT_WEIGHTS, rul
     score += (am - dm) * w.mobility;
   }
 
+  // Perimeter/corner-approach coverage: attackers want every quadrant contested.
+  if (w.quadrantCoverage !== 0) score += quadrantCoverage(b) * w.quadrantCoverage;
+
+  // Hanging non-king pieces: the side *not* to move, one enemy (the mover's)
+  // slide from a free custodial capture this ply.
+  if (w.anvilThreat !== 0 && rules) {
+    const victim: Side = state.turn === "attackers" ? "defenders" : "attackers";
+    const hanging = countHangingSide(b, victim, rules);
+    score += (victim === "defenders" ? 1 : -1) * hanging * w.anvilThreat;
+  }
+
   return score;
 }
 
@@ -691,6 +901,22 @@ export interface SearchConfig {
    *  null window and only re-search in full when the scout beats the bound. Same
    *  values as plain alpha–beta, fewer nodes when move ordering is good. */
   usePVS: boolean;
+  /** Decay decisive scores by ply (mate-in-2 outscores mate-in-20) instead of the
+   *  flat ±WIN every terminal returned before this flag existed. See the note on
+   *  `mateToTT`/`mateFromTT` for the mechanism and, importantly, for why it ships
+   *  OFF. Sound in isolation (a mate-distance-adjusted TT is the standard
+   *  technique, and it is unit-tested — see `engine.test.ts`'s "mate distance"
+   *  suite) but not a demonstrated win: measured no win-rate change over a 96-game
+   *  balance matrix and an 8-series depth-scaling gauntlet, and measured **25%
+   *  slower** conversion of already-won positions over 10 self-play seeds (mean
+   *  3.20 → 4.00 plies from first-proven-decisive to termination) — the opposite
+   *  of what it exists to buy. Root-level iterative deepening stops at the first
+   *  depth where *any* move is decisive, before a slower-to-prove alternative is
+   *  even recognised as decisive, so the decay mostly cannot act where a root
+   *  choice between two known forced wins would matter most. Same idiom as
+   *  `attackerRecognizer`: sound, cross-validated, no measured strength gain, an
+   *  analysis-only knob rather than a play default. */
+  useMateDistance: boolean;
 }
 
 export const FULL_CONFIG: SearchConfig = {
@@ -707,6 +933,7 @@ export const FULL_CONFIG: SearchConfig = {
   // where ordering dominates less. Aspiration windows were skipped for the same
   // reason: the root already searches the PV move full-window and the rest narrow.
   usePVS: false,
+  useMateDistance: false,
 };
 
 /** The original engine's behaviour — a fixed-depth searcher with legacy ordering
@@ -719,6 +946,7 @@ export const LEGACY_CONFIG: SearchConfig = {
   maxQuiescencePly: 0,
   useLMR: false,
   usePVS: false,
+  useMateDistance: false,
 };
 
 export interface SearchLimits {
@@ -749,6 +977,52 @@ interface TTEntry {
 const TT = new Map<string, TTEntry>();
 const TT_MAX = 400_000;
 let TT_GEN = 0;
+
+/**
+ * Mate-distance adjustment ── gated behind `SearchConfig.useMateDistance`
+ * (default OFF; see the comment on that field for why). When on, every
+ * decisive score this engine produces is *decayed by ply* the moment it
+ * leaves `evaluate` inside the search: a terminal reached at ply `p` from
+ * the current search's root scores `WIN - p` (or `-WIN + p`), never a flat
+ * `±WIN`. That is what lets the search prefer mate-in-2 over mate-in-20
+ * instead of treating every forced win as identical — see `evaluateAtPly`
+ * below, which is the one place the decay is applied, and its doc comment
+ * for why `evaluate` itself stays flat. When off, every call site below
+ * that would otherwise apply this pair short-circuits to the raw value, so
+ * behaviour is identical to the engine before this pair existed.
+ *
+ * The TT interaction this buys is the subtle part. A search value is always
+ * *root-relative* — "mate in N plies from where this whole search started" —
+ * but the same board position can be reached at a different ply in a later
+ * search (a different move sequence, or the next move's fresh search reusing
+ * the same table). A root-relative mate score stored as-is and reused at a
+ * different ply is simply wrong: replayed verbatim it either claims a mate
+ * that is now further away than the search re-derived, or throws away a mate
+ * that is now closer. Standard fix (the one every alpha-beta engine with a
+ * shared TT uses): store *node-relative* — normalise out the storing search's
+ * root by adding back the ply at which the value was found, so the number in
+ * the table means "mate in N plies from this node", independent of any root.
+ * On probe, re-express it relative to the *current* search's root by
+ * subtracting the probing ply. `mateToTT`/`mateFromTT` are exactly that pair,
+ * and they are exact inverses of each other for any ply. Non-decisive scores
+ * (the overwhelming majority) are untouched either way — `|v| < DECISIVE`
+ * short-circuits both functions to the identity.
+ *
+ * Ordinary (non-mate) scores were always safe to share across ply/root this
+ * way — a positional score doesn't depend on how far from the root it is
+ * found, only a mate does — which is why only the two branches above touch
+ * anything.
+ */
+function mateToTT(v: number, ply: number): number {
+  if (v >= DECISIVE) return v + ply;
+  if (v <= -DECISIVE) return v - ply;
+  return v;
+}
+function mateFromTT(v: number, ply: number): number {
+  if (v >= DECISIVE) return v - ply;
+  if (v <= -DECISIVE) return v + ply;
+  return v;
+}
 
 /** Position value is (almost entirely) determined by board + side to move, so the
  *  table is safe to reuse move-to-move. The lone caveat is repetition-sensitive
@@ -792,6 +1066,23 @@ function recordKiller(ctx: Ctx, ply: number, m: Move): void {
   if (sameMove(slot[0], m)) return;
   slot[1] = slot[0];
   slot[0] = m;
+}
+
+/**
+ * `evaluate`, decayed by ply when `useMateDistance` is on (the raw value
+ * otherwise). The one call site every terminal/leaf return in `search`/
+ * `quiesce` goes through — see the mate-distance note above `mateToTT`.
+ *
+ * The transform is exactly `mateFromTT`: a fresh `evaluate()` result *is*
+ * already node-relative (the node in question is the terminal itself, so its
+ * distance to its own mate is 0 — `evaluate` returning a flat `±WIN` is
+ * precisely "mate in 0 plies from here"), which is the same shape a TT probe
+ * hands back. Reusing one function for both keeps the two decays from ever
+ * drifting apart into two slightly different conventions.
+ */
+function evaluateAtPly(state: GameState, ply: number, ctx: Ctx): number {
+  const raw = evaluate(state, ctx.weights, ctx.rules);
+  return ctx.cfg.useMateDistance ? mateFromTT(raw, ply) : raw;
 }
 
 // ── Move ordering ─────────────────────────────────────────────────────────────
@@ -853,12 +1144,17 @@ function tacticalMoves(state: GameState, ctx: Ctx): Move[] {
   return out;
 }
 
-function quiesce(state: GameState, alpha: number, beta: number, qply: number, ctx: Ctx): number {
+/** `ply` is the absolute distance from the search's root (not the remaining
+ *  quiescence budget `qply`) — needed so a terminal or a recognizer's decisive
+ *  score found mid-quiescence decays by its *real* distance from the root, the
+ *  same as one found by the main search. Threaded through the recursion one
+ *  hop at a time, exactly like `search`'s own `ply`. */
+function quiesce(state: GameState, alpha: number, beta: number, qply: number, ply: number, ctx: Ctx): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
+  if (isGameOver(state.status)) return evaluateAtPly(state, ply, ctx);
 
-  const standPat = evaluate(state, ctx.weights, ctx.rules);
+  const standPat = evaluateAtPly(state, ply, ctx);
   const maximizing = state.turn === "attackers";
   if (maximizing) {
     if (standPat >= beta) return standPat;
@@ -876,7 +1172,7 @@ function quiesce(state: GameState, alpha: number, beta: number, qply: number, ct
   let best = standPat;
   for (const m of ordered) {
     const child = applyMove(state, m, ctx.rules);
-    const v = quiesce(child, alpha, beta, qply - 1, ctx);
+    const v = quiesce(child, alpha, beta, qply - 1, ply + 1, ctx);
     if (maximizing) {
       if (v > best) best = v;
       if (best > alpha) alpha = best;
@@ -893,8 +1189,11 @@ function quiesce(state: GameState, alpha: number, beta: number, qply: number, ct
 function search(state: GameState, depth: number, ply: number, alpha: number, beta: number, ctx: Ctx): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
-  if (depth <= 0) return ctx.cfg.useQuiescence ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ctx) : evaluate(state, ctx.weights, ctx.rules);
+  if (isGameOver(state.status)) return evaluateAtPly(state, ply, ctx);
+  if (depth <= 0)
+    return ctx.cfg.useQuiescence
+      ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ply, ctx)
+      : evaluateAtPly(state, ply, ctx);
 
   const alpha0 = alpha;
   const beta0 = beta;
@@ -905,17 +1204,24 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
     if (e) {
       ttMove = e.move;
       if (e.depth >= depth) {
-        if (e.flag === Flag.Exact) return e.value;
-        if (e.flag === Flag.Lower && e.value > alpha) alpha = e.value;
-        else if (e.flag === Flag.Upper && e.value < beta) beta = e.value;
-        if (alpha >= beta) return e.value;
+        // e.value is node-relative when useMateDistance stored it that way (see
+        // mateToTT/mateFromTT above the TT); this node's own ply re-expresses it
+        // relative to *this* search's root before it touches alpha/beta or gets
+        // returned — a raw e.value here would be a mate distance measured from
+        // whatever root originally stored it. Flag off ⇒ identity, matching
+        // pre-flag storage exactly.
+        const v = ctx.cfg.useMateDistance ? mateFromTT(e.value, ply) : e.value;
+        if (e.flag === Flag.Exact) return v;
+        if (e.flag === Flag.Lower && v > alpha) alpha = v;
+        else if (e.flag === Flag.Upper && v < beta) beta = v;
+        if (alpha >= beta) return v;
       }
     }
   }
 
   const maximizing = state.turn === "attackers";
   const moves = orderMoves(state, allMoves(state.board, state.turn, ctx.rules), ttMove, ply, ctx);
-  if (moves.length === 0) return evaluate(state, ctx.weights, ctx.rules); // no legal move ⇒ status is already terminal
+  if (moves.length === 0) return evaluateAtPly(state, ply, ctx); // no legal move ⇒ status is already terminal
 
   let best = maximizing ? -Infinity : Infinity;
   let bestMove: Move | null = null;
@@ -975,7 +1281,10 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
 
   if (ctx.cfg.useTT) {
     const flag = best <= alpha0 ? Flag.Upper : best >= beta0 ? Flag.Lower : Flag.Exact;
-    ttStore(key, depth, best, flag, bestMove);
+    // best is root-relative (this search's root); store node-relative so a
+    // later probe at a different ply/root re-derives the right distance. Flag
+    // off ⇒ store the raw value, matching pre-flag storage exactly.
+    ttStore(key, depth, ctx.cfg.useMateDistance ? mateToTT(best, ply) : best, flag, bestMove);
   }
   return best;
 }
@@ -1273,6 +1582,27 @@ export function scoreRootMoves(
 // re-validated against the live legal moves before it is trusted — so a stale
 // or corrupt book can never produce an illegal move, only a silent fallthrough
 // to the normal search.
+//
+// ⚠ STALE AGAINST THE CURRENT EVAL WEIGHTS — recorded here, not fixed.
+// `openingBook.data.ts` was last generated (72a7e19, 2026-08-05) by
+// scripts/genbook.ts under `DEFAULT_WEIGHTS` with `liberties: 0`. This branch
+// ships `liberties: 12` and does NOT regenerate the book, so its moves are what
+// the *old* evaluation would have played. Nothing detects that: the book's only
+// staleness gate is `BOOK_RULES_FINGERPRINT` (openingBook.ts), which hashes
+// gameplay RULE flags only — eval weights are not in it, because the fingerprint
+// answers "is this book legal here", not "is it still the best move here". So
+// changing a weight leaves the book in place and still consulted, silently.
+//
+// Consequence, for the plies the book covers (ollamh only; other tiers never
+// consult it): the new `liberties: 12` weight has no effect there at all,
+// because a booked move is served instantly without any search. It takes effect
+// from the first out-of-book position onward.
+//
+// Regenerating the book under the new weights is OUTSTANDING WORK and is not a
+// mechanical rerun: genbook.ts's own header records that a book generated on
+// different terms was measured (margin-13 vs margin-0), so a re-generated book
+// needs its own paired-gauntlet measurement against this one before it replaces
+// it. Do not regenerate it without that measurement.
 export const OPENING_BOOK: Record<string, Move[]> = loadOpeningBook();
 
 function bookMove(state: GameState, rules: RuleSet, rng: () => number): Move | null {
