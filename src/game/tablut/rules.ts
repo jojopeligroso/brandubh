@@ -456,9 +456,13 @@ export function hashBoard(b: Board, turn: Side): string {
 
 // ── Encirclement detection ────────────────────────────────────────────────────
 /**
- * True if no path from the king through empty/defender/king squares reaches the
- * board edge without crossing an attacker. Board edges do NOT count as part of
- * the ring.
+ * True if the king and all remaining defenders are completely encircled: no
+ * path from the king through empty/defender/king squares reaches the board
+ * edge without crossing an attacker, AND every remaining defender lies within
+ * that same reachable region (a defender the king's flood never reaches —
+ * free or sealed in its own separate pocket — is not encircled together with
+ * the king under one unbroken ring). Board edges do NOT count as part of the
+ * ring.
  *
  * Under `escape: "edges"` this is very nearly "White can never win", which is
  * why the minimal presets leave `encirclementWin` off — see variants.ts. The
@@ -486,6 +490,15 @@ export function isEncircled(b: Board): boolean {
       queue.push([nr, nc]);
     }
   }
+  // The king's own region is sealed. The contract (see variants.ts in the
+  // Brandubh fork, whose wording this rule shares) is "the king AND all
+  // remaining defenders" under one unbroken ring, so a defender the flood
+  // above never reached — whether it has its own free path to the rim, or
+  // sits in a separate attacker-sealed pocket — is not encircled together
+  // with the king and must fail the check.
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (b[r][c] === "defender" && !visited.has(r * BOARD_SIZE + c)) return false;
   return true;
 }
 

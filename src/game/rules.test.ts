@@ -550,6 +550,24 @@ describe("isEncircled", () => {
     expect(isEncircled(b)).toBe(true);
   });
 
+  it("returns false when a defender outside the ring has free access to the edge", () => {
+    // Same sealed king ring as the "complete ring" case above, plus a
+    // defender on the bottom edge that the king's flood never reaches
+    // (the row-5 attacker wall cuts it off). The king alone is enclosed,
+    // but not "the king and all remaining defenders" per the documented
+    // contract, so this must NOT be an encirclement.
+    const b = board([
+      ".......",
+      ".aaaaa.",
+      ".a...a.",
+      ".a.k.a.",
+      ".a...a.",
+      ".aaaaa.",
+      "...d...",
+    ]);
+    expect(isEncircled(b)).toBe(false);
+  });
+
   it("returns false when king is absent", () => {
     const b = board([
       ".......",
