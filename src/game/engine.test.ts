@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   chooseMove,
+  DECISIVE,
   FULL_CONFIG,
   DEFAULT_WEIGHTS,
   LEGACY_CONFIG,
   pickMove,
   resetTT,
+  WIN,
   type Difficulty,
   type SearchConfig,
 } from "./engine";
-import { allMoves, applyMove, initialState, isGameOver, winnerOf } from "./rules";
+import { allMoves, applyMove, hashBoard, initialState, isGameOver, winnerOf } from "./rules";
 import type { Board, GameState, Move, Piece, Side } from "./types";
+import type { RuleSet } from "./variants";
 import { VARIANTS } from "./variants";
 
 // Walker rules give the simplest king capture (two-sided custodial anywhere, no
@@ -80,6 +83,180 @@ describe("tactics: the search finds the right move", () => {
     const after = applyMove(s, move!, walker);
     // After the attacker's move, the king can no longer reach a corner in one.
     expect(someMoveGives(after, "defenders_win_escape")).toBe(false);
+  });
+});
+
+describe("mate distance: the search prefers the faster of two available forced wins", () => {
+  // Gated behind SearchConfig.useMateDistance, default OFF (see the field's own
+  // comment for why: measured neutral on win rate, measured worse on conversion
+  // speed, and root-level iterative deepening mostly can't reach the comparison
+  // that would matter). These tests describe the ON behaviour, so they opt in
+  // explicitly rather than relying on FULL_CONFIG's default.
+  const WITH_MATE_DISTANCE: SearchConfig = { ...FULL_CONFIG, useMateDistance: true };
+
+  // The decisive test for the mate-distance-decay fix (evaluateAtPly / mateToTT
+  // / mateFromTT in engine.ts): a flat, undecayed WIN treats every forced win as
+  // identical, so an engine with that bug picks arbitrarily among them. A correct
+  // one strictly prefers the fastest.
+  //
+  // Independent oracle — exact plies-to-win for `side`, exhaustive AND-OR search
+  // on the raw rules only (no engine heuristics, no TT). Same shape as
+  // recognizers.test.ts's forcedDefenderWinWithin, but returns the ply count
+  // instead of a boolean so the fixture below can be *certified*, not just
+  // asserted to be "a forced win" — this test's whole point is the DISTANCE.
+  // Memoized (transposition table keyed on board+turn+remaining budget) because
+  // the unmemoized version times out well before the horizon this fixture needs.
+  function dtmFor(state: GameState, rules: RuleSet, side: Side, maxPlies: number, memo: Map<string, number | null>): number | null {
+    if (isGameOver(state.status)) return winnerOf(state.status) === side ? 0 : null;
+    if (maxPlies <= 0) return null;
+    const key = `${hashBoard(state.board, state.turn)}|${maxPlies}`;
+    const cached = memo.get(key);
+    if (cached !== undefined) return cached;
+    const moves = allMoves(state.board, state.turn, rules);
+    let result: number | null;
+    if (moves.length === 0) {
+      result = null;
+    } else if (state.turn === side) {
+      // OR node: side to move picks its fastest winning reply.
+      let best: number | null = null;
+      for (const m of moves) {
+        const d = dtmFor(applyMove(state, m, rules), rules, side, maxPlies - 1, memo);
+        if (d !== null && (best === null || d + 1 < best)) best = d + 1;
+      }
+      result = best;
+    } else {
+      // AND node: every opposing reply must still be forced, take the worst.
+      let worst = 0;
+      let allForced = true;
+      for (const m of moves) {
+        const d = dtmFor(applyMove(state, m, rules), rules, side, maxPlies - 1, memo);
+        if (d === null) {
+          allForced = false;
+          break;
+        }
+        if (d + 1 > worst) worst = d + 1;
+      }
+      result = allForced ? worst : null;
+    }
+    memo.set(key, result);
+    return result;
+  }
+
+  // Attackers to move, walker rules. The king is boxed into a 2-square N-S
+  // corridor at (1,1)/(2,1) by four fixed anchors; nothing defenders do can ever
+  // open it (verified below by the independent oracle, not assumed).
+  //   (0,1) attacker — N anchor      (1,0) attacker — W anchor
+  //   (1,3) attacker — E cap, and the piece that completes the FAST capture
+  //   (3,1) attacker — S cap
+  //   (6,5) attacker — a fifth, disconnected piece: irrelevant to the box,
+  //     used only to burn the SLOW move without touching containment.
+  function boxedKingPosition(): GameState {
+    const b = empty();
+    b[1][1] = "king";
+    b[0][1] = "attacker";
+    b[1][0] = "attacker";
+    b[1][3] = "attacker";
+    b[3][1] = "attacker";
+    b[6][5] = "attacker";
+    return stateOf(b, "attackers");
+  }
+
+  // Two root moves both capture the king THIS move — (1,3)->(1,2) completes the
+  // W/E sandwich, (3,1)->(2,1) completes the N/S one — and that is fine: the
+  // test only needs "some dtm-1 win is available", not a uniquely-fastest move,
+  // so it checks the *outcome* of whichever move pickMove returns rather than
+  // pinning one of the two tied-fastest moves by coordinate. Verified by direct
+  // enumeration: exactly these two of the position's 36 legal attacker moves
+  // end the game immediately; no others do.
+  const slowMove: Move = { from: { row: 6, col: 5 }, to: { row: 6, col: 4 } }; // burns a move elsewhere first
+
+  it("independent oracle: the slow move is still a forced win, but three plies out, not one", () => {
+    const s = boxedKingPosition();
+    expect(isLegal(s, slowMove, walker)).toBe(true);
+    const slowChild = applyMove(s, slowMove, walker);
+    expect(slowChild.status).toBe("playing"); // not immediate — must be proven forced
+    const slowDtm = dtmFor(slowChild, walker, "attackers", 6, new Map());
+    expect(slowDtm).not.toBeNull(); // still a forced win for attackers…
+    expect(slowDtm! + 1).toBe(3); // …but three plies from the root, not one — pinned exactly
+    // so a future edit to this fixture that accidentally weakens the box (and
+    // makes the "slow" line stop being forced, or resolve at some other
+    // distance) fails loudly here rather than silently in the test below.
+  });
+
+  it("pickMove selects an immediate (dtm-1) capture over the slower (dtm-3) forced win", () => {
+    const s = boxedKingPosition();
+    resetTT();
+    const { move, score } = pickMove(s, walker, { maxDepth: 8 }, WITH_MATE_DISTANCE, fixed);
+    expect(move).not.toBeNull();
+    expect(move).not.toEqual(slowMove); // must not prefer the slower forced win
+    const after = applyMove(s, move!, walker);
+    expect(after.status).toBe("attackers_win_capture");
+    expect(score).toBeGreaterThanOrEqual(DECISIVE);
+    // NOTE — this test alone is a weaker sign check than it looks. pickMove's
+    // outer iterative-deepening stops at the *first* depth where any root move
+    // is decisive (`if (Math.abs(localBest) >= DECISIVE) break` in engine.ts),
+    // and a dtm-1 capture is decisive from depth 1 already — well before depth
+    // reaches the dtm-3 line's own proof threshold. So this test would pass
+    // even with mate decay's sign INVERTED: the slow line's branch is still
+    // just an ordinary (non-decisive, small-magnitude) heuristic score at the
+    // depth where the loop stops, never mind which way decay points. Proven
+    // by construction below, not asserted on faith — see the exact-magnitude
+    // tests, which are what actually pins the sign down.
+  });
+
+  // ── The real sign test ──────────────────────────────────────────────────────
+  // Two INDEPENDENT pickMove calls, not one root choosing between two moves —
+  // because, per the note above, a single root-level call can't observe both
+  // a dtm-1 and a dtm-3 line as decisive at once. What CAN be observed, and
+  // is exactly as sign-sensitive: pickMove's own *decayed score*, called
+  // fresh on two positions that the independent oracle certifies are a known
+  // number of plies apart on the SAME forced line — the position right here
+  // (oracle dtm 1: attackers capture this move) and the position one ply
+  // further into the slow line (oracle dtm 2: defenders' one legal reply,
+  // then attackers capture). A correctly-signed decay must score the closer
+  // one strictly HIGHER (attacker-positive, less decayed) than the further
+  // one. An inverted decay scores it LOWER — verified below by literally
+  // inverting it and watching this assertion fail (see w2-mate-distance.md).
+  it("pickMove's decayed score is exact, and ranks a position 1 ply from a proven capture above one 2 plies out", () => {
+    const s = boxedKingPosition();
+    const oracleDtmHere = dtmFor(s, walker, "attackers", 6, new Map());
+    expect(oracleDtmHere).toBe(1); // the independent oracle's own count, cross-checked
+
+    resetTT();
+    const near = pickMove(s, walker, { maxDepth: 8 }, WITH_MATE_DISTANCE, fixed);
+    expect(near.score).toBe(WIN - 1); // exact, not just "decisive"
+
+    const slowChild = applyMove(s, slowMove, walker); // defenders to move, one ply into the slow line
+    const oracleDtmSlowChild = dtmFor(slowChild, walker, "attackers", 6, new Map());
+    expect(oracleDtmSlowChild).toBe(2); // matches the ply-3-from-root fact above (root move + 2)
+
+    resetTT();
+    const further = pickMove(slowChild, walker, { maxDepth: 8 }, WITH_MATE_DISTANCE, fixed);
+    expect(further.score).toBe(WIN - 2); // exact — one ply further, one point less
+
+    // The actual sign assertion: closer to a proven win scores strictly higher.
+    expect(near.score).toBeGreaterThan(further.score);
+  });
+
+  it("flag OFF: both the near and the far position score the flat, undecayed magnitude", () => {
+    // The other side of the switch. FULL_CONFIG ships useMateDistance: false, so
+    // this uses it unmodified — no opt-in, because "unmodified FULL_CONFIG" is
+    // exactly the behaviour under test. Both positions are forced wins for
+    // attackers (certified above: oracle dtm 1 and dtm 2 respectively), one ply
+    // apart, so a decaying engine would score them WIN-1 and WIN-2 — see the ON
+    // test above. Flag off must return the SAME flat magnitude for both: no ply
+    // arithmetic at all, matching the engine exactly as it behaved before this
+    // flag existed (verified byte-for-byte against a pristine b0e4f45 snapshot —
+    // see w2-mate-distance.md).
+    const s = boxedKingPosition();
+    resetTT();
+    const near = pickMove(s, walker, { maxDepth: 8 }, FULL_CONFIG, fixed);
+    expect(near.score).toBe(WIN); // flat, not WIN - 1
+
+    const slowChild = applyMove(s, slowMove, walker);
+    resetTT();
+    const further = pickMove(slowChild, walker, { maxDepth: 8 }, FULL_CONFIG, fixed);
+    expect(further.score).toBe(WIN); // flat, not WIN - 2 — identical to the near case
   });
 });
 

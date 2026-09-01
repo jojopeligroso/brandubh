@@ -666,6 +666,15 @@ export interface SearchConfig {
   maxQuiescencePly: number;
   useLMR: boolean;
   usePVS: boolean;
+  /** Decay decisive scores by ply instead of the flat ±WIN every terminal
+   *  returned before this flag existed. Re-derived from ../engine.ts (not
+   *  copy-pasted — see the fork note at the top of this file and the note on
+   *  `mateToTT`/`mateFromTT` below), same default and same reasoning: sound,
+   *  cross-validated, no measured strength gain on the Brandubh gauntlet this
+   *  was tuned against, so it ships as an analysis-only knob rather than a
+   *  play default, same idiom as `attackerRecognizer`. See the Brandubh
+   *  SearchConfig's own comment on this field for the full measured case. */
+  useMateDistance: boolean;
 }
 
 export const FULL_CONFIG: SearchConfig = {
@@ -689,6 +698,7 @@ export const FULL_CONFIG: SearchConfig = {
   // premise for turning PVS on is weaker than it looked, and this flag is on as a
   // considered default rather than a measured one. A gauntlet should settle it.
   usePVS: true,
+  useMateDistance: false,
 };
 
 /** A fixed-depth searcher with legacy ordering and none of the machinery — the
@@ -701,6 +711,7 @@ export const LEGACY_CONFIG: SearchConfig = {
   maxQuiescencePly: 0,
   useLMR: false,
   usePVS: false,
+  useMateDistance: false,
 };
 
 export interface SearchLimits {
@@ -725,6 +736,43 @@ interface TTEntry {
 const TT = new Map<string, TTEntry>();
 const TT_MAX = 400_000;
 let TT_GEN = 0;
+
+/**
+ * Mate-distance adjustment — re-derived from ../engine.ts, not copy-pasted, but
+ * the two end up identical. ADR-0006 is about corner-escape geometry (lanes,
+ * king-distance, the recognizers) baked into evaluation and search, and *that*
+ * genuinely differs board to board — see the fork note at the top of this file.
+ * This does not: it decays whatever `evaluate` already returned by ply, and
+ * converts a root-relative score to/from the TT's node-relative storage. Both
+ * operations only ever look at `WIN`/`DECISIVE` and a ply count — no lane, no
+ * corner, no edge-vs-corner escape rule enters into it, so there is no fork
+ * question to make a different call on here. A shared search core (the thing
+ * ADR-0006's addendum says would have to carry the corner/edge distinction
+ * inside itself to be worth having) would still need this exact code twice;
+ * writing it twice by hand costs the same and keeps the fork's promise that
+ * each file is a complete, readable engine on its own.
+ *
+ * Gated behind `SearchConfig.useMateDistance` (default OFF — see that field's
+ * comment) exactly like the Brandubh twin, for exactly the same reason: no
+ * fork question here either.
+ *
+ * See the fuller comment on this pair in ../engine.ts for the mechanics: a
+ * search value is root-relative (mate-in-N-from-this-search's-root), but the
+ * TT is shared across searches whose roots differ, so what gets stored is
+ * node-relative (mate-in-N-from-this-node) — add the storing ply, subtract the
+ * probing ply. `mateToTT`/`mateFromTT` are exact inverses; non-decisive scores
+ * (`|v| < DECISIVE`) pass through both untouched.
+ */
+function mateToTT(v: number, ply: number): number {
+  if (v >= DECISIVE) return v + ply;
+  if (v <= -DECISIVE) return v - ply;
+  return v;
+}
+function mateFromTT(v: number, ply: number): number {
+  if (v >= DECISIVE) return v - ply;
+  if (v <= -DECISIVE) return v + ply;
+  return v;
+}
 
 function ttStore(key: string, depth: number, value: number, flag: Flag, move: Move | null): void {
   const prev = TT.get(key);
@@ -764,6 +812,16 @@ function recordKiller(ctx: Ctx, ply: number, m: Move): void {
   if (sameMove(slot[0], m)) return;
   slot[1] = slot[0];
   slot[0] = m;
+}
+
+/** `evaluate`, decayed by ply when `useMateDistance` is on (the raw value
+ *  otherwise) — the one call site every terminal/leaf return in `search`/
+ *  `quiesce` goes through. A fresh `evaluate()` result is already
+ *  node-relative (mate-in-0-from-here), the same shape a TT probe hands back,
+ *  so this reuses `mateFromTT` rather than inventing a second convention. */
+function evaluateAtPly(state: GameState, ply: number, ctx: Ctx): number {
+  const raw = evaluate(state, ctx.weights, ctx.rules);
+  return ctx.cfg.useMateDistance ? mateFromTT(raw, ply) : raw;
 }
 
 // ── Move ordering ─────────────────────────────────────────────────────────────
@@ -833,12 +891,14 @@ function tacticalMoves(state: GameState, ctx: Ctx): Move[] {
   return out;
 }
 
-function quiesce(state: GameState, alpha: number, beta: number, qply: number, ctx: Ctx): number {
+/** `ply` is the absolute distance from the search's root, not the remaining
+ *  quiescence budget `qply` — see the identical note in ../engine.ts. */
+function quiesce(state: GameState, alpha: number, beta: number, qply: number, ply: number, ctx: Ctx): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
+  if (isGameOver(state.status)) return evaluateAtPly(state, ply, ctx);
 
-  const standPat = evaluate(state, ctx.weights, ctx.rules);
+  const standPat = evaluateAtPly(state, ply, ctx);
   const maximizing = state.turn === "attackers";
   if (maximizing) {
     if (standPat >= beta) return standPat;
@@ -856,7 +916,7 @@ function quiesce(state: GameState, alpha: number, beta: number, qply: number, ct
   let best = standPat;
   for (const m of ordered) {
     const child = applyMove(state, m, ctx.rules);
-    const v = quiesce(child, alpha, beta, qply - 1, ctx);
+    const v = quiesce(child, alpha, beta, qply - 1, ply + 1, ctx);
     if (maximizing) {
       if (v > best) best = v;
       if (best > alpha) alpha = best;
@@ -880,11 +940,11 @@ function search(
 ): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
+  if (isGameOver(state.status)) return evaluateAtPly(state, ply, ctx);
   if (depth <= 0)
     return ctx.cfg.useQuiescence
-      ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ctx)
-      : evaluate(state, ctx.weights, ctx.rules);
+      ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ply, ctx)
+      : evaluateAtPly(state, ply, ctx);
 
   const alpha0 = alpha;
   const beta0 = beta;
@@ -895,17 +955,20 @@ function search(
     if (e) {
       ttMove = e.move;
       if (e.depth >= depth) {
-        if (e.flag === Flag.Exact) return e.value;
-        if (e.flag === Flag.Lower && e.value > alpha) alpha = e.value;
-        else if (e.flag === Flag.Upper && e.value < beta) beta = e.value;
-        if (alpha >= beta) return e.value;
+        // node-relative -> this search's root-relative (see mateToTT/mateFromTT).
+        // Flag off ⇒ identity, matching pre-flag storage exactly.
+        const v = ctx.cfg.useMateDistance ? mateFromTT(e.value, ply) : e.value;
+        if (e.flag === Flag.Exact) return v;
+        if (e.flag === Flag.Lower && v > alpha) alpha = v;
+        else if (e.flag === Flag.Upper && v < beta) beta = v;
+        if (alpha >= beta) return v;
       }
     }
   }
 
   const maximizing = state.turn === "attackers";
   const moves = orderMoves(state, allMoves(state.board, state.turn, ctx.rules), ttMove, ply, ctx);
-  if (moves.length === 0) return evaluate(state, ctx.weights, ctx.rules);
+  if (moves.length === 0) return evaluateAtPly(state, ply, ctx); // no legal move ⇒ status is already terminal
 
   let best = maximizing ? -Infinity : Infinity;
   let bestMove: Move | null = null;
@@ -975,7 +1038,9 @@ function search(
 
   if (ctx.cfg.useTT) {
     const flag = best <= alpha0 ? Flag.Upper : best >= beta0 ? Flag.Lower : Flag.Exact;
-    ttStore(key, depth, best, flag, bestMove);
+    // root-relative -> node-relative for storage (see mateToTT/mateFromTT).
+    // Flag off ⇒ store the raw value, matching pre-flag storage exactly.
+    ttStore(key, depth, ctx.cfg.useMateDistance ? mateToTT(best, ply) : best, flag, bestMove);
   }
   return best;
 }

@@ -691,6 +691,22 @@ export interface SearchConfig {
    *  null window and only re-search in full when the scout beats the bound. Same
    *  values as plain alpha–beta, fewer nodes when move ordering is good. */
   usePVS: boolean;
+  /** Decay decisive scores by ply (mate-in-2 outscores mate-in-20) instead of the
+   *  flat ±WIN every terminal returned before this flag existed. See the note on
+   *  `mateToTT`/`mateFromTT` for the mechanism and, importantly, for why it ships
+   *  OFF. Sound in isolation (a mate-distance-adjusted TT is the standard
+   *  technique, and it is unit-tested — see `engine.test.ts`'s "mate distance"
+   *  suite) but not a demonstrated win: measured no win-rate change over a 96-game
+   *  balance matrix and an 8-series depth-scaling gauntlet, and measured **25%
+   *  slower** conversion of already-won positions over 10 self-play seeds (mean
+   *  3.20 → 4.00 plies from first-proven-decisive to termination) — the opposite
+   *  of what it exists to buy. Root-level iterative deepening stops at the first
+   *  depth where *any* move is decisive, before a slower-to-prove alternative is
+   *  even recognised as decisive, so the decay mostly cannot act where a root
+   *  choice between two known forced wins would matter most. Same idiom as
+   *  `attackerRecognizer`: sound, cross-validated, no measured strength gain, an
+   *  analysis-only knob rather than a play default. */
+  useMateDistance: boolean;
 }
 
 export const FULL_CONFIG: SearchConfig = {
@@ -707,6 +723,7 @@ export const FULL_CONFIG: SearchConfig = {
   // where ordering dominates less. Aspiration windows were skipped for the same
   // reason: the root already searches the PV move full-window and the rest narrow.
   usePVS: false,
+  useMateDistance: false,
 };
 
 /** The original engine's behaviour — a fixed-depth searcher with legacy ordering
@@ -719,6 +736,7 @@ export const LEGACY_CONFIG: SearchConfig = {
   maxQuiescencePly: 0,
   useLMR: false,
   usePVS: false,
+  useMateDistance: false,
 };
 
 export interface SearchLimits {
@@ -749,6 +767,52 @@ interface TTEntry {
 const TT = new Map<string, TTEntry>();
 const TT_MAX = 400_000;
 let TT_GEN = 0;
+
+/**
+ * Mate-distance adjustment ── gated behind `SearchConfig.useMateDistance`
+ * (default OFF; see the comment on that field for why). When on, every
+ * decisive score this engine produces is *decayed by ply* the moment it
+ * leaves `evaluate` inside the search: a terminal reached at ply `p` from
+ * the current search's root scores `WIN - p` (or `-WIN + p`), never a flat
+ * `±WIN`. That is what lets the search prefer mate-in-2 over mate-in-20
+ * instead of treating every forced win as identical — see `evaluateAtPly`
+ * below, which is the one place the decay is applied, and its doc comment
+ * for why `evaluate` itself stays flat. When off, every call site below
+ * that would otherwise apply this pair short-circuits to the raw value, so
+ * behaviour is identical to the engine before this pair existed.
+ *
+ * The TT interaction this buys is the subtle part. A search value is always
+ * *root-relative* — "mate in N plies from where this whole search started" —
+ * but the same board position can be reached at a different ply in a later
+ * search (a different move sequence, or the next move's fresh search reusing
+ * the same table). A root-relative mate score stored as-is and reused at a
+ * different ply is simply wrong: replayed verbatim it either claims a mate
+ * that is now further away than the search re-derived, or throws away a mate
+ * that is now closer. Standard fix (the one every alpha-beta engine with a
+ * shared TT uses): store *node-relative* — normalise out the storing search's
+ * root by adding back the ply at which the value was found, so the number in
+ * the table means "mate in N plies from this node", independent of any root.
+ * On probe, re-express it relative to the *current* search's root by
+ * subtracting the probing ply. `mateToTT`/`mateFromTT` are exactly that pair,
+ * and they are exact inverses of each other for any ply. Non-decisive scores
+ * (the overwhelming majority) are untouched either way — `|v| < DECISIVE`
+ * short-circuits both functions to the identity.
+ *
+ * Ordinary (non-mate) scores were always safe to share across ply/root this
+ * way — a positional score doesn't depend on how far from the root it is
+ * found, only a mate does — which is why only the two branches above touch
+ * anything.
+ */
+function mateToTT(v: number, ply: number): number {
+  if (v >= DECISIVE) return v + ply;
+  if (v <= -DECISIVE) return v - ply;
+  return v;
+}
+function mateFromTT(v: number, ply: number): number {
+  if (v >= DECISIVE) return v - ply;
+  if (v <= -DECISIVE) return v + ply;
+  return v;
+}
 
 /** Position value is (almost entirely) determined by board + side to move, so the
  *  table is safe to reuse move-to-move. The lone caveat is repetition-sensitive
@@ -792,6 +856,23 @@ function recordKiller(ctx: Ctx, ply: number, m: Move): void {
   if (sameMove(slot[0], m)) return;
   slot[1] = slot[0];
   slot[0] = m;
+}
+
+/**
+ * `evaluate`, decayed by ply when `useMateDistance` is on (the raw value
+ * otherwise). The one call site every terminal/leaf return in `search`/
+ * `quiesce` goes through — see the mate-distance note above `mateToTT`.
+ *
+ * The transform is exactly `mateFromTT`: a fresh `evaluate()` result *is*
+ * already node-relative (the node in question is the terminal itself, so its
+ * distance to its own mate is 0 — `evaluate` returning a flat `±WIN` is
+ * precisely "mate in 0 plies from here"), which is the same shape a TT probe
+ * hands back. Reusing one function for both keeps the two decays from ever
+ * drifting apart into two slightly different conventions.
+ */
+function evaluateAtPly(state: GameState, ply: number, ctx: Ctx): number {
+  const raw = evaluate(state, ctx.weights, ctx.rules);
+  return ctx.cfg.useMateDistance ? mateFromTT(raw, ply) : raw;
 }
 
 // ── Move ordering ─────────────────────────────────────────────────────────────
@@ -853,12 +934,17 @@ function tacticalMoves(state: GameState, ctx: Ctx): Move[] {
   return out;
 }
 
-function quiesce(state: GameState, alpha: number, beta: number, qply: number, ctx: Ctx): number {
+/** `ply` is the absolute distance from the search's root (not the remaining
+ *  quiescence budget `qply`) — needed so a terminal or a recognizer's decisive
+ *  score found mid-quiescence decays by its *real* distance from the root, the
+ *  same as one found by the main search. Threaded through the recursion one
+ *  hop at a time, exactly like `search`'s own `ply`. */
+function quiesce(state: GameState, alpha: number, beta: number, qply: number, ply: number, ctx: Ctx): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
+  if (isGameOver(state.status)) return evaluateAtPly(state, ply, ctx);
 
-  const standPat = evaluate(state, ctx.weights, ctx.rules);
+  const standPat = evaluateAtPly(state, ply, ctx);
   const maximizing = state.turn === "attackers";
   if (maximizing) {
     if (standPat >= beta) return standPat;
@@ -876,7 +962,7 @@ function quiesce(state: GameState, alpha: number, beta: number, qply: number, ct
   let best = standPat;
   for (const m of ordered) {
     const child = applyMove(state, m, ctx.rules);
-    const v = quiesce(child, alpha, beta, qply - 1, ctx);
+    const v = quiesce(child, alpha, beta, qply - 1, ply + 1, ctx);
     if (maximizing) {
       if (v > best) best = v;
       if (best > alpha) alpha = best;
@@ -893,8 +979,11 @@ function quiesce(state: GameState, alpha: number, beta: number, qply: number, ct
 function search(state: GameState, depth: number, ply: number, alpha: number, beta: number, ctx: Ctx): number {
   ctx.nodes++;
   if (ctx.deadline < Infinity && (ctx.nodes & 2047) === 0 && ctx.now() > ctx.deadline) throw ABORT;
-  if (isGameOver(state.status)) return evaluate(state, ctx.weights, ctx.rules);
-  if (depth <= 0) return ctx.cfg.useQuiescence ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ctx) : evaluate(state, ctx.weights, ctx.rules);
+  if (isGameOver(state.status)) return evaluateAtPly(state, ply, ctx);
+  if (depth <= 0)
+    return ctx.cfg.useQuiescence
+      ? quiesce(state, alpha, beta, ctx.cfg.maxQuiescencePly, ply, ctx)
+      : evaluateAtPly(state, ply, ctx);
 
   const alpha0 = alpha;
   const beta0 = beta;
@@ -905,17 +994,24 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
     if (e) {
       ttMove = e.move;
       if (e.depth >= depth) {
-        if (e.flag === Flag.Exact) return e.value;
-        if (e.flag === Flag.Lower && e.value > alpha) alpha = e.value;
-        else if (e.flag === Flag.Upper && e.value < beta) beta = e.value;
-        if (alpha >= beta) return e.value;
+        // e.value is node-relative when useMateDistance stored it that way (see
+        // mateToTT/mateFromTT above the TT); this node's own ply re-expresses it
+        // relative to *this* search's root before it touches alpha/beta or gets
+        // returned — a raw e.value here would be a mate distance measured from
+        // whatever root originally stored it. Flag off ⇒ identity, matching
+        // pre-flag storage exactly.
+        const v = ctx.cfg.useMateDistance ? mateFromTT(e.value, ply) : e.value;
+        if (e.flag === Flag.Exact) return v;
+        if (e.flag === Flag.Lower && v > alpha) alpha = v;
+        else if (e.flag === Flag.Upper && v < beta) beta = v;
+        if (alpha >= beta) return v;
       }
     }
   }
 
   const maximizing = state.turn === "attackers";
   const moves = orderMoves(state, allMoves(state.board, state.turn, ctx.rules), ttMove, ply, ctx);
-  if (moves.length === 0) return evaluate(state, ctx.weights, ctx.rules); // no legal move ⇒ status is already terminal
+  if (moves.length === 0) return evaluateAtPly(state, ply, ctx); // no legal move ⇒ status is already terminal
 
   let best = maximizing ? -Infinity : Infinity;
   let bestMove: Move | null = null;
@@ -975,7 +1071,10 @@ function search(state: GameState, depth: number, ply: number, alpha: number, bet
 
   if (ctx.cfg.useTT) {
     const flag = best <= alpha0 ? Flag.Upper : best >= beta0 ? Flag.Lower : Flag.Exact;
-    ttStore(key, depth, best, flag, bestMove);
+    // best is root-relative (this search's root); store node-relative so a
+    // later probe at a different ply/root re-derives the right distance. Flag
+    // off ⇒ store the raw value, matching pre-flag storage exactly.
+    ttStore(key, depth, ctx.cfg.useMateDistance ? mateToTT(best, ply) : best, flag, bestMove);
   }
   return best;
 }
