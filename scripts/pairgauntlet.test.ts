@@ -86,32 +86,38 @@ describe("categorize", () => {
 // a flaky "run it and see" performance assertion, it is the same replayable
 // computation every time, on every machine. Only the wall-clock time varies.
 describe("pairgauntlet self-check: a deeper search must beat a shallower one", () => {
-  it("depth 2 (candidate) beats depth 1 (baseline) significantly over 20 mirrored pairs, book2 opening, seed 7", () => {
+  it("depth 2 (candidate) never loses a decisive pair to depth 1 (baseline) over 20 mirrored pairs, book2 opening, seed 7", () => {
     const summary = runGauntlet(
       DEFAULT_WEIGHTS,
       DEFAULT_WEIGHTS,
       2, // candidate depth
       1, // baseline depth
-      20, // pairs — below the ~50-60 recommended minimum; this seed's
-      // decisive rate (6/20) happens to cross p<0.05 at this size. See the
-      // file header's power-analysis table for why a real moderate-effect
-      // comparison on an untuned candidate needs far more.
+      20, // pairs — below the ~50-60 recommended minimum, kept here for CI
+      // speed. Small on purpose: see the assertion comment below for why
+      // that means this check cannot assert a p-value.
       "book2",
       7,
       () => {}, // silence the per-pair log; the assertions are the record
     );
 
-    // The instrument's core promise: a real, structural advantage (one extra
-    // ply of search) must win pairs outright (WW), not just split them the
-    // way pure side bias would. Exact counts, because this run is
-    // deterministic — if these drift, either the engine's play changed or the
-    // harness's pairing/scoring logic broke.
-    expect(summary.WW).toBe(6);
+    // p<0.05 is deliberately NOT asserted here. At 20 pairs the decisive-pair
+    // yield is too low for significance to be reachable at all: the file
+    // header's power table shows the minimum n_decisive that can ever cross
+    // p<0.05 is 6, and only at an exact 6-0 sweep (p=0.0313) — fewer decisive
+    // pairs than that cannot cross the threshold no matter how lopsided the
+    // split is. This test used to assert signTestP < 0.05 and it passed, but
+    // only because this seed happened to land exactly 6 decisive pairs out of
+    // 20 — a coin landing the right way, not a property holding at this
+    // sample size. Real significance testing is left to the 50-60+ pair runs
+    // the header directs people to (see its 40-pair depth-4-vs-3 calibration:
+    // WW=10 LL=0, p=0.00195).
+    //
+    // What DOES hold at any sample size, including this small fast one, is
+    // the direction: a real structural advantage (one extra ply of search)
+    // never loses a decisive pair to a weaker baseline. So this fast CI check
+    // asserts that invariant instead — LL===0 and WW>0 — which is what a
+    // 20-pair run can actually prove.
     expect(summary.LL).toBe(0);
-    expect(summary.split).toBe(14);
-    expect(summary.decisive).toBe(6);
-    expect(summary.WW).toBeGreaterThan(summary.LL);
-    expect(summary.signTestP).toBeCloseTo(0.03125, 6);
-    expect(summary.signTestP).toBeLessThan(0.05);
+    expect(summary.WW).toBeGreaterThan(0);
   });
 });

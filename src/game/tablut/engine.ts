@@ -154,6 +154,14 @@ export const DEFAULT_WEIGHTS: EvalWeights = {
   kingEdge: 30,
   escapeLane: 90,
   hug: 30,
+  // liberties was re-measured on Brandubh's validated mirrored-pair gauntlet
+  // (scripts/pairgauntlet.ts, ../../../scripts/pairgauntlet.ts from here) and
+  // shipped there at weight 12 (pooled 120 pairs, 33W/5L, p=4.3e-6) — see the
+  // DEFAULT_WEIGHTS comment in ../engine.ts. That measurement was Brandubh-only:
+  // per ADR-0006 the two games deliberately fork rather than share tuning, and
+  // corner-escape geometry (what the Brandubh run actually tested) is not
+  // edge-escape geometry. liberties has NOT been measured on Tablut's own
+  // gauntlet and stays parked at 0 here until it is.
   liberties: 0,
   shield: 0,
   mobility: 0,

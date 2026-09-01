@@ -60,12 +60,41 @@ meaningless when the whole rim wins. See `docs/adr/0006-…` (and its addendum) 
   gained predictive iteration stopping so slower devices wait less (they simply
   search shallower) instead of burning the whole budget on an unfinishable ply.
 - [x] **Evaluation tuning** — investigated via `scripts/evaltune.ts` (weighted
-  `evaluate()` + self-play gauntlet). Outcome: **keep the default weights.** No
-  candidate term beat the baseline at the depths the game plays — mobility only
-  helped at depth 2 (even by depth 3) and cost ~2× per node, shield/liberties
-  were worse, blocker-aware king distance was neutral. The search rewrite already
-  captures what those heuristics proxied for. The terms remain as opt-in knobs
-  for per-variant retuning (see below).
+  `evaluate()` + self-play gauntlet). Original outcome (now partly corrected,
+  see below): **keep the default weights** for `kingRegion` (beat the
+  baseline 31–9 at weight 6, still stands) and park `liberties`, `shield`,
+  `mobility` and `blockerAwareKingDist` at weight zero as "neutral or worse".
+
+  **That parking verdict is now known to have been mismeasured, not merely
+  superseded.** An A/A control on `evaltune.ts`'s own protocol (identical
+  weights on both sides, depth 4, 24 games) came back 21/24 (87.5%) to
+  whichever side moved second, with byte-identical code on both sides. A
+  signal as small as one eval term is invisible under that much bias, so every
+  "neutral or worse" verdict the unpaired harness produced for these four
+  terms was measuring the harness, not the terms.
+
+  Re-measured on a mirrored-pair gauntlet built to remove that bias
+  (`scripts/pairgauntlet.ts` — validated: A/A control net 0, known-positive
+  depth-4-vs-3 calibration p=0.00195), 60 mirrored pairs per term, depth 4,
+  book2 openings:
+  - **`liberties` — overturned, ships at 12.** Pooled over 120 mirrored pairs
+    (an initial 60 plus a fresh-seed replication): 33W/5L, p=4.3e-6.
+    `src/game/engine.ts` `DEFAULT_WEIGHTS`.
+  - **`mobility` — still parked.** Significant once, p=0.0118, but only 0.047
+    after Bonferroni correction across the four terms tested, and
+    unreplicated. A combined run with `liberties` showed no measurable lift
+    over `liberties` alone (Fisher's exact on the win:loss ratio, p=1.0), so
+    there is no evidence it adds anything. Needs its own replication before
+    reconsideration.
+  - **`shield` — VINDICATED.** 9W/8L, p=1.0000. The original parking decision
+    was correct and now rests on evidence far stronger than the biased
+    harness ever produced.
+  - **`blockerAwareKingDist` — VINDICATED.** 5W/9L, p=0.4240. Same.
+
+  The search rewrite still captures what these heuristics proxied for, for
+  the three that remain parked as opt-in knobs for per-variant retuning (see
+  below). Full record, including the instrument's own validation, in
+  `docs/ROADMAP.md` Session 11.
 - [x] **Opening book** — done (roadmap Session 6): deep-search book covering the
   first two moves of each side, played instantly by ollamh with seeded variety.
   Not the aagenielsen.dk game-import flavour of book once envisioned below —

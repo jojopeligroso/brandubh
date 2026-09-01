@@ -166,19 +166,59 @@ export interface EvalWeights {
 
 /**
  * The shipping weights for Brandubh, set by A/B gauntlet (scripts/evaltune.ts).
- * The original hand-tuned terms held up: shield/liberties were worse (redundant
- * with the king-safety terms), mobility helped only at depth 2 (gone by depth 3)
- * and cost ~2× per node, and blocker-aware king distance was neutral. The one term
- * that *did* earn its keep is `kingRegion` (king confinement): at depth 4 it beat
- * the baseline 31–9 at weight 6 (24–16 at weight 8), so it ships at 6. The unused
- * terms remain as opt-in knobs for retuning on differently-balanced variants.
+ * `kingRegion` (king confinement) earned its keep there: at depth 4 it beat the
+ * baseline 31–9 at weight 6 (24–16 at weight 8), so it ships at 6 — that result
+ * still stands.
+ *
+ * The other four candidate terms (liberties, shield, mobility, blocker-aware
+ * king distance) were also called "neutral or worse" by that same gauntlet and
+ * parked at weight zero — but `scripts/evaltune.ts` plays unpaired A/B games,
+ * and an A/A control on that protocol (identical config both sides, depth 4,
+ * 24 games) came back 1–11 as attacker / 10–2 as defender: defenders won 21/24
+ * (87.5%) with byte-identical code on both sides. Any real signal from a
+ * candidate term this small is invisible under that much side bias, so every
+ * verdict it produced for these four terms was unreliable, not just "old".
+ *
+ * A mirrored-pair gauntlet (`scripts/pairgauntlet.ts`) was built to remove that
+ * bias — same opening played twice with roles swapped, scored as a pair so
+ * side bias cancels by construction — and validated (A/A control net 0 over 16
+ * pairs; known-positive calibration, depth 4 vs depth 3, 40 pairs, WW=10 LL=0,
+ * p=0.00195). Re-measured on it, depth 4, book2 openings:
+ *
+ *   liberties            60 pairs  18W/4L/38split  net +14  p=0.0043
+ *   liberties (replicate) 60 pairs 15W/1L/44split  net +14  p=0.00052
+ *   liberties (pooled)   120 pairs 33W/5L/82split  net +28  p=4.3e-6   SIGNIFICANT
+ *   mobility              60 pairs 16W/4L/40split  net +12  p=0.0118  marginal after
+ *                                                                     Bonferroni (×4 tests, 0.047),
+ *                                                                     unreplicated
+ *   shield                60 pairs  9W/8L/43split  net  +1  p=1.0000  neutral — VINDICATED
+ *   blockerAwareKingDist  60 pairs  5W/9L/46split  net  -4  p=0.4240  neutral — VINDICATED
+ *
+ * `liberties` overturns the original verdict and ships at 12 (see the comment
+ * on the field below). A combined mobility+liberties run (60 pairs, 22W/5L,
+ * net +17, p=0.0015) is statistically indistinguishable from liberties alone
+ * by Fisher's exact test on the win:loss ratio (p=1.0) — the extra net came
+ * from a higher decisive rate, not a better ratio, so there is no evidence
+ * mobility adds anything on top of liberties. `mobility` stays parked pending
+ * its own replication; `shield` and `blockerAwareKingDist` stay parked, now on
+ * much stronger evidence that parking them was correct all along. Do not
+ * re-propose mobility/shield/blockerAwareKingDist without new measurement on
+ * the paired instrument. See `docs/ROADMAP.md` for the session record.
  */
 export const DEFAULT_WEIGHTS: EvalWeights = {
   material: 40,
   kingCorner: 25,
   escapeLane: 120,
   hug: 30,
-  liberties: 0,
+  // Overturned 2026-09-01: parked at 0 by the original unpaired evaltune.ts
+  // gauntlet, whose A/A control was later shown to carry an 87.5% side bias
+  // (see the DEFAULT_WEIGHTS comment above). Re-measured on the validated
+  // mirrored-pair instrument (scripts/pairgauntlet.ts), pooled over 120 pairs:
+  // 33W/5L, net +28, p=4.3e-6 — significant and replicated on fresh seeds.
+  // Ships at 12. Someone will be tempted to re-park this on the strength of
+  // the old comment alone; don't — the old comment was measuring the harness,
+  // not the term.
+  liberties: 12,
   shield: 0,
   mobility: 0,
   kingRegion: 6,

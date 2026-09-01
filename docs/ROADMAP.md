@@ -309,6 +309,100 @@ most likely to want a timed game.
 - [x] **Three driven-browser passes against the production build.** The time step: opens on the stored control, off → on reveals the ladder, Custom reveals both sliders, 5+3 starts a game reading 5:00 +3 on both bars, Back returns to the mode step, re-entry shows 5+3 still selected — and the vs-AI path still steps side → strength with no time step and starts untimed. Whole minutes: a pre-seeded `brandubh.clock.customMinutes` of 2.25 comes back as 2, `step="1"` / `min="1"`, eight arrow-key stops all integers, chip reads `Custom · 4+0`, game starts at 4:00. Defaults: Zen on at first visit, the overlay ladder reading `BLITZ RAPID` only, the scoreboard hidden, the foot switch found by scrolling and turning Zen off — removing itself, bringing the scoreboard back, and surviving a reload — a stored `1+0` seeding to 3+2 and starting at 3:00 +2, and the settings panel still offering `1+0`.
 - **`docs/screenshot.png` deliberately not regenerated.** With Zen on by default, `npm run screenshot` — which walks a fresh profile through the overlay — now captures a stripped board rather than the full UI the current cover shows. That is an honest picture of a first visit, but which one the cover *should* be is a product call and not this session's to take. Filed in `TASKS.md` under Docs.
 
+### Session 11 — Eval term reconsideration: liberties overturned, on a fixed instrument *(S)* — **shipped**
+**Goal:** correct a measurement, not add a feature. Four eval terms — `liberties`,
+`shield`, `mobility`, `blockerAwareKingDist` — were parked at weight zero years
+ago (Session AI-engine work, `TASKS.md` "Evaluation tuning") on the verdict
+"neutral or worse" from `scripts/evaltune.ts`'s unpaired A/B gauntlet, with an
+instruction not to re-propose them without new measurement. New measurement
+exists, and it changes one of the four verdicts.
+
+- [x] **The old instrument was shown to be broken, not just old.** An A/A
+  control on `evaltune.ts`'s protocol (identical `DEFAULT_WEIGHTS` on both
+  sides, depth 4, 24 games) came back 1–11 as attacker / 10–2 as defender:
+  defenders won 21/24 (87.5%) with byte-identical code on both sides. A signal
+  as small as one eval term is invisible under that much side bias, so every
+  "neutral or worse" verdict it ever produced for these four terms was
+  measuring the harness, not the terms.
+- [x] **A mirrored-pair gauntlet fixes it**: `scripts/pairgauntlet.ts` plays
+  each opening twice with the candidate/baseline roles swapped and scores the
+  *pair*, so side bias cancels by construction instead of needing to be
+  averaged away. Validated before being trusted for anything: A/A control net
+  0 over 16 pairs (book2, depth 4), and a known-positive calibration (depth 4
+  vs depth 3, 40 pairs) at WW=10 LL=0, p=0.00195 — the instrument credits a
+  real structural advantage and does not manufacture significance out of bias
+  alone. A CI self-check (`scripts/pairgauntlet.test.ts`) pins a small
+  reproduction of that calibration so a future change to the harness itself
+  cannot silently stop meaning anything.
+- [x] **All four parked terms re-measured on the fixed instrument**, depth 4,
+  book2 openings, 60 pairs each:
+
+  | term | result | verdict |
+  |---|---|---|
+  | `liberties` | 18W/4L/38split, net +14, p=0.0043 | significant |
+  | `mobility` | 16W/4L/40split, net +12, p=0.0118 | significant but marginal after Bonferroni correction across the four tests (corrected p = 0.0118×4 = 0.047 — clears α=0.05, but only just) |
+  | `shield` | 9W/8L/43split, net +1, p=1.0000 | neutral — **original parking VINDICATED** |
+  | `blockerAwareKingDist` | 5W/9L/46split, net −4, p=0.4240 | neutral — **original parking VINDICATED** |
+
+  `liberties` was then replicated on fresh seeds: 15W/1L, net +14, p=0.00052.
+  Pooled across both runs, 120 pairs: 33W/5L, net +28, p=4.3e-6.
+- [x] **Ruled out mobility riding on liberties' coattails.** A combined
+  mobility+liberties run (60 pairs) returned 22W/5L, net +17, p=0.0015 — a
+  bigger net than liberties alone, which could look like mobility adding
+  something. Fisher's exact test comparing that win:loss ratio against
+  liberties alone gives p=1.0: statistically indistinguishable. The extra net
+  came from a higher *decisive rate* (fewer splits), not a better *ratio*
+  among decisive pairs — so there is no evidence mobility contributes anything
+  on top of liberties. `mobility` needs its own replication (only one 60-pair
+  run exists, vs. two for `liberties`) before it can be reconsidered on its
+  own; it stays parked.
+- [x] **Decision: `liberties` ships at weight 12** in Brandubh's
+  `DEFAULT_WEIGHTS` (`src/game/engine.ts`) — the pooled, replicated, p=4.3e-6
+  result clears every bar the other three didn't. `mobility`, `shield` and
+  `blockerAwareKingDist` all stay parked at 0: `mobility` on "significant once,
+  unreplicated, and redundant with liberties"; `shield` and
+  `blockerAwareKingDist` on a now much stronger neutral result than the one
+  that first parked them.
+- [x] **Tablut's weights are untouched.** Per ADR-0006 the two games
+  deliberately fork rather than share tuning, and every gauntlet in this
+  session ran on the Brandubh engine only — corner-escape geometry, not
+  Tablut's edge escape. `src/game/tablut/engine.ts` gets a comment recording
+  that `liberties` was measured and enabled *for Brandubh* and remains an
+  unmeasured, parked knob on the Tablut side pending its own gauntlet (see
+  `TASKS.md` "Tune the Tablut eval weights", already open before this
+  session).
+- [x] **Fallout**: two `spatialTerms.test.ts` cases hard-coded `evaluate()`
+  totals that included the (previously zero) liberties term as a constant
+  offset. Both boards under test leave all four squares orthogonally adjacent
+  to the king empty on both sides of the comparison, so the new term
+  subtracts an identical 4×12=48 from every score in both pairs — the
+  *property* each test exists to demonstrate (an exact tie; a sign reversal)
+  is unaffected, only the absolute numbers moved by the same constant, and
+  both were re-pinned to the new values. One test was **not** re-pinned:
+  `scripts/pairgauntlet.test.ts`'s depth-2-vs-1 self-check (20 pairs, seed 7)
+  dropped from 6 to 4 decisive pairs under the new weights, and the file's own
+  power table (in its header comment) shows 4 decisive pairs can never cross
+  p<0.05 regardless of split — the deeper search still never lost a decisive
+  pair (WW=4, LL=0), but the test's significance assertion can no longer pass
+  at this exact seed/pair-count. That is a genuine change in what this small,
+  already-flagged-as-fragile calibration instance can detect, not a numeric
+  offset to paper over, so it was left failing and reported rather than edited
+  — see the session's own report for the full data and the decision this
+  needs from whoever owns the instrument next.
+- [x] **Verification**: `npx vitest run` — 44 files / 993 tests, 992 passing,
+  1 known failure (above, reported not patched); `npx tsc -b --noEmit` clean;
+  `npm run check:evalbar`, `check:tablut` and `check:ai-reveal` all green
+  (none of the three touch eval weights, and none regressed).
+
+**What this session is not.** One eval term measured significantly better in
+120 mirrored pairs is not a claim about the engine being stronger in general —
+see Part V of `docs/reports/engine-and-optimality-report.md` for the bounds on
+what this project will stand over. `TASKS.md`'s "Evaluation tuning" bullet and
+`docs/reports/engine-and-optimality-report.md`'s "candidate terms that measured
+neutral-or-worse (mobility, shield, liberties, blocker-aware distance)" line
+are now stale for `liberties` specifically — both are outside this session's
+file ownership and are flagged here rather than edited.
+
 ---
 
 ## Deferred / not worth it (with rationale)

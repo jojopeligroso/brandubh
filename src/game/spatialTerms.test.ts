@@ -74,8 +74,14 @@ describe("quadrantCoverage: fixes the measured quadrant-encirclement blindness",
   it("the shipped default (quadrantCoverage: 0) reproduces the exact tie", () => {
     const a = evaluate(stateOf(bunched, "attackers"), DEFAULT_WEIGHTS, walker);
     const b = evaluate(stateOf(spread, "attackers"), DEFAULT_WEIGHTS, walker);
-    expect(a).toBe(139.5);
-    expect(b).toBe(139.5);
+    // 139.5 before liberties shipped at 12 (scripts/pairgauntlet.ts, pooled
+    // 120 pairs, p=4.3e-6 -- see the DEFAULT_WEIGHTS comment in engine.ts).
+    // Both boards leave all 4 orthogonal squares around the king empty, so
+    // the new term subtracts the same 4*12=48 from both sides and the tie
+    // this test exists to demonstrate is unaffected -- only the shared
+    // constant moved: 139.5 - 48 = 91.5.
+    expect(a).toBe(91.5);
+    expect(b).toBe(91.5);
     expect(a).toBe(b); // the blindness: identical score despite very different coverage
   });
 
@@ -140,8 +146,15 @@ describe("anvilThreat: fixes the measured defender-phalanx sign reversal", () =>
   it("the shipped default (anvilThreat: 0) reproduces the exact sign reversal", () => {
     const a = evaluate(stateOf(hangs, "attackers"), DEFAULT_WEIGHTS, walker);
     const b = evaluate(stateOf(safe, "attackers"), DEFAULT_WEIGHTS, walker);
-    expect(a).toBe(-107.5);
-    expect(b).toBe(-101.5);
+    // -107.5 / -101.5 before liberties shipped at 12 (scripts/pairgauntlet.ts,
+    // pooled 120 pairs, p=4.3e-6 -- see the DEFAULT_WEIGHTS comment in
+    // engine.ts). Neither board has a piece orthogonally adjacent to the king
+    // in either position, so all 4 king-neighbour squares are empty on both
+    // boards and the new term subtracts the same 4*12=48 from both sides; the
+    // sign reversal this test exists to demonstrate is unaffected, only the
+    // shared constant moved: -107.5 - 48 = -155.5, -101.5 - 48 = -149.5.
+    expect(a).toBe(-155.5);
+    expect(b).toBe(-149.5);
     // Attacker-positive score: the position with a free capture on the board
     // (hangs) scores LOWER (more defender-favourable) than the safe one — backwards.
     expect(a).toBeLessThan(b);
