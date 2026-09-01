@@ -185,6 +185,7 @@ import {
   autosaveAllowed,
   boardIsInteractive,
   controllableIn,
+  gameSetupLocked,
   settingsStackVisible,
 } from "./analysis";
 import {
@@ -554,6 +555,7 @@ export default function App() {
     mode: PlayMode;
     difficulty?: Difficulty;
     clock?: ClockSelection;
+    variantId?: string;
   } | null>(null);
   const [showTakeback, setShowTakeback] = useState(false);
   // A branch ("play from here") awaiting the opponent's agreement in hotseat play.
@@ -1097,6 +1099,12 @@ export default function App() {
     setSelected(null);
     clearMoveDecoration();
     setShowTakeback(false);
+    // You cannot be in the room and be shown the curtain: entering analysis on
+    // a game that has only just ended (the victory overlay's own Review button,
+    // or "Analyse from here", which ends it on purpose) would otherwise open the
+    // board underneath a result announcement. Changing `analysis` also cancels
+    // the delayed raise, through the curtain effect's cleanup.
+    setShowVictory(false);
   }, [liveStates, liveCursor, cancelAi, setZenEnabled]);
 
   const exitAnalysis = useCallback(() => {
@@ -1949,23 +1957,76 @@ export default function App() {
     setThinking(false);
   }, [tip, rewindTo, analysis]);
 
-  const resign = useCallback(() => {
-    setShowResign(false);
-    if (analysis) return; // you cannot resign a position you are only exploring
-    if (gameOver || !atTip) return;
-    // In AI play the human resigns; over-the-board, the side to move resigns.
-    const loser: Side = humanSide === null ? game.turn : humanSide;
-    const status: GameState["status"] =
-      opposite(loser) === "attackers" ? "attackers_win_resign" : "defenders_win_resign";
+  // The resignation itself, with none of the guards: the live game's last
+  // position takes the resign status. Split out of `resign` because "Analyse
+  // from here" buys its way into analysis with one (see below), and the two must
+  // agree on who is resigning — the human against the computer, the side to move
+  // over the board. Read off the live tip inside the updater rather than off the
+  // viewed position: browsing back through the moves does not change whose game
+  // it is, and the analyse path can be taken from any of them.
+  const commitResign = useCallback(() => {
     if (aiTimer.current) window.clearTimeout(aiTimer.current);
     setThinking(false);
     setSelected(null);
     setStates((prev) => {
+      const last = prev[prev.length - 1];
+      if (isGameOver(last.status)) return prev;
+      const loser: Side = humanSide === null ? last.turn : humanSide;
+      const status: GameState["status"] =
+        opposite(loser) === "attackers" ? "attackers_win_resign" : "defenders_win_resign";
       const copy = [...prev];
-      copy[copy.length - 1] = { ...copy[copy.length - 1], status };
+      copy[copy.length - 1] = { ...last, status };
       return copy;
     });
-  }, [gameOver, atTip, humanSide, game.turn, analysis]);
+  }, [humanSide]);
+
+  const resign = useCallback(() => {
+    setShowResign(false);
+    if (analysis) return; // you cannot resign a position you are only exploring
+    if (gameOver || !atTip) return;
+    commitResign();
+  }, [gameOver, atTip, analysis, commitResign]);
+
+  // ── Analyse from here ───────────────────────────────────────────────────────
+  //
+  // `analysisAvailable` is untouched, and so is the rule it holds: analysis
+  // moves both sides by hand with the engine on, which mid-game is not analysis
+  // but assistance — cheating against the computer, and cheating in front of the
+  // person opposite you over the board. This is not a way past that gate. It is
+  // a way to *end* the game and go and look at it, at the price the rule
+  // implies: the game is resigned from the position on the board, and it is a
+  // real resignation — the result stands, the set score takes it, the record
+  // keeps it.
+  //
+  // A game that is already over pays nothing, so it goes straight in.
+  const [showAnalyseResign, setShowAnalyseResign] = useState(false);
+  // Set once that price has been paid. The resignation reaches `liveStates`
+  // through a state update, so the gate cannot see it in the same tick —
+  // `enterAnalysis` would read the pre-resign tip and refuse, silently. This
+  // opens the room on the next render, when the result is really there.
+  const [analyseWhenOver, setAnalyseWhenOver] = useState(false);
+
+  const requestAnalyseFromHere = useCallback(() => {
+    if (analysis) return;
+    if (isGameOver(liveStates[liveStates.length - 1].status)) enterAnalysis();
+    else setShowAnalyseResign(true);
+  }, [analysis, liveStates, enterAnalysis]);
+
+  const analyseFromHere = useCallback(() => {
+    setShowAnalyseResign(false);
+    if (analysis) return;
+    commitResign();
+    setAnalyseWhenOver(true);
+  }, [analysis, commitResign]);
+
+  useEffect(() => {
+    if (!analyseWhenOver) return;
+    // Whatever ended the game — the resignation just committed, or a flag that
+    // fell first — the room is open now. Cleared either way, so a refused
+    // resignation cannot leave the flag armed to fire at some later result.
+    setAnalyseWhenOver(false);
+    if (isGameOver(liveStates[liveStates.length - 1].status)) enterAnalysis();
+  }, [analyseWhenOver, liveStates, enterAnalysis]);
 
   // ── Changing the rules ──────────────────────────────────────────────────────
   // A ruleset change cannot be applied to a game already in progress: the board
@@ -2057,9 +2118,23 @@ export default function App() {
   // Commit a game chosen in the overlay: this is the point of no return, so the
   // board reset — and the chosen AI strength, and the chosen time control —
   // land here and nowhere earlier.
-  const commitModeChoice = (m: PlayMode, d?: Difficulty, c?: ClockSelection) => {
+  const commitModeChoice = (
+    m: PlayMode,
+    d?: Difficulty,
+    c?: ClockSelection,
+    v?: string,
+  ) => {
     if (d) setDifficulty(d);
     if (c) applyClockSelection(c);
+    // A ruleset change is the one choice here that outlives the board: the save
+    // on disk is a move list paired with the rules it was played under, so a
+    // new ruleset makes it unreadable and it goes — the same pairing
+    // `changeVariant` keeps, at the same moment, by the same reasoning. The
+    // board reset itself comes from `changeMode` just below.
+    if (v && v !== variantId) {
+      setVariantId(v);
+      clearSavedGame();
+    }
     changeMode(m);
     closeSetupOverlay();
   };
@@ -2084,7 +2159,13 @@ export default function App() {
       primaryAction = nextGame;
     }
   } else {
-    primaryLabel = t.newGame;
+    // Solo, so there is no series to advance and nothing to keep: this is one
+    // more game on the same terms. It is named for that rather than "New game",
+    // because the menu now carries "Set up a new game" — the door to the terms
+    // themselves — and two rows a word apart would be two rows nobody can tell
+    // apart. Same reason the row is only offered once the game is decided (see
+    // the menu sheet): mid-game "play again" is not a thing to say.
+    primaryLabel = t.playAgain;
     primaryAction = requestNewMatch;
   }
   // The standalone "New match" button wipes the running series. Hide it while a
@@ -2118,6 +2199,16 @@ export default function App() {
   // file that replays into a different game, so both are refused — in their own
   // words, because the rule is one rule but the situation is not one situation.
   const positionRooted = pastedRoot || positionGame;
+
+  // Has a game begun? Once it has, the controls that configure the *next* one —
+  // side, AI strength, ruleset, time control — are not shown at all, and the
+  // conditions card below states what this game is being played under instead.
+  // `positionGame` rather than `positionRooted`: a pasted analysis board is not
+  // a game in progress, it is a position being looked at. See analysis.ts.
+  const setupLocked = gameSetupLocked({
+    movesPlayed: liveStates.length - 1,
+    positionRoot: positionGame,
+  });
   const positionExportRefusal = pastedRoot
     ? t.positionExportBlocked
     : t.puzzleGameExportBlocked;
@@ -2403,11 +2494,30 @@ export default function App() {
         // Everything wordy lives behind the list icon, exactly as on lichess.
         // Rows are contextual, under the same conditions the old buttons used.
         const progression = !zen.enabled || gameOver;
+        // Three rows carry a game in progress, and they are the reason the
+        // setup panels could be taken off the screen (see gameSetupLocked):
+        //
+        //  • "Set up a new game" is where side, strength, ruleset and clock went
+        //    — the full chooser, over the live board, backed out of freely. It
+        //    is unconditional: it is now the only door to any of them, so no
+        //    Zen extra and no game state may be allowed to hide it.
+        //  • "Export this game" is the game file, the same modal the drawer's
+        //    Tools row opens, without leaving the board to find it.
+        //  • "Analyse from here" ends the game and opens analysis on it (see
+        //    requestAnalyseFromHere) — hidden inside analysis, where it would
+        //    be offering the room you are standing in.
+        // Solo, the progression row *is* "another game on the same terms", which
+        // only means anything once this one is decided; over the board it is the
+        // match advancing (next game, next set) and stands throughout.
+        const showProgression = progression && (otbMatch !== null || gameOver);
         const menuItems = [
-          ...(progression ? [{ label: primaryLabel, onClick: primaryAction }] : []),
+          ...(showProgression ? [{ label: primaryLabel, onClick: primaryAction }] : []),
           ...(progression && showNewMatch
             ? [{ label: t.newMatch, onClick: requestNewMatch }]
             : []),
+          { label: t.setUpGame, onClick: openSetupOverlay },
+          { label: t.exportGame, onClick: () => setShowGameFile(true) },
+          ...(analysis ? [] : [{ label: t.analyseFromHere, onClick: requestAnalyseFromHere }]),
           ...(showExtra("rules")
             ? [{ label: t.rules, onClick: () => setLearnView("rules") }]
             : []),
@@ -2489,8 +2599,22 @@ export default function App() {
           next-game configuration has no business in it — see settingsStackVisible. */}
       {settingsStackVisible({ analysis, settingsExtra: showExtra("settings") }) && (
         <>
+          {/* Once a game has begun the setup controls are gone, not greyed out,
+              and this one card states what the game on the board is actually
+              being played under. See gameSetupLocked in analysis.ts. */}
+          {setupLocked && (
+            <GameConditions
+              t={t}
+              playMode={playMode}
+              difficulty={difficulty}
+              variantName={t.variantNames[variantId] ?? rules.name}
+              clockLabel={timeControl ? describeTimeControl(timeControl) : t.clockOff}
+            />
+          )}
+
           <Settings
             t={t}
+            locked={setupLocked}
             variantId={variantId}
             onVariant={changeVariant}
             playMode={playMode}
@@ -2504,9 +2628,14 @@ export default function App() {
             onShowDesign={() => setShowDesign(true)}
           />
 
-          <div className="card mt-4 p-4">
-            <ClockControls {...clockControls} />
-          </div>
+          {/* A new time control re-arms a running clock, and a rule change
+              resets the board and drops the save: both are next-game settings,
+              so both leave with the rest of the setup stack. */}
+          {!setupLocked && (
+            <div className="card mt-4 p-4">
+              <ClockControls {...clockControls} />
+            </div>
+          )}
 
           <div className="card mt-4 p-4">
             <ZenSettings
@@ -2517,7 +2646,7 @@ export default function App() {
             />
           </div>
 
-          {variantId === "custom" && (
+          {!setupLocked && variantId === "custom" && (
             <div className="card mt-4 p-4">
               <CustomRuleControls t={t} rules={customRules} onChange={changeCustomRules} />
             </div>
@@ -2610,13 +2739,14 @@ export default function App() {
           onDiscardResume={discardSavedGame}
           onBoardPreset={applyBoardPreset}
           onCancel={modeOverlayCancelable ? closeSetupOverlay : null}
-          onChoose={(m, d, c) => {
+          variantId={variantId}
+          onChoose={(m, d, c, v) => {
             // Reopened over a game worth keeping? Ask before wiping it. The
             // overlay stays up behind the confirmation, so answering "no"
             // leaves the player where they were, mid-choice.
             if (modeOverlayCancelable && wouldDiscardGame)
-              setPendingModeChoice({ mode: m, difficulty: d, clock: c });
-            else commitModeChoice(m, d, c);
+              setPendingModeChoice({ mode: m, difficulty: d, clock: c, variantId: v });
+            else commitModeChoice(m, d, c, v);
           }}
         />
       )}
@@ -2773,6 +2903,22 @@ export default function App() {
         />
       )}
 
+      {/* Analysis is still a post-game room; this is the door that ends the
+          game to open it. The price is named before it is paid — the confirm
+          button says "Resign", not "Analyse", because resigning is what the
+          next tap does. */}
+      {showAnalyseResign && (
+        <ConfirmDialog
+          t={t}
+          title={t.analyseResignTitle}
+          body={t.analyseResignBody}
+          confirmLabel={t.resign}
+          cancelLabel={t.back}
+          onConfirm={analyseFromHere}
+          onCancel={() => setShowAnalyseResign(false)}
+        />
+      )}
+
       {showNewMatchConfirm && (
         <ConfirmDialog
           t={t}
@@ -2802,6 +2948,7 @@ export default function App() {
               pendingModeChoice.mode,
               pendingModeChoice.difficulty,
               pendingModeChoice.clock,
+              pendingModeChoice.variantId,
             )
           }
           onCancel={() => setPendingModeChoice(null)}
@@ -2845,7 +2992,10 @@ export default function App() {
           clockControls={clockControls}
           customRules={variantId === "custom" ? customRules : null}
           onCustomRules={changeCustomRules}
-          gameInProgress={tip >= 1 && !showModeOverlay}
+          // One rule for "a game is under way", shared with the inline stack:
+          // the modal's clock and custom-rule pages are the same next-game
+          // settings the conditions card replaced, and they leave together.
+          gameInProgress={setupLocked}
           onClose={() => setShowDesign(false)}
         />
       )}
@@ -3138,6 +3288,7 @@ function SetScoreboard({
 // can be stopped: a forty-move game is a couple of seconds, but a slow phone is
 function Settings({
   t,
+  locked,
   variantId,
   onVariant,
   playMode,
@@ -3151,6 +3302,13 @@ function Settings({
   onShowDesign,
 }: {
   t: Translations;
+  /**
+   * A game has begun (see `gameSetupLocked`): the Game section and the set
+   * length are not rendered — they configure the next game, and each of them
+   * would throw this one away. What survives is what a game in progress can
+   * honestly still be told to do: reset the running match, and repaint itself.
+   */
+  locked: boolean;
   variantId: string;
   onVariant: (id: string) => void;
   playMode: PlayMode;
@@ -3168,58 +3326,66 @@ function Settings({
       <h2 className="font-display text-lg text-parchment">{t.settings}</h2>
 
       {/* ── Game ── how you play: side, opponent strength, ruleset ── */}
-      <SettingsSection label={t.sectionGame}>
-        <ChoiceGroup
-          label={t.playAs}
-          value={playMode}
-          options={[
-            { value: "defenders", label: t.king },
-            { value: "attackers", label: t.raiders },
-            { value: "hotseat", label: t.overTheBoard },
-          ]}
-          onChange={onMode}
-        />
-
-        {playMode !== "hotseat" && (
+      {!locked && (
+        <SettingsSection label={t.sectionGame}>
           <ChoiceGroup
-            label={t.aiLevel}
-            value={difficulty}
+            label={t.playAs}
+            value={playMode}
             options={[
-              { value: "easy", label: t.easy },
-              { value: "medium", label: t.medium },
-              { value: "hard", label: t.hard },
-              // "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts).
-              { value: "ollamh", label: <span className="gaelic">{toSeanchlo(t.ollamh)}</span> },
+              { value: "defenders", label: t.king },
+              { value: "attackers", label: t.raiders },
+              { value: "hotseat", label: t.overTheBoard },
             ]}
-            onChange={onDifficulty}
+            onChange={onMode}
           />
-        )}
 
-        <Row label={t.variant}>
-          <select
-            className="btn"
-            value={variantId}
-            onChange={(e) => onVariant(e.target.value)}
-          >
-            {Object.values(VARIANTS).map((v) => (
-              <option key={v.id} value={v.id}>
-                {t.variantNames[v.id] ?? v.name}
-              </option>
-            ))}
-            <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
-          </select>
-        </Row>
-      </SettingsSection>
+          {playMode !== "hotseat" && (
+            <ChoiceGroup
+              label={t.aiLevel}
+              value={difficulty}
+              options={[
+                { value: "easy", label: t.easy },
+                { value: "medium", label: t.medium },
+                { value: "hard", label: t.hard },
+                // "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts).
+                { value: "ollamh", label: <span className="gaelic">{toSeanchlo(t.ollamh)}</span> },
+              ]}
+              onChange={onDifficulty}
+            />
+          )}
 
-      {/* ── Match ── over-the-board series controls (hotseat only) ── */}
-      {playMode === "hotseat" && (
+          <Row label={t.variant}>
+            <select
+              className="btn"
+              value={variantId}
+              onChange={(e) => onVariant(e.target.value)}
+            >
+              {Object.values(VARIANTS).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {t.variantNames[v.id] ?? v.name}
+                </option>
+              ))}
+              <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
+            </select>
+          </Row>
+        </SettingsSection>
+      )}
+
+      {/* ── Match ── over-the-board series controls (hotseat only) ──
+          The one section a game in progress keeps a control in. A match spans
+          games — the score outlives every one of them — so ending the series is
+          not next-game setup the way the rest of this card is. The set *length*
+          still is (changing it clears the board), so it goes with the others. */}
+      {playMode === "hotseat" && (!locked || canNewMatch) && (
         <SettingsSection label={t.sectionMatch}>
-          <ChoiceGroup
-            label={t.setLength}
-            value={gamesPerSet}
-            options={SET_LENGTH_OPTIONS.map((n) => ({ value: n, label: n }))}
-            onChange={onSetLength}
-          />
+          {!locked && (
+            <ChoiceGroup
+              label={t.setLength}
+              value={gamesPerSet}
+              options={SET_LENGTH_OPTIONS.map((n) => ({ value: n, label: n }))}
+              onChange={onSetLength}
+            />
+          )}
 
           {/* Reset the running match — kept here (not in the action row) so it
               can't be fumbled mid-set, but still reachable while a set is live. */}
@@ -3239,6 +3405,81 @@ function Settings({
           {t.design}
         </button>
       </SettingsSection>
+    </div>
+  );
+}
+
+// ── The conditions of the game on the board ──────────────────────────────────
+/**
+ * What this game is being played under: side, opponent strength, ruleset,
+ * clock. It stands in for the setup controls once a game has begun — not beside
+ * them: `gameSetupLocked` takes those off the screen, and this says what they
+ * were set to when the game started.
+ *
+ * Read-only by construction. There is no `onChange` in it and no disabled
+ * button either, because a disabled control still claims to be the way to
+ * change something, and for a game already in progress none of these is: every
+ * one of them, applied, would clear the board. The last line is the honest
+ * answer instead — set a new game up, from the menu.
+ */
+function GameConditions({
+  t,
+  playMode,
+  difficulty,
+  variantName,
+  clockLabel,
+}: {
+  t: Translations;
+  playMode: PlayMode;
+  difficulty: Difficulty;
+  variantName: string;
+  /** The time control in force, already formatted ("5+3"), or "Off". */
+  clockLabel: string;
+}) {
+  // The same words the pickers used, so what the card names is recognisably
+  // what was chosen rather than a second vocabulary for the same settings.
+  const modeLabels: Record<PlayMode, string> = {
+    defenders: t.king,
+    attackers: t.raiders,
+    hotseat: t.overTheBoard,
+  };
+  const difficultyLabels: Record<Difficulty, string> = {
+    easy: t.easy,
+    medium: t.medium,
+    hard: t.hard,
+    ollamh: t.ollamh,
+  };
+
+  const value = (v: React.ReactNode) => (
+    <span className="text-sm font-semibold text-parchment">{v}</span>
+  );
+
+  return (
+    <div className="card mt-4 space-y-3 p-4" data-testid="game-conditions">
+      <h2 className="font-display text-lg text-parchment">{t.conditionsTitle}</h2>
+
+      <div className="space-y-2">
+        <Row label={t.playAs}>{value(modeLabels[playMode])}</Row>
+
+        {/* No computer over the board, so no strength to name. */}
+        {playMode !== "hotseat" && (
+          <Row label={t.aiLevel}>
+            {value(
+              // "Ollamh" is Irish → always set in the cló Gaelach face (gaelic.ts).
+              difficulty === "ollamh" ? (
+                <span className="gaelic">{toSeanchlo(t.ollamh)}</span>
+              ) : (
+                difficultyLabels[difficulty]
+              ),
+            )}
+          </Row>
+        )}
+
+        <Row label={t.variant}>{value(variantName)}</Row>
+        <Row label={t.clock}>{value(clockLabel)}</Row>
+      </div>
+
+      <p className="text-xs text-parchment-dim">{t.conditionsHint}</p>
     </div>
   );
 }
@@ -4038,6 +4279,7 @@ function ModeOverlay({
   onDiscardResume,
   onBoardPreset,
   onCancel,
+  variantId,
   onChoose,
 }: {
   t: Translations;
@@ -4062,12 +4304,20 @@ function ModeOverlay({
    * there is nothing behind the overlay to return to.
    */
   onCancel: (() => void) | null;
+  /** The ruleset as it stands, seeding the ruleset row — not applied here. */
+  variantId: string;
   /**
    * Commit a game. The difficulty comes along only on the vs-computer path, the
    * time control only on the over-the-board one — each is chosen on the step
-   * that starts the game, and neither is applied before that.
+   * that starts the game, and neither is applied before that. The ruleset rides
+   * along on both paths, since it is chosen before they branch.
    */
-  onChoose: (m: PlayMode, difficulty?: Difficulty, clock?: ClockSelection) => void;
+  onChoose: (
+    m: PlayMode,
+    difficulty?: Difficulty,
+    clock?: ClockSelection,
+    variantId?: string,
+  ) => void;
 }) {
   // A step per choice, one path per opponent: vs the computer it is which side
   // to play, then how strong the computer should be; over the board it is the
@@ -4091,6 +4341,12 @@ function ModeOverlay({
   // settings panel has no chip to sit on in this step's shorter ladder, so it
   // is seeded off it — otherwise the step would open with the ladder showing
   // nothing selected and no way to tell what was about to be played.
+  // Held like the side and the clock, and applied at the same moment they are:
+  // a ruleset change resets the board and drops the save, so it must not happen
+  // until a game is actually committed. This is the *only* way to reach the
+  // ruleset once a game has begun — the settings card that used to hold the
+  // picker is off the screen then (see gameSetupLocked in analysis.ts).
+  const [chosenVariant, setChosenVariant] = useState(variantId);
   const [chosenClock, setChosenClock] = useState<ClockSelection>(() => {
     const preset = presetById(clock.controlId);
     return preset && !OTB_TIME_CATEGORIES.includes(preset.category)
@@ -4237,7 +4493,7 @@ function ModeOverlay({
                   // applied here: choosing can still be declined at the
                   // "discard the game in progress?" gate, and backing out of
                   // that must not have quietly changed the AI level.
-                  onClick={() => onChoose(chosenSide, d)}
+                  onClick={() => onChoose(chosenSide, d, undefined, chosenVariant)}
                 >
                   {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
                   {d === "ollamh" ? <span className="gaelic">{toSeanchlo(label)}</span> : label}
@@ -4276,7 +4532,7 @@ function ModeOverlay({
             </div>
             <button
               className="btn btn-primary w-full py-3 text-base"
-              onClick={() => onChoose("hotseat", undefined, chosenClock)}
+              onClick={() => onChoose("hotseat", undefined, chosenClock, chosenVariant)}
             >
               {t.startGame}
             </button>
@@ -4320,6 +4576,35 @@ function ModeOverlay({
                 <span className="block text-sm font-normal text-parchment-dim">{t.withFriend}</span>
               </button>
             </div>
+
+            {/* The ruleset, collapsed, and not a step of its own: almost every
+                game is played under the default, and a chooser that asked about
+                rules before it asked who you are playing would be a strange
+                first screen. It sits on this step rather than on either path
+                because it is the one choice both paths share. Closed, it still
+                names the ruleset in force — `<details>` is the app's existing
+                collapsible idiom (AppDrawer, GameFilePanel, MoveLog). */}
+            <details className="drawer-details text-left" data-testid="overlay-ruleset">
+              <summary className="drawer-summary text-sm text-parchment-dim">
+                <span>{t.variant}</span>
+                <span className="ml-auto font-semibold text-parchment">
+                  {t.variantNames[chosenVariant] ?? VARIANTS[chosenVariant]?.name ?? chosenVariant}
+                </span>
+              </summary>
+              <select
+                className="btn mt-2 w-full"
+                value={chosenVariant}
+                onChange={(e) => setChosenVariant(e.target.value)}
+                aria-label={t.variant}
+              >
+                {Object.values(VARIANTS).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {t.variantNames[v.id] ?? v.name}
+                  </option>
+                ))}
+                <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
+              </select>
+            </details>
           </>
         )}
       </div>

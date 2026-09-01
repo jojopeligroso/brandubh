@@ -5,6 +5,7 @@ import {
   autosaveAllowed,
   boardIsInteractive,
   controllableIn,
+  gameSetupLocked,
   settingsStackVisible,
 } from "./analysis";
 import type { Side } from "./game/types";
@@ -174,5 +175,30 @@ describe("analysisAvailable — the door to the room", () => {
     // game being asked about is still the one that ended, so the caller passes
     // the live game's status and the room stays open.
     expect(analysisAvailable({ liveGameOver: true })).toBe(true);
+  });
+});
+
+describe("gameSetupLocked — the setup controls are put away once a game has begun", () => {
+  it("leaves them out on a fresh board", () => {
+    // Nothing to lose yet: this is the board a new game is being set up on.
+    expect(gameSetupLocked({ movesPlayed: 0, positionRoot: false })).toBe(false);
+  });
+
+  it("puts them away from the first move", () => {
+    expect(gameSetupLocked({ movesPlayed: 1, positionRoot: false })).toBe(true);
+  });
+
+  it("keeps them away after the game has ended", () => {
+    // A finished game is still the game on the board, and the conditions card
+    // is still telling the truth about it. Setting a new game up is what clears
+    // the board, and a cleared board is what brings the controls back.
+    expect(gameSetupLocked({ movesPlayed: 24, positionRoot: false })).toBe(true);
+  });
+
+  it("puts them away on a game played on from a puzzle, before a move is made", () => {
+    // The one live game whose first board is not the opening: its move count is
+    // zero while a real game is very much under way, and every control in the
+    // stack is wired to wipe it.
+    expect(gameSetupLocked({ movesPlayed: 0, positionRoot: true })).toBe(true);
   });
 });

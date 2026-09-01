@@ -140,3 +140,35 @@ export function boardIsInteractive(o: {
   if (o.analysis) return true;
   return o.atTip && !o.paused && (o.humanSide === null || o.turn === o.humanSide);
 }
+
+/**
+ * Whether the next game's setup controls are **put away**.
+ *
+ * "Play as", "AI level", the variant picker and the time control all describe a
+ * game *about to be played*. Left on the screen beside a game in progress they
+ * read as things you could change about the game you are in — and every one of
+ * them, honoured, would throw that game away: a side change resets the board, a
+ * ruleset change resets it *and* drops the save (see `changeVariant` in
+ * App.tsx), and a new time control re-arms a clock that is already running.
+ *
+ * So once a game has begun they are not disabled in place, they are gone —
+ * replaced by a single read-only card stating the conditions the game is
+ * actually being played under. The way to change any of them is the way that
+ * was always true underneath: start a new game. That is the menu's "Set up a
+ * new game" row, which opens the setup overlay, and it is the only door this
+ * predicate leaves; nothing else may be allowed to hide it.
+ *
+ * "Begun" is one move played, and it stays true after the result: a finished
+ * game is still the game on the board, and its conditions are still what they
+ * were. Setting a new game up clears the board, and a cleared board is what
+ * brings the controls back.
+ *
+ * `positionRoot` is the second way a game is under way with no move on it: a
+ * **Puzzle** played on from its position (`playFromPosition`) starts from a
+ * board someone else built, so its move count is zero while a real game is very
+ * much in progress. Without it that one game would keep the whole setup stack
+ * beside it, every control in the stack wired to wipe it.
+ */
+export function gameSetupLocked(o: { movesPlayed: number; positionRoot: boolean }): boolean {
+  return o.movesPlayed >= 1 || o.positionRoot;
+}

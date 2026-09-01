@@ -14,7 +14,8 @@
     "screenshot": "npm run build && node scripts/screenshot.mjs",
     "check:evalbar": "npm run build && node scripts/evalbar-geometry.mjs",
     "check:tablut": "npm run build && node scripts/tablut-smoke.mjs",
-    "check:ai-reveal": "npm run build && node scripts/ai-reveal.mjs"
+    "check:ai-reveal": "npm run build && node scripts/ai-reveal.mjs",
+    "check:setup-lock": "npm run build && node scripts/setup-lock.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

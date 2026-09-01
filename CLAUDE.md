@@ -29,6 +29,17 @@ overlays.
   else, which a single-theme run cannot see. Run it after touching
   `.ai-mover`/`.ai-origin`/`--board-pad` in `src/index.css`, or
   `src/useAiReveal.ts`
+- `npm run check:setup-lock` — driven-browser assertions that the next-game setup
+  controls (*Play as*, *AI level*, the variant picker, the clock) leave the screen
+  once a game has begun, that the conditions card names what that game is being
+  played under, and that the toolbar menu leads back to all of it — *Set up a new
+  game* (with the overlay's ruleset row, now the only way to the variant), *Export
+  this game*, and *Analyse from here*, which still buys its way in with a
+  resignation. The two halves only make sense together: hiding a panel is safe
+  because a menu row leads back to it, and the suites are pure logic, so a
+  predicate that hid the panels while a row went missing would fail nothing. Run
+  it after touching `gameSetupLocked` (`src/analysis.ts`), the settings stack or
+  the menu sheet's rows in `src/App.tsx`
 - `npm run check:tablut` — driven-browser assertions for the Tablut surface: 9×9
   tracks, coordinates a–i/1–9, a baseline corner drawn as ordinary ground, the
   drawer's More games section, the Tablut worker replying, a Brandubh save
@@ -80,6 +91,27 @@ until a human Irish speaker reviews and signs off the copy. Keep new keys
 flowing into the `ga` table (TypeScript requires it) and mark them as drafts,
 but do not add `ga` back to `VISIBLE_LANGS`. (`TASKS.md` once recorded this
 locale as "unhidden" — that decision was reversed here.)
+
+### Setup belongs to the next game, not this one
+
+Once a game has begun — one move played, or a **Puzzle** played on from its
+position — the controls that configure a game are **not rendered**: not disabled,
+not greyed, gone. `gameSetupLocked` in `src/analysis.ts` is the one rule, shared
+by the inline stack and the gear ⚙ modal, and `GameConditions` in `App.tsx` is
+what stands in their place: a read-only card naming the side, the AI strength, the
+ruleset and the clock the game is actually being played under.
+
+They are safe to hide only because the toolbar's menu sheet leads back to every
+one of them. *Set up a new game* opens the setup overlay, and that overlay is now
+the **only** door to the variant — the picker that used to live in the settings
+card is off the screen mid-game and hidden outright by Zen, so the overlay's
+ruleset row (`data-testid="overlay-ruleset"`) must not be removed without giving
+the variant another home. `npm run check:setup-lock` asserts both halves.
+
+`analysisAvailable`'s post-game gate is **unchanged** by any of this. The menu's
+*Analyse from here* does not walk past it: on a live game it asks, and then
+resigns from the position on the board before opening the room. The resignation
+is real — the result stands and the set score takes it — which is the point.
 
 ### Replay-from-opening invariant
 

@@ -104,6 +104,8 @@ export interface Translations {
 
   // Controls
   newGame: string;
+  /** Solo: another game on the same terms, once this one is decided. */
+  playAgain: string;
   undo: string;
   rules: string;
 
@@ -135,6 +137,20 @@ export interface Translations {
   sectionGame: string;
   sectionMatch: string;
   sectionAppearance: string;
+
+  // The conditions card — what the game on the board is being played under.
+  // It replaces the setup controls (side, strength, ruleset, clock) once a game
+  // has begun rather than joining them: see gameSetupLocked in analysis.ts.
+  conditionsTitle: string;
+  conditionsHint: string;
+
+  // The rows that carry a game in progress, in the toolbar's menu sheet.
+  setUpGame: string;
+  exportGame: string;
+  analyseFromHere: string;
+  /** Buying analysis with a resignation — the gate analysisAvailable keeps. */
+  analyseResignTitle: string;
+  analyseResignBody: string;
 
   // Move navigation
   prevMove: string;
@@ -711,6 +727,7 @@ const en: Translations = {
   defendersLost: "Defenders lost",
 
   newGame: "New game",
+  playAgain: "Play again",
   undo: "Undo",
   rules: "Rules",
 
@@ -739,6 +756,16 @@ const en: Translations = {
   sectionGame: "Game",
   sectionMatch: "Match",
   sectionAppearance: "Appearance",
+
+  conditionsTitle: "This game",
+  conditionsHint: "Set a new game up from the menu to change these.",
+
+  setUpGame: "Set up a new game",
+  exportGame: "Export this game",
+  analyseFromHere: "Analyse from here",
+  analyseResignTitle: "Analyse from here?",
+  analyseResignBody:
+    "Analysis moves both sides and turns the engine on, so it opens only on a finished game. Going on resigns this one from the position on the board.",
 
   prevMove: "Previous move",
   nextMove: "Next move",
@@ -1378,6 +1405,7 @@ const es: Translations = {
   defendersLost: "Defensores perdidos",
 
   newGame: "Nuevo juego",
+  playAgain: "Jugar otra vez",
   undo: "Deshacer",
   rules: "Reglas",
 
@@ -1406,6 +1434,16 @@ const es: Translations = {
   sectionGame: "Juego",
   sectionMatch: "Encuentro",
   sectionAppearance: "Apariencia",
+
+  conditionsTitle: "Esta partida",
+  conditionsHint: "Configura una nueva partida desde el menú para cambiarlas.",
+
+  setUpGame: "Configurar nueva partida",
+  exportGame: "Exportar esta partida",
+  analyseFromHere: "Analizar desde aquí",
+  analyseResignTitle: "¿Analizar desde aquí?",
+  analyseResignBody:
+    "El análisis mueve ambos bandos y enciende el motor, así que solo se abre en una partida terminada. Continuar la abandona desde la posición del tablero.",
 
   prevMove: "Jugada anterior",
   nextMove: "Jugada siguiente",
@@ -2059,6 +2097,8 @@ const ga: Translations = {
   defendersLost: "Cosant\u00f3ir\u00ed caillte",
 
   newGame: "Cluiche nua",
+  // DRAFT — unreviewed, like the rest of this table.
+  playAgain: "Imir arís",
   undo: "Cealaigh",
   rules: "Rialacha",
 
@@ -2087,6 +2127,18 @@ const ga: Translations = {
   sectionGame: "Cluiche",
   sectionMatch: "Comórtas",
   sectionAppearance: "Cuma",
+
+  // DRAFT (the conditions card and the in-game menu rows) — unreviewed, like
+  // the rest of this table.
+  conditionsTitle: "An cluiche seo",
+  conditionsHint: "Socraigh cluiche nua ón roghchlár chun iad seo a athrú.",
+
+  setUpGame: "Socraigh cluiche nua",
+  exportGame: "Easpórtáil an cluiche seo",
+  analyseFromHere: "Déan anailís as seo",
+  analyseResignTitle: "Anailís as seo?",
+  analyseResignBody:
+    "Bogann an anailís an dá thaobh agus lasann sí an t-inneall, mar sin ní osclaíonn sí ach ar chluiche críochnaithe. Má leanann tú ar aghaidh géilltear an cluiche seo ón staid atá ar an gclár.",
 
   prevMove: "An bogadh roimhe seo",
   nextMove: "An chéad bhogadh eile",
