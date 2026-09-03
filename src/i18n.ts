@@ -91,6 +91,12 @@ export interface Translations {
   attackersWinRepetition: string;
   attackersWinNoMoves: string;
   defendersWinNoMoves: string;
+  /** Copenhagen only — an unbreakable fort at the rim (rule 6b). */
+  defendersWinFort: string;
+  /** Copenhagen only — the attackers lost by repeating a position (rule 8).
+   *  Brandubh and Tablut can only ever lose a repetition for the King's side,
+   *  which is `attackersWinRepetition`. */
+  defendersWinRepetition: string;
 
   // Turn status
   toMove: string;
@@ -701,6 +707,10 @@ const en: Translations = {
   attackersWinRepetition: "Raiders win \u2014 Repetition: loss for the King\u2019s side.",
   attackersWinNoMoves: "Raiders win \u2014 No moves left.",
   defendersWinNoMoves: "King\u2019s side win \u2014 No moves left.",
+  defendersWinFort:
+    "King\u2019s side win \u2014 The fort holds: the King has the edge and the Raiders cannot break in.",
+  defendersWinRepetition:
+    "King\u2019s side win \u2014 Repetition: loss for the Raiders.",
 
   toMove: "to move",
   yourMove: "Your move",
@@ -1368,6 +1378,10 @@ const es: Translations = {
     "\u00a1Los Asaltantes ganan! \u2014 No quedan movimientos.",
   defendersWinNoMoves:
     "\u00a1El Bando del Rey gana! \u2014 No quedan movimientos.",
+  defendersWinFort:
+    "\u00a1El Bando del Rey gana! \u2014 El fuerte resiste: el Rey toca el borde y los Asaltantes no pueden entrar.",
+  defendersWinRepetition:
+    "\u00a1El Bando del Rey gana! \u2014 Repetici\u00f3n: p\u00e9rdida para los Asaltantes.",
 
   toMove: "mueve",
   yourMove: "Tu turno",
@@ -2049,6 +2063,11 @@ const ga: Translations = {
     "Foghlaithe a bhuaigh \u2014 N\u00edl bogadh ar bith f\u00e1gtha.",
   defendersWinNoMoves:
     "Taobh an R\u00ed a bhuaigh \u2014 N\u00edl bogadh ar bith f\u00e1gtha.",
+  // DRAFT (Copenhagen endings) — unreviewed, like the rest of this table.
+  defendersWinFort:
+    "Taobh an R\u00ed a bhuaigh \u2014 Seasann an d\u00fan: t\u00e1 an R\u00ed ar an imeall agus n\u00ed f\u00e9idir leis na Foghlaithe briseadh isteach.",
+  defendersWinRepetition:
+    "Taobh an R\u00ed a bhuaigh \u2014 Athr\u00e1: caillteanas do na Foghlaithe.",
 
   toMove: "le bogadh",
   yourMove: "Do sheal",
