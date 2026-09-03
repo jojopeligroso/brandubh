@@ -2,7 +2,7 @@
 //
 // The third tafl boardgame in the project, and the largest: 11×11, twenty-four
 // attackers against a king and twelve defenders, corner escape. See
-// docs/adr/0007-copenhagen-forks-a-third-time.md for why this is another fork
+// docs/adr/0007-copenhagen-forks-a-third-time-and-defers-the-shared-core.md for why this is another fork
 // rather than the shared core ADR-0006 said a third game would justify.
 //
 // As in `../tablut/types.ts`, the *vocabulary* is not forked. A piece, a side, a

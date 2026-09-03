@@ -1,9 +1,9 @@
 # Brandubh — project notes for Claude
 
 A React 18 + TypeScript + Vite SPA (Tailwind v4) implementing Brandubh, the
-Irish 7×7 tafl game. No router, no backend: `src/App.tsx` is the shell, pure
-game logic lives in `src/game/`, and screens are conditionally-rendered
-overlays.
+Irish 7×7 tafl game, plus two larger tafl boardgames reached from the drawer.
+No router, no backend: `src/App.tsx` is the shell, pure game logic lives in
+`src/game/`, and screens are conditionally-rendered overlays.
 
 ## Commands
 
@@ -37,8 +37,17 @@ overlays.
   Gokstad on the 9×9 without disturbing the stored choice. Run it after touching
   `.board`/`.tablut-screen` in `src/index.css`, `components/Board.tsx`,
   `orientation.ts`, `theme.ts` or anything under `src/game/tablut/`
+- `npm run check:copenhagen` — the same for the 11×11 surface, and the same
+  reason it exists. Two assertions are its own rather than a copy: a Copenhagen
+  corner must draw as a **marked** square (the exact inverse of the Tablut
+  assertion, against the same `Board` component), and `a1`/`a11` must be distinct
+  squares — `[aria-label^="a1"]` matches both, which is the mistake a double-digit
+  rank invites everywhere. It also reloads *onto* the surface, because
+  `index.html`'s pre-paint script carries a hand-written list of surface keys and
+  is the one place adding a board can silently go wrong. Run it after touching
+  the same files, or anything under `src/game/copenhagen/`
 
-## Two boardgames, forked on purpose
+## Three boardgames, forked on purpose
 
 Brandubh (7×7, corner escape) lives in `src/game/`. **Tablut** (9×9, White moves
 first, the king escapes to any edge square) lives in `src/game/tablut/` with its
@@ -53,21 +62,49 @@ persistent: the game autosaves under `tablut.game.v1`, and `tablut.surface.v1`
 records that the player is *in* Tablut, so a reload lands back on the 9×9 board
 until they leave by the back button.
 
+**Copenhagen Hnefatafl** (11×11, corner escape, 24 v 12+1, attackers first) lives
+in `src/game/copenhagen/` with the same shape again — save key
+`copenhagen.game.v1`, `.tafl` format `copenhagen-1`, screen
+`components/CopenhagenScreen.tsx`. It is the modern tournament standard, and the
+only one of the three whose baseline is a published ruleset rather than a
+reconstruction. Its own rules are `exitFort` (a win decided by a structural
+property of the board, not the move just played) and
+`repetitionResult: "loss_for_repeater"` — which is why it is the only game that
+can end in `defenders_win_fort` or `defenders_win_repetition`. Sourcing, and the
+one rule where two sources flatly contradict each other, are in
+`docs/copenhagen-rules.md`.
+
 The duplication is an accepted decision, not drift — read
 `docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md` and its
-addendum before merging anything across. In short: corner-escape geometry is baked
-into the evaluation and teaching layers, and it is *meaningless* when the whole rim
-wins, so a shared core would have to carry that distinction inside the search. One
+addendum, then
+`docs/adr/0007-copenhagen-forks-a-third-time-and-defers-the-shared-core.md`,
+before merging anything across. In short: corner-escape geometry is baked into the
+evaluation and teaching layers, and it is *meaningless* when the whole rim wins,
+so a shared core would have to carry that distinction inside the search. One
 concrete trap — Brandubh proves a forced win from a single open lane when the king
 touches a corner (no soldier may stand on a corner); the same shortcut is
-**unsound** under edge escape, where an attacker can occupy the escape square.
+**unsound** under edge escape, where an attacker can occupy the escape square, and
+**sound again** under Copenhagen, which restricts its corners. Three games, two
+answers to one geometric question.
+
+**ADR-0006's "revisit at a third game" trigger has fired and was deliberately not
+acted on.** ADR-0007 records why (Copenhagen brings new rules, and extracting a
+core while adding them makes a failure impossible to attribute), the evidence that
+the trigger was right (shieldwall capture now exists three times; `d4.ts` is three
+copies of nine lines; two real bugs came from constants that were correct in the
+file they were copied from), and the order to take the extraction in. If you are
+adding a **fourth** board, read ADR-0007 first: the shell refactor, not the rules
+core, is the thing that now gets worse with every board.
 
 What *is* shared, and should stay shared: `Board` (via the optional geometry in
-`src/games/geometry.ts`), `orientation.ts`, `gameOverText.ts`, and the already
-game-agnostic `clock`/`clockLine`/`matchSet`/`records`/`puzzleProgress`/`trainer`/
-`grade`/`sides`. Tablut's presets and their sourcing — including one preset marked
-⚠ UNVERIFIED because aagenielsen.dk is 403 behind the egress proxy — are in
-`docs/tablut-rules.md`.
+`src/games/geometry.ts`), `orientation.ts`, `gameOverText.ts`, `GameStatus`, the
+`tafl*` i18n keys (the strings every board says identically — only what a *game*
+asserts gets its own key), and the already game-agnostic
+`clock`/`clockLine`/`matchSet`/`records`/`puzzleProgress`/`trainer`/`grade`/
+`sides`. Each game's presets and their sourcing are in `docs/tablut-rules.md` and
+`docs/copenhagen-rules.md`; both carry a preset marked ⚠ UNVERIFIED, because every
+tafl rules site is blocked behind the egress proxy and the corroboration came
+through search excerpts rather than full text.
 
 ## Decisions to respect
 

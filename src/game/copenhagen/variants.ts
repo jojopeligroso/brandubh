@@ -38,7 +38,7 @@
 // (`exitFort`, `strongKingEdgeRule`, a fourth repetition outcome), nothing has
 // ever been persisted under it, and a union type would push a narrowing into
 // every call site in three games instead of one. See
-// docs/adr/0007-copenhagen-forks-a-third-time.md.
+// docs/adr/0007-copenhagen-forks-a-third-time-and-defers-the-shared-core.md.
 
 import type { Side } from "./types";
 

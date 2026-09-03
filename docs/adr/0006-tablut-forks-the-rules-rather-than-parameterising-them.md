@@ -114,3 +114,17 @@ the failure mode is a search handed a false terminal it cannot detect.
 The "revisit at a third tafl boardgame" trigger stands, with an addition: revisit
 sooner if the second game starts wanting the shell features, because the answer
 then is a generic shell rather than a shared rules core.
+
+## Superseded in part by ADR-0007
+
+The "revisit at a third tafl boardgame" trigger fired when Copenhagen Hnefatafl
+(11×11) arrived, and was **deliberately not acted on**. See
+`0007-copenhagen-forks-a-third-time-and-defers-the-shared-core.md` for the
+reasoning, the evidence that this ADR's prediction was right, and the order the
+extraction should be taken in when it happens.
+
+The central argument of this ADR — that the *evaluation and teaching* layers
+should stay forked because corner-escape and edge-escape geometry are different
+questions — was strengthened rather than weakened by the third game, which
+resolves that question a third way: the single-lane shortcut called unsound above
+is sound again under Copenhagen, because Copenhagen restricts its corners.

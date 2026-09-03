@@ -150,6 +150,45 @@ for now and are waiting on `App` becoming generic in its ruleset — see the ADR
 addendum. `npm run check:tablut` is the driven-browser check that the 9×9 board,
 its coordinates, its worker and Brandubh's save all survive each other.
 
+### Copenhagen Hnefatafl (a third boardgame)
+
+Also under **More games**. Copenhagen is 11×11 — twenty-four attackers against a
+king and twelve defenders — and is the modern tournament standard, played at the
+Hnefatafl World Championship. Unlike the other two it is not a reconstruction of
+a lost game but a deliberately drafted ruleset with an author, which changes what
+there is to be uncertain about: not what Copenhagen says, but whether this
+implementation copied it correctly, since every site publishing it is blocked by
+the same egress proxy described below.
+
+Black moves first, the king escapes to a corner and takes **four** attackers to
+capture (three plus the empty throne beside it), and two rules are Copenhagen's
+own:
+
+- the **shieldwall** — a bracketed row of men along the board edge, every one of
+  them faced by an enemy, falls together; a corner may stand in for one bracket,
+  and a king in the row survives while his soldiers do not;
+- the **exit fort** — the defenders win with an unbreakable wall that gives the
+  king contact with the edge and a move to make. The detector is deliberately
+  one-sided: it declares the win only when the fort is *provably* unbreakable, so
+  a fort it fails to recognise is merely played on, while a fort it wrongly
+  recognised would end a game nobody had won.
+
+Perpetual repetition loses for **whoever is repeating**, which is why this is the
+only board in the app that can end in a defender win by repetition.
+
+Two presets ship — Copenhagen itself and an ⚠ unverified Fetlar reading (the
+older championship rules it extends, without the three additions) — plus the
+custom rule editor. `docs/copenhagen-rules.md` records the sourcing assertion by
+assertion, and names the one rule where two sources **flatly contradict each
+other**: whether a strong king can be captured against the board edge. Both
+readings are reachable; the shipped default follows the two independently-worded
+excerpts that agree.
+
+`docs/adr/0007-copenhagen-forks-a-third-time-and-defers-the-shared-core.md`
+records why this is a third fork rather than the shared core ADR-0006 predicted a
+third game would justify — and what that defers.
+`npm run check:copenhagen` is its driven-browser check.
+
 ---
 
 ## A note on the recorded-games archive
