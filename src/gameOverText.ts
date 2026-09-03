@@ -18,6 +18,10 @@ export function gameOverText(status: GameStatus, t: Translations): string {
       return t.attackersWinEncirclement;
     case "attackers_win_repetition":
       return t.attackersWinRepetition;
+    case "defenders_win_fort":
+      return t.defendersWinFort;
+    case "defenders_win_repetition":
+      return t.defendersWinRepetition;
     case "attackers_win_no_moves":
       return t.attackersWinNoMoves;
     case "attackers_win_resign":
