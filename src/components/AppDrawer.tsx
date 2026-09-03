@@ -17,9 +17,13 @@ import { useDialogFocus } from "../useDialogFocus";
  * In-game actions (resign, takeback, flips) deliberately stay in the bottom
  * toolbar's action sheet: this drawer is the app's navigation, not the game's.
  *
- * The one collapsed section is **More games**, which is where a second boardgame
- * lives (Tablut, 9x9 — see docs/adr/0006-…). It is collapsed because Brandubh is
- * what this app is, and an always-open list of alternatives would say otherwise;
+ * The one collapsed section is **More games**, which is where the other tafl
+ * boardgames live (Tablut 9×9, see docs/adr/0006-…; Copenhagen Hnefatafl 11×11,
+ * see docs/adr/0007-…). They are listed largest-last, which is also
+ * smallest-first: Brandubh, then Tablut, then Copenhagen, so the section reads as
+ * one family growing rather than an arbitrary list. It is collapsed because
+ * Brandubh is what this app is, and an always-open list of alternatives would say
+ * otherwise;
  * it uses a native `<details>`, which is the app's existing collapsible idiom
  * (GameFilePanel, PositionPanel, MoveTreePanel, MoveLog all use the same pair of
  * elements) rather than a new accordion nobody else would share.
@@ -37,6 +41,7 @@ export default function AppDrawer({
   onPuzzles,
   onGameFile,
   onTablut,
+  onCopenhagen,
   onSettings,
   onAbout,
 }: {
@@ -54,6 +59,8 @@ export default function AppDrawer({
   onGameFile: () => void;
   /** Open the Tablut surface (see components/TablutScreen). */
   onTablut: () => void;
+  /** Open the Copenhagen surface (see components/CopenhagenScreen). */
+  onCopenhagen: () => void;
   onSettings: () => void;
   onAbout: () => void;
 }) {
@@ -125,6 +132,7 @@ export default function AppDrawer({
           <details className="drawer-details" data-testid="drawer-more-games">
             <summary className="drawer-section drawer-summary">{t.drawerMoreGames}</summary>
             {item(t.gameTablut, <GridIcon />, onTablut, "drawer-tablut")}
+            {item(t.gameCopenhagen, <GridIcon />, onCopenhagen, "drawer-copenhagen")}
           </details>
         </nav>
 

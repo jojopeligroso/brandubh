@@ -5,6 +5,7 @@ import AppDrawer from "./components/AppDrawer";
 import LearnModal, { type LearnView } from "./components/LearnModal";
 import VictoryOverlay from "./components/VictoryOverlay";
 import TablutScreen from "./components/TablutScreen";
+import CopenhagenScreen from "./components/CopenhagenScreen";
 import GameFilePanel from "./components/GameFilePanel";
 import GameReview from "./components/GameReview";
 import PuzzlePanel from "./components/PuzzlePanel";
@@ -44,6 +45,10 @@ import {
   rememberSurfaceOpen as rememberTablutSurface,
   wasSurfaceOpen as wasTablutSurfaceOpen,
 } from "./game/tablut/persist";
+import {
+  rememberSurfaceOpen as rememberCopenhagenSurface,
+  wasSurfaceOpen as wasCopenhagenSurfaceOpen,
+} from "./game/copenhagen/persist";
 import {
   matchTotals,
   newMatch,
@@ -570,34 +575,48 @@ export default function App() {
   const [showGameFile, setShowGameFile] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   /**
-   * The Tablut surface, reached from the drawer's More games section.
+   * The other two boardgames' surfaces, reached from the drawer's More games
+   * section.
    *
-   * A sibling overlay rather than anything woven into the shell's state: Tablut is
-   * a separate Boardgame with its own ruleset *type* (see ADR-0006 and the note in
-   * TablutScreen), so it owns its own game, engine worker and rule editor, and
-   * this shell owns nothing of it beyond whether it is open. No *game* state
-   * below this line reads it, which is the point — opening Tablut cannot disturb
-   * a Brandubh game in progress, and closing it cannot have lost one. The one
-   * thing that does read it is the theme effect below, which paints and owns
-   * nothing.
+   * Sibling overlays rather than anything woven into the shell's state: each is a
+   * separate Boardgame with its own ruleset *type* (see ADR-0006, ADR-0007 and
+   * the notes in the two screens), so each owns its own game, engine worker and
+   * rule editor, and this shell owns nothing of either beyond whether it is open.
+   * No *game* state below this line reads them, which is the point — opening one
+   * cannot disturb a Brandubh game in progress, and closing it cannot have lost
+   * one. The one thing that does read them is the theme effect below, which
+   * paints and owns nothing.
    *
-   * Whether it is open *persists*: a reload mid-Tablut must land back on the
-   * Tablut board, exactly as a reload mid-Brandubh lands on the Brandubh one.
-   * The 7×7 shell is only returned to by the player's own back button.
+   * Whether one is open *persists*: a reload mid-game must land back on the board
+   * it was on, exactly as a reload mid-Brandubh lands on the Brandubh one. The
+   * 7×7 shell is only returned to by the player's own back button.
+   *
+   * The two flags are separate keys and deliberately not one "which surface"
+   * enum: they are written by two independent modules that know nothing of each
+   * other, and a shared key would make each one's storage the other's problem.
+   * They cannot both be true — the drawer is the only way in, and it closes
+   * behind you — and if a hand-edited localStorage ever said otherwise, the
+   * render order below picks one rather than stacking them.
    */
   const [showTablut, setShowTablut] = useState(wasTablutSurfaceOpen);
   useEffect(() => {
     rememberTablutSurface(showTablut);
   }, [showTablut]);
 
-  // Paint the theme. Down here rather than beside `useState(loadTheme)` because
-  // it needs `showTablut`: Ballinderry is a 7×7 board of drilled holes, not a
-  // palette, so it does not follow the player onto the 9×9 (see resolveTheme in
-  // theme.ts). The stored choice is unaffected either way, so the picker still
-  // reads Ballinderry on the Tablut surface and the board comes back on exit.
+  const [showCopenhagen, setShowCopenhagen] = useState(wasCopenhagenSurfaceOpen);
   useEffect(() => {
-    applyTheme(theme, showTablut);
-  }, [theme, showTablut]);
+    rememberCopenhagenSurface(showCopenhagen);
+  }, [showCopenhagen]);
+
+  // Paint the theme. Down here rather than beside `useState(loadTheme)` because
+  // it needs to know which board is on screen: Ballinderry is a 7×7 board of
+  // drilled holes, not a palette, so it does not follow the player onto the 9×9
+  // or the 11×11 (see resolveTheme in theme.ts). The stored choice is unaffected
+  // either way, so the picker still reads Ballinderry on either surface and the
+  // board comes back on exit.
+  useEffect(() => {
+    applyTheme(theme, showTablut || showCopenhagen);
+  }, [theme, showTablut, showCopenhagen]);
 
   const rules: RuleSet =
     variantId === "custom"
@@ -2639,6 +2658,7 @@ export default function App() {
           onPuzzles={() => setLearnView("puzzles")}
           onGameFile={() => setShowGameFile(true)}
           onTablut={() => setShowTablut(true)}
+          onCopenhagen={() => setShowCopenhagen(true)}
           onSettings={() => setShowDesign(true)}
           onAbout={() => setShowAbout(true)}
         />
@@ -2658,6 +2678,19 @@ export default function App() {
           defenderEmblem={emblemSet.defenderEmblem}
           cornerEmblem={emblemSet.cornerEmblem}
           onClose={() => setShowTablut(false)}
+        />
+      )}
+
+      {showCopenhagen && !showTablut && (
+        <CopenhagenScreen
+          t={t}
+          zen={zen}
+          onZenEnabled={setZenEnabled}
+          attackerEmblem={emblemSet.attackerEmblem}
+          kingEmblem={emblemSet.kingEmblem}
+          defenderEmblem={emblemSet.defenderEmblem}
+          cornerEmblem={emblemSet.cornerEmblem}
+          onClose={() => setShowCopenhagen(false)}
         />
       )}
 

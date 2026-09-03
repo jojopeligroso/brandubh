@@ -333,38 +333,46 @@ export interface Translations {
   demoCapThrone: string;
   demoThroneKing: string;
 
-  // ── Tablut (a second boardgame, reached from the drawer's More games) ────────
-  // Tablut is a Boardgame rather than a Brandubh variant (see
-  // docs/adr/0006-…), so its copy is its own block rather than more `demo*`/
-  // `rule*` keys. `tablutRules` / `tablutRuleHints` are keyed by the flag names
-  // in game/tablut/variants.ts, which is what makes `tsc` notice a rule that has
-  // been added to the ruleset but not explained to the player.
+  // ── The other tafl boardgames (reached from the drawer's More games) ────────
+  // Tablut (9×9) and Copenhagen (11×11) are Boardgames rather than Brandubh
+  // variants — see docs/adr/0006-… and 0007-… — so their copy is its own block
+  // rather than more `demo*`/`rule*` keys.
+  //
+  // The `tafl*` keys are the ones both games say identically: a king is a king,
+  // "Take back" is "Take back". Only what a *game* asserts gets its own key, so
+  // adding a third board cost two strings rather than forty. `taflRules` /
+  // `taflRuleHints` / `taflRuleValues` are keyed by the flag names in each
+  // game's `variants.ts` and cover the union of both, which `i18n.test.ts`
+  // checks flag by flag — a `Record<string, string>` cannot make `tsc` do it,
+  // and a missing entry would otherwise render as `undefined` on the card.
   /** The collapsed drawer section these games live under. */
   drawerMoreGames: string;
   gameBrandubh: string;
   gameTablut: string;
+  gameCopenhagen: string;
   /** One line on the setup card: what the game is. */
   tablutBlurb: string;
-  tablutKingAt: string;
-  tablutLegalMoves: string;
-  tablutMoves: string;
-  tablutLastMove: string;
-  tablutUndo: string;
-  tablutRestart: string;
-  tablutOpponent: string;
-  tablutStrength: string;
-  tablutPlay: string;
-  tablutWhite: string;
-  tablutBlack: string;
-  tablutHotseat: string;
+  copenhagenBlurb: string;
+  taflKingAt: string;
+  taflLegalMoves: string;
+  taflMoves: string;
+  taflLastMove: string;
+  taflUndo: string;
+  taflRestart: string;
+  taflOpponent: string;
+  taflStrength: string;
+  taflPlay: string;
+  taflWhite: string;
+  taflBlack: string;
+  taflHotseat: string;
   /** Engine strength, keyed by the difficulty ids in game/tablut/engine.ts. */
-  tablutDifficulties: Record<string, string>;
+  taflDifficulties: Record<string, string>;
   /** Rule names, keyed by flag name. */
-  tablutRules: Record<string, string>;
+  taflRules: Record<string, string>;
   /** One line each on what the rule actually does. */
-  tablutRuleHints: Record<string, string>;
+  taflRuleHints: Record<string, string>;
   /** Labels for the enum rules' values, keyed by value. */
-  tablutRuleValues: Record<string, string>;
+  taflRuleValues: Record<string, string>;
 
   // Variant display
   variantNames: Record<string, string>;
@@ -941,22 +949,28 @@ const en: Translations = {
   drawerMoreGames: "More games",
   gameBrandubh: "Brandubh",
   gameTablut: "Tablut",
+  gameCopenhagen: "Copenhagen",
+  copenhagenBlurb:
+    "The modern tournament standard, eleven by eleven. Twenty-four attackers against a king and twelve defenders: Black moves first, the king escapes to a corner and takes four attackers to capture, and a bracketed row along the edge falls together.",
   tablutBlurb:
     "The Lapland game Linnaeus recorded in 1732. Nine by nine: White moves first and wins by walking the king out to any edge square; Black wins by capturing him.",
-  tablutKingAt: "King",
-  tablutLegalMoves: "Moves available",
-  tablutMoves: "Moves",
-  tablutLastMove: "Last move",
-  tablutUndo: "Take back",
-  tablutRestart: "Restart",
-  tablutOpponent: "You play",
-  tablutStrength: "Strength",
-  tablutPlay: "Play",
-  tablutWhite: "White (the king)",
-  tablutBlack: "Black (the attackers)",
-  tablutHotseat: "Two players",
-  tablutDifficulties: { easy: "Easy", medium: "Medium", hard: "Hard", ollamh: "Ollamh" },
-  tablutRules: {
+  taflKingAt: "King",
+  taflLegalMoves: "Moves available",
+  taflMoves: "Moves",
+  taflLastMove: "Last move",
+  taflUndo: "Take back",
+  taflRestart: "Restart",
+  taflOpponent: "You play",
+  taflStrength: "Strength",
+  taflPlay: "Play",
+  taflWhite: "White (the king)",
+  taflBlack: "Black (the attackers)",
+  taflHotseat: "Two players",
+  taflDifficulties: { easy: "Easy", medium: "Medium", hard: "Hard", ollamh: "Ollamh" },
+  taflRules: {
+    kingStrength: "The king is captured by",
+    strongKingEdgeRule: "On the board edge the king is",
+    exitFort: "Exit fort wins",
     escape: "The king escapes to",
     firstMove: "First move",
     armedKing: "Armed king",
@@ -973,7 +987,10 @@ const en: Translations = {
     encirclementWin: "Encirclement wins",
     repetitionResult: "Threefold repetition",
   },
-  tablutRuleHints: {
+  taflRuleHints: {
+    kingStrength: "Two attackers, four everywhere, or four only on and beside the throne.",
+    strongKingEdgeRule: "Copenhagen's sources disagree. Safe: a fourth wall cannot exist off the board. Takeable: only the sides that exist are needed, so a corner and one attacker suffice.",
+    exitFort: "White wins with an unbreakable fort that puts the king on the edge with a move to make.",
     escape: "Any edge square is the baseline rule; corners make it a different game.",
     firstMove: "White leads under the baseline rules, unlike most tafl games.",
     armedKing: "The king can take part in captures himself.",
@@ -990,7 +1007,13 @@ const en: Translations = {
     encirclementWin: "Black wins by ringing the king in. Off where the rim is the goal.",
     repetitionResult: "What happens when the same position comes round a third time.",
   },
-  tablutRuleValues: {
+  taflRuleValues: {
+    weak: "Two attackers",
+    near_throne: "Four, on and beside the throne",
+    strong: "Four attackers",
+    uncapturable: "Safe",
+    available_sides: "Takeable from the sides that exist",
+    loss_for_repeater: "Whoever repeats loses",
     edges: "Any edge",
     corners: "A corner",
     defenders: "White",
@@ -1617,22 +1640,28 @@ const es: Translations = {
   drawerMoreGames: "M\u00e1s juegos",
   gameBrandubh: "Brandubh",
   gameTablut: "Tablut",
+  gameCopenhagen: "Copenhague",
+  copenhagenBlurb:
+    "El estándar moderno de torneo, once por once. Veinticuatro asaltantes contra un Rey y doce defensores: mueven primero las negras, el Rey escapa por una esquina y hacen falta cuatro asaltantes para capturarlo, y una fila flanqueada junto al borde cae entera.",
   tablutBlurb:
     "El juego lapon que Linneo anot\u00f3 en 1732. Nueve por nueve: las blancas mueven primero y ganan llevando al rey a cualquier casilla del borde; las negras ganan captur\u00e1ndolo.",
-  tablutKingAt: "Rey",
-  tablutLegalMoves: "Movimientos posibles",
-  tablutMoves: "Movimientos",
-  tablutLastMove: "\u00daltima jugada",
-  tablutUndo: "Deshacer",
-  tablutRestart: "Reiniciar",
-  tablutOpponent: "Juegas con",
-  tablutStrength: "Dificultad",
-  tablutPlay: "Jugar",
-  tablutWhite: "Blancas (el rey)",
-  tablutBlack: "Negras (los atacantes)",
-  tablutHotseat: "Dos jugadores",
-  tablutDifficulties: { easy: "F\u00e1cil", medium: "Media", hard: "Dif\u00edcil", ollamh: "Ollamh" },
-  tablutRules: {
+  taflKingAt: "Rey",
+  taflLegalMoves: "Movimientos posibles",
+  taflMoves: "Movimientos",
+  taflLastMove: "\u00daltima jugada",
+  taflUndo: "Deshacer",
+  taflRestart: "Reiniciar",
+  taflOpponent: "Juegas con",
+  taflStrength: "Dificultad",
+  taflPlay: "Jugar",
+  taflWhite: "Blancas (el rey)",
+  taflBlack: "Negras (los atacantes)",
+  taflHotseat: "Dos jugadores",
+  taflDifficulties: { easy: "F\u00e1cil", medium: "Media", hard: "Dif\u00edcil", ollamh: "Ollamh" },
+  taflRules: {
+    kingStrength: "El Rey es capturado por",
+    strongKingEdgeRule: "En el borde del tablero el Rey es",
+    exitFort: "El fuerte de salida gana",
     escape: "El rey escapa a",
     firstMove: "Primera jugada",
     armedKing: "Rey armado",
@@ -1649,7 +1678,10 @@ const es: Translations = {
     encirclementWin: "El cerco gana",
     repetitionResult: "Triple repetici\u00f3n",
   },
-  tablutRuleHints: {
+  taflRuleHints: {
+    kingStrength: "Dos atacantes, cuatro en todas partes, o cuatro s\u00f3lo en el trono y junto a \u00e9l.",
+    strongKingEdgeRule: "Las fuentes de Copenhague no coinciden. Seguro: no puede existir una cuarta pared fuera del tablero. Capturable: bastan los lados que existen, as\u00ed que una esquina y un atacante alcanzan.",
+    exitFort: "Las blancas ganan con un fuerte inexpugnable que deja al Rey en el borde y con una jugada disponible.",
     escape: "Cualquier casilla del borde es la regla base; las esquinas hacen otro juego.",
     firstMove: "Las blancas empiezan en las reglas base, al contrario que en casi todo el tafl.",
     armedKing: "El rey puede participar en las capturas.",
@@ -1666,7 +1698,13 @@ const es: Translations = {
     encirclementWin: "Las negras ganan cercando al rey. Desactivado cuando el borde es la meta.",
     repetitionResult: "Qu\u00e9 pasa cuando la misma posici\u00f3n se repite por tercera vez.",
   },
-  tablutRuleValues: {
+  taflRuleValues: {
+    weak: "Dos atacantes",
+    near_throne: "Cuatro, en el trono y junto a \u00e9l",
+    strong: "Cuatro atacantes",
+    uncapturable: "Seguro",
+    available_sides: "Capturable por los lados que existen",
+    loss_for_repeater: "Pierde quien repite",
     edges: "Cualquier borde",
     corners: "Una esquina",
     defenders: "Blancas",
@@ -2313,22 +2351,29 @@ const ga: Translations = {
   drawerMoreGames: "Tuilleadh cluichi",
   gameBrandubh: "Brandubh",
   gameTablut: "Tablut",
+  // DRAFT (Copenhagen) — unreviewed, like the rest of this table.
+  gameCopenhagen: "Copónhagan",
+  copenhagenBlurb:
+    "An caighdeán comhraic nua-aimseartha, a haon déag faoi a haon déag. Ceithre ionsaitheoir is fiche in aghaidh Rí agus dháréag cosantóir: bogann na Dubha ar dtús, éalíonn an Rí trí chúinne, agus teastaíonn ceathrar chun é a ghabháil.",
   tablutBlurb:
     "An cluiche Laplannach a bhreac Linnaeus sios in 1732. Naoi faoi naoi: bogann na Bana ar dtus agus buann siad an ri a threorú go cearnóg imill ar bith; buann na Dubha e a ghabhail.",
-  tablutKingAt: "Ri",
-  tablutLegalMoves: "Bearta ar fail",
-  tablutMoves: "Bearta",
-  tablutLastMove: "An beart deireanach",
-  tablutUndo: "Cealaigh",
-  tablutRestart: "Atosaigh",
-  tablutOpponent: "Imrionn tu",
-  tablutStrength: "Neart",
-  tablutPlay: "Imir",
-  tablutWhite: "Bana (an ri)",
-  tablutBlack: "Dubha (na hionsaitheoiri)",
-  tablutHotseat: "Beirt imreoiri",
-  tablutDifficulties: { easy: "Furasta", medium: "Meanach", hard: "Crua", ollamh: "Ollamh" },
-  tablutRules: {
+  taflKingAt: "Ri",
+  taflLegalMoves: "Bearta ar fail",
+  taflMoves: "Bearta",
+  taflLastMove: "An beart deireanach",
+  taflUndo: "Cealaigh",
+  taflRestart: "Atosaigh",
+  taflOpponent: "Imrionn tu",
+  taflStrength: "Neart",
+  taflPlay: "Imir",
+  taflWhite: "Bana (an ri)",
+  taflBlack: "Dubha (na hionsaitheoiri)",
+  taflHotseat: "Beirt imreoiri",
+  taflDifficulties: { easy: "Furasta", medium: "Meanach", hard: "Crua", ollamh: "Ollamh" },
+  taflRules: {
+    kingStrength: "Gabhtar an R\u00ed le",
+    strongKingEdgeRule: "Ar imeall an chl\u00e1ir t\u00e1 an R\u00ed",
+    exitFort: "Buann d\u00fan \u00e9al\u00fa",
     escape: "Ealaionn an ri go",
     firstMove: "An chead bheart",
     armedKing: "Ri armtha",
@@ -2345,7 +2390,10 @@ const ga: Translations = {
     encirclementWin: "Buann iadh timpeall",
     repetitionResult: "Athra tri huaire",
   },
-  tablutRuleHints: {
+  taflRuleHints: {
+    kingStrength: "Beirt ionsaitheoir, ceathrar i ng\u00e1ch \u00e1it, n\u00f3 ceathrar ar an r\u00edchathaoir agus l\u00e9i amh\u00e1in.",
+    strongKingEdgeRule: "N\u00ed aonta\u00edonn na fo\u00edns\u00ed. Sl\u00e1n: n\u00ed f\u00e9idir ceathr\u00fa balla a bheith taobh amuigh den chl\u00e1r. Ing\u00e9ofa: n\u00ed g\u00e1 ach na taobhanna at\u00e1 ann.",
+    exitFort: "Buann na Bh\u00e1n le d\u00fan dobhriste a fh\u00e1gann an R\u00ed ar an imeall agus bogadh aige.",
     escape: "Is cearnog imill ar bith an bhunriail; deanann na cuinni cluiche eile de.",
     firstMove: "Tosaionn na Bana faoi na bunrialacha, murab ionann agus an chuid is mo den tafl.",
     armedKing: "Feadfaidh an ri pairt a ghlacadh i ngabhalacha.",
@@ -2362,7 +2410,13 @@ const ga: Translations = {
     encirclementWin: "Buann na Dubha an ri a iadh isteach. As nuair is e an imeall an sprioc.",
     repetitionResult: "Cad a tharlaionn nuair a thagann an ionad ceanna timpeall an triu huair.",
   },
-  tablutRuleValues: {
+  taflRuleValues: {
+    weak: "Beirt ionsaitheoir",
+    near_throne: "Ceathrar, ar an r\u00edchathaoir agus l\u00e9i",
+    strong: "Ceathrar ionsaitheoir",
+    uncapturable: "Sl\u00e1n",
+    available_sides: "Ing\u00e9ofa \u00f3 na taobhanna at\u00e1 ann",
+    loss_for_repeater: "Cailleann an t\u00e9 a athdh\u00e9anann",
     edges: "Imeall ar bith",
     corners: "Cuinne",
     defenders: "Bana",

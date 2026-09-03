@@ -169,11 +169,12 @@ export function applyPieceColors(colors: PieceColors): void {
 // ── Themes that belong to one board ──────────────────────────────────────────
 // Ballinderry is not a palette, it is a *board*: 49 holes in a 7×7 grid, drawn
 // from the object the theme is named for (NMI 1932:6583, see
-// docs/ballinderry-board.md). Tablut is 9×9 and was never a peg board, so
-// carrying this theme onto it would render an 81-hole board that never existed
-// and quietly claim it did. The chosen theme is left alone — this is about what
-// gets *painted* on a surface it does not describe, not about the player's
-// choice, which persists untouched and is what the picker keeps showing.
+// docs/ballinderry-board.md). Neither of the other two tafl boardgames was ever a
+// peg board, and both are a different size, so carrying this theme onto one would
+// render an 81- or 121-hole board that never existed and quietly claim it did.
+// The chosen theme is left alone — this is about what gets *painted* on a surface
+// it does not describe, not about the player's choice, which persists untouched
+// and is what the picker keeps showing.
 
 const BOARD_SPECIFIC_THEMES = new Set<ThemeId>(["ballinderry"]);
 
@@ -185,19 +186,21 @@ export const OFF_BOARD_FALLBACK: ThemeId = "gokstad";
  * Pure, so the fallback is testable without a document — the reason it is a
  * function of its own rather than a branch inside `applyTheme`.
  */
-export function resolveTheme(theme: ThemeId, onTablut: boolean): ThemeId {
-  return onTablut && BOARD_SPECIFIC_THEMES.has(theme) ? OFF_BOARD_FALLBACK : theme;
+export function resolveTheme(theme: ThemeId, offBrandubhBoard: boolean): ThemeId {
+  return offBrandubhBoard && BOARD_SPECIFIC_THEMES.has(theme) ? OFF_BOARD_FALLBACK : theme;
 }
 
 /**
  * Paint `theme` and remember it.
  *
- * `onTablut` changes what is painted and never what is stored: a player who
- * chose Ballinderry still has Ballinderry chosen while they are looking at the
- * Tablut board, and gets it back on the way out.
+ * `offBrandubhBoard` — true on the Tablut and Copenhagen surfaces — changes what
+ * is painted and never what is stored: a player who chose Ballinderry still has
+ * Ballinderry chosen while they are looking at one of the bigger boards, and gets
+ * it back on the way out. The flag is deliberately "not the 7×7 board" rather
+ * than a list of surfaces, so a fourth board is covered by whoever passes it.
  */
-export function applyTheme(theme: ThemeId, onTablut = false): void {
-  document.documentElement.setAttribute("data-theme", resolveTheme(theme, onTablut));
+export function applyTheme(theme: ThemeId, offBrandubhBoard = false): void {
+  document.documentElement.setAttribute("data-theme", resolveTheme(theme, offBrandubhBoard));
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
