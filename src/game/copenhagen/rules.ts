@@ -8,16 +8,21 @@
 // logic genuinely differs it is because a rule differs, and the comment says
 // which rule.
 //
-// Two things here exist in neither of the others, and are where the reading is
+// Three things here exist in neither of the others, and are where the reading is
 // worth checking:
 //
 //   • `kingIsCaptured` implements a king who is strong *everywhere* (rule 7),
-//     not only on and beside his throne. That single change is what makes the
-//     rim safe for him, and it is where the sources contradict each other — see
-//     `strongKingEdgeRule` in variants.ts.
+//     not only on and beside his throne. What that means on the rim, where the
+//     fourth square does not exist, is where the sources contradict each other —
+//     see `strongKingEdgeRule` in variants.ts. The shipped reading takes him
+//     there with three *attackers*, and with nothing else.
 //   • `exitFort` (rule 6b) is a win condition no other tafl game in this project
 //     has: a terminal decided by a structural property of the whole board rather
 //     than by the move just played.
+//   • `kingIsEntombed` is the one rule in any of the three games that is in no
+//     published ruleset at all. It closes the hole the reading above opens — a
+//     king pinned to the rim by two attackers and one of his own men — and it
+//     says so at length where it is defined.
 
 import {
   BOARD_SIZE,
@@ -448,11 +453,8 @@ export function kingIsCaptured(
 
   if (needsAllFour) {
     // Every cardinal square must be hostile. What "every" means on the rim is
-    // the contested part: under `"uncapturable"` an off-board square can never
-    // be satisfied, so a king with his back to the edge is safe; under
-    // `"available_sides"` only the squares that exist are required, so the same
-    // king falls to three attackers — or, beside a corner, to the hostile corner
-    // and a single attacker.
+    // the contested part, and `strongKingEdgeRule` picks between three readings
+    // — see variants.ts for who says which.
     let anyOffBoard = false;
     for (const [dr, dc] of DIRS) {
       const fr = r + dr;
@@ -463,7 +465,31 @@ export function kingIsCaptured(
       }
       if (!flankHostile(fr, fc)) return false;
     }
-    return !anyOffBoard || rules.strongKingEdgeRule === "available_sides";
+
+    // Away from the rim there is nothing to decide: four squares, all hostile.
+    if (!anyOffBoard) return true;
+
+    // `"uncapturable"` — the missing square can never be filled, so the king
+    // with his back to the edge is safe. The Fetlar reading.
+    if (rules.strongKingEdgeRule === "uncapturable") return false;
+
+    // `"available_sides"` — only the squares that exist are required, and
+    // hostile means what it means everywhere else, so a corner counts.
+    if (rules.strongKingEdgeRule === "available_sides") return true;
+
+    // `"three_attackers"` — the shipped reading. On the rim a hostile *square*
+    // does not stand in for a man: every side that exists must hold an actual
+    // attacker. The loop above has already established that each of them is
+    // hostile, so this can only ever tighten the result — and the one position
+    // it changes is the important one, a king orthogonally beside a corner. The
+    // corner is hostile but no soldier may stand on it, so the third attacker
+    // has nowhere to be and the king cannot be taken there at all. He is a rook
+    // step from the corner and the game, which is the point.
+    return DIRS.every(([dr, dc]) => {
+      const fr = r + dr;
+      const fc = c + dc;
+      return !inBounds(fr, fc) || b[fr][fc] === "attacker";
+    });
   }
 
   // Ordinary two-sided custodial capture. The piece that just moved must be one
@@ -491,46 +517,209 @@ export function hashBoard(b: Board, turn: Side): string {
 
 // ── Encirclement detection ────────────────────────────────────────────────────
 /**
- * Rule 7b: true if the king and all remaining defenders are completely
- * encircled — no path from the king through empty/defender/king squares reaches
- * the board edge without crossing an attacker, AND every remaining defender lies
- * within that same reachable region. Board edges do NOT count as part of the
- * ring.
+ * Which squares count as a way out of the king's region, as a flat lookup.
  *
- * One of the three rules Copenhagen adds to Fetlar, and unlike Tablut's version
- * of it there is nothing awkward about it here: under corner escape "the king
- * cannot reach the rim" is a genuinely stronger statement than "the king cannot
- * win", so the rule ends games that really are over rather than games that
- * merely look hard.
+ * Built once per reading rather than asked per square: the flood tests it at
+ * every neighbour of every square it visits, and under the rim-as-wall reading it
+ * has to run much further before it finds one, so this is the innermost loop in
+ * the file. Only four combinations exist and none of them depends on the board.
  */
-export function isEncircled(b: Board): boolean {
+const WAY_OUT: Record<string, Uint8Array> = {};
+function wayOutMask(rules: CopenhagenRuleSet): Uint8Array {
+  const id = `${rules.escape}:${rules.edgeCompletesRing ? 1 : 0}`;
+  let mask = WAY_OUT[id];
+  if (mask) return mask;
+  mask = new Uint8Array(BOARD_SIZE * BOARD_SIZE);
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      mask[r * BOARD_SIZE + c] =
+        (rules.edgeCompletesRing ? isEscapeSquare(r, c, rules) : isEdge(r, c)) ? 1 : 0;
+  WAY_OUT[id] = mask;
+  return mask;
+}
+
+/**
+ * Rule 7b: true if the king and all remaining defenders are completely
+ * encircled — no path from the king through empty/defender/king squares gets
+ * *out* without crossing an attacker, AND every remaining defender lies within
+ * that same reachable region.
+ *
+ * What "out" means is `edgeCompletesRing`, and it is the whole difference
+ * between the two readings:
+ *
+ *  • **`false` — the sourced rule.** *Board edges do not count as part of the
+ *    ring*, so the ring has to be attackers the whole way round and reaching
+ *    any rim square breaks it. A king standing on the rim is by definition not
+ *    encircled, which is the cheap guard this used to open with.
+ *  • **`true` — shipped.** The rim is a wall like any other, and what breaks
+ *    the ring is reaching an *escape square*. A pocket sealed against one edge
+ *    by attackers therefore counts, which is the case the sourced reading
+ *    misses: a king shut in against the rim with nowhere to go and no corner in
+ *    reach is encircled by every meaning of the word except the literal one.
+ *
+ * The escape-square clause is what stops the second reading from swallowing the
+ * board. Any region touching the rim that contains no corner has to be a real
+ * pocket: a wall straight across the middle leaves corners on both sides of it,
+ * so neither half qualifies. And under `escape: "edges"` every rim square is an
+ * escape square, which collapses the second reading back into the first — the
+ * right answer for a game where the whole rim wins.
+ */
+export function isEncircled(b: Board, rules: CopenhagenRuleSet): boolean {
   const king = findKing(b);
   if (!king) return false;
-  if (isEdge(king.row, king.col)) return false;
-  const visited = new Set<number>();
-  const queue: Array<[number, number]> = [[king.row, king.col]];
-  visited.add(king.row * BOARD_SIZE + king.col);
-  while (queue.length > 0) {
-    const [r, c] = queue.shift()!;
-    for (const [dr, dc] of DIRS) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (!inBounds(nr, nc)) continue;
+  // What counts as a way out of the region — see the two readings above.
+  const wayOut = wayOutMask(rules);
+  if (wayOut[king.row * BOARD_SIZE + king.col]) return false;
+
+  // A flat visited buffer and a read cursor rather than a Set and `shift()`.
+  // Both matter here and did not before: under the sourced reading the flood gave
+  // up the moment it touched the rim, so it stayed small, and `Array.shift()` is
+  // O(n) — a flood that now has to run all the way to a corner turns that into
+  // quadratic work at every node the search visits. Measured at ~18% of a
+  // depth-4 search on the opening before this, and free after it.
+  const visited = new Uint8Array(BOARD_SIZE * BOARD_SIZE);
+  const queue = new Int16Array(BOARD_SIZE * BOARD_SIZE);
+  let head = 0;
+  let tail = 0;
+  queue[tail++] = king.row * BOARD_SIZE + king.col;
+  visited[king.row * BOARD_SIZE + king.col] = 1;
+  // Unrolled over the four directions and worked in flat indices: `DIRS` is an
+  // array of tuples, and destructuring one per neighbour per square is most of
+  // the cost of a flood this size.
+  while (head < tail) {
+    const cell = queue[head++];
+    const r = (cell / BOARD_SIZE) | 0;
+    const c = cell - r * BOARD_SIZE;
+    for (let d = 0; d < 4; d++) {
+      const nr = d === 0 ? r - 1 : d === 1 ? r + 1 : r;
+      const nc = d === 2 ? c - 1 : d === 3 ? c + 1 : c;
+      if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
       const key = nr * BOARD_SIZE + nc;
-      if (visited.has(key)) continue;
+      if (visited[key]) continue;
       if (b[nr][nc] === "attacker") continue;
-      if (isEdge(nr, nc)) return false;
-      visited.add(key);
-      queue.push([nr, nc]);
+      if (wayOut[key]) return false;
+      visited[key] = 1;
+      queue[tail++] = key;
     }
   }
-  // The king's own region is sealed. The contract is "the king AND all remaining
+  // The king's region is sealed. The contract is "the king AND all remaining
   // defenders" under one unbroken ring, so a defender the flood never reached —
   // free, or sealed in a pocket of its own — is not encircled together with the
   // king and must fail the check.
   for (let r = 0; r < BOARD_SIZE; r++)
     for (let c = 0; c < BOARD_SIZE; c++)
-      if (b[r][c] === "defender" && !visited.has(r * BOARD_SIZE + c)) return false;
+      if (b[r][c] === "defender" && !visited[r * BOARD_SIZE + c]) return false;
+  return true;
+}
+
+// ── Entombment ────────────────────────────────────────────────────────────────
+/**
+ * The attackers win because the king is **entombed**: standing on a rim square
+ * with no legal move, walled in by pieces of either colour, and with no way for
+ * his own side to open a square beside him.
+ *
+ * ## Why this exists
+ *
+ * `strongKingEdgeRule: "three_attackers"` says a king on the rim falls to three
+ * attackers and to nothing else. That leaves a hole with a shape: a king held
+ * against the edge by *two* attackers and one of his own men is not captured
+ * (one of the three squares holds the wrong colour), is not encircled (his side
+ * is not shut in), and is not in an exit fort (he has no move). He is simply
+ * stuck, and under the sourced rules alone the game grinds on until threefold
+ * repetition hands it to whichever side ran out of waiting moves — an ending
+ * decided by bookkeeping rather than by the board. This rule ends it on the
+ * board instead. It is the owner's decision and is in no published ruleset;
+ * `entombedKingLoses` turns it off.
+ *
+ * ## The four clauses
+ *
+ * 1. **At the edge.** The rule as stated, and the guard that keeps everything
+ *    below off the search's hot path — the same trick `exitFort` opens with.
+ * 2. **No legal move.** Asked of the move generator rather than by counting
+ *    occupied neighbours, so the throne and corner rules are answered by the one
+ *    place that knows them.
+ * 3. **No single defender move frees him.** This is the clause that sees a
+ *    *capture*: a defender who takes an attacker penning the king opens a square
+ *    without any blocker having moved. It also, incidentally, covers a blocker
+ *    simply stepping aside — vacating a square beside the king always frees him.
+ * 4. **No *sequence* of defender moves frees him either.** Clause 3 is one ply,
+ *    and a blocker who is himself boxed in by a friend two squares away is freed
+ *    in two: the man behind steps aside, the blocker follows. So relax the
+ *    position — freeze the attackers, hand the defenders the board to themselves,
+ *    and ask which of them could ever vacate. Monotone, so it terminates: a
+ *    square once opened is never closed, and opening one can only free more men.
+ *
+ * ## What this does *not* prove
+ *
+ * `exitFort` is a proof: it declares a win only when the attackers provably
+ * cannot open the fort. **This is not.** It is a positional rule, in the way
+ * stalemate is a positional rule — it describes the shape on the board, not the
+ * future. One gap is known and deliberate: clause 3 sees only one-ply captures,
+ * so a defender who needs *two* moves to reach the square from which he would
+ * take a penning attacker is not counted, and a game the defenders could have
+ * saved that way ends here. Clause 4 closes the same gap for blockers, because
+ * blockers can be reasoned about monotonically and captures cannot — the honest
+ * version of the capture case is a search, not a fixpoint.
+ *
+ * Making it a proof means adding the pessimism `exitFort` uses: treat any
+ * penning attacker that has an empty square on one flank and a defender or
+ * hostile square on the other as capturable, whether or not a defender could
+ * ever get there. That is one `if` away, and it is not shipped because it would
+ * change the rule rather than tighten it — it would demand a phalanx around the
+ * king before the tomb ever closed, which is not what "surrounded, without the
+ * means to move them" says. `docs/reports/copenhagen-king-capture-edge-cases.md`
+ * works both readings through a position.
+ */
+export function kingIsEntombed(b: Board, rules: CopenhagenRuleSet): boolean {
+  const king = findKing(b);
+  if (!king) return false;
+  const { row: kr, col: kc } = king;
+
+  // Clause 1. A king already standing on an escape square has won, not lost —
+  // unreachable in a played game, since landing there ends it, but this is a
+  // pure predicate and hand-built positions call it directly.
+  if (!isEdge(kr, kc)) return false;
+  if (isEscapeSquare(kr, kc, rules)) return false;
+  // Clause 2.
+  if (movesFrom(b, kr, kc, rules).length > 0) return false;
+
+  // Clause 3. The king has no move of his own, so `allMoves` for his side is
+  // exactly the list of other men who might free him.
+  for (const m of allMoves(b, "defenders", rules)) {
+    const after = cloneBoard(b);
+    after[m.to.row][m.to.col] = after[m.from.row][m.from.col];
+    after[m.from.row][m.from.col] = null;
+    resolveCaptures(after, m.to.row, m.to.col, "defenders", rules);
+    if (rules.shieldwallCapture)
+      resolveShieldwallCaptures(after, m.to.row, m.to.col, "defenders", rules);
+    if (movesFrom(after, kr, kc, rules).length > 0) return false;
+  }
+
+  // Clause 4. `relaxed` is the board with every defender who could ever get out
+  // of the way taken off it. Sweeping repeatedly is what makes it a fixpoint:
+  // emptying one square can hand a move to a man who had none, and there are at
+  // most twelve defenders, so it settles in at most twelve passes.
+  const relaxed = cloneBoard(b);
+  const vacatable = new Set<number>();
+  for (;;) {
+    let grew = false;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (relaxed[r][c] !== "defender") continue;
+        if (movesFrom(relaxed, r, c, rules).length === 0) continue;
+        relaxed[r][c] = null;
+        vacatable.add(r * BOARD_SIZE + c);
+        grew = true;
+      }
+    }
+    if (!grew) break;
+  }
+  for (const [dr, dc] of DIRS) {
+    const nr = kr + dr;
+    const nc = kc + dc;
+    if (inBounds(nr, nc) && vacatable.has(nr * BOARD_SIZE + nc)) return false;
+  }
+
   return true;
 }
 
@@ -721,11 +910,22 @@ function computeStatus(
   if (mover === "attackers" && kingIsCaptured(board, rules, lastMove.to))
     return "attackers_win_capture";
 
-  // 3. Attacker encirclement win (rule 7b).
-  if (mover === "attackers" && rules.encirclementWin && isEncircled(board))
+  // 3. Entombment — the king walled in at the rim with no way out (see
+  // `kingIsEntombed`; not a published rule).
+  //
+  // Checked after *either* side's move, like the exit fort below and for the
+  // same reason: it is a property of the position, not of the move that produced
+  // it, and the defenders can perfectly well seal their own king in. Ordering it
+  // above encirclement is cosmetic — the two can both hold, and naming the
+  // tighter, more local reason reads better on the game-over line.
+  if (rules.entombedKingLoses && kingIsEntombed(board, rules))
+    return "attackers_win_entombment";
+
+  // 4. Attacker encirclement win (rule 7b).
+  if (mover === "attackers" && rules.encirclementWin && isEncircled(board, rules))
     return "attackers_win_encirclement";
 
-  // 4. Exit fort (rule 6b).
+  // 5. Exit fort (rule 6b).
   //
   // Checked after *either* side's move, unlike the escape above, because a fort
   // is a property of the position rather than of the move that produced it, and
@@ -738,7 +938,7 @@ function computeStatus(
   // affordable either way.
   if (rules.exitFort && exitFort(board, rules)) return "defenders_win_fort";
 
-  // 5. Threefold repetition (rule 8).
+  // 6. Threefold repetition (rule 8).
   //
   // Guarded on plies-since-capture for the same reason and by the same argument
   // as the other two games: `hashBoard` builds a fresh string per call and then
@@ -764,7 +964,7 @@ function computeStatus(
     }
   }
 
-  // 6. Side to move has no legal move → they lose (rule 8's second half).
+  // 7. Side to move has no legal move → they lose (rule 8's second half).
   if (!hasAnyMove(board, nextTurn, rules))
     return nextTurn === "attackers" ? "defenders_win_no_moves" : "attackers_win_no_moves";
 
@@ -791,6 +991,7 @@ export function winnerOf(status: GameStatus): Side | "draw" | null {
     case "defenders_win_time":
       return "defenders";
     case "attackers_win_capture":
+    case "attackers_win_entombment":
     case "attackers_win_encirclement":
     case "attackers_win_repetition":
     case "attackers_win_no_moves":

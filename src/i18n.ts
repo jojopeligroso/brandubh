@@ -88,6 +88,7 @@ export interface Translations {
   defendersWinEscape: string;
   attackersWinCapture: string;
   attackersWinEncirclement: string;
+  attackersWinEntombment: string;
   attackersWinRepetition: string;
   attackersWinNoMoves: string;
   defendersWinNoMoves: string;
@@ -712,6 +713,8 @@ const en: Translations = {
     "King\u2019s side win \u2014 The King has escaped to the corner!",
   attackersWinCapture: "Raiders win \u2014 The King is taken!",
   attackersWinEncirclement: "Raiders win \u2014 The King\u2019s side is encircled!",
+  attackersWinEntombment:
+    "Raiders win \u2014 The King is entombed at the edge: nowhere to go, and nobody who can open a square for him.",
   attackersWinRepetition: "Raiders win \u2014 Repetition: loss for the King\u2019s side.",
   attackersWinNoMoves: "Raiders win \u2014 No moves left.",
   defendersWinNoMoves: "King\u2019s side win \u2014 No moves left.",
@@ -985,11 +988,13 @@ const en: Translations = {
     strongKingAdjacentToThrone: "Strong king beside the throne",
     shieldwallCapture: "Shieldwall capture",
     encirclementWin: "Encirclement wins",
+    edgeCompletesRing: "The board edge completes the ring",
+    entombedKingLoses: "An entombed king loses",
     repetitionResult: "Threefold repetition",
   },
   taflRuleHints: {
     kingStrength: "Two attackers, four everywhere, or four only on and beside the throne.",
-    strongKingEdgeRule: "Copenhagen's sources disagree. Safe: a fourth wall cannot exist off the board. Takeable: only the sides that exist are needed, so a corner and one attacker suffice.",
+    strongKingEdgeRule: "Copenhagen's sources disagree, three ways. Safe: a fourth wall cannot exist off the board. Three attackers: only real men count, so a king beside a corner cannot be taken at all. Sides that exist: a corner counts as a wall, so a corner and one attacker suffice.",
     exitFort: "White wins with an unbreakable fort that puts the king on the edge with a move to make.",
     escape: "Any edge square is the baseline rule; corners make it a different game.",
     firstMove: "White leads under the baseline rules, unlike most tafl games.",
@@ -1005,6 +1010,8 @@ const en: Translations = {
     strongKingAdjacentToThrone: "Beside the throne he must be surrounded on all four sides.",
     shieldwallCapture: "A bracketed row along the edge falls together. A Copenhagen rule, not a Tablut one.",
     encirclementWin: "Black wins by ringing the king in. Off where the rim is the goal.",
+    edgeCompletesRing: "A pocket sealed against the rim counts as a ring too, so long as no corner can be reached from inside it.",
+    entombedKingLoses: "Black wins when the king is stuck on the rim with no move, and his own side cannot open a square beside him.",
     repetitionResult: "What happens when the same position comes round a third time.",
   },
   taflRuleValues: {
@@ -1012,6 +1019,7 @@ const en: Translations = {
     near_throne: "Four, on and beside the throne",
     strong: "Four attackers",
     uncapturable: "Safe",
+    three_attackers: "Takeable by three attackers",
     available_sides: "Takeable from the sides that exist",
     loss_for_repeater: "Whoever repeats loses",
     edges: "Any edge",
@@ -1395,6 +1403,8 @@ const es: Translations = {
     "\u00a1Los Asaltantes ganan! \u2014 \u00a1El Rey ha sido capturado!",
   attackersWinEncirclement:
     "\u00a1Los Asaltantes ganan! \u2014 \u00a1El bando del Rey est\u00e1 cercado!",
+  attackersWinEntombment:
+    "\u00a1Los Asaltantes ganan! \u2014 El Rey queda sepultado contra el borde: sin salida, y sin nadie que pueda abrirle una casilla.",
   attackersWinRepetition:
     "\u00a1Los Asaltantes ganan! \u2014 Repetici\u00f3n: p\u00e9rdida para el bando del Rey.",
   attackersWinNoMoves:
@@ -1676,11 +1686,13 @@ const es: Translations = {
     strongKingAdjacentToThrone: "Rey fuerte junto al trono",
     shieldwallCapture: "Captura en muro de escudos",
     encirclementWin: "El cerco gana",
+    edgeCompletesRing: "El borde completa el cerco",
+    entombedKingLoses: "El Rey sepultado pierde",
     repetitionResult: "Triple repetici\u00f3n",
   },
   taflRuleHints: {
     kingStrength: "Dos atacantes, cuatro en todas partes, o cuatro s\u00f3lo en el trono y junto a \u00e9l.",
-    strongKingEdgeRule: "Las fuentes de Copenhague no coinciden. Seguro: no puede existir una cuarta pared fuera del tablero. Capturable: bastan los lados que existen, as\u00ed que una esquina y un atacante alcanzan.",
+    strongKingEdgeRule: "Las fuentes de Copenhague no coinciden, de tres maneras. Seguro: no puede existir una cuarta pared fuera del tablero. Tres atacantes: s\u00f3lo cuentan las piezas, as\u00ed que junto a una esquina el Rey no cae. Lados que existen: la esquina cuenta como muro, as\u00ed que una esquina y un atacante alcanzan.",
     exitFort: "Las blancas ganan con un fuerte inexpugnable que deja al Rey en el borde y con una jugada disponible.",
     escape: "Cualquier casilla del borde es la regla base; las esquinas hacen otro juego.",
     firstMove: "Las blancas empiezan en las reglas base, al contrario que en casi todo el tafl.",
@@ -1696,6 +1708,8 @@ const es: Translations = {
     strongKingAdjacentToThrone: "Junto al trono hay que rodearlo por los cuatro lados.",
     shieldwallCapture: "Una fila del borde cae junta. Regla de Copenhague, no de Tablut.",
     encirclementWin: "Las negras ganan cercando al rey. Desactivado cuando el borde es la meta.",
+    edgeCompletesRing: "Un bolsillo cerrado contra el borde tambi\u00e9n cuenta como cerco, mientras desde dentro no se alcance ninguna esquina.",
+    entombedKingLoses: "Las negras ganan cuando el Rey queda inm\u00f3vil en el borde y su bando no puede abrirle ninguna casilla.",
     repetitionResult: "Qu\u00e9 pasa cuando la misma posici\u00f3n se repite por tercera vez.",
   },
   taflRuleValues: {
@@ -1703,6 +1717,7 @@ const es: Translations = {
     near_throne: "Cuatro, en el trono y junto a \u00e9l",
     strong: "Cuatro atacantes",
     uncapturable: "Seguro",
+    three_attackers: "Capturable por tres atacantes",
     available_sides: "Capturable por los lados que existen",
     loss_for_repeater: "Pierde quien repite",
     edges: "Cualquier borde",
@@ -2095,6 +2110,9 @@ const ga: Translations = {
     "Foghlaithe a bhuaigh \u2014 Gabhadh an R\u00ed!",
   attackersWinEncirclement:
     "Foghlaithe a bhuaigh \u2014 T\u00e1 taobh an R\u00ed timpeallaithe!",
+  // DRAFT (entombment) \u2014 unreviewed, like the rest of this table.
+  attackersWinEntombment:
+    "Foghlaithe a bhuaigh \u2014 T\u00e1 an R\u00ed adhlactha ag an imeall: gan dul as, agus gan aon duine in ann cearn\u00f3g a oscailt d\u00f3.",
   attackersWinRepetition:
     "Foghlaithe a bhuaigh \u2014 Athr\u00e1: caillteanas do thaobh an R\u00ed.",
   attackersWinNoMoves:
@@ -2388,11 +2406,13 @@ const ga: Translations = {
     strongKingAdjacentToThrone: "Ri laidir taobh leis an richathaoir",
     shieldwallCapture: "Gabhail bhalla sciath",
     encirclementWin: "Buann iadh timpeall",
+    edgeCompletesRing: "Cuireann imeall an chlair an t-iadh i gcrich",
+    entombedKingLoses: "Cailleann ri adhlactha",
     repetitionResult: "Athra tri huaire",
   },
   taflRuleHints: {
     kingStrength: "Beirt ionsaitheoir, ceathrar i ng\u00e1ch \u00e1it, n\u00f3 ceathrar ar an r\u00edchathaoir agus l\u00e9i amh\u00e1in.",
-    strongKingEdgeRule: "N\u00ed aonta\u00edonn na fo\u00edns\u00ed. Sl\u00e1n: n\u00ed f\u00e9idir ceathr\u00fa balla a bheith taobh amuigh den chl\u00e1r. Ing\u00e9ofa: n\u00ed g\u00e1 ach na taobhanna at\u00e1 ann.",
+    strongKingEdgeRule: "N\u00ed aonta\u00edonn na fo\u00edns\u00ed, ar thr\u00ed bhealach. Sl\u00e1n: n\u00ed f\u00e9idir ceathr\u00fa balla a bheith taobh amuigh den chl\u00e1r. Tri\u00far ionsaitheoir: n\u00ed \u00e1ir\u00edtear ach fir, mar sin n\u00ed thiteann an R\u00ed taobh le cuinne. Na taobhanna at\u00e1 ann: \u00e1ir\u00edtear cuinne mar bhalla.",
     exitFort: "Buann na Bh\u00e1n le d\u00fan dobhriste a fh\u00e1gann an R\u00ed ar an imeall agus bogadh aige.",
     escape: "Is cearnog imill ar bith an bhunriail; deanann na cuinni cluiche eile de.",
     firstMove: "Tosaionn na Bana faoi na bunrialacha, murab ionann agus an chuid is mo den tafl.",
@@ -2408,6 +2428,8 @@ const ga: Translations = {
     strongKingAdjacentToThrone: "Taobh leis an richathaoir ni mor iadh timpeall air ar na ceithre thaobh.",
     shieldwallCapture: "Titeann sraith ar an imeall le cheile. Riail Chopenhagen, nach ceann Tablut.",
     encirclementWin: "Buann na Dubha an ri a iadh isteach. As nuair is e an imeall an sprioc.",
+    edgeCompletesRing: "Airitear poca ata dunta in aghaidh an imill mar iadh freisin, fad is nach feidir cuinne a bhaint amach as.",
+    entombedKingLoses: "Buann na Dubha nuair ata an Ri gafa ar an imeall gan bogadh, agus gan a thaobh fein in ann cearnog a oscailt do.",
     repetitionResult: "Cad a tharlaionn nuair a thagann an ionad ceanna timpeall an triu huair.",
   },
   taflRuleValues: {
@@ -2415,6 +2437,7 @@ const ga: Translations = {
     near_throne: "Ceathrar, ar an r\u00edchathaoir agus l\u00e9i",
     strong: "Ceathrar ionsaitheoir",
     uncapturable: "Sl\u00e1n",
+    three_attackers: "Ing\u00e9ofa ag tri\u00far ionsaitheoir",
     available_sides: "Ing\u00e9ofa \u00f3 na taobhanna at\u00e1 ann",
     loss_for_repeater: "Cailleann an t\u00e9 a athdh\u00e9anann",
     edges: "Imeall ar bith",

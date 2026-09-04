@@ -43,10 +43,18 @@ same caveat: an excerpt can be accurate and still be missing the sentence that
 qualifies it.
 
 **If you can reach the sources, the first thing to check is
-`strongKingEdgeRule`** (below). It is the only assertion where two sources
+`strongKingEdgeRule`** (below). It is the only assertion where the sources
 directly contradict each other, and it decides whole classes of endgame.
 
-## The eleven rules, as the presets assert them
+**Three of the flags below are now the owner's decision rather than a reading of
+any source** — `strongKingEdgeRule: "three_attackers"`, `edgeCompletesRing` and
+`entombedKingLoses`. They are marked ★ in the table, each has its own section,
+and `docs/reports/copenhagen-king-capture-edge-cases.md` works every position
+they decide through the shipped code.
+
+## The rules, as the presets assert them
+
+Eleven of them are Copenhagen's; the three marked ★ are this project's.
 
 Corroboration column: **✓✓** = matching wording from more than one independently
 retrieved excerpt; **✓** = one excerpt; **⚠** = contested or inferred.
@@ -62,7 +70,10 @@ retrieved excerpt; **✓** = one excerpt; **⚠** = contested or inferred.
 | 6 | The king escapes to a corner | `escape: "corners"` | ✓✓ |
 | 6b | Exit fort: the king with contact to the edge, a move to make, and an unbreakable fort | `exitFort: true` | ✓✓ |
 | 7 | The king is captured by four attackers — three plus the empty throne beside it | `kingStrength: "strong"`, `throneHostileToKing` | ✓✓ |
+| 7a ★ | On the rim, three **attackers**; a hostile square does not stand in | `strongKingEdgeRule: "three_attackers"` | ⚠ owner's choice |
 | 7b | The attackers win by surrounding the king and all remaining defenders | `encirclementWin: true` | ✓✓ |
+| 7c ★ | A pocket sealed by attackers **and the rim** counts as the ring | `edgeCompletesRing: true` | ⚠ against the wording |
+| 7d ★ | A king entombed at the rim, with no way for his side to free him, loses | `entombedKingLoses: true` | ⚠ no source at all |
 | 8 | Perpetual repetition is forbidden, and loses for the player repeating; a player who cannot move loses | `repetitionResult: "loss_for_repeater"` | ⚠ |
 
 ### Where the reading needed a step of interpretation
@@ -101,16 +112,16 @@ of "the player who maintains the situation", not a transcription of one — the
 phrase describes an intent that a move list cannot fully identify. It is why this
 is the only game in the project that can end in `defenders_win_repetition`.
 
-## ⚠ `strongKingEdgeRule` — the sources contradict each other
+## ⚠ `strongKingEdgeRule` — three readings, three sources, no primary text
 
-**This is the one place two sources say opposite things, and it is not a detail.**
+**This is the one place the sources say opposite things, and it is not a detail.**
 
 A "strong" king needs all four cardinal squares hostile. On the board's rim one of
 those four does not exist. What follows?
 
-**Reading A — `"uncapturable"` (shipped).** The missing square can never be
-satisfied, so a king with his back to the edge cannot be taken at all. Supported
-by two independently-worded excerpts attributed to aagenielsen.dk:
+**Reading A — `"uncapturable"`.** The missing square can never be satisfied, so a
+king with his back to the edge cannot be taken at all. Supported by two
+independently-worded excerpts attributed to aagenielsen.dk:
 
 > "The Copenhagen rules feature an armed king that is captured from 4 sides. The
 > board edge is NOT hostile."
@@ -118,33 +129,81 @@ by two independently-worded excerpts attributed to aagenielsen.dk:
 > "The king cannot be captured on the board edge."
 
 **Reading B — `"available_sides"`.** Only the cardinal squares that *exist* must
-be hostile. A king beside a corner then falls to the hostile corner plus a single
-attacker. Supported by Cyningstan's comparison of Fetlar with Copenhagen:
+be hostile, and hostile means what it means everywhere else, so a corner counts.
+A king beside a corner then falls to the hostile corner plus a single attacker.
+Supported by Cyningstan's comparison of Fetlar with Copenhagen:
 
 > "In Copenhagen rules, the king can be captured on the edge of the board and can
 > thus be captured by two attackers when on a square next to a corner, whereas in
 > Fetlar Hnefatafl, the king cannot be captured on the board edge."
 
-Note that reading B is stated as *the difference between Fetlar and Copenhagen*,
-which makes it hard to dismiss as a slip — and note also that reading A's second
-excerpt might itself be a summary of the *Fetlar* rule that the search conflated.
-Neither is safe to assume.
+**Reading C — `"three_attackers"` (shipped).** Every cardinal square that exists
+must hold an actual **attacker**; a hostile *square* does not stand in for a man.
+On the rim that is three attackers, and beside a corner it is unsatisfiable — no
+soldier may stand on a corner, so the third man has nowhere to be. Supported by a
+third excerpt, whose first half it follows and whose second half it does not:
 
-**A ships**, on the count of independently-worded excerpts, and because it is the
-conservative choice: a king who cannot be taken on the rim makes the attackers'
-job harder, so getting it wrong this way costs the defenders nothing they were
-entitled to. **B is one flag away** in the custom rule editor, `rules.test.ts`
-pins both behaviours including the corner-plus-one-attacker case, and
-`variants.test.ts` asserts which one ships, so flipping the default is a
-deliberate act rather than a drive-by edit.
+> "When the king is on an edge square he is captured by three attackers, and next
+> to a corner square by two attackers."
+
+**C ships, and it is the owner's decision, not a transcription.** The evidence
+does not settle the question: reading A's excerpts are, on the best reading
+available, describing *Fetlar* — which is exactly what Cyningstan says the
+difference between the two rulesets is — and B and C disagree only about the
+corner-adjacent square. So the honest description of the shipped state is: the
+project plays C, `copenhagen-fetlar` plays A (where the evidence for it actually
+points), and B is one click away in the custom rule editor.
+
+`rules.test.ts` pins all three behaviours — including the corner-plus-one-attacker
+position, which is the single square where the three readings give three
+different answers — and `variants.test.ts` asserts which one ships, so changing
+the default is a deliberate act rather than a drive-by edit.
 
 If you can read the source: the question is whether rule 7's wording says "all
-four cardinal points" (A) or something like "surrounded on all sides" (B).
+four cardinal points" (A), "surrounded on all sides" (B), or "three attackers on
+an edge square" (C).
+
+## ★ `edgeCompletesRing` — knowingly against the sourced wording
+
+Rule 7b as sourced says *board edges do not count as part of the ring*, and
+`isEncircled` used to implement exactly that: it returned false the instant the
+king stood on a rim square, because the ring would have had to use the rim.
+
+The shipped preset says the opposite. A pocket sealed by attackers **and the rim
+together** is a ring, and what breaks it is reaching an *escape square* rather
+than reaching the rim. The clause that keeps this from swallowing the board is
+"no escape square inside": a wall straight across the board leaves corners on
+both sides of itself, so neither half qualifies, and only a wall returning to the
+same edge without enclosing a corner does. Under `escape: "edges"` every rim
+square is an escape square, which folds the reading back into the sourced one.
+
+This is a deliberate departure. `copenhagen-fetlar` carries the sourced reading,
+and the flag is in the editor.
+
+## ★ `entombedKingLoses` — in no published ruleset
+
+Reading C above leaves a hole: a king held on the rim by two attackers and one of
+his own men is captured by nothing, encircled by nothing, in no exit fort, and
+cannot move. Under the sourced rules that game runs to a threefold repetition,
+which `loss_for_repeater` decides by whoever runs out of waiting moves — an
+ending from bookkeeping rather than from the board.
+
+`kingIsEntombed` in `rules.ts` ends it on the board, and its own comment sets out
+the four clauses and — as important — what it does **not** prove. Unlike
+`exitFort`, which is one-sided so that it can never end a game nobody had won,
+this is a positional rule in the way stalemate is a positional rule. It has one
+known false positive, a two-ply capture rescue, which is pinned by a test and
+worked through in the report.
 
 ## ⚠ `copenhagen-fetlar` is UNVERIFIED
 
 The second preset is Copenhagen minus the three rules Copenhagen added —
-shieldwall, exit fort, encirclement — with repetition falling on White. It is
+shieldwall, exit fort, encirclement — plus neither of this project's two
+additions, and with `strongKingEdgeRule: "uncapturable"` stated positively rather
+than by removal: every excerpt saying "the king cannot be captured on the board
+edge" is, on the best reading available, describing *this* ruleset. That makes
+the contested rule a contrast someone can sit down and play. Repetition falls on
+White. It is
 reconstructed from **secondary descriptions of how the two rulesets differ**, not
 from the Fetlar rules themselves:
 
@@ -161,7 +220,9 @@ The same contract `tablut-rules.md` has for `tablut-aage`.
 
 Note the tension already visible in that quotation: it lists the edge king-capture
 difference among Fetlar-to-Copenhagen changes, which is reading B above. Whatever
-resolves `strongKingEdgeRule` probably resolves this preset's king rule too.
+resolves `strongKingEdgeRule` probably resolves this preset's king rule too — and
+if it resolves to A, this preset and the shipped one stop differing about the rim
+and the contrast disappears.
 
 ## The exit fort, and what the code actually proves
 

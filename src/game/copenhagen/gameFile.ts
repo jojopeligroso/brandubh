@@ -26,8 +26,9 @@
 //     `kingStrength` and `strongKingEdgeRule` join `escape`, `firstMove`,
 //     `throneBlocks`, `throneAnvil` and `repetitionResult`. Writer and reader are
 //     both derived from the defaults, so a rule added later is carried by the
-//     format for free — but a new *enum* also needs its permitted values adding
-//     to `ENUM_RULE_VALUES` below, which `gameFile.test.ts` asserts.
+//     format for free — and its permitted values come from `ENUM_RULE_VALUES` in
+//     variants.ts, which is where the enum is declared and which
+//     `variants.test.ts` holds to covering every one of them.
 //
 // All three formats are deliberately unrelated: a `copenhagen-1` file is not a
 // `tablut-1` file with two more ranks, and no parser will accept another's moves
@@ -49,9 +50,11 @@ import { isExternalStatus, replayPlies, type PlyInput, type ReplayError } from "
 import { BOARD_SIZE, type GameState, type GameStatus, type Square } from "./types";
 import {
   CUSTOM_RULE_DEFAULTS,
+  ENUM_RULE_VALUES,
   VARIANTS,
   rulesFor,
   type CustomRuleSet,
+  type EnumRuleKey,
   type CopenhagenRuleSet as RuleSet,
 } from "./variants";
 
@@ -101,7 +104,6 @@ export function resultToken(status: GameStatus): ResultToken {
 type BoolRuleKey = {
   [K in keyof CustomRuleSet]: CustomRuleSet[K] extends boolean ? K : never;
 }[keyof CustomRuleSet];
-type EnumRuleKey = Exclude<keyof CustomRuleSet, BoolRuleKey>;
 
 const ruleKeys = Object.keys(CUSTOM_RULE_DEFAULTS) as Array<keyof CustomRuleSet>;
 const BOOL_RULE_KEYS = ruleKeys.filter(
@@ -110,26 +112,6 @@ const BOOL_RULE_KEYS = ruleKeys.filter(
 const ENUM_RULE_KEYS = ruleKeys.filter(
   (k) => typeof CUSTOM_RULE_DEFAULTS[k] === "string",
 ) as EnumRuleKey[];
-
-/**
- * The values each enum rule will accept on import.
- *
- * Written out rather than derived, because the whole job here is to refuse a
- * value the type system will not be present to check at runtime: an imported
- * file is untrusted text, and `escape=sideways` must be ignored rather than
- * assigned. Adding an enum rule without adding its values here means the format
- * carries it on export and drops it on import, so the parity is asserted in
- * gameFile.test.ts.
- */
-const ENUM_RULE_VALUES: Record<EnumRuleKey, readonly string[]> = {
-  escape: ["corners", "edges"],
-  firstMove: ["attackers", "defenders"],
-  throneBlocks: ["none", "attackers", "soldiers"],
-  throneAnvil: ["none", "both", "defenders"],
-  kingStrength: ["weak", "near_throne", "strong"],
-  strongKingEdgeRule: ["uncapturable", "available_sides"],
-  repetitionResult: ["none", "draw", "loss_for_defenders", "loss_for_repeater"],
-};
 
 function serializeRules(rules: RuleSet): string {
   return [

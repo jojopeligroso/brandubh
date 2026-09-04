@@ -113,7 +113,16 @@ export interface EvalWeights {
    *  favour the attackers. */
   liberties: number;
   /** Subtracted per defender orthogonally adjacent to the king (a shield that
-   *  blocks custodial capture). */
+   *  blocks custodial capture).
+   *
+   *  ⚠ Sign worth revisiting on the rim, and deliberately left alone until there
+   *  is a gauntlet to revisit it with. Under `entombedKingLoses` a defender
+   *  beside a rim king is not only a shield but a potential jailer — he is the
+   *  third wall the attackers cannot supply themselves — so the term rewards
+   *  White for a formation that can lose the game outright. Nothing in this file
+   *  is tuned (see DEFAULT_WEIGHTS), so this is one more entry on that list
+   *  rather than a bug: the search still sees the terminal, it just does not lean
+   *  away from it heuristically. */
   shield: number;
   /** Per (attacker legal moves − defender legal moves). 0 ⇒ skip: it costs a full
    *  move-gen for both sides, and on 121 squares with 37 men on them that is the
@@ -363,17 +372,25 @@ function kingTouchesOpenCorner(kr: number, kc: number, rules: CopenhagenRuleSet)
  * resolves captures (including a shieldwall sweep) and runs `computeStatus` — and
  * there can be well over a hundred attacker replies. Almost all of them provably
  * cannot change the answer, so only replies landing orthogonally beside the king
- * are built. `computeStatus` has six ways to end a game and for any other reply
- * five are unreachable:
+ * are built. `computeStatus` has eight ways to end a game and for any other reply
+ * seven are unreachable. Every argument below leans on the same fact, which the
+ * counting argument above has already established: **after any single reply at
+ * least one corner lane survives**, and a lane is a run of empty squares from the
+ * king to a corner.
  *
  *  - **King captured.** `kingIsCaptured` opens with "the moved piece must be
  *    adjacent to the king" and returns false otherwise. That is exactly, and
  *    only, the case the restricted loop keeps.
- *  - **Encirclement.** `isEncircled` returns false the moment its flood reaches
- *    the rim. A king with an open corner lane is on rank/file 0 or 10 — the rim
- *    itself — so the flood never even starts. (This is Brandubh's argument, and
- *    it holds here for the same reason it fails in Tablut, where a king with four
- *    lanes can be dead centre.)
+ *  - **Encirclement.** `isEncircled` floods out from the king and gives up the
+ *    moment it finds a way out. Under `edgeCompletesRing` a way out is an escape
+ *    square; without it, any rim square. A surviving lane hands the flood both —
+ *    it ends on a corner, and a corner is on the rim — so the check returns false
+ *    either way. (Note the reason has *changed*: this used to rest on "a king
+ *    with a corner lane stands on the rim, and the rim stopped the flood", which
+ *    the rim-as-wall reading retired. The lane itself is the durable argument.)
+ *  - **Entombment.** Requires the king to have no legal move at all. The first
+ *    square of a surviving lane is empty and legal for him — the corner itself,
+ *    when he is already beside one — so he always has one.
  *  - **Exit fort.** Needs every square bordering the king's region to be a
  *    defender or off-board. An open corner lane is a run of empty squares
  *    bordered by neither, so the fort check fails before it starts.

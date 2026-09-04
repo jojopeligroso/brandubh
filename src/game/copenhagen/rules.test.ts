@@ -11,6 +11,7 @@ import {
   isEscapeSquare,
   isRestricted,
   kingIsCaptured,
+  kingIsEntombed,
   movesFrom,
   moveName,
   squareName,
@@ -340,11 +341,36 @@ describe("shieldwall capture", () => {
     b[1][4] = "attacker";
     b[1][6] = "attacker";
     b[4][5] = "attacker";
+    b[8][8] = "defender"; // free, and outside the pocket — see the note below
     const s = applyMove(state(b, "attackers"), mv(4, 5, 1, 5), cph);
     expect(s.board[0][5]).toBe("king");
     expect(s.board[0][4]).toBeNull();
     expect(s.board[0][6]).toBeNull();
     expect(s.status).toBe("playing");
+  });
+
+  it("can still lose the king the game, to the ring rather than the wall", () => {
+    // The same shieldwall with no defender left anywhere else. The king survives
+    // it — rule 4b never takes him — and is then standing in a three-square
+    // pocket against the rim with attackers on every other side and no corner in
+    // reach, which under `edgeCompletesRing` is an encirclement. Two rules, one
+    // move, and the second is why this position is not merely "playing".
+    const b = empty();
+    b[0][4] = "defender";
+    b[0][5] = "king";
+    b[0][6] = "defender";
+    b[0][3] = "attacker";
+    b[0][7] = "attacker";
+    b[1][4] = "attacker";
+    b[1][6] = "attacker";
+    b[4][5] = "attacker";
+    const s = applyMove(state(b, "attackers"), mv(4, 5, 1, 5), cph);
+    expect(s.board[0][5]).toBe("king"); // spared by the shieldwall, as always
+    expect(movesFrom(s.board, 0, 5, cph).length).toBe(2); // and not stalemated
+    expect(s.status).toBe("attackers_win_encirclement");
+    // Under the sourced ring the rim is not a wall, so the same game plays on.
+    expect(applyMove(state(b, "attackers"), mv(4, 5, 1, 5), withRules({ edgeCompletesRing: false }))
+      .status).toBe("playing");
   });
 
   it("needs a man in front of every member, not a hostile square", () => {
@@ -428,34 +454,61 @@ describe("kingIsCaptured", () => {
     expect(kingIsCaptured(b, cph, { row: 0, col: 0 })).toBe(false);
   });
 
-  it("leaves the king safe on the rim under the shipped reading", () => {
+  it("takes a king on the rim with three attackers", () => {
+    // The shipped reading, and the whole point of `"three_attackers"`: the
+    // fourth square does not exist, so the three that do are the whole job.
     const b = withKing(0, 5);
     b[0][4] = "attacker";
     b[0][6] = "attacker";
     b[1][5] = "attacker";
-    // Three of three available sides are hostile; the fourth is off the board.
+    expect(kingIsCaptured(b, cph, { row: 1, col: 5 })).toBe(true);
+  });
+
+  it("will not take him with two attackers and one of his own men", () => {
+    // Three squares filled, one of them by the wrong colour. He is not captured
+    // — he is *entombed*, which is a different rule with a different name on the
+    // game-over line. See the `kingIsEntombed` block below.
+    const b = withKing(0, 5);
+    b[0][4] = "attacker";
+    b[0][6] = "defender";
+    b[1][5] = "attacker";
     expect(kingIsCaptured(b, cph, { row: 1, col: 5 })).toBe(false);
   });
 
-  it("takes the same king under the contested `available_sides` reading", () => {
-    const edgy = withRules({ strongKingEdgeRule: "available_sides" });
+  it("leaves a king beside a corner alone: the third attacker has nowhere to stand", () => {
+    // The corner is hostile, but no soldier may occupy it, so under
+    // `"three_attackers"` the third man can never arrive. He is a rook step from
+    // the corner and the game — which is the consequence worth knowing about.
+    const b = withKing(0, 1);
+    b[0][2] = "attacker";
+    b[1][1] = "attacker";
+    expect(kingIsCaptured(b, cph, { row: 1, col: 1 })).toBe(false);
+    expect(has(movesFrom(b, 0, 1, cph), 0, 0)).toBe(true);
+  });
+
+  it("leaves the king safe anywhere on the rim under Fetlar", () => {
+    // `"uncapturable"`: the fourth wall cannot exist, so it is never satisfied.
+    // Every excerpt saying the king cannot be taken on the board edge is, on the
+    // best reading available, describing this ruleset.
     const b = withKing(0, 5);
     b[0][4] = "attacker";
     b[0][6] = "attacker";
     b[1][5] = "attacker";
-    expect(kingIsCaptured(b, edgy, { row: 1, col: 5 })).toBe(true);
+    expect(kingIsCaptured(b, fetlar, { row: 1, col: 5 })).toBe(false);
   });
 
-  it("takes a king beside a corner with one attacker under `available_sides`", () => {
+  it("takes him beside a corner with one attacker under `available_sides`", () => {
     // This is the exact position Cyningstan names when it says Copenhagen lets
     // the king be captured on the edge: the hostile corner is one wall, a single
-    // attacker the other, and the third on-board side is the inward one.
+    // attacker the other, and the third on-board side is the inward one. It is
+    // the one position where the three readings give three different answers.
     const edgy = withRules({ strongKingEdgeRule: "available_sides" });
     const b = withKing(0, 1);
     b[0][2] = "attacker";
     b[1][1] = "attacker";
     expect(kingIsCaptured(b, edgy, { row: 1, col: 1 })).toBe(true);
     expect(kingIsCaptured(b, cph, { row: 1, col: 1 })).toBe(false);
+    expect(kingIsCaptured(b, fetlar, { row: 1, col: 1 })).toBe(false);
   });
 
   it("falls back to a two-sided capture when the king is weak", () => {
@@ -504,7 +557,7 @@ describe("escape", () => {
 
 describe("isEncircled", () => {
   it("is false while the king can still reach the rim", () => {
-    expect(isEncircled(initialBoard())).toBe(false);
+    expect(isEncircled(initialBoard(), cph)).toBe(false);
   });
 
   it("is true for a king ringed in the centre with no defenders left", () => {
@@ -516,7 +569,7 @@ describe("isEncircled", () => {
       [6, 4], [6, 5], [6, 6],
     ] as const)
       b[r][c] = "attacker";
-    expect(isEncircled(b)).toBe(true);
+    expect(isEncircled(b, cph)).toBe(true);
   });
 
   it("is false when a defender is outside the ring", () => {
@@ -529,7 +582,7 @@ describe("isEncircled", () => {
     ] as const)
       b[r][c] = "attacker";
     b[0][0 + 1] = "defender"; // free, on the far side of the ring
-    expect(isEncircled(b)).toBe(false);
+    expect(isEncircled(b, cph)).toBe(false);
   });
 
   it("is off under Fetlar", () => {
@@ -547,13 +600,349 @@ describe("isEncircled", () => {
       b[r][7] = "attacker";
     }
     b[0][2] = "attacker"; // somebody outside the ring with a move to make
-    expect(isEncircled(b)).toBe(true);
+    expect(isEncircled(b, cph)).toBe(true);
     expect(movesFrom(b, 5, 5, cph).length).toBeGreaterThan(0);
 
     expect(applyMove(state(b, "attackers"), mv(0, 2, 0, 3), fetlar).status).toBe("playing");
     expect(applyMove(state(b, "attackers"), mv(0, 2, 0, 3), cph).status).toBe(
       "attackers_win_encirclement",
     );
+  });
+});
+
+// ── Encirclement against the rim (`edgeCompletesRing`) ────────────────────────
+// The sourced rule says the board edge is not part of the ring, which makes a
+// king pressed against the rim un-encirclable by definition. The shipped preset
+// says a pocket sealed by attackers *and* the rim is a ring too — and the clause
+// that keeps that from swallowing the board is "no escape square inside".
+
+describe("isEncircled with the rim as a wall", () => {
+  const sourced = withRules({ edgeCompletesRing: false });
+
+  it("counts a pocket sealed against the rim", () => {
+    const b = board([
+      "...a...a...",
+      "...a.k.a...",
+      "...a.d.a...",
+      "...aaaaa...",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(isEncircled(b, cph)).toBe(true);
+    expect(isEncircled(b, sourced)).toBe(false); // the case the sourced ring misses
+  });
+
+  it("counts a king standing on the rim itself", () => {
+    // The exact position the old `isEdge` early-out threw away without looking.
+    const b = board([
+      "...a.kda...",
+      "...aaaaa...",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(movesFrom(b, 0, 5, cph).length).toBeGreaterThan(0); // not a stalemate
+    expect(isEncircled(b, cph)).toBe(true);
+    expect(isEncircled(b, sourced)).toBe(false);
+  });
+
+  it("does not count a pocket a corner can be reached from", () => {
+    const b = board([
+      "...a.......",
+      ".k.a.......",
+      ".d.a.......",
+      "aaaa.......",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(isEncircled(b, cph)).toBe(false);
+  });
+
+  it("does not count a wall straight across the board", () => {
+    // The reason the escape-square clause is the right one: a wall from rim to
+    // rim leaves corners on both sides of itself, so neither half is a pocket.
+    const b = board([
+      "...........",
+      "...........",
+      ".....k.....",
+      "...........",
+      "aaaaaaaaaaa",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(isEncircled(b, cph)).toBe(false);
+  });
+
+  it("still wants every defender inside the pocket", () => {
+    const b = board([
+      "...a...a...",
+      "...a.k.a...",
+      "...a.d.a...",
+      "...aaaaa...",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "........d..",
+      "...........",
+      "...........",
+    ]);
+    expect(isEncircled(b, cph)).toBe(false);
+  });
+
+  it("collapses back onto the sourced reading when the rim is the goal", () => {
+    // Under `escape: "edges"` every rim square is a way out, so a pocket that
+    // touches the rim is never sealed — which is the right answer for a game
+    // where reaching the rim wins.
+    const b = board([
+      "...a...a...",
+      "...a.k.a...",
+      "...a.d.a...",
+      "...aaaaa...",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(isEncircled(b, withRules({ escape: "edges" }))).toBe(false);
+  });
+
+  it("ends the game as attackers_win_encirclement", () => {
+    const b = board([
+      "...a.kda...",
+      "...aaaaa...",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      ".a.........",
+    ]);
+    expect(applyMove(state(b, "attackers"), mv(10, 1, 10, 2), cph).status).toBe(
+      "attackers_win_encirclement",
+    );
+    expect(applyMove(state(b, "attackers"), mv(10, 1, 10, 2), fetlar).status).toBe("playing");
+  });
+});
+
+// ── Entombment (no published rule; see kingIsEntombed) ────────────────────────
+// The hole `"three_attackers"` opens: a king held on the rim by two attackers
+// and one of his own men is captured by nothing and encircled by nothing, and
+// still cannot move. Four clauses decide it, and the tests below are one per
+// clause plus the boundary each one draws.
+
+describe("kingIsEntombed", () => {
+  // Two attackers and one of the king\u2019s own men pen him at f11; the rest of
+  // the wall is what makes every jailer uncapturable in a single move.
+  const SEALED = [
+      "...aakdaa..",
+      ".....aa....",
+      ".....aa....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "........d..",
+      "...........",
+      "...........",
+    ];
+
+  it("takes a king pinned to the rim by two attackers and one of his own", () => {
+    const b = board(SEALED);
+    expect(movesFrom(b, 0, 5, cph)).toHaveLength(0);
+    expect(allMoves(b, "defenders", cph).length).toBeGreaterThan(0); // not a stalemate
+    expect(kingIsCaptured(b, cph, { row: 1, col: 5 })).toBe(false); // not rule 7
+    expect(isEncircled(b, cph)).toBe(false); // not rule 7b
+    expect(kingIsEntombed(b, cph)).toBe(true);
+  });
+
+  it("lets him go when a defender can take a jailer in one move", () => {
+    // Clause 3. The man on c9 slides to f9 and pins the attacker on f10 against
+    // the king himself — the king is armed, so he is an anvil like any other.
+    const b = board([
+      "...aakdaa..",
+      ".....aa....",
+      "..d...a....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(kingIsEntombed(b, cph)).toBe(false);
+  });
+
+  it("lets him go when the man behind the blocker can step aside", () => {
+    // Clause 4, and the reason one ply is not enough: h11 moves right, then g11
+    // follows it, and the king has a square. Neither move frees him *now*.
+    const b = board([
+      "...aakdd...",
+      ".....aaa...",
+      ".....aa....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(kingIsEntombed(b, cph)).toBe(false);
+  });
+
+  it("... but not when that man is boxed in too", () => {
+    const b = board([
+      "...aakdda..",
+      ".....aaa...",
+      ".....aa....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "........d..",
+      "...........",
+      "...........",
+    ]);
+    expect(kingIsEntombed(b, cph)).toBe(true);
+  });
+
+  it("never fires away from the rim", () => {
+    // Clause 1. A king boxed in mid-board is the encirclement rule\u2019s business.
+    const b = empty();
+    b[5][3] = "king";
+    b[4][3] = "attacker";
+    b[6][3] = "attacker";
+    b[5][2] = "defender";
+    b[5][4] = "attacker";
+    expect(movesFrom(b, 5, 3, cph)).toHaveLength(0);
+    expect(kingIsEntombed(b, cph)).toBe(false);
+  });
+
+  it("never fires while the king has a move, which is what an exit fort is", () => {
+    // Clause 2, and the reason entombment and rule 6b can never both hold.
+    const b = board([
+      "...d.k.d...",
+      "....ddd....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+    ]);
+    expect(exitFort(b, cph)).toBe(true);
+    expect(kingIsEntombed(b, cph)).toBe(false);
+  });
+
+  it("is flag-blind, like every other terminal predicate here", () => {
+    // `kingIsEntombed`, `exitFort` and `isEncircled` all answer the *question*;
+    // `computeStatus` is the one place that asks whether the ruleset cares. So
+    // this still reads true under a preset that has no entombment rule, and the
+    // Fetlar assertion that matters is the status one below.
+    expect(kingIsEntombed(board(SEALED), fetlar)).toBe(true);
+  });
+
+  it("ends the game as attackers_win_entombment", () => {
+    const b = board([
+      "...aakdaa..",
+      ".....aa....",
+      ".....aa....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "........d..",
+      "...........",
+      ".a.........",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(10, 1, 10, 2), cph);
+    expect(s.status).toBe("attackers_win_entombment");
+    expect(winnerOf(s.status)).toBe("attackers");
+    expect(applyMove(state(b, "attackers"), mv(10, 1, 10, 2), fetlar).status).toBe("playing");
+  });
+
+  it("yields to rule 7 when the same move is also a capture", () => {
+    // Three attackers closing on a rim king satisfies both rules. `computeStatus`
+    // names the capture, because that is the rule the player was playing.
+    const b = board([
+      "....a.a....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      ".....a.....",
+      "...........",
+      "...........",
+      "........d..",
+      "...........",
+      "...........",
+    ]);
+    b[0][5] = "king";
+    const s = applyMove(state(b, "attackers"), mv(5, 5, 1, 5), cph);
+    expect(s.status).toBe("attackers_win_capture");
+  });
+
+  it("⚠ KNOWN GAP: a two-ply capture rescue is not seen", () => {
+    // The one place this rule is provably too eager, kept as a test so it cannot
+    // change unnoticed. i3 reaches f3 in one move and f9 in a second, and from f9
+    // it takes the attacker on f10 against the king — so the defenders had a
+    // rescue and the rule ends the game anyway. Clause 3 sees one ply; clause 4
+    // reasons about blockers, which are monotone, and captures are not.
+    //
+    // Closing it means either a search (expensive, at every node) or the
+    // pessimism `exitFort` uses (cheap, but it changes the rule into a much
+    // stricter one). Neither is shipped. See
+    // docs/reports/copenhagen-king-capture-edge-cases.md.
+    const b = board([
+      "...aakdaa..",
+      ".....aa....",
+      "......a....",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "...........",
+      "........d..",
+      "...........",
+      "...........",
+    ]);
+    expect(kingIsEntombed(b, cph)).toBe(true);
   });
 });
 

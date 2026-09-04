@@ -16,6 +16,13 @@
 //   • the coordinates run a-k and 11-1, with the double-digit ranks intact —
 //     `i` is not skipped and `11` is not truncated to `1`;
 //   • the drawer's More games section lists both other boards and opens;
+//   • **the custom rule editor renders every enum rule.** It lists the enums by
+//     looking at the runtime type of each default and then indexes a table of
+//     permitted values, so an enum missing from that table is not a wrong label
+//     but `undefined.map(...)` — a blank-screen React crash on the setup sheet.
+//     The suites are pure logic and never render the editor, so this is the only
+//     place it can be caught; it shipped broken for `kingStrength`,
+//     `strongKingEdgeRule` and `loss_for_repeater`;
 //   • the engine actually replies, which is the only check that Copenhagen's own
 //     Web Worker resolves at all in a real browser (three games, three worker
 //     modules, three transposition tables);
@@ -152,6 +159,37 @@ check(
   "More games lists both other boards",
 );
 await page.getByTestId("drawer-copenhagen").click();
+
+// ── The custom rule editor ───────────────────────────────────────────────────
+// Selecting "Custom" is what mounts CopenhagenRuleEditor. Every enum rule has to
+// draw a row of buttons; a missing entry in ENUM_RULE_VALUES throws on mount and
+// takes the whole setup sheet with it.
+const variantPicker = page.locator(".copenhagen-screen select, select").first();
+await variantPicker.selectOption("custom");
+check(
+  (await page.getByText("On the board edge the king is").count()) === 1,
+  "the custom rule editor mounts without crashing",
+);
+check(
+  (await page.getByRole("button", { name: "Takeable by three attackers" }).count()) === 1,
+  "the contested edge rule is offered, three-attacker reading included",
+);
+check(
+  (await page.getByRole("button", { name: "Takeable by three attackers" }).getAttribute(
+    "aria-pressed",
+  )) === "true",
+  "and the three-attacker reading is the one selected by default",
+);
+check(
+  (await page.getByRole("button", { name: "Whoever repeats loses" }).count()) === 1,
+  "Copenhagen's own repetition outcome is reachable in the editor",
+);
+check(
+  (await page.getByText("An entombed king loses").count()) === 1 &&
+    (await page.getByText("The board edge completes the ring").count()) === 1,
+  "both edge rules appear as togglable flags",
+);
+await variantPicker.selectOption("copenhagen");
 
 // ── Into a game against the engine, as Black ─────────────────────────────────
 // Black, not White: Copenhagen gives the attackers the first move (rule 2), so

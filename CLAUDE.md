@@ -44,8 +44,12 @@ No router, no backend: `src/App.tsx` is the shell, pure game logic lives in
   squares — `[aria-label^="a1"]` matches both, which is the mistake a double-digit
   rank invites everywhere. It also reloads *onto* the surface, because
   `index.html`'s pre-paint script carries a hand-written list of surface keys and
-  is the one place adding a board can silently go wrong. Run it after touching
-  the same files, or anything under `src/game/copenhagen/`
+  is the one place adding a board can silently go wrong. It also opens the
+  **custom rule editor**, which lists enum rules by the runtime type of each
+  default and then indexes a table of permitted values — so an enum missing from
+  that table is a blank-screen React crash on the setup sheet, invisible to every
+  pure-logic suite, and it shipped that way for three of them. Run it after
+  touching the same files, or anything under `src/game/copenhagen/`
 
 ## Three boardgames, forked on purpose
 
@@ -71,8 +75,32 @@ reconstruction. Its own rules are `exitFort` (a win decided by a structural
 property of the board, not the move just played) and
 `repetitionResult: "loss_for_repeater"` — which is why it is the only game that
 can end in `defenders_win_fort` or `defenders_win_repetition`. Sourcing, and the
-one rule where two sources flatly contradict each other, are in
+one rule where the sources flatly contradict each other, are in
 `docs/copenhagen-rules.md`.
+
+### Three Copenhagen rules are the owner's, not the source's
+
+Marked ★ in `variants.ts` and `docs/copenhagen-rules.md`, and worked through
+position by position in `docs/reports/copenhagen-king-capture-edge-cases.md`:
+
+- `strongKingEdgeRule: "three_attackers"` — on the rim the king falls to three
+  *attackers*, and a hostile square does not stand in for a man. Three sources
+  give three readings; this is a choice between them, and it makes a king
+  orthogonally beside a corner **uncapturable** (no soldier may stand on a
+  corner, so the third attacker has nowhere to be) and therefore winning in one.
+  `copenhagen-fetlar` carries the edge-safe reading, which is where the evidence
+  for it actually points.
+- `edgeCompletesRing: true` — a pocket sealed by attackers *and the rim* counts
+  as rule 7b's ring, which the sourced wording explicitly denies. The clause that
+  keeps it honest is "no escape square inside the pocket".
+- `entombedKingLoses: true` — a king walled in at the rim whose own side cannot
+  open a square beside him loses. In no published ruleset; it exists to close the
+  hole the first rule opens. **Unlike `exitFort`, it is not a proof** — it is a
+  positional rule with one known, tested false positive (a two-ply capture
+  rescue). Do not "fix" it by borrowing `exitFort`'s pessimism without reading
+  §2.12 of the report; that replaces the rule rather than tightening it.
+
+`attackers_win_entombment` is the fourth Copenhagen-only `GameStatus`.
 
 The duplication is an accepted decision, not drift — read
 `docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md` and its

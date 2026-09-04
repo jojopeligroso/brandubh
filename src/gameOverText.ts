@@ -16,6 +16,8 @@ export function gameOverText(status: GameStatus, t: Translations): string {
       return t.attackersWinCapture;
     case "attackers_win_encirclement":
       return t.attackersWinEncirclement;
+    case "attackers_win_entombment":
+      return t.attackersWinEntombment;
     case "attackers_win_repetition":
       return t.attackersWinRepetition;
     case "defenders_win_fort":

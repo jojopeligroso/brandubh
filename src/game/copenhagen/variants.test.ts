@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CUSTOM_RULE_DEFAULTS,
   DEFAULT_VARIANT,
+  ENUM_RULE_VALUES,
   VARIANTS,
   VISIBLE_VARIANTS,
   ruleFlags,
@@ -18,7 +19,7 @@ import {
 describe("the copenhagen preset", () => {
   const v = VARIANTS.copenhagen;
 
-  it("asserts the eleven rules, flag by flag", () => {
+  it("asserts every rule, sourced and unsourced alike, flag by flag", () => {
     expect(ruleFlags(v)).toEqual({
       escape: "corners", // rule 6
       firstMove: "attackers", // rule 2
@@ -31,10 +32,12 @@ describe("the copenhagen preset", () => {
       cornersHostile: true, // rule 5
       edgeHostileToSoldiers: false, // the rim is never hostile
       kingStrength: "strong", // rule 7 — four attackers
-      strongKingEdgeRule: "uncapturable", // ⚠ contested; see below
+      strongKingEdgeRule: "three_attackers", // ⚠ contested; see below
       shieldwallCapture: true, // rule 4b
       exitFort: true, // rule 6b
       encirclementWin: true, // rule 7b
+      edgeCompletesRing: true, // owner's decision, not rule 7b's wording
+      entombedKingLoses: true, // owner's decision, in no published ruleset
       repetitionResult: "loss_for_repeater", // rule 8
     } satisfies CustomRuleSet);
   });
@@ -62,10 +65,26 @@ describe("the fetlar preset", () => {
     expect(v.repetitionResult).toBe("loss_for_defenders");
   });
 
+  it("carries neither of the two rules that are nobody's but this project's", () => {
+    // Both belong to the Copenhagen preset by the owner's decision, and this
+    // preset is meant to be a *contrast* — so it gets the sourced reading of
+    // rule 7b (the rim is not part of the ring) and no entombment rule at all.
+    expect(v.edgeCompletesRing).toBe(false);
+    expect(v.entombedKingLoses).toBe(false);
+  });
+
   it("keeps the board, the goal and the strong king", () => {
     expect(v.escape).toBe("corners");
     expect(v.firstMove).toBe("attackers");
     expect(v.kingStrength).toBe("strong");
+  });
+
+  it("is where the edge-safe king now lives", () => {
+    // Every excerpt saying "the king cannot be captured on the board edge" is,
+    // on the best reading available, describing *Fetlar* — which is exactly what
+    // Cyningstan says the difference between the two rulesets is. Asserting it
+    // here rather than on Copenhagen makes the contested rule a contrast someone
+    // can sit down and play.
     expect(v.strongKingEdgeRule).toBe("uncapturable");
   });
 
@@ -80,21 +99,50 @@ describe("the fetlar preset", () => {
 });
 
 describe("the contested edge rule", () => {
-  it("ships the reading the aagenielsen-sourced excerpts agree on", () => {
-    // Two independently-worded excerpts say the king cannot be captured on the
-    // board edge; Cyningstan says he can. The disagreement is recorded in
-    // docs/copenhagen-rules.md and reachable in the custom editor, and this
-    // assertion is what makes flipping the shipped default a deliberate act.
-    expect(VARIANTS.copenhagen.strongKingEdgeRule).toBe("uncapturable");
+  it("ships the three-attacker reading, and says so on purpose", () => {
+    // Three readings, three sources, no primary text reachable from here: the
+    // aagenielsen-sourced excerpts say the king cannot be captured on the board
+    // edge, Cyningstan says he falls to two attackers beside a corner, and a
+    // third says three attackers on an edge square. The shipped value is the
+    // owner's decision between them, recorded in docs/copenhagen-rules.md — and
+    // this assertion is what makes changing it a deliberate act rather than a
+    // drive-by edit.
+    expect(VARIANTS.copenhagen.strongKingEdgeRule).toBe("three_attackers");
   });
 
-  it("is reachable the other way through the custom editor", () => {
-    const other = rulesFor("custom", {
-      ...CUSTOM_RULE_DEFAULTS,
-      strongKingEdgeRule: "available_sides",
-    });
-    expect(other.strongKingEdgeRule).toBe("available_sides");
-    expect(other.id).toBe("custom");
+  it("keeps both other readings reachable through the custom editor", () => {
+    for (const reading of ["uncapturable", "available_sides"] as const) {
+      const other = rulesFor("custom", {
+        ...CUSTOM_RULE_DEFAULTS,
+        strongKingEdgeRule: reading,
+      });
+      expect(other.strongKingEdgeRule).toBe(reading);
+      expect(other.id).toBe("custom");
+    }
+  });
+});
+
+describe("the enum value table", () => {
+  // Two callers read it at runtime, where the type has gone: the file parser
+  // refusing a bad value out of an imported file, and the custom rule editor
+  // drawing a button per value. A missing entry is not a wrong label, it is
+  // `undefined.map(...)` — which is what taking the setup screen down looks
+  // like, and what it did until `kingStrength` and `strongKingEdgeRule` were
+  // added to it.
+  it("covers every enum rule, and nothing else", () => {
+    const enumKeys = (Object.keys(CUSTOM_RULE_DEFAULTS) as Array<keyof CustomRuleSet>).filter(
+      (k) => typeof CUSTOM_RULE_DEFAULTS[k] === "string",
+    );
+    expect(Object.keys(ENUM_RULE_VALUES).sort()).toEqual([...enumKeys].sort());
+  });
+
+  it("offers at least two values for each, and includes every shipped one", () => {
+    for (const [key, values] of Object.entries(ENUM_RULE_VALUES)) {
+      expect(values.length, key).toBeGreaterThan(1);
+      expect(new Set(values).size, key).toBe(values.length);
+      for (const v of Object.values(VARIANTS))
+        expect(values, `${v.id}.${key}`).toContain(v[key as keyof CustomRuleSet]);
+    }
   });
 });
 

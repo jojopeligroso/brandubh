@@ -49,6 +49,7 @@ export type GameStatus =
   // Brandubh and Tablut simply never produce them.
   | "defenders_win_fort"
   | "defenders_win_repetition"
+  | "attackers_win_entombment"
   | "draw_repetition";
 
 export interface GameState {

@@ -33,10 +33,12 @@ import type { GameState, Move, PlayMode, Side, Square } from "../game/copenhagen
 import {
   CUSTOM_RULE_DEFAULTS,
   DEFAULT_VARIANT,
+  ENUM_RULE_VALUES,
   VARIANTS,
   VISIBLE_VARIANTS,
   rulesFor,
   type CustomRuleSet,
+  type EnumRuleKey,
   type CopenhagenRuleSet,
 } from "../game/copenhagen/variants";
 import { useAiWorker } from "../game/copenhagen/useAiWorker";
@@ -1093,7 +1095,13 @@ function CopenhagenRuleEditor({
 }) {
   const keys = Object.keys(CUSTOM_RULE_DEFAULTS) as Array<keyof CustomRuleSet>;
   const bools = keys.filter((k) => typeof CUSTOM_RULE_DEFAULTS[k] === "boolean");
-  const enums = keys.filter((k) => typeof CUSTOM_RULE_DEFAULTS[k] === "string");
+  // Narrowed rather than cast blindly: `ENUM_RULE_VALUES` is total over
+  // `EnumRuleKey`, so indexing it with one can never come back undefined — which
+  // is the crash this editor used to have when its own choices table fell behind
+  // the ruleset.
+  const enums = keys.filter(
+    (k): k is EnumRuleKey => typeof CUSTOM_RULE_DEFAULTS[k] === "string",
+  );
   return (
     <div className="mt-3 rounded-lg bg-black/20 p-3">
       {enums.map((k) => (
@@ -1101,7 +1109,7 @@ function CopenhagenRuleEditor({
           <p className="text-xs font-semibold text-parchment">{t.taflRules[k]}</p>
           <p className="mb-1 text-xs text-parchment-dim">{t.taflRuleHints[k]}</p>
           <div className="seg">
-            {ENUM_CHOICES[k].map((v) => (
+            {ENUM_RULE_VALUES[k].map((v) => (
               <button
                 key={v}
                 className={rules[k] === v ? "on" : ""}
@@ -1131,13 +1139,3 @@ function CopenhagenRuleEditor({
     </div>
   );
 }
-
-/** The values each enum rule offers, in the order they read as a spectrum. Kept
- *  beside the editor because it is a UI ordering, not a rule. */
-const ENUM_CHOICES: Record<string, readonly string[]> = {
-  escape: ["edges", "corners"],
-  firstMove: ["defenders", "attackers"],
-  throneBlocks: ["none", "attackers", "soldiers"],
-  throneAnvil: ["none", "defenders", "both"],
-  repetitionResult: ["none", "draw", "loss_for_defenders"],
-};
