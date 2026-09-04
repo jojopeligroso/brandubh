@@ -16,12 +16,18 @@
           t = "gokstad";
           localStorage.setItem("brandubh.theme", t);
         }
-        // …and the same for resolveTheme: a reload mid-Tablut lands back on the
-        // 9×9 board, so a board-specific theme has to fall back here too or the
-        // held-over paint is a flash of the wrong board, which is the one thing
-        // this script exists to prevent. Only what is *painted* changes; the
-        // stored choice above is left as the player set it.
-        if (t === "ballinderry" && localStorage.getItem("tablut.surface.v1") === "1") {
+        // …and the same for resolveTheme: a reload mid-Tablut or mid-Copenhagen
+        // lands back on the 9×9 or 11×11 board, so a board-specific theme has to
+        // fall back here too or the held-over paint is a flash of the wrong
+        // board, which is the one thing this script exists to prevent. Only what
+        // is *painted* changes; the stored choice above is left as the player set
+        // it. The surface keys are listed rather than derived because this copy
+        // cannot import them — add a board, add its key here.
+        if (
+          t === "ballinderry" &&
+          (localStorage.getItem("tablut.surface.v1") === "1" ||
+            localStorage.getItem("copenhagen.surface.v1") === "1")
+        ) {
           t = "gokstad";
         }
         document.documentElement.setAttribute("data-theme", t);

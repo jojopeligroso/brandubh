@@ -500,9 +500,10 @@ body {
 /* ── Board ─────────────────────────────────────────────────────────────────── */
 .board {
   --line: color-mix(in srgb, var(--motif-ink) 45%, transparent);
-  /* Squares per side. Brandubh is 7; Tablut sets --n: 9 inline. Same pattern as
-     .demo-grid's --cols/--rows below — the board is square either way, so one
-     variable does for both axes. */
+  /* Squares per side. Brandubh is 7; Tablut sets --n: 9 and Copenhagen --n: 11,
+     both inline from the board geometry (see src/games/geometry.ts). Same pattern
+     as .demo-grid's --cols/--rows below — the board is square either way, so one
+     variable does for both axes, and nothing here needs a per-size rule. */
   --n: 7;
   /* The margin between the board's edge and the tracks. A variable rather than
      a literal because `.best-move-arrow` has to match it exactly (see its rule
@@ -2852,14 +2853,16 @@ button.settings-row:hover {
    and the header buttons collide with the hamburger behind them. Found in the
    driven-browser pass, which is what that pass is for. */
 .puzzle-screen,
-.tablut-screen {
+.tablut-screen,
+.copenhagen-screen {
   background:
     radial-gradient(1200px 600px at 50% -10%, var(--app-bg-radial) 0%, transparent 60%),
     linear-gradient(160deg, var(--app-bg-1) 0%, var(--app-bg-2) 100%);
   background-color: var(--app-bg-2);
 }
 
-/* The seat dots on the Tablut bars, matching the piece colours the board draws. */
+/* The seat dots on the Tablut and Copenhagen bars, matching the piece colours the
+   board draws. */
 .seat-dot {
   width: 0.6rem;
   height: 0.6rem;

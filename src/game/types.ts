@@ -42,6 +42,13 @@ export type GameStatus =
   | "defenders_win_no_moves"
   | "defenders_win_resign"
   | "defenders_win_time"
+  // Copenhagen only (see game/copenhagen/rules.ts). Both are shared vocabulary
+  // rather than a fourth game's private type: a king safe in an unbreakable fort
+  // and a side losing for repeating are endings the *domain* has, and the sooner
+  // one of them belongs to two games the sooner every screen already renders it.
+  // Brandubh and Tablut simply never produce them.
+  | "defenders_win_fort"
+  | "defenders_win_repetition"
   | "draw_repetition";
 
 export interface GameState {

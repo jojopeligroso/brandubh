@@ -11,16 +11,16 @@ and the identifier stays put until it is worth renaming.
 ## The games
 
 **Boardgame**:
-One of the games the app can play: Brandubh, Tablut, Nine Men's Morris. A
-boardgame owns its own board, pieces, setup, legal moves, terminal conditions
-and **Rulesets**; more may be added. Not a **Game**, which is one playing of
-one boardgame.
+One of the games the app can play: Brandubh, Tablut, Copenhagen, Nine Men's
+Morris. A boardgame owns its own board, pieces, setup, legal moves, terminal
+conditions and **Rulesets**; more may be added. Not a **Game**, which is one
+playing of one boardgame.
 _Avoid_: game (one playing), variant, mode, exhibit
 
 ## Playing
 
-The vocabulary below is **tafl** vocabulary — Brandubh and Tablut. Nine Men's
-Morris inherits none of it: it has no King, no sides, no throne and no
+The vocabulary below is **tafl** vocabulary — Brandubh, Tablut and Copenhagen.
+Nine Men's Morris inherits none of it: it has no King, no sides, no throne and no
 custodial capture, and reaching for these words there is an error.
 
 **Raider**:
@@ -67,16 +67,25 @@ The corners are always hostile; whether the empty throne is hostile, and to
 whom, is what a **Ruleset** decides.
 
 **Shieldwall**:
-A Copenhagen capture of a bracketed row of two or more men along the board
-edge. Not part of either authentic Brandubh ruleset; available for **Custom**
-play only.
+A capture of a bracketed row of two or more men along the board edge, every one
+of them faced by an enemy. A **Copenhagen** rule, where it ships on; in Brandubh
+and Tablut it is available for **Custom** play only. A King caught in the row
+survives; his soldiers do not.
+
+**Exit fort**:
+A defender win in **Copenhagen**: the King has contact with the board edge, a
+legal move to make, and a wall of defenders around him the raiders cannot break.
+Not a stalemate and not an **Escape** — the King has not reached a corner; the
+position is simply one the raiders can never win from.
+_Avoid_: fortress, castle
 
 **Encirclement**:
 A raider win by enclosing the King and every remaining defender in an unbroken
-ring that does not lean on the board edge. WTF only.
+ring that does not lean on the board edge. WTF, Linnaeus and Copenhagen.
 
 **Escape**:
-The defender win condition: the King reaches any corner.
+The defender win condition: the King reaches any corner — or, under Tablut's
+baseline, any edge square.
 
 **Guillotine**:
 A King's-side formation in which a piece shuttles back and forth on a lane,

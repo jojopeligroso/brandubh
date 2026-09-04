@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { VISIBLE_LANGS, translations, type Lang, type Translations } from "./i18n";
 import { isGaelicLang, toSeanchloTable } from "./gaelic";
 import { TUTORIALS, type TutorialMistake } from "./game/tutorials";
+import { CUSTOM_RULE_DEFAULTS as TABLUT_RULE_DEFAULTS } from "./game/tablut/variants";
+import { CUSTOM_RULE_DEFAULTS as COPENHAGEN_RULE_DEFAULTS } from "./game/copenhagen/variants";
 
 const LANGS = Object.keys(translations) as Lang[];
 
@@ -113,4 +115,45 @@ describe("tutorial copy covers the tutorial data", () => {
     }
     expect(Object.keys(table.tutorialMistakes).sort()).toEqual([...MISTAKES].sort());
   });
+});
+
+// ── The rule editors' copy ────────────────────────────────────────────────────
+// Both custom rule editors are driven by `Object.keys(CUSTOM_RULE_DEFAULTS)` and
+// look each flag up in `taflRules` / `taflRuleHints`. Those are
+// `Record<string, string>`, so `tsc` cannot notice a rule that was added to a
+// ruleset and never explained to the player — the card would simply render
+// `undefined` where its name should be. These tests are what notices instead.
+//
+// Enum *values* matter for the same reason and are easier to miss: adding a
+// fourth `repetitionResult` shows up in the editor as a radio button labelled
+// `undefined`, and nothing else in the project would fail.
+
+describe("every rule the editors can show has copy for it", () => {
+  const RULESETS = [
+    ["Tablut", TABLUT_RULE_DEFAULTS as Record<string, unknown>],
+    ["Copenhagen", COPENHAGEN_RULE_DEFAULTS as Record<string, unknown>],
+  ] as const;
+
+  for (const lang of LANGS) {
+    const t = translations[lang];
+
+    for (const [game, defaults] of RULESETS) {
+      it(`names and explains every ${game} flag in ${lang}`, () => {
+        for (const key of Object.keys(defaults)) {
+          expect(t.taflRules[key], `${lang}: taflRules.${key}`).toBeTruthy();
+          expect(t.taflRuleHints[key], `${lang}: taflRuleHints.${key}`).toBeTruthy();
+        }
+      });
+
+      it(`labels every ${game} enum value in ${lang}`, () => {
+        for (const value of Object.values(defaults)) {
+          if (typeof value !== "string") continue;
+          // The default value is the one the editor is guaranteed to render; the
+          // rest are covered by the ENUM_RULE_VALUES parity test in each game's
+          // gameFile.test.ts, which is where the full value list lives.
+          expect(t.taflRuleValues[value], `${lang}: taflRuleValues.${value}`).toBeTruthy();
+        }
+      });
+    }
+  }
 });

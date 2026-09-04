@@ -6,7 +6,7 @@ import {
   saveGame,
   snapshotGame,
   type RestoredGame,
-} from "../game/tablut/persist";
+} from "../game/copenhagen/persist";
 import Board from "./Board";
 import PlayerBar from "./PlayerBar";
 import { GameToolbar, GameMenuSheet } from "./GameToolbar";
@@ -15,7 +15,7 @@ import ReviewBar from "./ReviewBar";
 import VictoryOverlay from "./VictoryOverlay";
 import ZenSwitch from "./ZenSwitch";
 import type { BoardGeometry } from "../games/geometry";
-import { DIFFICULTIES, type Difficulty } from "../game/tablut/engine";
+import { DIFFICULTIES, type Difficulty } from "../game/copenhagen/engine";
 import {
   allMoves,
   applyMove,
@@ -27,9 +27,9 @@ import {
   moveName,
   squareName,
   winnerOf,
-} from "../game/tablut/rules";
-import { BOARD_SIZE, FILES } from "../game/tablut/types";
-import type { GameState, Move, PlayMode, Side, Square } from "../game/tablut/types";
+} from "../game/copenhagen/rules";
+import { BOARD_SIZE, FILES } from "../game/copenhagen/types";
+import type { GameState, Move, PlayMode, Side, Square } from "../game/copenhagen/types";
 import {
   CUSTOM_RULE_DEFAULTS,
   DEFAULT_VARIANT,
@@ -37,9 +37,9 @@ import {
   VISIBLE_VARIANTS,
   rulesFor,
   type CustomRuleSet,
-  type TablutRuleSet,
-} from "../game/tablut/variants";
-import { useAiWorker } from "../game/tablut/useAiWorker";
+  type CopenhagenRuleSet,
+} from "../game/copenhagen/variants";
+import { useAiWorker } from "../game/copenhagen/useAiWorker";
 import { useGameClock } from "../useGameClock";
 import {
   CUSTOM_TIME_CONTROL_ID,
@@ -71,46 +71,52 @@ import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
 import { useAiReveal } from "../useAiReveal";
 
 /**
- * The Tablut surface — a full-screen place, reached from the drawer's More games
- * section, not a mode of the Brandubh shell.
+ * The Copenhagen Hnefatafl surface — a full-screen place, reached from the
+ * drawer's More games section, not a mode of the Brandubh shell.
  *
  * ## Why it is a separate screen
  *
- * `App.tsx` is four thousand lines built around a `RuleSet`, and Tablut's ruleset
- * is a *different type* (`TablutRuleSet`: it has an escape condition and a first
- * mover, which are not Brandubh flags). Threading both through one shell means
- * `rules: RuleSet | TablutRuleSet` and a narrowing at every site that touches it,
- * which would make the shell worse for both games. What forks is the *rules*
- * (ADR-0006); the furniture does not. This screen renders the very same
- * components the shell does — `PlayerBar` seats, the bottom `GameToolbar` and
- * its menu sheet, `MoveLog`, `ReviewBar`, `Board`, `VictoryOverlay`, the
- * `ZenSwitch` — wired to Tablut's own game state, so the two boards *look and
- * handle the same* and only the rules, the engine and the board size change.
+ * The same argument the Tablut screen makes, now for the third time, and ADR-0007
+ * treats the repetition as the point rather than an accident. `App.tsx` is four
+ * thousand lines built around a `RuleSet`, and Copenhagen's is a *different type*
+ * (`CopenhagenRuleSet`: an escape condition, a first mover, a king-strength
+ * ladder, an exit fort — none of them Brandubh flags). Threading three rulesets
+ * through one shell means `RuleSet | TablutRuleSet | CopenhagenRuleSet` and a
+ * three-way narrowing at every site that touches it, which makes the shell worse
+ * for all three games. What forks is the *rules*; the furniture does not. This
+ * screen renders the very same components the shell does — `PlayerBar` seats, the
+ * bottom `GameToolbar` and its menu sheet, `MoveLog`, `ReviewBar`, `Board`,
+ * `VictoryOverlay`, the `ZenSwitch` — wired to Copenhagen's own game state, so
+ * all three boards *look and handle the same* and only the rules, the engine and
+ * the board size change.
  *
  * The clock is the shell's own `useGameClock` + `clockLine` book-keeping, which
- * were boardgame-agnostic from the start. Zen is one preference across both
- * surfaces: App owns the config and this screen receives it, so switching it
- * here is switching it there.
+ * were boardgame-agnostic from the start. Zen is one preference across every
+ * surface: App owns the config and this screen receives it, so switching it here
+ * is switching it there.
  *
  * What is still the shell's alone: analysis, the eval bar, the review pass,
- * puzzles, match sets, import/export. Those are search-coupled (ADR-0006) or
- * shell-refactor-sized, and they arrive when the shell can hold two games.
+ * puzzles, match sets, import/export. Those are search-coupled or
+ * shell-refactor-sized, and they arrive when the shell can hold more than one
+ * game. That refactor is now the *largest* item this fork has deferred — see
+ * ADR-0007 — because it is the one piece of duplication that grows with every
+ * board rather than staying flat.
  *
  * ## Persistence
  *
  * The same contract as the Brandubh shell: a refresh must never lose a game in
  * progress. The screen restores its save silently on mount — no setup modal over
  * a game already underway — and autosaves on every move through
- * `game/tablut/persist.ts`, under Tablut's own key, with the review cursor and
- * the clock banks riding along. App keeps the surface itself persistent (see
- * `tablut.surface.v1`), so closing the tab mid-Tablut lands back on this board.
+ * `game/copenhagen/persist.ts`, under Copenhagen's own key, with the review
+ * cursor and the clock banks riding along. App keeps the surface itself
+ * persistent (see `copenhagen.surface.v1`), so closing the tab mid-game lands
+ * back on this board.
  *
  * A restored *finished* game is a review state, not a dead end: the final
  * position under a result line, the timeline browsable, the toolbar's new-game
- * cycle lit. (It used to restore as an inert board where only Restart did
- * anything — the "surface seems broken" report.)
+ * cycle lit.
  */
-export default function TablutScreen({
+export default function CopenhagenScreen({
   t,
   zen,
   onZenEnabled,
@@ -355,7 +361,7 @@ export default function TablutScreen({
   // curtain below waits it out so a game that ends on the engine's move is not
   // curtained over a stone still in the air.
   const push = useCallback(
-    (move: Move, from: GameState, rs: TablutRuleSet, revealMs = 0) => {
+    (move: Move, from: GameState, rs: CopenhagenRuleSet, revealMs = 0) => {
       revealDelay.current = revealMs;
       setStates((prev) => [...prev, applyMove(from, move, rs)]);
       setCursor((c) => c + 1);
@@ -614,7 +620,7 @@ export default function TablutScreen({
     () => ({
         size: BOARD_SIZE,
         files: FILES,
-        label: "Tablut board",
+        label: "Copenhagen Hnefatafl board",
         isThrone,
         // Only marked when the variant makes them so — under the baseline a
         // corner is ordinary ground and must draw that way.
@@ -692,17 +698,17 @@ export default function TablutScreen({
   ];
 
   return (
-    <div className="tablut-screen fixed inset-0 z-50 overflow-y-auto" ref={screenRef} tabIndex={-1}>
+    <div className="copenhagen-screen fixed inset-0 z-50 overflow-y-auto" ref={screenRef} tabIndex={-1}>
       <div className="mx-auto flex min-h-full max-w-md flex-col px-3 pb-24 pt-3">
         <header className="flex items-center justify-between gap-2">
           <button className="iconbtn" onClick={onClose} aria-label={t.back}>
             ‹
           </button>
           <div className="min-w-0 text-center">
-            <p className="truncate font-display text-lg text-parchment">{t.gameTablut}</p>
+            <p className="truncate font-display text-lg text-parchment">{t.gameCopenhagen}</p>
             <p className="truncate text-xs text-parchment-dim">{variantLabel}</p>
           </div>
-          <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="tablut-zen-toggle" />
+          <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="copenhagen-zen-toggle" />
         </header>
 
         <div className="mt-3">{renderPlayerBar(topSide, "top")}</div>
@@ -816,13 +822,13 @@ export default function TablutScreen({
             control that would undo it. */}
         {zen.enabled && (
           <div className="zen-foot">
-            <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="tablut-zen-foot" />
+            <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="copenhagen-zen-foot" />
           </div>
         )}
       </div>
 
       {showSetup && (
-        <TablutSetup
+        <CopenhagenSetup
           t={t}
           initial={currentSetup}
           onStart={startGame}
@@ -833,7 +839,7 @@ export default function TablutScreen({
       )}
 
       {confirmRestart && (
-        <TablutConfirm
+        <CopenhagenConfirm
           title={t.newGameTitle}
           body={t.newGameBody}
           confirmLabel={t.taflRestart}
@@ -847,7 +853,7 @@ export default function TablutScreen({
       )}
 
       {confirmResign && (
-        <TablutConfirm
+        <CopenhagenConfirm
           title={t.resignTitle}
           body={t.resignBody}
           confirmLabel={t.resign}
@@ -889,7 +895,7 @@ interface GameSetup {
 }
 
 /** The surface's own confirm card — the same shape the shell's ConfirmDialog has. */
-function TablutConfirm({
+function CopenhagenConfirm({
   title,
   body,
   confirmLabel,
@@ -931,7 +937,7 @@ function TablutConfirm({
  * can be browsed — and backed out of, when `onCancel` is offered — over a game
  * in progress without disturbing it.
  */
-function TablutSetup({
+function CopenhagenSetup({
   t,
   initial,
   onStart,
@@ -963,14 +969,14 @@ function TablutSetup({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2">
-          <h2 className="font-display text-xl text-parchment">{t.gameTablut}</h2>
+          <h2 className="font-display text-xl text-parchment">{t.gameCopenhagen}</h2>
           {onCancel && (
             <button className="btn" onClick={onCancel} aria-label={t.close}>
               ✕
             </button>
           )}
         </div>
-        <p className="mt-1 text-sm text-parchment-dim">{t.tablutBlurb}</p>
+        <p className="mt-1 text-sm text-parchment-dim">{t.copenhagenBlurb}</p>
 
         <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
           {t.variant}
@@ -981,7 +987,7 @@ function TablutSetup({
           onChange={(e) => setVariantId(e.target.value)}
         >
           {/* Driven by VISIBLE_VARIANTS, so hiding a preset is a one-line change
-              in game/tablut/variants.ts rather than a hand-edit here. */}
+              in game/copenhagen/variants.ts rather than a hand-edit here. */}
           {VISIBLE_VARIANTS.map((id) => (
             <option key={id} value={id}>
               {t.variantNames[id] ?? VARIANTS[id].name}
@@ -992,7 +998,7 @@ function TablutSetup({
         <p className="mt-1 text-xs text-parchment-dim">{t.variantBlurbs[rules.id] ?? rules.blurb}</p>
 
         {variantId === "custom" && (
-          <TablutRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
+          <CopenhagenRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
         )}
 
         <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
@@ -1071,12 +1077,12 @@ function TablutSetup({
  * The custom rule editor.
  *
  * Built from the ruleset's own shape rather than a hand-written list, so a rule
- * added to `TablutRuleSet` shows up here without anyone remembering to add it —
+ * added to `CopenhagenRuleSet` shows up here without anyone remembering to add it —
  * the same property `gameFile.ts` gets from deriving its `Rules` tag. The labels
  * and hints come from i18n, keyed by flag name, and `tsc` is what notices a
  * missing one.
  */
-function TablutRuleEditor({
+function CopenhagenRuleEditor({
   t,
   rules,
   onChange,
