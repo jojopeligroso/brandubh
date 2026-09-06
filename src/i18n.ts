@@ -138,6 +138,8 @@ export interface Translations {
   close: string;
   // Settings sections
   settings: string;
+  /** Heading of the read-only conditions card shown while a game is live. */
+  thisGame: string;
   sectionGame: string;
   sectionMatch: string;
   sectionAppearance: string;
@@ -754,6 +756,7 @@ const en: Translations = {
   done: "Done",
   close: "Close",
   settings: "Settings",
+  thisGame: "This game",
   sectionGame: "Game",
   sectionMatch: "Match",
   sectionAppearance: "Appearance",
@@ -1440,6 +1443,7 @@ const es: Translations = {
   done: "Listo",
   close: "Cerrar",
   settings: "Ajustes",
+  thisGame: "Esta partida",
   sectionGame: "Juego",
   sectionMatch: "Encuentro",
   sectionAppearance: "Apariencia",
@@ -2141,6 +2145,8 @@ const ga: Translations = {
   done: "Déanta",
   close: "Dún",
   settings: "Socruithe",
+  // Draft (unreviewed machine translation, like the rest of this table).
+  thisGame: "An cluiche seo",
   sectionGame: "Cluiche",
   sectionMatch: "Comórtas",
   sectionAppearance: "Cuma",

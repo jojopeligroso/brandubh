@@ -85,6 +85,7 @@ import {
   TIME_PRESETS,
   type ClockSelection,
   type TimeCategory,
+  type TimeControl,
   describeTimeControl,
   presetById,
   loadClockEnabled,
@@ -2059,6 +2060,17 @@ export default function App() {
   // over-the-board game fell through both guards unasked.
   const wouldDiscardGame = matchHasProgress || gameUnfinished;
 
+  // Once there are moves on the board — or a set has banked results — the
+  // game's conditions (side, strength, ruleset, clock) are facts about the
+  // game being played, not options: the inline stack renders them read-only
+  // and every change goes through the setup overlay's confirm-gated flow.
+  // Deliberately broader than wouldDiscardGame: a *finished* game keeps its
+  // lock too, because a stray variant tap would still wipe the final position
+  // (and its review) before anyone chose to move on. Only a genuinely fresh
+  // board — nothing played, nothing banked — is still configured in place,
+  // which is also the one home the variant picker and rule editor have.
+  const gameConditionsLocked = tip >= 1 || matchHasProgress;
+
   // Open the setup overlay over the live board — the drawer's "New game" and the
   // header wordmark both land here. Cancelable, because there is now a view
   // behind it: nothing is reset until a game is actually chosen.
@@ -2508,24 +2520,44 @@ export default function App() {
           next-game configuration has no business in it — see settingsStackVisible. */}
       {settingsStackVisible({ analysis, settingsExtra: showExtra("settings") }) && (
         <>
-          <Settings
-            t={t}
-            variantId={variantId}
-            onVariant={changeVariant}
-            playMode={playMode}
-            onMode={changeMode}
-            difficulty={difficulty}
-            onDifficulty={setDifficulty}
-            gamesPerSet={gamesPerSet}
-            onSetLength={changeSetLength}
-            canNewMatch={matchHasProgress}
-            onNewMatch={requestNewMatch}
-            onShowDesign={() => setShowDesign(true)}
-          />
+          {gameConditionsLocked ? (
+            // A game is set: its conditions are shown, not offered. The one
+            // way to different conditions is the setup overlay ("New game"),
+            // which asks before wiping anything — see gameConditionsLocked.
+            <GameSummary
+              t={t}
+              variantName={t.variantNames[variantId] ?? rules.name}
+              playMode={playMode}
+              difficulty={difficulty}
+              timeControl={timeControl}
+              gamesPerSet={gamesPerSet}
+              canNewMatch={matchHasProgress}
+              onNewMatch={requestNewMatch}
+              onNewGame={openSetupOverlay}
+              onShowDesign={() => setShowDesign(true)}
+            />
+          ) : (
+            <>
+              <Settings
+                t={t}
+                variantId={variantId}
+                onVariant={changeVariant}
+                playMode={playMode}
+                onMode={changeMode}
+                difficulty={difficulty}
+                onDifficulty={setDifficulty}
+                gamesPerSet={gamesPerSet}
+                onSetLength={changeSetLength}
+                canNewMatch={matchHasProgress}
+                onNewMatch={requestNewMatch}
+                onShowDesign={() => setShowDesign(true)}
+              />
 
-          <div className="card mt-4 p-4">
-            <ClockControls {...clockControls} />
-          </div>
+              <div className="card mt-4 p-4">
+                <ClockControls {...clockControls} />
+              </div>
+            </>
+          )}
 
           <div className="card mt-4 p-4">
             <ZenSettings
@@ -2536,7 +2568,7 @@ export default function App() {
             />
           </div>
 
-          {variantId === "custom" && (
+          {!gameConditionsLocked && variantId === "custom" && (
             <div className="card mt-4 p-4">
               <CustomRuleControls t={t} rules={customRules} onChange={changeCustomRules} />
             </div>
@@ -3169,6 +3201,102 @@ function SetScoreboard({
 // Offered only where the engine is free (a finished game, or analysis), so the
 // pass never races the AI for the one worker. Progress is shown move by move and
 // can be stopped: a forty-move game is a couple of seconds, but a slow phone is
+// The read-only counterpart to Settings, shown once gameConditionsLocked: the
+// same facts the editable card offers as controls, set as plain text. Values
+// carry no button, select or hover affordance at all — a *disabled* control
+// still looks like a control and invites the tap, and inviting that tap is
+// exactly the bug this card exists to fix. The only live things here are the
+// game-flow actions (both confirm-gated upstream) and Appearance, which is a
+// preference about the picture, not a condition of the game.
+function GameSummary({
+  t,
+  variantName,
+  playMode,
+  difficulty,
+  timeControl,
+  gamesPerSet,
+  canNewMatch,
+  onNewMatch,
+  onNewGame,
+  onShowDesign,
+}: {
+  t: Translations;
+  /** Already resolved by the caller: display name, custom rules included. */
+  variantName: string;
+  playMode: PlayMode;
+  difficulty: Difficulty;
+  /** The control in force, or null when the game is untimed. */
+  timeControl: TimeControl | null;
+  gamesPerSet: number;
+  canNewMatch: boolean;
+  onNewMatch: () => void;
+  onNewGame: () => void;
+  onShowDesign: () => void;
+}) {
+  const modeLabel =
+    playMode === "hotseat" ? t.overTheBoard : playMode === "defenders" ? t.king : t.raiders;
+  const difficultyLabel: Record<Difficulty, string> = {
+    easy: t.easy,
+    medium: t.medium,
+    hard: t.hard,
+    ollamh: t.ollamh,
+  };
+  return (
+    <div className="card mt-4 space-y-4 p-4">
+      <h2 className="font-display text-lg text-parchment">{t.thisGame}</h2>
+
+      <dl className="space-y-2" aria-label={t.thisGame} data-testid="game-summary">
+        <SummaryRow label={t.variant}>{variantName}</SummaryRow>
+        <SummaryRow label={t.playAs}>{modeLabel}</SummaryRow>
+        {playMode !== "hotseat" && (
+          <SummaryRow label={t.aiLevel}>
+            {/* "Ollamh" is Irish → always set in the cló Gaelach face (see gaelic.ts). */}
+            {difficulty === "ollamh" ? (
+              <span className="gaelic">{toSeanchlo(t.ollamh)}</span>
+            ) : (
+              difficultyLabel[difficulty]
+            )}
+          </SummaryRow>
+        )}
+        <SummaryRow label={t.clock}>
+          {timeControl ? describeTimeControl(timeControl) : t.clockOff}
+        </SummaryRow>
+        {playMode === "hotseat" && <SummaryRow label={t.setLength}>{gamesPerSet}</SummaryRow>}
+      </dl>
+
+      {/* The one path to different conditions. Both actions are confirm-gated
+          upstream (openSetupOverlay / requestNewMatch), so a stray tap here
+          still can't wipe anything by itself. */}
+      <div className="space-y-3 border-t border-parchment/10 pt-3">
+        <button className="btn w-full justify-center" onClick={onNewGame}>
+          {t.newGame}
+        </button>
+        {canNewMatch && (
+          <button className="btn w-full justify-center" onClick={onNewMatch}>
+            {t.newMatch}
+          </button>
+        )}
+      </div>
+
+      <SettingsSection label={t.sectionAppearance}>
+        <button className="btn w-full justify-center" onClick={onShowDesign}>
+          {t.design}
+        </button>
+      </SettingsSection>
+    </div>
+  );
+}
+
+// A label/value line of GameSummary's definition list: dt/dd, not a control.
+function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-sm text-parchment-dim">{label}</dt>
+      <dd className="text-sm font-medium text-parchment">{children}</dd>
+    </div>
+  );
+}
+
 function Settings({
   t,
   variantId,
