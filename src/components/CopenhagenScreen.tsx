@@ -36,6 +36,7 @@ import {
   ENUM_CHOICES,
   VARIANTS,
   VISIBLE_VARIANTS,
+  ruleFlags,
   rulesFor,
   type CustomRuleSet,
   type CopenhagenRuleSet,
@@ -71,6 +72,8 @@ import type { KingEmblemDef } from "../kingEmblems";
 import { useDialogFocus } from "../useDialogFocus";
 import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
 import { useAiReveal } from "../useAiReveal";
+import CopenhagenGameFilePanel from "./CopenhagenGameFilePanel";
+import type { GameFileMeta, ParsedGame } from "../game/copenhagen/gameFile";
 
 /**
  * The Copenhagen Hnefatafl surface — a full-screen place, reached from the
@@ -98,11 +101,14 @@ import { useAiReveal } from "../useAiReveal";
  * is switching it there.
  *
  * What is still the shell's alone: analysis, the eval bar, the review pass,
- * puzzles, match sets, import/export. Those are search-coupled or
- * shell-refactor-sized, and they arrive when the shell can hold more than one
- * game. That refactor is now the *largest* item this fork has deferred — see
- * ADR-0007 — because it is the one piece of duplication that grows with every
- * board rather than staying flat.
+ * puzzles, match sets. Those are search-coupled or shell-refactor-sized, and
+ * they arrive when the shell can hold more than one game. That refactor is
+ * now the *largest* item this fork has deferred — see ADR-0007 — because it
+ * is the one piece of duplication that grows with every board rather than
+ * staying flat. Import/export (WP-4.1a) is this screen's own instance of the
+ * shell's panel, wired to Copenhagen's own `.tafl` codec
+ * (`game/copenhagen/gameFile.ts`) rather than shared through App — see
+ * `CopenhagenGameFilePanel`.
  *
  * ## Persistence
  *
@@ -179,6 +185,7 @@ export default function CopenhagenScreen({
   const [confirmRestart, setConfirmRestart] = useState(false);
   const [confirmResign, setConfirmResign] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [showGameFile, setShowGameFile] = useState(false);
 
   const tip = states.length - 1;
   const atTip = cursor === tip;
@@ -506,6 +513,10 @@ export default function CopenhagenScreen({
         setShowVictory(false);
         return;
       }
+      if (showGameFile) {
+        setShowGameFile(false);
+        return;
+      }
       if (gameMenuOpen) {
         // The sheet closes itself on Escape; swallow the layer here too so the
         // press cannot fall through to the surface below.
@@ -528,7 +539,16 @@ export default function CopenhagenScreen({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, showVictory, gameMenuOpen, confirmRestart, confirmResign, showSetup, canCancelSetup]);
+  }, [
+    onClose,
+    showVictory,
+    showGameFile,
+    gameMenuOpen,
+    confirmRestart,
+    confirmResign,
+    showSetup,
+    canCancelSetup,
+  ]);
 
   // ── Returning the live game to an earlier position ──────────────────────────
   // Takebacks and "play from here" both land here — the shell's rewind, minus
@@ -581,6 +601,43 @@ export default function CopenhagenScreen({
       return copy;
     });
   }, [gameOver, atTip, humanSide, tipState.turn, cancel]);
+
+  // ── Import (see docs/design/game-import-export.md) ──────────────────────────
+  // An imported game is a move list from the opening (game/copenhagen/replay.ts),
+  // so — same invariant the shell's own import keeps — it is savable and
+  // exportable however the board it replaces got there. It gets a fresh
+  // identity, so it autosaves as itself rather than continuing the game it
+  // replaced, and it always lands hotseat: an import is often mid-position and
+  // often the side the engine would otherwise move for, so switching the AI
+  // straight back on would have it play atop the import the instant it lands.
+  const loadImportedGame = useCallback(
+    (imported: ParsedGame) => {
+      cancel();
+      setThinking(false);
+      clearAiReveal();
+      setShowVictory(false);
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
+      const tipIndex = imported.states.length - 1;
+      // The timeline arrives whole, so the clock must not read the jump as a
+      // move being played, and a finished import is history, not a live
+      // result, so it never rises into the victory curtain.
+      prevTipRef.current = tipIndex;
+      wasOver.current = isGameOver(imported.states[tipIndex].status);
+      setVariantId(imported.variantId);
+      if (imported.variantId === "custom") setCustomRules(ruleFlags(imported.rules));
+      setPlayMode("hotseat");
+      setStates(imported.states);
+      setCursor(tipIndex);
+      setSelected(null);
+      setShowSetup(false);
+      setGameMenuOpen(false);
+      setClockLine(initialClockLine(timeControl));
+      clock.reset();
+      askedFor.current = "";
+    },
+    [cancel, clearAiReveal, clock, timeControl],
+  );
 
   const goPrev = useCallback(() => {
     setSelected(null);
@@ -692,6 +749,16 @@ export default function CopenhagenScreen({
     />
   );
 
+  // Who goes in the exported file's [Attackers] / [Defenders] tags — the same
+  // rule the shell's own exportMeta follows: the AI's tier when it holds that
+  // side, the plain side name otherwise (this screen has no player names to
+  // fall back to over the board).
+  const exportMeta: GameFileMeta = {
+    event: t.gameCopenhagen,
+    attackers: seatName("attackers"),
+    defenders: seatName("defenders"),
+  };
+
   // Everything wordy lives behind the toolbar's list icon, as in the shell.
   const menuItems = [
     { label: t.newGame, onClick: () => setShowSetup(true) },
@@ -703,6 +770,7 @@ export default function CopenhagenScreen({
     ...(atTip && !gameOver && tip >= 1
       ? [{ label: t.resign, danger: true, onClick: () => setConfirmResign(true) }]
       : []),
+    { label: t.gameFileTitle, onClick: () => setShowGameFile(true) },
   ];
 
   return (
@@ -906,6 +974,41 @@ export default function CopenhagenScreen({
           // dismissing the curtain to look at the final position.
           onReview={() => setShowVictory(false)}
         />
+      )}
+
+      {/* The game file — this screen's own copy of the shell's Tools
+          destination (see docs/design/game-import-export.md and
+          docs/design/app-drawer.md), wired to Copenhagen's own codec. There is
+          no non-opening starting position on this screen, so unlike the
+          shell's panel it never needs the position-export refusal. */}
+      {showGameFile && (
+        <div
+          className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => setShowGameFile(false)}
+        >
+          <div
+            className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="copenhagen-gamefile-modal"
+          >
+            <div className="flex justify-end">
+              <button className="btn" onClick={() => setShowGameFile(false)} aria-label={t.close}>
+                ✕
+              </button>
+            </div>
+            <CopenhagenGameFilePanel
+              t={t}
+              state={tipState}
+              rules={rules}
+              meta={exportMeta}
+              onImport={(g) => {
+                loadImportedGame(g);
+                setShowGameFile(false);
+              }}
+              placement="modal"
+            />
+          </div>
+        </div>
       )}
     </div>
   );
