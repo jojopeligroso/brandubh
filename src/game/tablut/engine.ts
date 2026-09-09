@@ -692,20 +692,48 @@ export const FULL_CONFIG: SearchConfig = {
   useQuiescence: true,
   maxQuiescencePly: 6,
   useLMR: true,
-  // PVS ships ON here, where it ships OFF for Brandubh.
+  // PVS ships OFF here too now, matching Brandubh — gauntletted 2026-09-09
+  // (WP-2.0, docs/reports/pvs-tablut-copenhagen.md), settling the "a gauntlet
+  // should settle it" this comment used to end on.
   //
-  // The Brandubh note explains why it was kept as a knob at all: it measured
-  // neutral there because smart ordering plus the TT plus LMR already tighten the
-  // windows, "kept as a knob for wider-branching variants (Tablut) where ordering
-  // dominates less".
+  // scripts/pvsbench.ts --game tablut --depths 3,4,5 (13 positions: opening,
+  // 4 hand-built tactics from engine.test.ts/searchInvariants.test.ts, 8
+  // self-play samples from mulberry32(20260909)): scores identical between
+  // usePVS true/false at every depth on every position (0 mismatches — the
+  // required correctness invariant, since PVS cannot change the value of a
+  // search, only its cost). Node ratio (on/off) at depth 3: median 1.031,
+  // mean 1.041, max 1.143; depth 4: median 1.037, max 1.080; depth 5: median
+  // 1.000, max 1.453 — PVS costs MORE nodes than plain alpha-beta at equal
+  // depth in most positions here (7/13, 7/13, 6/13 positions past the ±3%
+  // either-way bar at each depth), the opposite of the "wider board, PVS has
+  // more to save" premise this comment used to reason from.
   //
-  // ⚠ Tablut is wider, but by less than that note's author (or the first draft of
-  // this one) assumed. Measured at the opening position: **80 legal attacker moves
-  // and 56 defender moves, against Brandubh's 40** — half again to twice, not the
-  // "roughly three times" this comment claimed before anyone counted. So the
-  // premise for turning PVS on is weaker than it looked, and this flag is on as a
-  // considered default rather than a measured one. A gauntlet should settle it.
-  usePVS: true,
+  // Wall-clock at the shipping ladder limits (`medium` 2500ms/depth-3-cap,
+  // `hard` 3000ms/depth-6-cap/floor-3, `ollamh` 8000ms/depth-12-cap/floor-4;
+  // literal limits, see scripts/pvsbench.ts's header), same 13 positions, load
+  // 4.2-4.9 (`nproc`=4, shared with other agents): `medium` ties in depth
+  // reached on every position (it's the shallow fixed-depth tier, so this is
+  // expected). `hard`: PVS OFF reaches depth ≥ PVS ON on every position,
+  // strictly deeper on 2/13 (midgame fixture: depth 3 (on) vs 5 (off);
+  // self-play ply 5: depth 3 (on) vs 4 (off)) — PVS never won a depth on this
+  // tier. `ollamh` (6 curated positions): ties throughout. So PVS's one
+  // possible strength channel (reaching deeper under a deadline) never fires
+  // in PVS's favour here, and fires against it twice.
+  //
+  // Paired gauntlet (candidate = PVS off, baseline = PVS on, DEFAULT_WEIGHTS
+  // both sides): `npx tsx scripts/pairgauntlet.ts --game tablut pvs 3 40
+  // 21010 shallow2` — the depth/pair-count this board's own validation
+  // recommends (docs/reports/paired-gauntlet-instrument.md). WW=6 LL=10
+  // split=24, net=-4, decisive=16, sign-test p=0.4545 — not significant, and
+  // the 40-pair minimum is this board's OWN recommended floor, not a run cut
+  // short.
+  //
+  // Applying the house rule (docs/ROADMAP.md "Verification standard": never
+  // ship a measured regression; a neutral change ships only if free): PVS is
+  // not free here (real, non-trivial node cost, and it never reaches deeper
+  // under a real deadline) and has no significant measured benefit (p=0.45).
+  // Ships off for parity with Brandubh.
+  usePVS: false,
   useMateDistance: false,
 };
 

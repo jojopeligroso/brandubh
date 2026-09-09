@@ -508,10 +508,21 @@ app can keep. Five phases, following ADR-0007's extraction order underneath:
     legacy-vs-full self-play, quiescence horizon, depth floor — 11 tests
     today against Tablut's 20 and Brandubh's 21.
 - **Phase 2 — tuning** *(Opus designs terms, Sonnet runs gauntlets)* — **NOT STARTED**
-  - WP-2.1 Tablut: PVS on/off, liberties (rim artifact), escapeLane
-    calibration, kingRegion, mobility — ship on replicated significance only.
-  - WP-2.2 Copenhagen: PVS, liberties, kingRegion cap; new shieldwall-threat
-    and exit-fort-progress terms; a quiescence extension for shieldwall.
+  - WP-2.1 Tablut: ~~PVS on/off~~ **done outside this phase — see WP-2.0
+    below**; liberties (rim artifact), escapeLane calibration, kingRegion,
+    mobility — ship on replicated significance only.
+  - WP-2.2 Copenhagen: ~~PVS~~ **done outside this phase — see WP-2.0
+    below**; liberties, kingRegion cap; new shieldwall-threat and
+    exit-fort-progress terms; a quiescence extension for shieldwall.
+  - WP-2.0 (2026-09-09, Sonnet) `usePVS` settled on both boards ahead of the
+    rest of Phase 2, by the same measurement shape as Brandubh's own verdict:
+    equal-depth node counts, ladder wall-clock, and a mirrored-pair gauntlet
+    at each board's own recommended depth/pairs. Both boards: PVS costs more
+    nodes than plain alpha-beta at equal depth (not fewer), never reaches a
+    deeper depth under a real deadline, and neither gauntlet found a
+    significant win-rate benefit (Tablut p=0.4545/40 pairs, Copenhagen
+    p=0.1686/70 pairs). `usePVS` now ships `false` on both, matching
+    Brandubh. Full tables: `docs/reports/pvs-tablut-copenhagen.md`.
   - WP-2.3 Opening books for both boards via parameterised
     `genbook.ts`/`bookbench.ts`, measured ≥ neutral before shipping.
   - WP-2.4 Annotation-band calibration per board, after weights settle.

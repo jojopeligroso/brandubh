@@ -65,8 +65,10 @@ export const tablutAdapter: GameAdapter = {
   positionKey: (s) => hashBoard(s.board, s.turn),
 
   resetSearch: () => resetTT(),
-  search: (s: GameState, maxDepth, rng, w) =>
-    pickMove(s, rules, { maxDepth }, FULL_CONFIG, rng, w as EvalWeights).move,
+  defaultConfig: FULL_CONFIG,
+  pvsConfig: (on) => ({ ...FULL_CONFIG, usePVS: on }),
+  search: (s: GameState, maxDepth, rng, w, config) =>
+    pickMove(s, rules, { maxDepth }, (config as typeof FULL_CONFIG) ?? FULL_CONFIG, rng, w as EvalWeights).move,
   nearBest: (s, depth, margin) =>
     scoreRootMoves(s, rules, depth, margin, FULL_CONFIG, DEFAULT_WEIGHTS).within.map((r) => r.move),
 

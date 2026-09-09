@@ -87,7 +87,11 @@ describe("search fingerprints: score, node count and best move at depth 3", () =
     resetTT();
     const r = pickMove(initialState(rules), rules, { maxDepth: 3 }, FULL_CONFIG, fixed, DEFAULT_WEIGHTS);
     expect(r.score).toBe(80);
-    expect(r.nodes).toBe(2748);
+    // 2404 as of 2026-09-09 (WP-2.0: usePVS flipped to false — see the
+    // FULL_CONFIG comment and docs/reports/pvs-tablut-copenhagen.md). Was
+    // 2748 under usePVS: true; score/depth/move/bestMoves are unaffected —
+    // PVS is a pure search optimisation and cannot change them.
+    expect(r.nodes).toBe(2404);
     expect(r.depth).toBe(3);
     expect(r.move).toEqual({ from: { row: 2, col: 4 }, to: { row: 2, col: 3 } });
     expect(r.bestMoves).toEqual([{ from: { row: 2, col: 4 }, to: { row: 2, col: 3 } }]);
@@ -126,7 +130,9 @@ describe("search fingerprints: score, node count and best move at depth 3", () =
     resetTT();
     const r = pickMove(stateOf(b, "defenders"), rules, { maxDepth: 3 }, FULL_CONFIG, fixed, DEFAULT_WEIGHTS);
     expect(r.score).toBe(224);
-    expect(r.nodes).toBe(18361);
+    // 16157 as of 2026-09-09 (WP-2.0: usePVS flipped to false). Was 18361
+    // under usePVS: true; score/depth/move/bestMoves unaffected.
+    expect(r.nodes).toBe(16157);
     expect(r.depth).toBe(3);
     expect(r.move).toEqual({ from: { row: 5, col: 4 }, to: { row: 5, col: 7 } });
     expect(r.bestMoves).toEqual([{ from: { row: 5, col: 4 }, to: { row: 5, col: 7 } }]);
