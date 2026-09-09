@@ -111,19 +111,50 @@ export const VARIANTS: Record<string, RuleSet> = {
       "as one). Encirclement wins. Repetition is a loss for the defending side.",
     armedKing: true,
     throneHostileToSoldiers: true,
-    // ⚠ CONTESTED RULE — RE-EXAMINE against authoritative sources before treating as
-    // settled. These two flags together make a king *next to the throne* capturable
-    // only by a full four-sided surround, with the empty throne as the fourth wall
-    // (throneHostileToKing), and never by an ordinary two-sided custodial pair
-    // (strongKingAdjacentToThrone). This matches the aagenielsen.dk / Copenhagen
-    // wording ("next to the throne, occupy the three remaining squares"), and fixed a
-    // real miss (a king walled against its own throne was not captured).
-    // BUT it is open whether the ordinary two-sided custodial capture should *also*
-    // remain valid in some throne-adjacent cases — e.g. when the king has moved into a
-    // tight space and is then closed on two opposite sides. Aage Nielsen's rules pages
-    // were unreachable at fix time; verify directly (fetlar/copenhagen/brandub) before
-    // relying on this. Both flags are exposed in the custom-rule editor so the rule can
-    // be toggled while it is under review. See docs/rules-review.md.
+    // ── CONTESTED RULE, VERIFIED AND DELIBERATELY RETAINED (2026-09-09) ──────
+    // These two flags together make a king *next to the throne* capturable
+    // only by a full four-sided surround, with the empty throne as the fourth
+    // wall (throneHostileToKing), and never by an ordinary two-sided
+    // custodial pair (strongKingAdjacentToThrone). That matches Copenhagen
+    // and Linnaeus's Tablut — but it does NOT match Brandubh's own primary
+    // sources, read in full on 2026-09-09 (see docs/rules-review.md and
+    // /tmp/brandubh-rules-sourcing-report.md):
+    //
+    //   "Blacks win if they manage to capture the king before he escapes.
+    //   The king is captured like all other pieces, except when he is on
+    //   the throne. To capture the king on his throne, the attackers must
+    //   surround the throne by standing on the four cardinal points.
+    //   Everywhere else on the board the king is captured as a normal
+    //   piece." — the WTF Brandubh rules PDF, aagenielsen.dk/brandubh2_rules_en.pdf
+    //
+    //   "The throne is never hostile to the king, always hostile to the
+    //   attackers, and only hostile to the defenders when the king is not
+    //   occupying it." — same PDF
+    //
+    //   "One exception across the family: on the small 7x7 Brandubh board
+    //   the king is young, and falls like an ordinary piece, caught between
+    //   just two attackers. The four-wall law protects the king only on the
+    //   9x9 and 11x11 boards; on 49 squares it would make him nearly
+    //   uncatchable." — worldtafl.com/hnefatafl-rules
+    //
+    // Both sources agree: next to the throne is NOT a special four-sided
+    // case on 7×7 — only ON the throne is. The correct flags per the sources
+    // would be `throneHostileToKing: false` and
+    // `strongKingAdjacentToThrone: false`.
+    //
+    // The owner decided on 2026-09-09 to ship `wtf` unchanged anyway: the
+    // opening book (depth 8, 2737 entries), the 158 solver-verified puzzles,
+    // the annotation bands, the recognizer soundness proofs and every
+    // gauntlet result were all computed under these exact flags. Correcting
+    // them would silently change the meaning of every one of those
+    // artefacts, not just this preset, and none of that work has been
+    // regenerated or re-verified against a corrected ruleset. So: this rule
+    // is verified — the sources are unambiguous, and they disagree with what
+    // ships — and it is retained anyway, not because it is unsettled.
+    // `throneHostileToSoldiers: true` and `strongKingOnThrone: true` (the
+    // on-throne case) are unaffected and remain correct as sourced. Both
+    // flags stay exposed in the custom-rule editor, where a player who wants
+    // the sourced reading can already have it.
     throneHostileToKing: true,
     kingMayReoccupyThrone: true,
     soldiersPassThroughThrone: true,

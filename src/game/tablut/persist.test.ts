@@ -169,7 +169,15 @@ describe("save then restore", () => {
   });
 
   it("restores a game played under a custom ruleset", () => {
-    const flags = { ...CUSTOM_RULE_DEFAULTS, throneBlocks: "attackers" as const };
+    // firstMove is pinned to "defenders" here (CUSTOM_RULE_DEFAULTS now
+    // defaults to "attackers" — baseline rule 2, corrected 2026-09-09, see
+    // docs/tablut-rules.md) so SHORT's move order, unrelated to the flag this
+    // test actually exercises (throneBlocks), stays valid.
+    const flags = {
+      ...CUSTOM_RULE_DEFAULTS,
+      firstMove: "defenders" as const,
+      throneBlocks: "attackers" as const,
+    };
     const custom = rulesFor("custom", flags);
     const states = play(SHORT, custom);
     const parsed = parseAt(serializeGame(snapshotOf(states, "custom", flags)));

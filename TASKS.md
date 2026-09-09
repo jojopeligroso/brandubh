@@ -25,11 +25,18 @@ the raw backlog those sessions draw from.
 
 ## ⚠ Rules under review
 
-Open, contested rules questions with a shipped default + custom toggle — see
-[`docs/rules-review.md`](docs/rules-review.md). Currently: **king capture next to
-the throne** (four-sided surround with the empty throne as the fourth wall) — needs
-verification against authoritative Brandub/Copenhagen sources; toggleable in the
-custom-rule editor.
+Rules questions with a shipped default + custom toggle — see
+[`docs/rules-review.md`](docs/rules-review.md). **King capture next to the
+throne** (Brandubh's `wtf` preset, four-sided surround with the empty throne as
+the fourth wall) was **resolved 2026-09-09**: the WTF Brandubh PDF and
+worldtafl.com, both read in full, agree that 7×7 does *not* get the
+four-sided rule next to the throne — only *on* it. The owner decided to ship
+`wtf` unchanged anyway, because the opening book, puzzles, annotation bands
+and every gauntlet result were computed under the four-sided flags; see
+`docs/rules-review.md` and `CLAUDE.md`'s "Contested rule" section. It is a
+verified-and-deliberately-retained default now, not an open question — the
+custom-rule editor is where the sourced reading is reachable. No Brandubh
+preset flag changed.
 
 ## Half-built
 
@@ -172,23 +179,32 @@ Session 12 for the plan that addresses it.
 - [ ] **No board flip, records, match sets, puzzles, or review/annotation on
   either board** `[ui]` — the whole review/teaching stack (`records.ts`,
   `matchSet.ts`, the puzzle bank, annotation) is wired for Brandubh only.
-- [ ] **i18n gaps** `[ui]` — `src/i18n.ts`'s `variantNames`/`variantBlurbs` have no
-  `copenhagen`/`copenhagen-fetlar` entries in any of `en`/`es`/`ga`. Separately,
-  `variantBlurbs` has no entry for `tablut`, `tablut-gulo` or `tablut-corners`
-  in **any** locale, `en` included — only `tablut-linnaeus` has a blurb
-  everywhere else; `RulesContent.tsx`, `TablutScreen.tsx` and
-  `CopenhagenScreen.tsx` all fall back to `rules.blurb` (`?? rules.blurb`) when
-  the key is missing, so nothing crashes, but the per-locale blurb is absent.
-- [ ] **`strongKingEdgeRule` is contested and unverified against a primary
-  source** `[rules]` — `docs/copenhagen-rules.md` and the in-app copy both say
-  the sources disagree; see `docs/copenhagen-rules.md` for what is and is not
-  settled.
-- [ ] **`copenhagen-fetlar` and `tablut-aage` are UNVERIFIED presets** `[rules]` —
-  both `variants.ts` files mark them ⚠ UNVERIFIED. Not the same exposure,
-  though: `tablut-aage` is left out of `VISIBLE_VARIANTS` (hidden, but still in
-  `VARIANTS` so old saves keep resolving), while `copenhagen-fetlar` *is* in
-  `VISIBLE_VARIANTS` — an unverified preset offered in the picker, not held
-  back. See `docs/copenhagen-rules.md` and `docs/tablut-rules.md`.
+- [x] **i18n gaps** `[ui]` — done (WP-2.R, 2026-09-09). `src/i18n.ts`'s
+  `variantNames`/`variantBlurbs` now carry entries for every current id
+  (`tablut-linnaeus-2`, `tablut-2`, `tablut-gulo-2`, `tablut-aage-2`,
+  `tablut-corners-2`, `copenhagen-2`, `copenhagen-fetlar-2`) in `en`, `es` and
+  `ga` (the last as unreviewed drafts, per the existing convention — `ga`
+  stays out of `VISIBLE_LANGS`). The legacy (pre-2026-09-09) ids were left out
+  of the i18n tables on purpose: they fall back to the English `name`/`blurb`
+  baked into the legacy preset itself, which is the one place that still says
+  "(legacy)" — an i18n entry for a legacy id would otherwise shadow that
+  marker. See `docs/tablut-rules.md` and `docs/copenhagen-rules.md`,
+  "Corrections of 2026-09-09".
+- [x] **`strongKingEdgeRule` is contested and unverified against a primary
+  source** `[rules]` — resolved 2026-09-09: all three sources were read in
+  full, and the excerpt behind reading B turned out to be a
+  search-engine misattribution (it does not appear on the Cyningstan page it
+  was credited to). `"uncapturable"` (reading A) is now confirmed, not merely
+  favoured; `"available_sides"` stays reachable in the custom rule editor as a
+  real, playable, but non-default reading. See `docs/copenhagen-rules.md`.
+- [ ] **`copenhagen-fetlar-2` and `tablut-aage-2` are UNVERIFIED presets** `[rules]` —
+  both `variants.ts` files mark them ⚠ UNVERIFIED (ids corrected 2026-09-09;
+  see `docs/tablut-rules.md` and `docs/copenhagen-rules.md`, "Corrections of
+  2026-09-09"). Not the same exposure, though: `tablut-aage-2` is left out of
+  `VISIBLE_VARIANTS` (hidden, but still in `VARIANTS` so old saves keep
+  resolving), while `copenhagen-fetlar-2` *is* in `VISIBLE_VARIANTS` — an
+  unverified preset offered in the picker, not held back. See
+  `docs/copenhagen-rules.md` and `docs/tablut-rules.md`.
 
 ## Not implemented (documented as future)
 

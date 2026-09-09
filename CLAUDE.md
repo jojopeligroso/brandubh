@@ -49,15 +49,20 @@ No router, no backend: `src/App.tsx` is the shell, pure game logic lives in
 
 ## Three boardgames, forked on purpose
 
-Brandubh (7×7, corner escape) lives in `src/game/`. **Tablut** (9×9, White moves
+Brandubh (7×7, corner escape) lives in `src/game/`. **Tablut** (9×9, Black moves
 first, the king escapes to any edge square) lives in `src/game/tablut/` with its
 own rules, engine, save key (`tablut.game.v1`), `.tafl` format (`tablut-1`) and
 screen (`components/TablutScreen.tsx`), reached from the drawer's collapsed *More
 games* section.
 
-Tablut's default ruleset is `tablut-linnaeus` — the three-tier king capture
+Tablut's default ruleset is `tablut-linnaeus-2` — the three-tier king capture
 (four attackers on the throne, three plus the hostile throne beside it, two
-elsewhere); see `docs/tablut-rules.md` for the sourcing. The surface is fully
+elsewhere); see `docs/tablut-rules.md` for the sourcing. The `-2` suffix marks
+it (and every other current Tablut preset) as corrected on 2026-09-09 —
+`firstMove` was "defenders" and should have been "attackers" — with the
+pre-correction presets kept under their original, unsuffixed ids as hidden
+LEGACY presets so old saves and `.tafl` files keep their meaning; see
+`docs/tablut-rules.md`, "Corrections of 2026-09-09". The surface is fully
 persistent: the game autosaves under `tablut.game.v1`, and `tablut.surface.v1`
 records that the player is *in* Tablut, so a reload lands back on the 9×9 board
 until they leave by the back button.
@@ -68,11 +73,17 @@ in `src/game/copenhagen/` with the same shape again — save key
 `components/CopenhagenScreen.tsx`. It is the modern tournament standard, and the
 only one of the three whose baseline is a published ruleset rather than a
 reconstruction. Its own rules are `exitFort` (a win decided by a structural
-property of the board, not the move just played) and
-`repetitionResult: "loss_for_repeater"` — which is why it is the only game that
-can end in `defenders_win_fort` or `defenders_win_repetition`. Sourcing, and the
-one rule where two sources flatly contradict each other, are in
-`docs/copenhagen-rules.md`.
+property of the board, not the move just played) and a fourth repetition
+outcome, `"loss_for_repeater"`, reachable only through the custom rule editor
+now — it is the only way any game in this project ends in
+`defenders_win_repetition`. The shipped `copenhagen-2` preset itself reads
+rule 8 as `repetitionResult: "loss_for_defenders"` — corrected 2026-09-09; the
+pre-correction default was `"loss_for_repeater"`, traced to a secondary
+paraphrase rather than Copenhagen's own text (see
+`docs/copenhagen-rules.md`, "Corrections of 2026-09-09") — so like Brandubh
+and Tablut it now ends a repeated position in `attackers_win_repetition`, not
+`defenders_win_repetition`. The legacy `copenhagen` preset (hidden, kept for
+old saves and `.tafl` files) is unchanged and still carries the old default.
 
 The duplication is an accepted decision, not drift — read
 `docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md` and its
@@ -154,12 +165,22 @@ lie about a 9×9), and `index.html`'s pre-paint script repeats the rule so a
 reload onto Tablut does not flash it. The fallback changes what is painted and
 never what is stored.
 
-### Contested rule
+### Contested rule — verified 2026-09-09, retained on purpose
 
 `throneHostileToKing` + `strongKingAdjacentToThrone` in `src/game/variants.ts`
-carry a ⚠ CONTESTED RULE note — read it (and `docs/rules-review.md`) before
-touching king-capture logic. The `fourth-wall` tutorial scenario teaches this
-rule and is pinned to the `wtf` preset; update it if the rule changes.
+carry a note on the `wtf` preset — read it (and `docs/rules-review.md`) before
+touching king-capture logic. It is no longer an open question: the WTF
+Brandubh rules PDF and worldtafl.com were both read in full on 2026-09-09, and
+they agree that a king *next to* the throne on 7×7 falls to an ordinary
+two-sided capture, not the four-sided surround these flags implement — only a
+king *on* the throne gets the four-sided rule. The owner decided to keep `wtf`
+shipping the four-sided reading regardless: the opening book, the 158
+solver-verified puzzles, the annotation bands and every gauntlet result were
+all computed under it, and none of that has been regenerated against the
+sourced flags. So this is a verified-and-deliberately-wrong default, not an
+unverified one — the custom-rule editor is where a player gets the sourced
+reading. The `fourth-wall` tutorial scenario teaches the shipped (four-sided)
+rule and is pinned to the `wtf` preset; update it if the flags ever change.
 
 ## i18n
 

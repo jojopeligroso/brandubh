@@ -31,7 +31,21 @@
 //   7. The king is captured by four attackers — three plus the empty throne when
 //      he stands beside it.
 //   7b. The attackers win by surrounding the king and all remaining defenders.
-//   8. Perpetual repetition is forbidden, and loses for the player repeating.
+//   8. Perpetual repetition is forbidden, and loses for the defending side.
+//
+// Rule 8 was corrected on 2026-09-09 — see "Corrections of 2026-09-09" in
+// docs/copenhagen-rules.md. The presets shipped before that date read it as
+// "loses for whichever side is repeating"; three independently-worded sources
+// (aagenielsen.dk, the De Angelis PDF, and aagenielsen.dk's unified rules
+// page) instead say "a loss for White" in as many words, and the
+// "loses for the repeater" reading traces to a paraphrase on a secondary
+// site, not to Copenhagen's own text. Every *current* preset below asserts
+// the corrected rule; the old, incorrect preset is kept byte-for-byte as a
+// LEGACY preset for exactly the reason `../tablut/variants.ts` keeps its
+// legacy presets — see that file's header. The "whoever repeats loses"
+// mechanism (`"loss_for_repeater"`) is not removed: it stays reachable in the
+// custom rule editor and its own `rules.test.ts` coverage stays, because it
+// remains a real reading worth being able to play, just not Copenhagen's own.
 //
 // This is a **separate ruleset type** from Tablut's for the same reason Tablut's
 // is separate from Brandubh's: it carries fields neither of the others has
@@ -212,13 +226,17 @@ export interface CopenhagenRuleSet {
    * `"none"` — ignored.
    * `"draw"` — the game is drawn.
    * `"loss_for_defenders"` — White loses regardless of who caused it. This is
-   *   the Fetlar-style rule, and it is what Brandubh and Tablut offer.
-   * `"loss_for_repeater"` — **Copenhagen.** *Perpetual repetitions are
-   *   forbidden: the player who maintains the situation must find another move
-   *   to break the repetition, or else he loses the game.* The side that moved
-   *   into the position for the third time is the one that loses, which is why
-   *   this game can end in `defenders_win_repetition` — a status the other two
-   *   games can never produce.
+   *   Copenhagen's own rule (corrected 2026-09-09 — see below), and it is what
+   *   Brandubh and Tablut offer too.
+   * `"loss_for_repeater"` — the side that moved into the position for the
+   *   third time is the one that loses, which is why a game played with this
+   *   setting can end in `defenders_win_repetition` — a status no shipped
+   *   preset can produce any more, now that rule 8 is read as
+   *   `"loss_for_defenders"`. Kept for custom play: it traced to a secondary
+   *   paraphrase rather than to Copenhagen's own text (see
+   *   docs/copenhagen-rules.md, "Corrections of 2026-09-09"), but it remains a
+   *   real reading some players want to try, and the legacy `copenhagen`
+   *   preset shipped under it — see below.
    */
   repetitionResult: "none" | "draw" | "loss_for_defenders" | "loss_for_repeater";
 }
@@ -226,10 +244,13 @@ export interface CopenhagenRuleSet {
 // ── Presets ───────────────────────────────────────────────────────────────────
 
 /**
- * Copenhagen itself, as the eleven rules at the top of this file give it. Every
- * other preset is stated as a diff against this one, because Copenhagen is the
- * thing being reconstructed here — the reverse of the other two games, where a
- * minimal undisputed baseline is the anchor and the readings pile on top.
+ * Copenhagen itself, as the eleven rules at the top of this file give it —
+ * corrected 2026-09-09 (`repetitionResult: "loss_for_defenders"`, rule 8).
+ * Every current preset is stated as a diff against this one, because
+ * Copenhagen is the thing being reconstructed here — the reverse of the other
+ * two games, where a minimal undisputed baseline is the anchor and the
+ * readings pile on top. `LEGACY_COPENHAGEN` below is the pre-correction
+ * version, kept frozen for the legacy presets.
  */
 const COPENHAGEN: Omit<CopenhagenRuleSet, "id" | "name" | "blurb"> = {
   escape: "corners",
@@ -247,12 +268,26 @@ const COPENHAGEN: Omit<CopenhagenRuleSet, "id" | "name" | "blurb"> = {
   shieldwallCapture: true,
   exitFort: true,
   encirclementWin: true,
+  repetitionResult: "loss_for_defenders",
+};
+
+/**
+ * The pre-2026-09-09 reading of Copenhagen, frozen byte-for-byte
+ * (`repetitionResult: "loss_for_repeater"`) so the legacy `copenhagen` and
+ * `copenhagen-fetlar` presets below keep resolving to exactly what a game
+ * saved or exported under those ids was actually played under. Do not edit
+ * this constant — that is what `COPENHAGEN` above is for.
+ */
+const LEGACY_COPENHAGEN: Omit<CopenhagenRuleSet, "id" | "name" | "blurb"> = {
+  ...COPENHAGEN,
   repetitionResult: "loss_for_repeater",
 };
 
 export const VARIANTS: Record<string, CopenhagenRuleSet> = {
-  copenhagen: {
-    id: "copenhagen",
+  // ── Current presets — corrected 2026-09-09, repetitionResult: "loss_for_defenders" ──
+
+  "copenhagen-2": {
+    id: "copenhagen-2",
     name: "Copenhagen Hnefatafl",
     blurb:
       "The modern tournament standard, played at the Hnefatafl World " +
@@ -262,21 +297,71 @@ export const VARIANTS: Record<string, CopenhagenRuleSet> = {
       "bracketed row along the edge falls together as a shieldwall; an " +
       "unbreakable fort at the rim wins for the king; an unbroken ring around " +
       "the defenders wins for the attackers; and repeating a position three " +
-      "times loses for the player doing it.",
+      "times loses for the defending side, whoever caused it.",
     ...COPENHAGEN,
   },
 
-  "copenhagen-fetlar": {
-    id: "copenhagen-fetlar",
+  "copenhagen-fetlar-2": {
+    id: "copenhagen-fetlar-2",
     name: "Fetlar Hnefatafl",
     blurb:
       "⚠ UNVERIFIED. The older championship rules Copenhagen was written to " +
       "extend, on the same board and setup: no shieldwall, no exit fort, and no " +
-      "encirclement win. Reconstructed from secondary descriptions of how the " +
-      "two differ rather than from the Fetlar rules themselves (see " +
-      "docs/copenhagen-rules.md), so treat it as a contrast to play against, " +
-      "not a citation.",
+      "encirclement win. The throne is not hostile to the king even beside it " +
+      "(Fetlar's own eleven rules give the king no throne-adjacent protection — " +
+      "see docs/copenhagen-rules.md), and repetition is left unscored, because " +
+      "Fetlar's rules are silent on it and asserting a specific consequence " +
+      "would be inventing a rule the source does not contain. Reconstructed " +
+      "from secondary descriptions of how the two differ rather than from the " +
+      "Fetlar rules themselves, so treat it as a contrast to play against, not " +
+      "a citation.",
     ...COPENHAGEN,
+    throneHostileToKing: false,
+    shieldwallCapture: false,
+    exitFort: false,
+    encirclementWin: false,
+    repetitionResult: "none",
+  },
+
+  // ── Legacy presets — kept byte-for-byte, hidden from the picker ────────────
+  //
+  // These are the exact two presets as they shipped before the 2026-09-09
+  // correction (`repetitionResult: "loss_for_repeater"` for `copenhagen`;
+  // `throneHostileToKing: true` inherited, unattested, for
+  // `copenhagen-fetlar`), kept under their original ids so a saved game
+  // (`copenhagen.game.v1`) or an exported .tafl file naming one of them keeps
+  // replaying into the game it actually recorded. `VARIANTS` keeps resolving
+  // them; `VISIBLE_VARIANTS` below no longer offers them. Do not "fix" a flag
+  // in this section — that is what the corrected preset with the `-2` suffix
+  // above is for.
+
+  copenhagen: {
+    id: "copenhagen",
+    name: "Copenhagen Hnefatafl (legacy)",
+    blurb:
+      "LEGACY — kept only so games saved or exported under this id keep their " +
+      "meaning. This preset shipped scoring perpetual repetition as a loss for " +
+      "whichever side repeats, which the 2026-09-09 sourcing pass found " +
+      "traced to a secondary paraphrase rather than Copenhagen's own text " +
+      "(see docs/copenhagen-rules.md). New games use “Copenhagen " +
+      "Hnefatafl” (copenhagen-2), which corrects it and is otherwise " +
+      "identical.",
+    ...LEGACY_COPENHAGEN,
+  },
+
+  "copenhagen-fetlar": {
+    id: "copenhagen-fetlar",
+    name: "Fetlar Hnefatafl (legacy)",
+    blurb:
+      "⚠ UNVERIFIED, and LEGACY — kept only so games saved or exported under " +
+      "this id keep their meaning. This preset shipped with the throne " +
+      "hostile to the king even beside it, inherited unchanged from " +
+      "Copenhagen; the 2026-09-09 sourcing pass found Fetlar's own eleven " +
+      "rules give the king no such throne-adjacent protection (see " +
+      "docs/copenhagen-rules.md). New games use “Fetlar Hnefatafl” " +
+      "(copenhagen-fetlar-2), which corrects it and is otherwise identical — " +
+      "and is itself still unverified.",
+    ...LEGACY_COPENHAGEN,
     shieldwallCapture: false,
     exitFort: false,
     encirclementWin: false,
@@ -289,11 +374,14 @@ export const VARIANTS: Record<string, CopenhagenRuleSet> = {
  * `src/i18n.ts`, as used by both other games. A hidden preset stays in
  * `VARIANTS` so `rulesFor` keeps resolving it and saved or exported games under
  * it still replay; deleting it from `VARIANTS` would orphan those.
+ *
+ * Only the corrected (`-2`) presets are visible. The two legacy ids above are
+ * deliberately absent — see the LEGACY section's header comment.
  */
-export const VISIBLE_VARIANTS: string[] = ["copenhagen", "copenhagen-fetlar"];
+export const VISIBLE_VARIANTS: string[] = ["copenhagen-2", "copenhagen-fetlar-2"];
 
 /** Copenhagen leads, because Copenhagen is the point of this board. */
-export const DEFAULT_VARIANT = "copenhagen";
+export const DEFAULT_VARIANT = "copenhagen-2";
 
 /** A ruleset without its identity — what the custom rule editor edits. */
 export type CustomRuleSet = Omit<CopenhagenRuleSet, "id" | "name" | "blurb">;
