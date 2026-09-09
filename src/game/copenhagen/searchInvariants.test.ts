@@ -12,6 +12,13 @@ import { BOARD_SIZE, type Board, type GameState, type Piece, type Side } from ".
 import { VARIANTS, VISIBLE_VARIANTS } from "./variants";
 import type { CopenhagenRuleSet } from "./variants";
 
+// This project has no @types/node dependency (tsconfig's `lib` is browser-only:
+// ES2020 + DOM), so `process` has no ambient type anywhere else in `src`. This
+// file runs under vitest's Node environment, where `process.env` genuinely
+// exists at runtime — the minimal ambient declaration below types exactly that,
+// rather than pulling in all of @types/node's Node-API surface for one env read.
+declare const process: { env: Record<string, string | undefined> };
+
 const empty = (): Board =>
   Array.from({ length: BOARD_SIZE }, () => Array<Piece | null>(BOARD_SIZE).fill(null));
 const stateOf = (b: Board, turn: Side): GameState => ({
