@@ -729,6 +729,190 @@ describe("applyMove — game status", () => {
   });
 });
 
+// ── Shieldwall capture (custom rule, Copenhagen-style) ────────────────────────
+// `resolveShieldwallCaptures` is not exported: it is exercised only through
+// `applyMove` with `shieldwallCapture: true`, the same way the Brandubh
+// (../rules.test.ts ~730) and Copenhagen (../copenhagen/rules.test.ts ~302)
+// twins of this rule are tested. Built from `linnaeus` — the shipped default —
+// via spread, since no shipped Tablut preset turns the flag on.
+
+describe("shieldwall capture", () => {
+  const shieldwall = { ...linnaeus, id: "custom", shieldwallCapture: true };
+
+  it("a front-man move that closes the trap captures the whole row", () => {
+    // Right edge (col 8): defenders g6/g7 fronted by attackers on col 7,
+    // bracketed by attackers on row 4 and row 7. The attacker moving into
+    // (6,7) supplies the missing front man and closes the trap.
+    const b = board([
+      "....k....",
+      ".........",
+      ".........",
+      ".........",
+      "........a",
+      ".......ad",
+      "...a....d",
+      "........a",
+      ".........",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(6, 3, 6, 7), shieldwall);
+    expect(s.board[5][8]).toBeNull();
+    expect(s.board[6][8]).toBeNull();
+    expect(s.captured.defenders).toBe(2);
+    expect(s.history[0].move.captures).toHaveLength(2);
+  });
+
+  it("does nothing when the flag is off (every shipped preset)", () => {
+    const b = board([
+      "....k....",
+      ".........",
+      ".........",
+      ".........",
+      "........a",
+      ".......ad",
+      "...a....d",
+      "........a",
+      ".........",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(6, 3, 6, 7), linnaeus);
+    expect(s.board[5][8]).toBe("defender");
+    expect(s.board[6][8]).toBe("defender");
+    expect(s.captured.defenders).toBe(0);
+  });
+
+  it("a bracketing move closes the trap too, for either side", () => {
+    // Left edge (col 0): attackers c4/c5 fronted by defenders on col 1,
+    // bracketed below by a defender already at c6. The defender moving
+    // into (2,0) supplies the missing top bracket.
+    const b = board([
+      ".........",
+      ".........",
+      "..d......",
+      "ad..k....",
+      "ad.......",
+      "d........",
+      ".........",
+      ".........",
+      ".........",
+    ]);
+    const s = applyMove(state(b, "defenders"), mv(2, 2, 2, 0), shieldwall);
+    expect(s.board[3][0]).toBeNull();
+    expect(s.board[4][0]).toBeNull();
+    expect(s.captured.attackers).toBe(2);
+  });
+
+  it("a king inside the row survives; his soldier falls", () => {
+    // Right edge (col 8): king e5→row4 + defender row5, fronted on col 7
+    // (row5 already fronted, row4's front supplied by the closing move),
+    // bracketed by attackers at row3 and row6 (not corners, so this is
+    // independent of cornersHostile).
+    const b = board([
+      ".........",
+      ".........",
+      ".......a.",
+      "........a",
+      "........k",
+      ".......ad",
+      "........a",
+      ".........",
+      ".........",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(2, 7, 4, 7), shieldwall);
+    expect(s.board[4][8]).toBe("king"); // king untouched
+    expect(s.board[5][8]).toBeNull(); // defender falls
+    expect(s.captured.defenders).toBe(1);
+    expect(s.status).toBe("playing"); // and the king is not thereby captured
+  });
+
+  it("only fires when the moved piece is part of the wall", () => {
+    // A complete wall already sits on the right edge; the attacker moves
+    // elsewhere instead of into it.
+    const b = board([
+      ".a..k....",
+      ".........",
+      ".........",
+      "........a",
+      ".......ad",
+      ".......ad",
+      "........a",
+      ".........",
+      ".........",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(0, 1, 0, 2), shieldwall);
+    expect(s.board[4][8]).toBe("defender");
+    expect(s.board[5][8]).toBe("defender");
+    expect(s.captured.defenders).toBe(0);
+  });
+
+  it("a single man on the edge is not a shieldwall", () => {
+    // Lone defender at (5,8), bracket already at (4,8); the attacker moving
+    // into (5,7) fronts it, but a run of one is never a wall — and it is not
+    // an ordinary custodial capture either, since the far anvil is off-board.
+    const b = board([
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      ".......aa",
+      "....k...d",
+      ".........",
+      ".........",
+      ".........",
+    ]);
+    const s = applyMove(state(b, "attackers"), mv(4, 7, 5, 7), shieldwall);
+    expect(s.board[5][8]).toBe("defender");
+    expect(s.captured.defenders).toBe(0);
+  });
+
+  // ── The Tablut-specific case: corners are not hostile by default ────────────
+  // `cornersHostile` is what lets an empty corner stand in for a bracket (see
+  // `bracket()` in resolveShieldwallCaptures). Brandubh's wtf/walker presets and
+  // Copenhagen's preset all ship `cornersHostile: true`, so their "corner
+  // stands in for a bracket" cases pass under their defaults. Every shipped
+  // Tablut preset except tablut-corners ships `cornersHostile: false`
+  // (BASELINE, inherited unchanged by `linnaeus`), so under the Tablut default
+  // the same shape must NOT capture — the corner is not a wall.
+  it("under the default (cornersHostile: false), an empty corner does NOT stand in for a bracket", () => {
+    // Bottom-right corner (8,8) as the missing bracket; defenders i7/i8 fronted
+    // on col 7 (row7 already fronted, row6's front supplied by the move),
+    // bracketed above by an attacker at row5.
+    const b = board([
+      "....k....",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      "........a",
+      "....a...d",
+      ".......ad",
+      ".........",
+    ]);
+    expect(b[8][8]).toBeNull(); // the corner is empty, not a piece
+    const s = applyMove(state(b, "attackers"), mv(6, 4, 6, 7), shieldwall);
+    expect(s.board[6][8]).toBe("defender");
+    expect(s.board[7][8]).toBe("defender");
+    expect(s.captured.defenders).toBe(0);
+  });
+
+  it("flips to capturing once cornersHostile is turned on, proving that flag governs it", () => {
+    const b = board([
+      "....k....",
+      ".........",
+      ".........",
+      ".........",
+      ".........",
+      "........a",
+      "....a...d",
+      ".......ad",
+      ".........",
+    ]);
+    const hostileCorners = { ...shieldwall, cornersHostile: true };
+    const s = applyMove(state(b, "attackers"), mv(6, 4, 6, 7), hostileCorners);
+    expect(s.board[6][8]).toBeNull();
+    expect(s.board[7][8]).toBeNull();
+    expect(s.captured.defenders).toBe(2);
+  });
+});
+
 // ── Plies-since-capture ───────────────────────────────────────────────────────
 
 describe("plies-since-capture", () => {
