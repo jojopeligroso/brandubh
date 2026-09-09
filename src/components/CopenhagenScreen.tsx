@@ -36,6 +36,7 @@ import {
   ENUM_CHOICES,
   VARIANTS,
   VISIBLE_VARIANTS,
+  ruleFlags,
   rulesFor,
   type CustomRuleSet,
   type CopenhagenRuleSet,
@@ -71,6 +72,14 @@ import type { KingEmblemDef } from "../kingEmblems";
 import { useDialogFocus } from "../useDialogFocus";
 import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
 import { useAiReveal } from "../useAiReveal";
+import { loadFlipFlag, saveFlipFlag } from "../boardFlipPrefs";
+import CopenhagenGameFilePanel from "./CopenhagenGameFilePanel";
+import type { GameFileMeta, ParsedGame } from "../game/copenhagen/gameFile";
+
+/** This screen's own flip-preference keys — see src/boardFlipPrefs.ts for why
+ *  they are not Brandubh's `BOARD_FLIP_*_KEY`. */
+const FLIP_H_KEY = "copenhagen.boardFlipped";
+const FLIP_V_KEY = "copenhagen.boardFlippedV";
 
 /**
  * The Copenhagen Hnefatafl surface — a full-screen place, reached from the
@@ -98,11 +107,14 @@ import { useAiReveal } from "../useAiReveal";
  * is switching it there.
  *
  * What is still the shell's alone: analysis, the eval bar, the review pass,
- * puzzles, match sets, import/export. Those are search-coupled or
- * shell-refactor-sized, and they arrive when the shell can hold more than one
- * game. That refactor is now the *largest* item this fork has deferred — see
- * ADR-0007 — because it is the one piece of duplication that grows with every
- * board rather than staying flat.
+ * puzzles, match sets. Those are search-coupled or shell-refactor-sized, and
+ * they arrive when the shell can hold more than one game. That refactor is
+ * now the *largest* item this fork has deferred — see ADR-0007 — because it
+ * is the one piece of duplication that grows with every board rather than
+ * staying flat. Import/export (WP-4.1a) is this screen's own instance of the
+ * shell's panel, wired to Copenhagen's own `.tafl` codec
+ * (`game/copenhagen/gameFile.ts`) rather than shared through App — see
+ * `CopenhagenGameFilePanel`.
  *
  * ## Persistence
  *
@@ -179,6 +191,20 @@ export default function CopenhagenScreen({
   const [confirmRestart, setConfirmRestart] = useState(false);
   const [confirmResign, setConfirmResign] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [showGameFile, setShowGameFile] = useState(false);
+
+  // ── Board orientation (view only) ───────────────────────────────────────────
+  // Same two independent mirrors App.tsx offers Brandubh — see src/orientation.ts.
+  // Nothing here touches the game: it is a preference about which way up the
+  // board is drawn, not a fact about the position.
+  const [flippedH, setFlippedH] = useState<boolean>(() => loadFlipFlag(FLIP_H_KEY));
+  const [flippedV, setFlippedV] = useState<boolean>(() => loadFlipFlag(FLIP_V_KEY));
+  useEffect(() => {
+    saveFlipFlag(FLIP_H_KEY, flippedH);
+  }, [flippedH]);
+  useEffect(() => {
+    saveFlipFlag(FLIP_V_KEY, flippedV);
+  }, [flippedV]);
 
   const tip = states.length - 1;
   const atTip = cursor === tip;
@@ -506,6 +532,10 @@ export default function CopenhagenScreen({
         setShowVictory(false);
         return;
       }
+      if (showGameFile) {
+        setShowGameFile(false);
+        return;
+      }
       if (gameMenuOpen) {
         // The sheet closes itself on Escape; swallow the layer here too so the
         // press cannot fall through to the surface below.
@@ -528,7 +558,16 @@ export default function CopenhagenScreen({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, showVictory, gameMenuOpen, confirmRestart, confirmResign, showSetup, canCancelSetup]);
+  }, [
+    onClose,
+    showVictory,
+    showGameFile,
+    gameMenuOpen,
+    confirmRestart,
+    confirmResign,
+    showSetup,
+    canCancelSetup,
+  ]);
 
   // ── Returning the live game to an earlier position ──────────────────────────
   // Takebacks and "play from here" both land here — the shell's rewind, minus
@@ -581,6 +620,43 @@ export default function CopenhagenScreen({
       return copy;
     });
   }, [gameOver, atTip, humanSide, tipState.turn, cancel]);
+
+  // ── Import (see docs/design/game-import-export.md) ──────────────────────────
+  // An imported game is a move list from the opening (game/copenhagen/replay.ts),
+  // so — same invariant the shell's own import keeps — it is savable and
+  // exportable however the board it replaces got there. It gets a fresh
+  // identity, so it autosaves as itself rather than continuing the game it
+  // replaced, and it always lands hotseat: an import is often mid-position and
+  // often the side the engine would otherwise move for, so switching the AI
+  // straight back on would have it play atop the import the instant it lands.
+  const loadImportedGame = useCallback(
+    (imported: ParsedGame) => {
+      cancel();
+      setThinking(false);
+      clearAiReveal();
+      setShowVictory(false);
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
+      const tipIndex = imported.states.length - 1;
+      // The timeline arrives whole, so the clock must not read the jump as a
+      // move being played, and a finished import is history, not a live
+      // result, so it never rises into the victory curtain.
+      prevTipRef.current = tipIndex;
+      wasOver.current = isGameOver(imported.states[tipIndex].status);
+      setVariantId(imported.variantId);
+      if (imported.variantId === "custom") setCustomRules(ruleFlags(imported.rules));
+      setPlayMode("hotseat");
+      setStates(imported.states);
+      setCursor(tipIndex);
+      setSelected(null);
+      setShowSetup(false);
+      setGameMenuOpen(false);
+      setClockLine(initialClockLine(timeControl));
+      clock.reset();
+      askedFor.current = "";
+    },
+    [cancel, clearAiReveal, clock, timeControl],
+  );
 
   const goPrev = useCallback(() => {
     setSelected(null);
@@ -663,6 +739,14 @@ export default function CopenhagenScreen({
   // offered with — rather than the live banks.
   const viewedBanks = reviewing ? banksAt(clockLine, cursor, timeControl) : clock.remaining;
   const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
+  // Flipping the board north–south flips the clocks with it — the same rule
+  // App.tsx's own topClockSide/bottomClockSide follow, and for the same
+  // reason: the clocks are the two players' chairs, seated above/below the
+  // board, so only the top/bottom mirror moves them. The east–west mirror
+  // only swaps which side of the screen a column is drawn on and leaves
+  // top/bottom alone.
+  const topClockSide = flippedV ? bottomSide : topSide;
+  const bottomClockSide = flippedV ? topSide : bottomSide;
   // The AI seat reads tier over side ("Medium / White…"); a human seat's name
   // *is* the side, so its sub line stays empty rather than repeating it.
   const sideName = (side: Side): string =>
@@ -692,6 +776,20 @@ export default function CopenhagenScreen({
     />
   );
 
+  // Who goes in the exported file's [Attackers] / [Defenders] tags — the same
+  // rule the shell's own exportMeta follows: the AI's tier when it holds that
+  // side, the plain side name otherwise (this screen has no player names to
+  // fall back to over the board).
+  const exportMeta: GameFileMeta = {
+    event: t.gameCopenhagen,
+    attackers: seatName("attackers"),
+    defenders: seatName("defenders"),
+  };
+
+  // An optional extra shows when Zen is off, or when it has been opted in —
+  // the same predicate `showNav` uses for the same shared Zen config.
+  const showFlip = !zen.enabled || zen.extras["flip"];
+
   // Everything wordy lives behind the toolbar's list icon, as in the shell.
   const menuItems = [
     { label: t.newGame, onClick: () => setShowSetup(true) },
@@ -703,6 +801,13 @@ export default function CopenhagenScreen({
     ...(atTip && !gameOver && tip >= 1
       ? [{ label: t.resign, danger: true, onClick: () => setConfirmResign(true) }]
       : []),
+    ...(showFlip
+      ? [
+          { label: t.flipBoardH, onClick: () => setFlippedH((f) => !f) },
+          { label: t.flipBoardV, onClick: () => setFlippedV((f) => !f) },
+        ]
+      : []),
+    { label: t.gameFileTitle, onClick: () => setShowGameFile(true) },
   ];
 
   return (
@@ -737,7 +842,7 @@ export default function CopenhagenScreen({
           </div>
         </header>
 
-        <div className="mt-3">{renderPlayerBar(topSide, "top")}</div>
+        <div className="mt-3">{renderPlayerBar(topClockSide, "top")}</div>
 
         <div className="mt-3">
           <Board
@@ -753,6 +858,8 @@ export default function CopenhagenScreen({
             onAiSlideEnd={endAiSlide}
             interactive={interactive}
             controllable={controllable}
+            flippedH={flippedH}
+            flippedV={flippedV}
             attackerEmblem={attackerEmblem}
             kingEmblem={kingEmblem}
             defenderEmblem={defenderEmblem}
@@ -761,7 +868,7 @@ export default function CopenhagenScreen({
           />
         </div>
 
-        <div className="mt-3">{renderPlayerBar(bottomSide, "bottom")}</div>
+        <div className="mt-3">{renderPlayerBar(bottomClockSide, "bottom")}</div>
 
         {/* The result, said in place — a restored finished game has no curtain
             to say it, and a browsed terminal position deserves the line too. */}
@@ -906,6 +1013,41 @@ export default function CopenhagenScreen({
           // dismissing the curtain to look at the final position.
           onReview={() => setShowVictory(false)}
         />
+      )}
+
+      {/* The game file — this screen's own copy of the shell's Tools
+          destination (see docs/design/game-import-export.md and
+          docs/design/app-drawer.md), wired to Copenhagen's own codec. There is
+          no non-opening starting position on this screen, so unlike the
+          shell's panel it never needs the position-export refusal. */}
+      {showGameFile && (
+        <div
+          className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => setShowGameFile(false)}
+        >
+          <div
+            className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="copenhagen-gamefile-modal"
+          >
+            <div className="flex justify-end">
+              <button className="btn" onClick={() => setShowGameFile(false)} aria-label={t.close}>
+                ✕
+              </button>
+            </div>
+            <CopenhagenGameFilePanel
+              t={t}
+              state={tipState}
+              rules={rules}
+              meta={exportMeta}
+              onImport={(g) => {
+                loadImportedGame(g);
+                setShowGameFile(false);
+              }}
+              placement="modal"
+            />
+          </div>
+        </div>
       )}
     </div>
   );
