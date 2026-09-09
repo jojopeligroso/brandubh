@@ -45,14 +45,20 @@ const perftCopenhagen = (state: GameState, rules: CopenhagenRuleSet, depth: numb
 // board is bigger (121 squares vs. 81 vs. 49) and every node here also
 // carries Copenhagen's shieldwall-capture check, which the other two boards'
 // captures skip entirely. Measured this session: ~1.6s for depth 1-2 combined
-// (cheap), then anywhere from ~9.5s (this file's second perft call, JIT warm)
-// to ~90s (first call, cold, under a concurrent gauntlet run driving load
-// average to ~9 on 4 cores) for depth 3 alone. Given generous per-test
-// timeouts below; see this file's contribution to the full-suite runtime in
-// the work-package report if this ever needs revisiting.
+// (cheap), then anywhere from ~46s (idle machine) to ~288s (under a
+// concurrent gauntlet run driving load average to ~9-15 on 4 cores) *per
+// preset* for depth 3 alone — too slow to run on every full-suite pass.
+//
+// Depth 3 is therefore gated behind PERFT_DEEP: `PERFT_DEEP=1 npx vitest run
+// src/game/copenhagen/searchInvariants.test.ts` runs it (both presets);
+// without the variable it's skipped and only depths 1-2 run. The pinned
+// number (806,344, both presets) stays in the table either way — it is what
+// the ADR-0007 search-core extraction must re-verify with PERFT_DEEP=1
+// before that refactor lands, not something this suite can afford to spend
+// on every push.
 //
 // Depth 4 is not attempted at all: depth 3's branching factor here (~116 at
-// the root) puts it far outside the "~5s per preset" budget by any measure.
+// the root) puts it far outside reach regardless of gating.
 const PERFT_TABLE: Record<string, { d1: number; d2: number; d3: number }> = {
   copenhagen: { d1: 116, d2: 6788, d3: 806344 },
   "copenhagen-fetlar": { d1: 116, d2: 6788, d3: 806344 },
@@ -73,8 +79,8 @@ describe("perft: legal-move-tree node counts from the opening, per shipped prese
   }
 
   for (const [key, { d3 }] of Object.entries(PERFT_TABLE)) {
-    it(
-      `${key}: depth 3 (slow — see timing note on PERFT_TABLE above)`,
+    it.skipIf(!process.env.PERFT_DEEP)(
+      `${key}: depth 3 [PERFT_DEEP] (slow — see timing note on PERFT_TABLE above)`,
       () => {
         const rules = VARIANTS[key];
         expect(perftCopenhagen(initialState(rules), rules, 3)).toBe(d3);
