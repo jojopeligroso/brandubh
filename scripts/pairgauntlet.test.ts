@@ -123,3 +123,64 @@ describe("pairgauntlet self-check: a deeper search must beat a shallower one", (
     expect(summary.WW).toBeGreaterThan(0);
   });
 });
+
+// ── The same property on the two larger boards ────────────────────────────────
+// The check above only ever ran on Brandubh, because until 2026-09-09 the
+// instrument could only run on Brandubh. It now takes a `--game` adapter, and a
+// harness that works on one board is no evidence at all about the other two:
+// Tablut escapes to an EDGE rather than a corner, Copenhagen is 11×11 with
+// shieldwall, exit fort and encirclement terminals, and all three fork the
+// engine and the evaluation weight type (ADR-0006, ADR-0007).
+//
+// Same invariant, same reason as above: one extra ply of search is a real,
+// structural advantage, so the deeper side must never lose a decisive pair. A
+// p-value is not asserted on either — both are far below the pair count that
+// could reach one (see the header's power table).
+//
+// Both were observed FAILING before being trusted, by inverting the WW and LL
+// branches of `categorize()`; the failures are quoted in
+// docs/reports/paired-gauntlet-instrument.md.
+describe("pairgauntlet self-check on the larger boards", () => {
+  it("Tablut: depth 2 never loses a decisive pair to depth 1 over 8 mirrored pairs, shallow2 opening, seed 7", () => {
+    const tablut = adapterFor("tablut");
+    const summary = runGauntlet(
+      tablut,
+      tablut.defaultWeights,
+      tablut.defaultWeights,
+      2,
+      1,
+      8, // ~25-31s at nproc=4 under a load average near 5; the largest count
+      // that stays inside the ~60s a CI case may cost on this board.
+      "shallow2",
+      7,
+      () => {},
+    );
+    expect(summary.LL).toBe(0);
+    expect(summary.WW).toBeGreaterThan(0);
+  }, 120_000);
+
+  it("Copenhagen: depth 2 never loses a decisive pair to depth 1 over 3 mirrored pairs, shallow2 opening, seed 7", () => {
+    const copenhagen = adapterFor("copenhagen");
+    const summary = runGauntlet(
+      copenhagen,
+      copenhagen.defaultWeights,
+      copenhagen.defaultWeights,
+      2,
+      1,
+      3, // Three, not eight, and this case still costs MINUTES rather than the
+      // ~30s the Tablut one does. That is not a tuning choice, it is the board:
+      // 11×11 with 116 root moves and three extra terminal checks per node
+      // (shieldwall, exit fort, encirclement) measured at roughly 0.5-0.8s per
+      // ply at depth 2, and Copenhagen games at this depth run 14 to 151 plies,
+      // so a single mirrored pair costs 45-90s on its own. There is no pair
+      // count above zero that fits a 60s budget here. Three is the smallest
+      // count that carries the property at this seed (pair 3 is the decisive
+      // one), and its cost is recorded in the report rather than hidden.
+      "shallow2",
+      7,
+      () => {},
+    );
+    expect(summary.LL).toBe(0);
+    expect(summary.WW).toBeGreaterThan(0);
+  }, 900_000);
+});
