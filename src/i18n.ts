@@ -1032,10 +1032,20 @@ const en: Translations = {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 World Tafl Federation",
     custom: "Custom",
-    "tablut-linnaeus": "Tablut \u00b7 Linnaeus 1732",
-    tablut: "Tablut \u00b7 baseline",
-    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
-    "tablut-corners": "Tablut \u00b7 corner escape",
+    // Tablut, corrected 2026-09-09 (see docs/tablut-rules.md): Black moves
+    // first. The pre-correction ids are legacy now, hidden from the picker,
+    // and deliberately left out of this table \u2014 the app falls back to the
+    // English name/blurb baked into the legacy preset itself, which is the
+    // one place that still says "(legacy)".
+    "tablut-linnaeus-2": "Tablut \u00b7 Linnaeus 1732",
+    "tablut-2": "Tablut \u00b7 baseline",
+    "tablut-gulo-2": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-aage-2": "Tablut \u00b7 tournament",
+    "tablut-corners-2": "Tablut \u00b7 corner escape",
+    // Copenhagen, corrected 2026-09-09 (see docs/copenhagen-rules.md): the
+    // same legacy/current split as Tablut above.
+    "copenhagen-2": "Copenhagen Hnefatafl",
+    "copenhagen-fetlar-2": "Fetlar Hnefatafl",
   },
   variantBlurbs: {
     walker:
@@ -1043,8 +1053,20 @@ const en: Translations = {
     wtf:
       "Official WTF tournament rules (aagenielsen.dk). The empty throne is hostile to soldiers but never to the king. King on the throne needs all four sides surrounded. Encirclement wins. Repetition is a loss for the defending side.",
     custom: "Your custom ruleset.",
-    "tablut-linnaeus":
-      "The rules Linnaeus recorded in Lapland in 1732, as the World Tafl Federation reads them. The king falls to four attackers on his throne, to three when the empty throne stands in as the fourth wall beside it, and to the ordinary two anywhere else. The empty throne is hostile, the king escapes to any edge square, an unbroken ring of attackers wins for Black, and a repeated position is on White to break.",
+    "tablut-linnaeus-2":
+      "The rules Linnaeus recorded in Lapland in 1732, as the World Tafl Federation reads them. Black moves first. The king falls to four attackers on his throne, to three when the empty throne stands in as the fourth wall beside it, and to the ordinary two anywhere else. The empty throne is hostile, the king escapes to any edge square, an unbroken ring of attackers wins for Black, and a repeated position is on White to break.",
+    "tablut-2":
+      "The six undisputed rules and nothing more. Black moves first; White wins by reaching any edge square, Black by capturing the king. A trap only captures when the opponent closes it. The throne is inert \u2014 soldiers may not stand on it, but either side may cross it \u2014 and the corners are ordinary squares. Repetition is a draw.",
+    "tablut-gulo-2":
+      "The baseline with the two small changes of detail proposed in July 2025 on aagenielsen.dk by Gustaf L\u00f8venlund (\u201cgulo\u201d) and Dmitrij Tsvilenev (\u201cDimetr\u201d): the throne cannot be crossed by Black, and the throne is friendly to White \u2014 White may pin a soldier against the empty throne, and Black may not. Both are reachable in the custom rule editor.",
+    "tablut-aage-2":
+      "\u26a0 UNVERIFIED. Intended as the tournament ruleset played on aagenielsen.dk: Black moves first, edge escape, a hostile empty throne, a king who must be surrounded on all four sides on or beside it, and encirclement wins for Black. A human still needs to check aagenielsen.dk's raw page for a Tablut-specific section before this stops being a plausible reading rather than a citation. Prefer the baseline if that matters to you.",
+    "tablut-corners-2":
+      "A modern reconstruction in which the king must reach a corner rather than any edge square. Black moves first, the corners become hostile squares only the king may occupy, and encirclement wins for Black. This is a materially different game from the baseline, not a detail \u2014 the whole rim stops being a goal.",
+    "copenhagen-2":
+      "The modern tournament standard, played at the Hnefatafl World Championship. Twenty-four attackers against a king and twelve defenders on 11\u00d711. The king is armed, escapes to a corner, and takes four attackers to capture \u2014 three when the empty throne stands beside him. A bracketed row along the edge falls together as a shieldwall; an unbreakable fort at the rim wins for the king; an unbroken ring around the defenders wins for the attackers; and repeating a position three times loses for the defending side, whoever caused it.",
+    "copenhagen-fetlar-2":
+      "\u26a0 UNVERIFIED. The older championship rules Copenhagen was written to extend, on the same board and setup: no shieldwall, no exit fort, and no encirclement win. The throne is not hostile to the king even beside it, and repetition is left unscored \u2014 Fetlar's own rules are silent on it. Reconstructed from secondary descriptions of how the two differ rather than from the Fetlar rules themselves, so treat it as a contrast to play against, not a citation.",
   },
   gameFileTitle: "Game file (.tafl)",
   exportLabel: "Back up or share this game",
@@ -1724,10 +1746,13 @@ const es: Translations = {
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Federaci\u00f3n Mundial de Tafl",
     custom: "Personalizado",
-    "tablut-linnaeus": "Tablut \u00b7 Linneo 1732",
-    tablut: "Tablut \u00b7 b\u00e1sico",
-    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
-    "tablut-corners": "Tablut \u00b7 escape por esquinas",
+    "tablut-linnaeus-2": "Tablut \u00b7 Linneo 1732",
+    "tablut-2": "Tablut \u00b7 b\u00e1sico",
+    "tablut-gulo-2": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-aage-2": "Tablut \u00b7 torneo",
+    "tablut-corners-2": "Tablut \u00b7 escape por esquinas",
+    "copenhagen-2": "Hnefatafl de Copenhague",
+    "copenhagen-fetlar-2": "Hnefatafl de Fetlar",
   },
   variantBlurbs: {
     walker:
@@ -1735,8 +1760,20 @@ const es: Translations = {
     wtf:
       "Reglas oficiales del torneo FMT (aagenielsen.dk). El trono vac\u00edo es hostil para los soldados pero nunca para el rey. El rey en el trono necesita los cuatro lados rodeados. El cerco gana. La repetici\u00f3n es una derrota para el bando defensor.",
     custom: "Tu conjunto de reglas personalizado.",
-    "tablut-linnaeus":
-      "Las reglas que Linneo anot\u00f3 en Laponia en 1732, tal como las lee la Federaci\u00f3n Mundial de Tafl. El rey cae ante cuatro atacantes en su trono, ante tres cuando el trono vac\u00edo hace de cuarta pared a su lado, y ante los dos de siempre en cualquier otro lugar. El trono vac\u00edo es hostil, el rey escapa por cualquier casilla del borde, un anillo cerrado de atacantes gana para las negras, y romper una repetici\u00f3n corresponde a las blancas.",
+    "tablut-linnaeus-2":
+      "Las reglas que Linneo anot\u00f3 en Laponia en 1732, tal como las lee la Federaci\u00f3n Mundial de Tafl. Mueven primero las negras. El rey cae ante cuatro atacantes en su trono, ante tres cuando el trono vac\u00edo hace de cuarta pared a su lado, y ante los dos de siempre en cualquier otro lugar. El trono vac\u00edo es hostil, el rey escapa por cualquier casilla del borde, un anillo cerrado de atacantes gana para las negras, y romper una repetici\u00f3n corresponde a las blancas.",
+    "tablut-2":
+      "Las seis reglas indiscutidas y nada m\u00e1s. Mueven primero las negras; las blancas ganan llegando a cualquier casilla del borde, las negras capturando al rey. Una trampa solo captura cuando el rival la cierra. El trono es inerte \u2014 los soldados no pueden pararse en \u00e9l, pero cualquier bando puede cruzarlo \u2014 y las esquinas son casillas normales. La repetici\u00f3n es tablas.",
+    "tablut-gulo-2":
+      "El b\u00e1sico con los dos peque\u00f1os cambios propuestos en julio de 2025 en aagenielsen.dk por Gustaf L\u00f8venlund (\u00abgulo\u00bb) y Dmitrij Tsvilenev (\u00abDimetr\u00bb): las negras no pueden cruzar el trono, y el trono es amigo de las blancas \u2014 las blancas pueden clavar un soldado contra el trono vac\u00edo, y las negras no. Ambos cambios est\u00e1n disponibles en el editor de reglas personalizadas.",
+    "tablut-aage-2":
+      "\u26a0 SIN VERIFICAR. Pensado como el reglamento de torneo jugado en aagenielsen.dk: mueven primero las negras, escape por el borde, trono vac\u00edo hostil, y un rey que debe estar rodeado por los cuatro lados en el trono o junto a \u00e9l, con cerco ganador para las negras. Todav\u00eda hace falta que alguien revise la p\u00e1gina de aagenielsen.dk directamente antes de que esto deje de ser una lectura plausible y pase a ser una cita. Si eso te importa, prefiere el b\u00e1sico.",
+    "tablut-corners-2":
+      "Una reconstrucci\u00f3n moderna en la que el rey debe llegar a una esquina en vez de a cualquier casilla del borde. Mueven primero las negras, las esquinas pasan a ser casillas hostiles que solo el rey puede ocupar, y el cerco gana para las negras. Es un juego materialmente distinto del b\u00e1sico, no un detalle \u2014 todo el borde deja de ser una meta.",
+    "copenhagen-2":
+      "El est\u00e1ndar moderno de torneo, jugado en el Campeonato Mundial de Hnefatafl. Veinticuatro atacantes contra un rey y doce defensores en 11\u00d711. El rey est\u00e1 armado, escapa a una esquina, y hacen falta cuatro atacantes para capturarlo \u2014 tres cuando el trono vac\u00edo est\u00e1 a su lado. Una fila del borde flanqueada cae junta como muro de escudos; un fuerte inexpugnable en el borde gana para el rey; un anillo cerrado alrededor de los defensores gana para los atacantes; y repetir una posici\u00f3n tres veces hace perder al bando defensor, sea quien sea quien la provoque.",
+    "copenhagen-fetlar-2":
+      "\u26a0 SIN VERIFICAR. Las reglas de campeonato anteriores que Copenhague fue escrito para ampliar, en el mismo tablero y con la misma disposici\u00f3n: sin muro de escudos, sin fuerte de salida y sin victoria por cerco. El trono no es hostil para el rey ni siquiera a su lado, y la repetici\u00f3n queda sin puntuar \u2014 las propias reglas de Fetlar no dicen nada al respecto. Reconstruido a partir de descripciones secundarias de en qu\u00e9 se diferencian los dos reglamentos, no de las reglas de Fetlar en s\u00ed, as\u00ed que tr\u00e1talo como un contraste contra el que jugar, no como una cita.",
   },
   gameFileTitle: "Archivo de partida (.tafl)",
   exportLabel: "Guarda una copia o comparte esta partida",
@@ -2440,10 +2477,15 @@ const ga: Translations = {
     custom: "Saincheaptha",
     // Draft translations, unreviewed \u2014 like the rest of this table (see
     // VISIBLE_LANGS: the ga locale stays hidden until a human signs off).
-    "tablut-linnaeus": "Tablut \u00b7 Linnaeus 1732",
-    tablut: "Tablut \u00b7 bunl\u00ednte",
-    "tablut-gulo": "Tablut \u00b7 gulo/Dimetr 2025",
-    "tablut-corners": "Tablut \u00b7 \u00e9al\u00fa c\u00fainne",
+    // Corrected 2026-09-09 to the "-2" ids; see docs/tablut-rules.md and
+    // docs/copenhagen-rules.md.
+    "tablut-linnaeus-2": "Tablut \u00b7 Linnaeus 1732",
+    "tablut-2": "Tablut \u00b7 bunl\u00ednte",
+    "tablut-gulo-2": "Tablut \u00b7 gulo/Dimetr 2025",
+    "tablut-aage-2": "Tablut \u00b7 com\u00f3rtas",
+    "tablut-corners-2": "Tablut \u00b7 \u00e9al\u00fa c\u00fainne",
+    "copenhagen-2": "Hnefatafl Ch\u00f3banh\u00e1van",
+    "copenhagen-fetlar-2": "Hnefatafl Fetlar",
   },
   variantBlurbs: {
     walker:
@@ -2451,8 +2493,21 @@ const ga: Translations = {
     wtf:
       "Rialacha oifigi\u00fala com\u00f3rtais CDT (aagenielsen.dk). T\u00e1 an r\u00edchathaoir fholamh naimhdeach do shaighdi\u00fair\u00ed ach n\u00ed don r\u00ed riamh. T\u00e1 ceithre thaobh de dh\u00edth ar an r\u00ed ar an r\u00edchathaoir. Buann timpeall\u00fa. Is caillteanas an athr\u00e1 don taobh cosanta.",
     custom: "Do shraith rialacha f\u00e9in.",
-    "tablut-linnaeus":
-      "Na rialacha a bhreac Linnaeus s\u00edos sa Laplainn sa bhliain 1732, mar a l\u00e9ann an Cumann Domhanda Tafl iad. Titeann an r\u00ed le ceathrar ionsaitheoir\u00ed ar a r\u00edchathaoir, le tri\u00far nuair a sheasann an r\u00edchathaoir fholamh mar an ceathr\u00fa balla lena thaobh, agus leis an mbeirt ghn\u00e1ch in \u00e1it ar bith eile. T\u00e1 an r\u00edchathaoir fholamh naimhdeach, \u00e9ala\u00edonn an r\u00ed chuig cearn\u00f3g imill ar bith, buann fainne dobhriste ionsaitheoir\u00ed do na Dubha, agus is ar na Bana at\u00e1 s\u00e9 athr\u00e1 a bhriseadh.",
+    // Draft translations, unreviewed \u2014 see the note on variantNames above.
+    "tablut-linnaeus-2":
+      "Na rialacha a bhreac Linnaeus s\u00edos sa Laplainn sa bhliain 1732, mar a l\u00e9ann an Cumann Domhanda Tafl iad. Bogann na Dubha ar dt\u00fas. Titeann an r\u00ed le ceathrar ionsaitheoir\u00ed ar a r\u00edchathaoir, le tri\u00far nuair a sheasann an r\u00edchathaoir fholamh mar an ceathr\u00fa balla lena thaobh, agus leis an mbeirt ghn\u00e1ch in \u00e1it ar bith eile. T\u00e1 an r\u00edchathaoir fholamh naimhdeach, \u00e9ala\u00edonn an r\u00ed chuig cearn\u00f3g imill ar bith, buann fainne dobhriste ionsaitheoir\u00ed do na Dubha, agus is ar na Bana at\u00e1 s\u00e9 athr\u00e1 a bhriseadh.",
+    "tablut-2":
+      "Na s\u00e9 riail neamh-chonsp\u00f3ideacha agus dada eile. Bogann na Dubha ar dt\u00fas; buann na Bana tr\u00ed bhaint amach cearn\u00f3g imill ar bith, buann na Dubha tr\u00edd an r\u00ed a ghabh\u00e1il. N\u00ed ghabhann gaiste ach nuair a dh\u00fanann an c\u00e9ile comhraic \u00e9. T\u00e1 an r\u00edchathaoir neamhghn\u00edomhach \u2014 n\u00ed f\u00e9idir le saighdi\u00fair\u00ed seasamh air, ach is f\u00e9idir le taobh ar bith dul thairis \u2014 agus is cearn\u00f3ga gn\u00e1cha iad na c\u00fainn\u00ed. Is cluiche cothrom an athr\u00e1.",
+    "tablut-gulo-2":
+      "An bunl\u00ednte m\u00f3ide an d\u00e1 athr\u00fa beaga a moladh i m\u00ed I\u00fail 2025 ar aagenielsen.dk ag Gustaf L\u00f8venlund (\u201cgulo\u201d) agus Dmitrij Tsvilenev (\u201cDimetr\u201d): n\u00ed f\u00e9idir leis na Dubha dul thar an r\u00edchathaoir, agus t\u00e1 an r\u00edchathaoir cairdi\u00fail do na Bana \u2014 f\u00e9adann na Bana saighdi\u00fair a ghream\u00fa in aghaidh na r\u00edchathaoireach fholamh, ach n\u00ed f\u00e9idir leis na Dubha. T\u00e1 an d\u00e1 athr\u00fa ar f\u00e1il san eagarth\u00f3ir rialacha saincheaptha.",
+    "tablut-aage-2":
+      "\u26a0 NEAMHDHEIMHNITHE. Beartaithe mar rialacha an chom\u00f3rtais a imr\u00edtear ar aagenielsen.dk: bogann na Dubha ar dt\u00fas, \u00e9al\u00fa go himeall ar bith, r\u00edchathaoir fholamh naimhdeach, agus r\u00ed nach m\u00f3r \u00e9 a bheith timpeallaithe ar na ceithre thaobh air n\u00f3 lena thaobh, le timpeall\u00fa buach do na Dubha. T\u00e1 g\u00e1 f\u00f3s le duine leathanach amh aagenielsen.dk a scr\u00fad\u00fa sula stopfaidh s\u00e9 seo de bheith ina l\u00e9amh sochreidte in ionad tagairt. Roghnaigh an bunl\u00ednte m\u00e1s c\u00fais imn\u00ed duit \u00e9.",
+    "tablut-corners-2":
+      "At\u00f3g\u00e1il nua-aimseartha ina gcaithfidh an r\u00ed c\u00fainne a bhaint amach seachas cearn\u00f3g imill ar bith. Bogann na Dubha ar dt\u00fas, \u00e9ir\u00edonn na c\u00fainn\u00ed ina gcearn\u00f3ga naimhdeacha nach f\u00e9idir ach leis an r\u00ed seasamh orthu, agus buann timpeall\u00fa do na Dubha. Is cluiche difri\u00fail go bun\u00fasach \u00e9 seo \u00f3n mbunl\u00ednte, n\u00ed mionsonra \u2014 scoireann an t-imeall ar fad de bheith ina sprioc.",
+    "copenhagen-2":
+      "Caighde\u00e1n nua-aimseartha an chom\u00f3rtais, a imr\u00edtear ag Craobh Dhomhanda Hnefatafl. Ceithre ionsaitheoir is fiche in aghaidh r\u00ed agus dh\u00e1r\u00e9ag cosant\u00f3ir ar chl\u00e1r 11\u00d711. T\u00e1 an r\u00ed armtha, \u00e9ala\u00edonn s\u00e9 chuig c\u00fainne, agus teasta\u00edonn ceathrar ionsaitheoir chun \u00e9 a ghabh\u00e1il \u2014 tri\u00far nuair at\u00e1 an r\u00edchathaoir fholamh lena thaobh. Titeann sraith fheistithe cois imeall le ch\u00e9ile mar bhalla sciath; buann d\u00fan dosh\u00e1raithe ar an imeall don r\u00ed; buann f\u00e1inne dobhriste timpeall na gcosant\u00f3ir\u00ed do na hionsaitheoir\u00ed; agus cailleann an taobh cosanta tr\u00ed athr\u00e1 a dh\u00e9anamh ar shu\u00edomh tr\u00ed huaire, is cuma c\u00e9 a rinne \u00e9.",
+    "copenhagen-fetlar-2":
+      "\u26a0 NEAMHDHEIMHNITHE. Na sean-rialacha com\u00f3rtais a bh\u00ed C\u00f3banh\u00e1van scr\u00edofa chun leathn\u00fa orthu, ar an gcl\u00e1r agus leis an su\u00edomh c\u00e9anna: gan balla sciath, gan d\u00fan \u00e9alaithe, agus gan bua timpeallaithe. N\u00edl an r\u00edchathaoir naimhdeach don r\u00ed fi\u00fa lena thaobh, agus f\u00e1gtar an t-athr\u00e1 gan sc\u00f3r\u00e1il \u2014 t\u00e1 rialacha Fetlar f\u00e9in ci\u00fain faoi. At\u00f3gtha \u00f3 chuntais t\u00e1naisteacha ar an difear idir an d\u00e1 rialacha seachas \u00f3 rialacha Fetlar iad f\u00e9in, mar sin caith leis mar chodarsnacht le himirt ina choinne, n\u00ed mar thagairt.",
   },
   gameFileTitle: "Comhad cluiche (.tafl)",
   exportLabel: "Coinnigh c\u00f3ip n\u00f3 roinn an cluiche seo",
