@@ -56,9 +56,13 @@ meaningless when the whole rim wins. See `docs/adr/0006-…` (and its addendum) 
   search off the main thread (bundled into `dist/`, so still 100% offline);
   `src/game/useAiWorker.ts` manages its lifecycle, cancels a stale search by
   terminating the worker, and falls back to synchronous play if Workers are
-  unavailable. With the UI freed, `hard` grew to a ~1.5 s budget, and pickMove
-  gained predictive iteration stopping so slower devices wait less (they simply
-  search shallower) instead of burning the whole budget on an unfinishable ply.
+  unavailable. With the UI freed, `hard` could afford a real time budget —
+  `DIFFICULTY.hard.limits.deadlineMs` in `src/game/engine.ts` is `3000` (3 s),
+  not the "~1.5 s" this line used to say; `git log -p` on that block shows the
+  value has been `3000` since it was introduced, so the smaller number was
+  never true rather than since revised — and pickMove gained predictive
+  iteration stopping so slower devices wait less (they simply search shallower)
+  instead of burning the whole budget on an unfinishable ply.
 - [x] **Evaluation tuning** — investigated via `scripts/evaltune.ts` (weighted
   `evaluate()` + self-play gauntlet). Original outcome (now partly corrected,
   see below): **keep the default weights** for `kingRegion` (beat the
@@ -113,6 +117,79 @@ meaningless when the whole rim wins. See `docs/adr/0006-…` (and its addendum) 
   TT-key canonicalisation deliberately skipped (per-node hashing cost for little
   midgame gain). Generalises to any square board (carries to Tablut).
 
+## Tablut and Copenhagen parity
+
+The search core carried over to both larger boards; the rigor that produced
+Brandubh's numbers did not. Recorded here as one list because it is one gap,
+not scattered wherever each item happens to live — see `docs/ROADMAP.md`
+Session 12 for the plan that addresses it.
+
+- [ ] **Copenhagen eval weights are unmeasured** `[engine]` — `DEFAULT_WEIGHTS` in
+  `src/game/copenhagen/engine.ts` are reasoned, not gauntletted, same situation
+  as Tablut's line above but with no entry of its own until now.
+- [ ] **`usePVS` is unmeasured on both larger boards** `[engine]` — ships on for
+  both by considered default; Copenhagen's copy of the justifying comment cited
+  Tablut's branching figures until this session (see the correction in
+  `src/game/copenhagen/engine.ts`). Neither board has been through the
+  mirrored-pair gauntlet on this flag specifically.
+- [ ] **No gauntlet instrument for either board** `[tests]` — `scripts/pairgauntlet.ts`
+  hard-codes `VARIANTS.wtf` and depends on the Brandubh opening book; it cannot
+  run against Tablut or Copenhagen without parameterising both.
+- [ ] **No opening book on either board** `[engine]` — `scripts/genbook.ts` and
+  `OPENING_BOOK` are Brandubh-only; `hard`/`ollamh` on Tablut and Copenhagen
+  always search from the opening.
+- [ ] **No analysis surface on either board** `[ui]` — `ANALYSIS_LIMITS` is
+  exported by both boards' `engine.ts` and consumed internally by
+  `analysePosition`, but `TablutScreen.tsx` and `CopenhagenScreen.tsx` both pass
+  `analysisShown={false}` to `GameToolbar`, so the toggle Brandubh has is wired
+  off on both.
+- [ ] **Shieldwall and exit fort have no evaluation term or quiescence
+  representation** `[engine]`/`[rules]` — both are terminal-only in `evaluate()`;
+  neither board's search has any sense of *approaching* a shieldwall capture or
+  an exit fort, only of having already reached one.
+- [ ] **Dead `solver.ts` on both boards** `[engine]`/`[tests]` — neither
+  `src/game/tablut/solver.ts` nor `src/game/copenhagen/solver.ts` is imported by
+  anything (verified by grep, see the header note added to each this session).
+  Wiring one in as the independent oracle for recognizer cross-validation, the
+  way `src/game/recognizers.test.ts` uses Brandubh's, is open on both.
+- [ ] **No perft or move-count invariants on any board** `[tests]` — not even
+  Brandubh has a pinned perft table; the only fixed-branching assertion
+  anywhere is Copenhagen's own `engine.test.ts` ("the size of the problem")
+  block, which pins the opening only.
+- [ ] **No performance guard on the two larger boards** `[tests]` — Brandubh has
+  no dedicated performance-regression test either, but the gap widens on 81 and
+  121 squares, where a per-node cost regression is more expensive to run into.
+- [ ] **Copenhagen engine suite is thin** `[tests]` — 11 tests in
+  `src/game/copenhagen/engine.test.ts` (Tablut's equivalent file has 20,
+  Brandubh's 21 — counted by running each file, 2026-09-09); no D4-folding
+  coverage and no legacy-vs-full self-play comparison, both of which Brandubh's
+  suite carries.
+- [ ] **No import/export UI on either board** `[ui]` — `src/game/tablut/gameFile.ts`
+  and `src/game/copenhagen/gameFile.ts` both exist and are both covered by 22
+  tests (Brandubh's own `gameFile.test.ts` has 48, so the parity is between the
+  two forks, not with Brandubh), but neither board's screen offers the panel
+  Brandubh's `GameFilePanel.tsx` provides.
+- [ ] **No board flip, records, match sets, puzzles, or review/annotation on
+  either board** `[ui]` — the whole review/teaching stack (`records.ts`,
+  `matchSet.ts`, the puzzle bank, annotation) is wired for Brandubh only.
+- [ ] **i18n gaps** `[ui]` — `src/i18n.ts`'s `variantNames`/`variantBlurbs` have no
+  `copenhagen`/`copenhagen-fetlar` entries in any of `en`/`es`/`ga`. Separately,
+  `variantBlurbs` has no entry for `tablut`, `tablut-gulo` or `tablut-corners`
+  in **any** locale, `en` included — only `tablut-linnaeus` has a blurb
+  everywhere else; `RulesContent.tsx`, `TablutScreen.tsx` and
+  `CopenhagenScreen.tsx` all fall back to `rules.blurb` (`?? rules.blurb`) when
+  the key is missing, so nothing crashes, but the per-locale blurb is absent.
+- [ ] **`strongKingEdgeRule` is contested and unverified against a primary
+  source** `[rules]` — `docs/copenhagen-rules.md` and the in-app copy both say
+  the sources disagree; see `docs/copenhagen-rules.md` for what is and is not
+  settled.
+- [ ] **`copenhagen-fetlar` and `tablut-aage` are UNVERIFIED presets** `[rules]` —
+  both `variants.ts` files mark them ⚠ UNVERIFIED. Not the same exposure,
+  though: `tablut-aage` is left out of `VISIBLE_VARIANTS` (hidden, but still in
+  `VARIANTS` so old saves keep resolving), while `copenhagen-fetlar` *is* in
+  `VISIBLE_VARIANTS` — an unverified preset offered in the picker, not held
+  back. See `docs/copenhagen-rules.md` and `docs/tablut-rules.md`.
+
 ## Not implemented (documented as future)
 
 - [x] **Shieldwall capture** — done (`72a7e19`), and this line claimed "no code, no
@@ -122,7 +199,15 @@ meaningless when the whole rim wins. See `docs/adr/0006-…` (and its addendum) 
   three locales, and covered by an `engine.test.ts` block. **Off in both shipped
   presets** (a Copenhagen innovation, not part of WTF Brandubh), which is why it
   is easy to keep believing it does not exist.
-- [ ] **Exit-fort win** — King builds an impregnable formation. No code, no RuleSet flags.
+- [x] **Exit-fort win** — done (`33db8e1`), and this line claimed "no code, no
+  RuleSet flags" for every commit since — the same failure the shieldwall line
+  above just recorded, made twice in one section. It is a `RuleSet` flag
+  (`exitFort`, `src/game/copenhagen/variants.ts`), resolved by `exitFort()` in
+  `src/game/copenhagen/rules.ts`, and covered by a ten-assertion `describe("exitFort", …)`
+  block in `src/game/copenhagen/rules.test.ts`. Copenhagen-only: neither Brandubh
+  nor Tablut's `RuleSet` carries the flag, so this was never reachable from
+  either of the games this file otherwise tracks, which is why it went unnoticed
+  for as long as the shieldwall line above did.
 - [x] **Game replay / import** — done (Session 3), *not* future work: `src/game/gameFile.ts`
   parses and writes the PGN-style format (aagenielsen.dk-compatible), `src/game/replay.ts`
   is the shared replay-and-validate boundary, and `src/components/GameFilePanel.tsx` is the
@@ -142,7 +227,7 @@ meaningless when the whole rim wins. See `docs/adr/0006-…` (and its addendum) 
 - [x] **"Play vs AI" overlay always picks defenders** — fixed: the overlay now steps side → difficulty, and every derived side comes from `game/sides.ts`.
 - [x] **Custom Rule Editor doesn't reset game** — Fixed. Toggling a custom rule now routes through `changeCustomRules()`, which resets the board and match just like `changeVariant()`, so the move history and live ruleset stay consistent.
 - [ ] **`loadCustomIncrement` never reaches its own default** — `DEFAULT_CUSTOM_INCREMENT` is 3, but `src/game/clock.ts` reads the key as `Number(localStorage.getItem(...))` and `Number(null)` is `0`, which is finite and passes the `>= 0` guard. So a first visit gets an increment of 0, not 3, and the custom control opens on `5+0`. Dead default rather than a wrong one: nothing misbehaves, the editor simply starts somewhere other than where the constant says. `loadCustomMinutes` escapes it only because its guard is `> 0`. Found while adding the overlay's time step (Session 10) and left alone there — a one-line fix, but it changes what an existing player's untouched custom control resolves to, which is not a thing to slip into a session about the setup flow.
-- [ ] **Two buttons both named "Menu"** — the header's hamburger (`src/App.tsx:2560`) opens the drawer and the bottom toolbar's list button (`src/components/GameToolbar.tsx:53`) opens the in-game menu, and both take their accessible name from the one `t.menu` key; the toolbar `<nav>` and the drawer take it too, so four elements answer to "Menu" and two of them are buttons leading to different places. Found by the same accessibility pass as Session 9 (`ddfd5f8`) and kept out of that session deliberately: it shares no code with the board and no mechanism with focus, and it is a copy change in three locales. It wants two distinct names, not a rename of one.
+- [ ] **Two buttons both named "Menu"** — the header's hamburger (see `MenuIcon` in `src/App.tsx` — cited by name rather than a line, since uncommitted work in the main tree is moving this button into `GameToolbar.tsx`, which would make any line number wrong the moment it lands) opens the drawer and the bottom toolbar's list button (`src/components/GameToolbar.tsx:53`) opens the in-game menu, and both take their accessible name from the one `t.menu` key; the toolbar `<nav>` and the drawer take it too, so four elements answer to "Menu" and two of them are buttons leading to different places. Found by the same accessibility pass as Session 9 (`ddfd5f8`) and kept out of that session deliberately: it shares no code with the board and no mechanism with focus, and it is a copy change in three locales. It wants two distinct names, not a rename of one.
 
 ## Docs
 

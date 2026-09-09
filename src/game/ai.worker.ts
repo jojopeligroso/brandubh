@@ -1,4 +1,6 @@
-// Runs engine searches off the main thread so `hard`'s ~1.5s budget never freezes
+// Runs engine searches off the main thread so `hard`'s budget (`deadlineMs: 3000`
+// in `DIFFICULTY.hard`, engine.ts — 3s, not the "~1.5s" this comment used to say;
+// git log shows that field has read 3000 since it was introduced) never freezes
 // the board. Bundled into the static build by Vite (`new Worker(new URL(...))`),
 // so it ships and runs 100% offline — no network, no backend.
 //
