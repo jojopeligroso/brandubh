@@ -27,7 +27,7 @@
 //     `throneBlocks`, `throneAnvil` and `repetitionResult`. Writer and reader are
 //     both derived from the defaults, so a rule added later is carried by the
 //     format for free — but a new *enum* also needs its permitted values adding
-//     to `ENUM_RULE_VALUES` below, which `gameFile.test.ts` asserts.
+//     to `ENUM_CHOICES` in `variants.ts`, which `ruleChoices.test.ts` asserts.
 //
 // All three formats are deliberately unrelated: a `copenhagen-1` file is not a
 // `tablut-1` file with two more ranks, and no parser will accept another's moves
@@ -49,10 +49,12 @@ import { isExternalStatus, replayPlies, type PlyInput, type ReplayError } from "
 import { BOARD_SIZE, type GameState, type GameStatus, type Square } from "./types";
 import {
   CUSTOM_RULE_DEFAULTS,
+  ENUM_CHOICES,
   VARIANTS,
   rulesFor,
   type CustomRuleSet,
   type CopenhagenRuleSet as RuleSet,
+  type EnumRuleKey,
 } from "./variants";
 
 /** Bumped only on a breaking format change; the parser accepts older values. */
@@ -96,40 +98,34 @@ export function resultToken(status: GameStatus): ResultToken {
  * Both lists are derived from `CUSTOM_RULE_DEFAULTS` by the *runtime type* of each
  * value, so a rule added to `CopenhagenRuleSet` later is carried by this format
  * without anyone editing it — which is the property that stops an exported game
- * from quietly losing a rule it was played under.
+ * from quietly losing a rule it was played under. `ENUM_RULE_KEYS` is the key
+ * list of `ENUM_CHOICES` (`variants.ts`) rather than a second filter over
+ * `CUSTOM_RULE_DEFAULTS`, so the enum keys this format reads from and the enum
+ * keys the rule editor renders can never drift apart.
  */
 type BoolRuleKey = {
   [K in keyof CustomRuleSet]: CustomRuleSet[K] extends boolean ? K : never;
 }[keyof CustomRuleSet];
-type EnumRuleKey = Exclude<keyof CustomRuleSet, BoolRuleKey>;
 
 const ruleKeys = Object.keys(CUSTOM_RULE_DEFAULTS) as Array<keyof CustomRuleSet>;
 const BOOL_RULE_KEYS = ruleKeys.filter(
   (k) => typeof CUSTOM_RULE_DEFAULTS[k] === "boolean",
 ) as BoolRuleKey[];
-const ENUM_RULE_KEYS = ruleKeys.filter(
-  (k) => typeof CUSTOM_RULE_DEFAULTS[k] === "string",
-) as EnumRuleKey[];
+const ENUM_RULE_KEYS = Object.keys(ENUM_CHOICES) as EnumRuleKey[];
 
 /**
  * The values each enum rule will accept on import.
  *
- * Written out rather than derived, because the whole job here is to refuse a
- * value the type system will not be present to check at runtime: an imported
- * file is untrusted text, and `escape=sideways` must be ignored rather than
- * assigned. Adding an enum rule without adding its values here means the format
- * carries it on export and drops it on import, so the parity is asserted in
- * gameFile.test.ts.
+ * `ENUM_CHOICES` lives in `variants.ts`, shared with the custom rule editor —
+ * see the comment there for why. Written out rather than derived, because the
+ * whole job here is to refuse a value the type system will not be present to
+ * check at runtime: an imported file is untrusted text, and `escape=sideways`
+ * must be ignored rather than assigned. Adding an enum rule without adding its
+ * values to `ENUM_CHOICES` means the format carries it on export and drops it
+ * on import, so the parity is asserted in gameFile.test.ts and in
+ * ruleChoices.test.ts.
  */
-const ENUM_RULE_VALUES: Record<EnumRuleKey, readonly string[]> = {
-  escape: ["corners", "edges"],
-  firstMove: ["attackers", "defenders"],
-  throneBlocks: ["none", "attackers", "soldiers"],
-  throneAnvil: ["none", "both", "defenders"],
-  kingStrength: ["weak", "near_throne", "strong"],
-  strongKingEdgeRule: ["uncapturable", "available_sides"],
-  repetitionResult: ["none", "draw", "loss_for_defenders", "loss_for_repeater"],
-};
+const ENUM_RULE_VALUES = ENUM_CHOICES;
 
 function serializeRules(rules: RuleSet): string {
   return [

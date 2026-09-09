@@ -280,6 +280,29 @@ export type CustomRuleSet = Omit<TablutRuleSet, "id" | "name" | "blurb">;
 /** Starting point for the custom rule editor — the undisputed baseline. */
 export const CUSTOM_RULE_DEFAULTS: CustomRuleSet = { ...BASELINE };
 
+// ── Enum choices ──────────────────────────────────────────────────────────────
+// Every string-valued flag in `CustomRuleSet` needs its offered values decided
+// in exactly one place: this table, read by both the custom rule editor
+// (`TablutScreen.tsx`) and the game file's `Rules` tag (`gameFile.ts`). Kept
+// structurally identical to Copenhagen's twin in `../copenhagen/variants.ts`,
+// which is where a stale, hand-copied version of this exact table went stale
+// (see the comment there) — this export is what stops the same drift here.
+
+/** The keys of `CustomRuleSet` whose value is an enum (a string), rather than a
+ *  boolean toggle. */
+export type EnumRuleKey = {
+  [K in keyof CustomRuleSet]: CustomRuleSet[K] extends string ? K : never;
+}[keyof CustomRuleSet];
+
+/** The values each enum rule offers, in the order they read as a spectrum. */
+export const ENUM_CHOICES: Record<EnumRuleKey, readonly string[]> = {
+  escape: ["edges", "corners"],
+  firstMove: ["defenders", "attackers"],
+  throneBlocks: ["none", "attackers", "soldiers"],
+  throneAnvil: ["none", "defenders", "both"],
+  repetitionResult: ["none", "draw", "loss_for_defenders"],
+};
+
 // ── Resolving a ruleset ───────────────────────────────────────────────────────
 // Storage and the export format both have to turn a variant id plus a set of
 // custom flags back into the ruleset a game was played under. Keeping that in

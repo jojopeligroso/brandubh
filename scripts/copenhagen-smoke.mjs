@@ -153,6 +153,23 @@ check(
 );
 await page.getByTestId("drawer-copenhagen").click();
 
+// ── The Custom rule editor must render (WP-0.1 regression) ──────────────────
+// Selecting Custom used to throw `undefined.map` for two Copenhagen-only enums
+// (`kingStrength`, `strongKingEdgeRule`) whose choices were missing from the
+// editor's table — see `ENUM_CHOICES` in game/copenhagen/variants.ts. A thrown
+// render leaves the sheet showing nothing rather than crashing visibly, so the
+// check counts the seven enum controls rather than only watching for an error.
+const setupDialog = page.getByRole("dialog");
+await setupDialog.locator("select").first().selectOption("custom");
+const ruleEditor = setupDialog.locator(".rounded-lg.bg-black\\/20.p-3");
+check(
+  (await ruleEditor.locator(".seg").count()) === 7,
+  "the Custom editor renders all seven enum controls",
+);
+// Custom's defaults equal the Copenhagen preset flag for flag, so the game
+// started below plays exactly as Copenhagen would — nothing after this point
+// needs the variant switched back.
+
 // ── Into a game against the engine, as Black ─────────────────────────────────
 // Black, not White: Copenhagen gives the attackers the first move (rule 2), so
 // taking that seat is what puts the human on move and makes "two plies" mean
