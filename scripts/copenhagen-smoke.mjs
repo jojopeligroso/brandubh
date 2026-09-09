@@ -118,6 +118,19 @@ await page.addInitScript(() => {
     // on its first `waitFor` without ever reaching an assertion. screenshot.mjs
     // carries the same line for the same reason; keep the two in step.
     localStorage.setItem("brandubh.boardPresetSeen", "1");
+    // WP-4.2, feature 2: seeded rather than played out — an AI game to a real
+    // conclusion on this board's slower engine is not cheap in a smoke check,
+    // and the module's own recording logic already has pure-test coverage
+    // (src/game/aiResults.test.ts). This only has to prove the setup sheet
+    // *reads* what is stored, under Copenhagen's own key.
+    localStorage.setItem(
+      "copenhagen.aiResults.v1",
+      JSON.stringify([
+        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "loss", endedAt: 1 },
+      ]),
+    );
   } catch {
     /* localStorage unavailable */
   }
@@ -169,6 +182,46 @@ check(
 // Custom's defaults equal the Copenhagen preset flag for flag, so the game
 // started below plays exactly as Copenhagen would — nothing after this point
 // needs the variant switched back.
+
+// ── WP-4.2, feature 1: Hard and Ollamh are capped on this board ──────────────
+// Owner decision 2026-09-09: the 11×11 search is too slow to run in the
+// browser at those tiers — see game/copenhagen/difficultyCap.ts. Tablut is
+// unaffected (see tablut-smoke.mjs, which has no equivalent check).
+const hardTier = page.getByRole("button", { name: "Hard", exact: true });
+const ollamhTier = page.getByRole("button", { name: "Ollamh", exact: true });
+check(await hardTier.isDisabled(), "the Hard tier button is disabled");
+check(await ollamhTier.isDisabled(), "the Ollamh tier button is disabled");
+check(
+  (await hardTier.getAttribute("aria-disabled")) === "true",
+  "the Hard tier button carries aria-disabled",
+);
+check(
+  (await ollamhTier.getAttribute("aria-disabled")) === "true",
+  "the Ollamh tier button carries aria-disabled",
+);
+check(
+  (await setupDialog.getByText(/not offered on the 11×11 board/).count()) > 0,
+  "the tier-cap explanation is shown on the setup sheet",
+);
+// A real click is refused by a disabled control before it ever reaches our
+// handler; force one through anyway, so this also proves the handler's own
+// `if (offered)` guard, not just the browser's disabled semantics.
+await hardTier.click({ force: true }).catch(() => {});
+check(
+  !(await hardTier.evaluate((el) => el.classList.contains("on"))),
+  "clicking the disabled Hard tier does not select it",
+);
+
+// ── WP-4.2, feature 2: the human-vs-computer results line ────────────────────
+// Seeded above, at page load — see the addInitScript block.
+check(
+  (await setupDialog.getByText("Your record vs the computer:").count()) > 0,
+  "the AI results label is shown",
+);
+check(
+  (await setupDialog.getByText("Easy 2-1-0").count()) > 0,
+  "the seeded Easy record renders as 2-1-0",
+);
 
 // ── Into a game against the engine, as Black ─────────────────────────────────
 // Black, not White: Copenhagen gives the attackers the first move (rule 2), so

@@ -1049,6 +1049,12 @@ body {
   background: var(--color-gold);
   color: var(--on-accent);
 }
+.seg button:disabled {
+  /* Same house convention as .btn:disabled — see WP-4.2, feature 1
+     (Copenhagen's capped Hard/Ollamh tiers). */
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .card {
   background: linear-gradient(

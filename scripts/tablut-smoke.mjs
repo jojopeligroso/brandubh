@@ -108,6 +108,19 @@ await page.addInitScript(() => {
     // on its first `waitFor` without ever reaching an assertion. screenshot.mjs
     // carries the same line for the same reason; keep the two in step.
     localStorage.setItem("brandubh.boardPresetSeen", "1");
+    // WP-4.2, feature 2: seeded rather than played out — playing an AI game to
+    // a real conclusion is not cheap in a smoke check, and the module's own
+    // recording logic already has pure-test coverage
+    // (src/game/aiResults.test.ts). This only has to prove the setup sheet
+    // *reads* what is stored, under Tablut's own key.
+    localStorage.setItem(
+      "tablut.aiResults.v1",
+      JSON.stringify([
+        { rulesetId: "tablut-linnaeus", difficulty: "easy", humanSide: "defenders", result: "win", endedAt: 1 },
+        { rulesetId: "tablut-linnaeus", difficulty: "easy", humanSide: "defenders", result: "win", endedAt: 1 },
+        { rulesetId: "tablut-linnaeus", difficulty: "easy", humanSide: "defenders", result: "loss", endedAt: 1 },
+      ]),
+    );
   } catch {
     /* localStorage unavailable */
   }
@@ -149,6 +162,29 @@ const ruleEditor = setupDialog.locator(".rounded-lg.bg-black\\/20.p-3");
 check(
   (await ruleEditor.locator(".seg").count()) === 5,
   "the Custom editor renders all five enum controls",
+);
+
+// ── WP-4.2, feature 1: Tablut keeps all four AI levels ───────────────────────
+// The opposite assertion to copenhagen-smoke.mjs's own tier-cap check: this
+// board is unaffected by Copenhagen's Hard/Ollamh cap.
+for (const label of ["Easy", "Medium", "Hard", "Ollamh"]) {
+  const tier = page.getByRole("button", { name: label, exact: true });
+  check(!(await tier.isDisabled()), `the ${label} tier button is not disabled`);
+}
+check(
+  (await setupDialog.getByText(/not offered on the 11×11 board/).count()) === 0,
+  "Copenhagen's tier-cap explanation is never shown here",
+);
+
+// ── WP-4.2, feature 2: the human-vs-computer results line ────────────────────
+// Seeded above, at page load — see the addInitScript block.
+check(
+  (await setupDialog.getByText("Your record vs the computer:").count()) > 0,
+  "the AI results label is shown",
+);
+check(
+  (await setupDialog.getByText("Easy 2-1-0").count()) > 0,
+  "the seeded Easy record renders as 2-1-0",
 );
 
 // ── Into a game against the engine, as White ─────────────────────────────────

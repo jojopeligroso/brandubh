@@ -83,7 +83,14 @@ paraphrase rather than Copenhagen's own text (see
 `docs/copenhagen-rules.md`, "Corrections of 2026-09-09") — so like Brandubh
 and Tablut it now ends a repeated position in `attackers_win_repetition`, not
 `defenders_win_repetition`. The legacy `copenhagen` preset (hidden, kept for
-old saves and `.tafl` files) is unchanged and still carries the old default.
+old saves and `.tafl` files) is unchanged and still carries the old default. Its setup sheet offers only `easy`/`medium` —
+`hard`/`ollamh` render disabled with an explanation (owner decision 2026-09-09,
+WP-4.2): the search is too slow to run in the browser at this board's opening
+branching factor. The cap lives in `game/copenhagen/difficultyCap.ts`
+(`COPENHAGEN_MAX_DIFFICULTY`), not in `engine.ts` — `DIFFICULTIES`/`DIFFICULTY`
+there are unchanged, since scripts and tests still drive the full ladder; a save
+or import carrying `hard`/`ollamh` is clamped to `medium` on load. See TASKS.md's
+Tablut/Copenhagen parity section for when this is expected to lift.
 
 The duplication is an accepted decision, not drift — read
 `docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md` and its
