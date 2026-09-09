@@ -116,9 +116,9 @@ await page.addInitScript(() => {
     localStorage.setItem(
       "tablut.aiResults.v1",
       JSON.stringify([
-        { rulesetId: "tablut-linnaeus", difficulty: "easy", humanSide: "defenders", result: "win", endedAt: 1 },
-        { rulesetId: "tablut-linnaeus", difficulty: "easy", humanSide: "defenders", result: "win", endedAt: 1 },
-        { rulesetId: "tablut-linnaeus", difficulty: "easy", humanSide: "defenders", result: "loss", endedAt: 1 },
+        { rulesetId: "tablut-linnaeus-2", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "tablut-linnaeus-2", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "tablut-linnaeus-2", difficulty: "easy", humanSide: "attackers", result: "loss", endedAt: 1 },
       ]),
     );
   } catch {
@@ -187,8 +187,13 @@ check(
   "the seeded Easy record renders as 2-1-0",
 );
 
-// ── Into a game against the engine, as White ─────────────────────────────────
-await page.getByRole("button", { name: "White (the king)" }).click();
+// ── Into a game against the engine, as Black ─────────────────────────────────
+// Black, not White: `tablut-linnaeus-2` gives the attackers the first move
+// (rule 2, corrected 2026-09-09 — see variants.ts), so taking that seat is
+// what puts the human on move and makes "two plies" mean "the human moved and
+// the engine answered". Same reasoning as copenhagen-smoke.mjs, which already
+// gives Copenhagen's attackers the same seat for the same reason.
+await page.getByRole("button", { name: "Black (the attackers)" }).click();
 await page.getByRole("button", { name: "Medium" }).click();
 await page.getByRole("button", { name: "Play", exact: true }).click();
 const tb = page.getByRole("grid", { name: "Tablut board" });
@@ -230,10 +235,10 @@ const movedTwice = () =>
     )
     .then(() => true)
     .catch(() => false);
-await tb.locator('[role=gridcell][aria-label^="e7"]').click();
+await tb.locator('[role=gridcell][aria-label^="d1"]').click();
 const dots = await tb.locator(".dot").count();
-check(dots > 0, "selecting a defender offers legal destinations", `saw ${dots}`);
-await tb.locator('[role=gridcell][aria-label^="b7"]').click();
+check(dots > 0, "selecting an attacker offers legal destinations", `saw ${dots}`);
+await tb.locator('[role=gridcell][aria-label^="d3"]').click();
 check(await movedTwice(), "the engine replies from its worker (bottom seat shows 2 moves)");
 // The shell furniture is actually on the surface: seats and the bottom toolbar.
 check(

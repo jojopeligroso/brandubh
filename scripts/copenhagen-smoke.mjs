@@ -126,9 +126,9 @@ await page.addInitScript(() => {
     localStorage.setItem(
       "copenhagen.aiResults.v1",
       JSON.stringify([
-        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
-        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
-        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "loss", endedAt: 1 },
+        { rulesetId: "copenhagen-2", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "copenhagen-2", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "copenhagen-2", difficulty: "easy", humanSide: "attackers", result: "loss", endedAt: 1 },
       ]),
     );
   } catch {
