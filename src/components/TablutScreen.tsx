@@ -16,6 +16,7 @@ import VictoryOverlay from "./VictoryOverlay";
 import ZenSwitch from "./ZenSwitch";
 import type { BoardGeometry } from "../games/geometry";
 import { DIFFICULTIES, type Difficulty } from "../game/tablut/engine";
+import { formatTierLine, recordIfTerminal, summary as aiResultsSummary } from "../game/aiResults";
 import {
   allMoves,
   applyMove,
@@ -506,13 +507,26 @@ export default function TablutScreen({
     const rising = gameOver && !wasOver.current;
     wasOver.current = gameOver;
     if (!rising) return;
+    // WP-4.2, feature 2: this is the one moment a human-vs-computer game is
+    // known to have reached a real result rather than being abandoned — a new
+    // game started before this point never sets `rising` true, so it never
+    // reaches this line. `recordIfTerminal` itself also excludes hotseat
+    // (`humanSide === null`) and a non-terminal `winner`, so the call is a
+    // safe no-op in either case even if this guard is ever loosened later.
+    recordIfTerminal("tablut", {
+      winner: winnerOf(tipState.status),
+      humanSide,
+      rulesetId: rules.id,
+      difficulty,
+      endedAt: Date.now(),
+    });
     if (!revealDelay.current) {
       setShowVictory(true);
       return;
     }
     const id = window.setTimeout(() => setShowVictory(true), revealDelay.current);
     return () => window.clearTimeout(id);
-  }, [gameOver]);
+  }, [gameOver, tipState.status, humanSide, rules.id, difficulty]);
 
   // Escape unwinds one layer at a time — curtain, menu, confirms, then sheet,
   // then the surface itself — rather than dropping the player back to the 7×7
@@ -1117,6 +1131,11 @@ function TablutSetup({
   const [difficulty, setDifficulty] = useState(initial.difficulty);
   const [clock, setClock] = useState<ClockSelection>(initial.clock);
   const rules = rulesFor(variantId, customRules);
+  // WP-4.2, feature 2: the compact human-vs-computer record, per AI level.
+  // Recomputed on every render of the sheet rather than memoized — cheap
+  // (bounded to 500 stored games) and it must pick up a game that just ended
+  // behind this very sheet.
+  const aiRecordLine = formatTierLine(aiResultsSummary("tablut"), DIFFICULTIES, t.taflDifficulties);
   return (
     <div
       className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
@@ -1196,6 +1215,14 @@ function TablutSetup({
                 </button>
               ))}
             </div>
+            {/* WP-4.2, feature 2: Tablut keeps all four tiers (unlike
+                Copenhagen — see game/copenhagen/difficultyCap.ts), but the
+                same compact record line applies to both boards. */}
+            {aiRecordLine && (
+              <p className="mt-1 text-xs text-parchment-dim">
+                {t.aiResultsLabel} {aiRecordLine}
+              </p>
+            )}
           </>
         )}
 

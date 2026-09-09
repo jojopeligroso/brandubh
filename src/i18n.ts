@@ -375,6 +375,11 @@ export interface Translations {
   /** Same area, shown additionally when a restored or imported game carried
    *  Hard or Ollamh and was clamped down to Medium on load. */
   copenhagenTierCapClamped: string;
+  /** WP-4.2, feature 2, both boards: the label in front of the compact
+   *  human-vs-computer record line on the setup sheet — see game/aiResults.ts.
+   *  The per-tier W-L-D figures that follow it are built in code and are
+   *  never translated. */
+  aiResultsLabel: string;
   /** Rule names, keyed by flag name. */
   taflRules: Record<string, string>;
   /** One line each on what the rule actually does. */
@@ -980,6 +985,7 @@ const en: Translations = {
     "Hard and Ollamh are not offered on the 11×11 board yet: the search is too slow to run in the browser. They return when the game has a server to run on.",
   copenhagenTierCapClamped:
     "This game was saved at Hard or Ollamh; it has been capped to Medium for the same reason.",
+  aiResultsLabel: "Your record vs the computer:",
   taflRules: {
     kingStrength: "The king is captured by",
     strongKingEdgeRule: "On the board edge the king is",
@@ -1676,6 +1682,7 @@ const es: Translations = {
     "Dif\u00edcil y Ollamh todav\u00eda no est\u00e1n disponibles en el tablero de 11\u00d711: la b\u00fasqueda es demasiado lenta para el navegador. Volver\u00e1n cuando el juego tenga un servidor donde ejecutarla.",
   copenhagenTierCapClamped:
     "Esta partida se guard\u00f3 en Dif\u00edcil u Ollamh; se ha limitado a Media por el mismo motivo.",
+  aiResultsLabel: "Tu r\u00e9cord contra el ordenador:",
   taflRules: {
     kingStrength: "El Rey es capturado por",
     strongKingEdgeRule: "En el borde del tablero el Rey es",
@@ -2395,6 +2402,7 @@ const ga: Translations = {
     "Nil Crua agus Ollamh ar fail fos ar an gclar 11×11: ta an cuardach ro-mhall le rith sa mbrabhsalai. Fillfidh siad nuair a bheidh freastalai ag an gcluiche chun iad a rith.",
   copenhagenTierCapClamped:
     "Sabhaladh an cluiche seo ag Crua no Ollamh; ta se laghdaithe go Meanach ar an gcuis cheanna.",
+  aiResultsLabel: "Do thaifead in aghaidh an riomhaire:",
   taflRules: {
     kingStrength: "Gabhtar an R\u00ed le",
     strongKingEdgeRule: "Ar imeall an chl\u00e1ir t\u00e1 an R\u00ed",

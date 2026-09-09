@@ -118,6 +118,19 @@ await page.addInitScript(() => {
     // on its first `waitFor` without ever reaching an assertion. screenshot.mjs
     // carries the same line for the same reason; keep the two in step.
     localStorage.setItem("brandubh.boardPresetSeen", "1");
+    // WP-4.2, feature 2: seeded rather than played out — an AI game to a real
+    // conclusion on this board's slower engine is not cheap in a smoke check,
+    // and the module's own recording logic already has pure-test coverage
+    // (src/game/aiResults.test.ts). This only has to prove the setup sheet
+    // *reads* what is stored, under Copenhagen's own key.
+    localStorage.setItem(
+      "copenhagen.aiResults.v1",
+      JSON.stringify([
+        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "win", endedAt: 1 },
+        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "attackers", result: "loss", endedAt: 1 },
+      ]),
+    );
   } catch {
     /* localStorage unavailable */
   }
@@ -197,6 +210,17 @@ await hardTier.click({ force: true }).catch(() => {});
 check(
   !(await hardTier.evaluate((el) => el.classList.contains("on"))),
   "clicking the disabled Hard tier does not select it",
+);
+
+// ── WP-4.2, feature 2: the human-vs-computer results line ────────────────────
+// Seeded above, at page load — see the addInitScript block.
+check(
+  (await setupDialog.getByText("Your record vs the computer:").count()) > 0,
+  "the AI results label is shown",
+);
+check(
+  (await setupDialog.getByText("Easy 2-1-0").count()) > 0,
+  "the seeded Easy record renders as 2-1-0",
 );
 
 // ── Into a game against the engine, as Black ─────────────────────────────────

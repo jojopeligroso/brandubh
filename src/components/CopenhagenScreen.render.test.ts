@@ -158,3 +158,25 @@ describe("CopenhagenScreen render — the tier cap", () => {
     expect(html).toContain(translations.en.copenhagenTierCapClamped);
   });
 });
+
+// ── WP-4.2, feature 2: the human-vs-computer results line ────────────────────
+
+describe("CopenhagenScreen render — the AI results line", () => {
+  it("shows nothing with no games recorded", () => {
+    const html = renderScreen();
+    expect(html).not.toContain(translations.en.aiResultsLabel);
+  });
+
+  it("shows the compact per-tier record with seeded storage", () => {
+    const win = { rulesetId: "copenhagen", difficulty: "easy", humanSide: "defenders", result: "win", endedAt: 1 };
+    const loss = { rulesetId: "copenhagen", difficulty: "medium", humanSide: "defenders", result: "loss", endedAt: 1 };
+    localStorage.setItem(
+      "copenhagen.aiResults.v1",
+      JSON.stringify([win, win, win, { ...win, result: "loss" }, loss, loss, loss, loss]),
+    );
+    const html = renderScreen();
+    expect(html).toContain(translations.en.aiResultsLabel);
+    expect(html).toContain("Easy 3-1-0");
+    expect(html).toContain("Medium 0-4-0");
+  });
+});

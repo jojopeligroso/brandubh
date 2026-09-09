@@ -119,3 +119,36 @@ describe("TablutScreen render — the tier cap does not apply here", () => {
     expect(html).not.toContain(translations.en.copenhagenTierCapClamped);
   });
 });
+
+// ── WP-4.2, feature 2: the human-vs-computer results line ────────────────────
+
+describe("TablutScreen render — the AI results line", () => {
+  it("shows nothing with no games recorded", () => {
+    const html = renderScreen();
+    expect(html).not.toContain(translations.en.aiResultsLabel);
+  });
+
+  it("shows the compact per-tier record with seeded storage", () => {
+    const win = { rulesetId: "tablut-linnaeus", difficulty: "easy", humanSide: "defenders", result: "win", endedAt: 1 };
+    const loss = { rulesetId: "tablut-linnaeus", difficulty: "medium", humanSide: "defenders", result: "loss", endedAt: 1 };
+    localStorage.setItem(
+      "tablut.aiResults.v1",
+      JSON.stringify([win, win, win, { ...win, result: "loss" }, loss, loss, loss, loss]),
+    );
+    const html = renderScreen();
+    expect(html).toContain(translations.en.aiResultsLabel);
+    expect(html).toContain("Easy 3-1-0");
+    expect(html).toContain("Medium 0-4-0");
+  });
+
+  it("keeps Tablut's record separate from Copenhagen's", () => {
+    localStorage.setItem(
+      "copenhagen.aiResults.v1",
+      JSON.stringify([
+        { rulesetId: "copenhagen", difficulty: "easy", humanSide: "defenders", result: "win", endedAt: 1 },
+      ]),
+    );
+    const html = renderScreen();
+    expect(html).not.toContain(translations.en.aiResultsLabel);
+  });
+});
