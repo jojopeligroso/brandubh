@@ -105,7 +105,11 @@ these before reaching for the core — they are the cheap half.
 Smallest and safest first. Each is independently shippable.
 
 1. **`d4.ts`** — one module taking `N`. Pure arithmetic, no rules, three call
-   sites. An afternoon.
+   sites. An afternoon. **Done**: `42ec306`, 2026-09-09. `src/game/symmetry/d4.ts`
+   exports `makeD4(n)`; each game's `d4.ts` is now a thin re-export bound to its
+   own `BOARD_SIZE`, so the three call sites this item names never changed. The
+   one-off equivalence check this ADR predicted would be easy was: every square,
+   every one of the 8 transforms, at n in {7, 9, 11}, against the old arithmetic.
 2. **`persist.ts` / `replay.ts` / `gameFile.ts`** — parameterise on board size,
    notation alphabet, storage key, format tag and a ruleset codec. This is where
    the bugs actually were, so it is the one with a correctness payoff rather than
