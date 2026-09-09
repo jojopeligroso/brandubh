@@ -72,8 +72,14 @@ import type { KingEmblemDef } from "../kingEmblems";
 import { useDialogFocus } from "../useDialogFocus";
 import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
 import { useAiReveal } from "../useAiReveal";
+import { loadFlipFlag, saveFlipFlag } from "../boardFlipPrefs";
 import TablutGameFilePanel from "./TablutGameFilePanel";
 import type { GameFileMeta, ParsedGame } from "../game/tablut/gameFile";
+
+/** This screen's own flip-preference keys — see src/boardFlipPrefs.ts for why
+ *  they are not Brandubh's `BOARD_FLIP_*_KEY`. */
+const FLIP_H_KEY = "tablut.boardFlipped";
+const FLIP_V_KEY = "tablut.boardFlippedV";
 
 /**
  * The Tablut surface — a full-screen place, reached from the drawer's More games
@@ -180,6 +186,19 @@ export default function TablutScreen({
   const [confirmResign, setConfirmResign] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [showGameFile, setShowGameFile] = useState(false);
+
+  // ── Board orientation (view only) ───────────────────────────────────────────
+  // Same two independent mirrors App.tsx offers Brandubh — see src/orientation.ts.
+  // Nothing here touches the game: it is a preference about which way up the
+  // board is drawn, not a fact about the position.
+  const [flippedH, setFlippedH] = useState<boolean>(() => loadFlipFlag(FLIP_H_KEY));
+  const [flippedV, setFlippedV] = useState<boolean>(() => loadFlipFlag(FLIP_V_KEY));
+  useEffect(() => {
+    saveFlipFlag(FLIP_H_KEY, flippedH);
+  }, [flippedH]);
+  useEffect(() => {
+    saveFlipFlag(FLIP_V_KEY, flippedV);
+  }, [flippedV]);
 
   const tip = states.length - 1;
   const atTip = cursor === tip;
@@ -714,6 +733,14 @@ export default function TablutScreen({
   // offered with — rather than the live banks.
   const viewedBanks = reviewing ? banksAt(clockLine, cursor, timeControl) : clock.remaining;
   const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
+  // Flipping the board north–south flips the clocks with it — the same rule
+  // App.tsx's own topClockSide/bottomClockSide follow, and for the same
+  // reason: the clocks are the two players' chairs, seated above/below the
+  // board, so only the top/bottom mirror moves them. The east–west mirror
+  // only swaps which side of the screen a column is drawn on and leaves
+  // top/bottom alone.
+  const topClockSide = flippedV ? bottomSide : topSide;
+  const bottomClockSide = flippedV ? topSide : bottomSide;
   // The AI seat reads tier over side ("Medium / White…"); a human seat's name
   // *is* the side, so its sub line stays empty rather than repeating it.
   const sideName = (side: Side): string =>
@@ -753,6 +780,10 @@ export default function TablutScreen({
     defenders: seatName("defenders"),
   };
 
+  // An optional extra shows when Zen is off, or when it has been opted in —
+  // the same predicate `showNav` uses for the same shared Zen config.
+  const showFlip = !zen.enabled || zen.extras["flip"];
+
   // Everything wordy lives behind the toolbar's list icon, as in the shell.
   const menuItems = [
     { label: t.newGame, onClick: () => setShowSetup(true) },
@@ -763,6 +794,12 @@ export default function TablutScreen({
       : []),
     ...(atTip && !gameOver && tip >= 1
       ? [{ label: t.resign, danger: true, onClick: () => setConfirmResign(true) }]
+      : []),
+    ...(showFlip
+      ? [
+          { label: t.flipBoardH, onClick: () => setFlippedH((f) => !f) },
+          { label: t.flipBoardV, onClick: () => setFlippedV((f) => !f) },
+        ]
       : []),
     { label: t.gameFileTitle, onClick: () => setShowGameFile(true) },
   ];
@@ -799,7 +836,7 @@ export default function TablutScreen({
           </div>
         </header>
 
-        <div className="mt-3">{renderPlayerBar(topSide, "top")}</div>
+        <div className="mt-3">{renderPlayerBar(topClockSide, "top")}</div>
 
         <div className="mt-3">
           <Board
@@ -815,6 +852,8 @@ export default function TablutScreen({
             onAiSlideEnd={endAiSlide}
             interactive={interactive}
             controllable={controllable}
+            flippedH={flippedH}
+            flippedV={flippedV}
             attackerEmblem={attackerEmblem}
             kingEmblem={kingEmblem}
             defenderEmblem={defenderEmblem}
@@ -823,7 +862,7 @@ export default function TablutScreen({
           />
         </div>
 
-        <div className="mt-3">{renderPlayerBar(bottomSide, "bottom")}</div>
+        <div className="mt-3">{renderPlayerBar(bottomClockSide, "bottom")}</div>
 
         {/* The result, said in place — a restored finished game has no curtain
             to say it, and a browsed terminal position deserves the line too. */}

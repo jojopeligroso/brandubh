@@ -209,6 +209,87 @@ check(
   "the shell's bottom toolbar renders on the Tablut surface",
 );
 
+// ── WP-4.1a: board flip ───────────────────────────────────────────────────────
+// The flip control lives behind the bottom toolbar's menu (GameMenuSheet),
+// alongside restart/undo/resign — this screen has no analysis mode to gate it
+// behind the way the Brandubh shell's own flip buttons are gated. It is still
+// a Zen extra (off by default, like every extra bar the move navigator), so
+// Zen comes off first — the same thing a player would do to reach it.
+await page.locator('.tablut-screen [data-testid="tablut-zen-toggle"]').click();
+const firstCellLabel = () => tb.locator("[role=gridcell]").first().getAttribute("aria-label");
+const openGameMenu = async () => {
+  // Scoped to the surface: the Brandubh shell's own bottom toolbar is still in
+  // the DOM behind this overlay, and shares the same testid.
+  await page.locator('.tablut-screen [data-testid="toolbar-menu"]').click();
+  await page.waitForSelector('[data-testid="game-menu"]');
+};
+await openGameMenu();
+await page.getByRole("menuitem", { name: "Flip board left-right" }).click();
+check((await firstCellLabel()) === "i9", "flip left-right mirrors the board — the top-left square is now i9");
+await openGameMenu();
+await page.getByRole("menuitem", { name: "Flip board left-right" }).click();
+check((await firstCellLabel()) === "a9", "flip left-right toggles back — the top-left square is a9 again");
+await openGameMenu();
+await page.getByRole("menuitem", { name: "Flip board top-bottom" }).click();
+check((await firstCellLabel()) === "a1", "flip top-bottom mirrors the board — the top-left square is now a1");
+await openGameMenu();
+await page.getByRole("menuitem", { name: "Flip board top-bottom" }).click();
+check((await firstCellLabel()) === "a9", "flip top-bottom toggles back — the top-left square is a9 again");
+const flipStored = await page.evaluate(() => [
+  localStorage.getItem("tablut.boardFlipped"),
+  localStorage.getItem("tablut.boardFlippedV"),
+]);
+check(
+  flipStored[0] === "0" && flipStored[1] === "0",
+  "the flip preference persists under Tablut's own keys",
+  JSON.stringify(flipStored),
+);
+
+// ── WP-4.1a: game file import / export ────────────────────────────────────────
+await openGameMenu();
+await page.getByRole("menuitem", { name: "Game file (.tafl)" }).click();
+const gfModal = page.getByTestId("tablut-gamefile-modal");
+await gfModal.waitFor();
+const [download] = await Promise.all([
+  page.waitForEvent("download"),
+  gfModal.getByRole("button", { name: "Download" }).click(),
+]);
+const downloadPath = await download.path();
+const exported = downloadPath ? await readFile(downloadPath, "utf8") : "";
+check(exported.includes('[Format "tablut-1"]'), "the exported file carries the Tablut format tag");
+check(/\[Variant "/.test(exported), "the exported file carries a Variant tag");
+
+const gameIdBefore = await page.evaluate(
+  () => JSON.parse(localStorage.getItem("tablut.game.v1") ?? "{}").id,
+);
+// Paste the same export straight back in — a round trip, not a different game.
+await gfModal.getByLabel("Open a game file").fill(exported);
+await gfModal.getByRole("button", { name: "Load game" }).click();
+await gfModal.waitFor({ state: "detached" });
+check(await movedTwice(), "importing the exported file round-trips the game (2 moves)");
+const gameIdAfter = await page.evaluate(
+  () => JSON.parse(localStorage.getItem("tablut.game.v1") ?? "{}").id,
+);
+check(
+  typeof gameIdAfter === "string" && gameIdAfter !== gameIdBefore,
+  "the imported game gets a fresh identity rather than continuing the old one",
+);
+
+// A malformed file must show the same error copy the shell's own panel shows.
+await openGameMenu();
+await page.getByRole("menuitem", { name: "Game file (.tafl)" }).click();
+await gfModal.waitFor();
+await gfModal.getByLabel("Open a game file").fill('[Format "tablut-1"]\n\n1. z9-z9 z9-z9\n');
+await gfModal.getByRole("button", { name: "Load game" }).click();
+const gfError = gfModal.getByTestId("import-error");
+check(await gfError.isVisible(), "a malformed file shows the existing error copy");
+check(
+  (await gfError.innerText()).includes("something in the move list is not a move"),
+  "the error copy names what was wrong",
+);
+await gfModal.getByRole("button", { name: "Close" }).click();
+await gfModal.waitFor({ state: "detached" });
+
 // ── Back out; the Brandubh game must be exactly as it was ────────────────────
 await page.getByRole("button", { name: "Back", exact: true }).click();
 await bboard.waitFor();
@@ -304,6 +385,76 @@ check(
   backOnBrandubh === "ballinderry",
   "Ballinderry comes back on leaving Tablut",
   `saw ${backOnBrandubh}`,
+);
+
+// ── WP-4.1a: menu-toggle + boardgame-surface mutual exclusion ────────────────
+// commit 90c3cad added the hamburger to both boardgame screens and a mutual
+// exclusion rule in App: opening one boardgame surface closes the other, and
+// opening the setup overlay closes both. See also src/App.mutualExclusion.
+// test.ts for the non-interactive half of this (a corrupted surface-flag
+// pair) — this is the half that needs a real click to observe.
+//
+// A reload while on a boardgame surface also resets App's own showModeOverlay
+// state to its default (on) — that state knows nothing about which surface is
+// showing — so the Ballinderry section's reload-while-on-Tablut left a resume
+// prompt quietly stacked *underneath* the Tablut screen (DOM order, not
+// visibility, decided who was on top). Backing out just now revealed it.
+// Resolve it the way a real player would before using the hamburger beneath.
+const staleResume = page.getByRole("button", { name: "Resume game" });
+if (await staleResume.isVisible().catch(() => false)) {
+  await staleResume.click();
+  await bboard.waitFor();
+}
+await page.getByTestId("menu-toggle").click();
+await page.waitForSelector('[data-testid="app-drawer"]');
+check(true, "the header hamburger (menu-toggle) opens the app drawer");
+await page.getByTestId("drawer-more-games").locator("summary").click();
+await page.getByTestId("drawer-tablut").click();
+await tb.waitFor();
+check((await page.locator(".tablut-screen").count()) === 1, "Tablut is open again");
+check((await page.locator(".copenhagen-screen").count()) === 0, "Copenhagen is not mounted alongside it");
+
+// Scoped to the surface — the Brandubh shell's own hamburger is still in the
+// DOM behind this overlay and shares the same testid.
+await page.locator('.tablut-screen [data-testid="menu-toggle"]').click();
+await page.waitForSelector('[data-testid="app-drawer"]');
+check(true, "the hamburger reopens the drawer from inside Tablut");
+await page.getByTestId("drawer-more-games").locator("summary").click();
+await page.getByTestId("drawer-copenhagen").click();
+const cphFromTablut = page.getByRole("grid", { name: "Copenhagen Hnefatafl board" });
+await cphFromTablut.waitFor();
+check(
+  (await page.locator(".copenhagen-screen").count()) === 1,
+  "opening Copenhagen from inside Tablut opens it",
+);
+check(
+  (await page.locator(".tablut-screen").count()) === 0,
+  "…and closes Tablut — the two boardgame surfaces never stack",
+);
+
+// Copenhagen has no game yet from this script, so it opened on its own setup
+// sheet — like the shared mode overlay on first boot, it has no cancel while
+// there is nothing behind it, and its backdrop blocks its own header
+// underneath. Play it "Two players" (no AI, no worker wait) purely to get
+// past the sheet and reach the drawer again.
+await page.getByRole("button", { name: "Two players" }).click();
+await page.getByRole("button", { name: "Play", exact: true }).click();
+
+await page.locator('.copenhagen-screen [data-testid="menu-toggle"]').click();
+await page.waitForSelector('[data-testid="app-drawer"]');
+await page.getByTestId("drawer-new-game").click();
+await page.waitForSelector('[data-testid="mode-overlay-close"]');
+check(
+  (await page.locator(".tablut-screen").count()) === 0 &&
+    (await page.locator(".copenhagen-screen").count()) === 0,
+  "opening the setup overlay from the drawer closes both boardgame surfaces",
+);
+await page.getByTestId("mode-overlay-close").click();
+await bboard.waitFor();
+check(
+  (await page.locator(".tablut-screen").count()) === 0 &&
+    (await page.locator(".copenhagen-screen").count()) === 0,
+  "cancelling the setup overlay leaves neither boardgame surface open",
 );
 
 check(pageErrors.length === 0, "no uncaught page errors", pageErrors.join(" | "));
