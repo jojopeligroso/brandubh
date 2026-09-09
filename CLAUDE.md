@@ -72,7 +72,14 @@ property of the board, not the move just played) and
 `repetitionResult: "loss_for_repeater"` — which is why it is the only game that
 can end in `defenders_win_fort` or `defenders_win_repetition`. Sourcing, and the
 one rule where two sources flatly contradict each other, are in
-`docs/copenhagen-rules.md`.
+`docs/copenhagen-rules.md`. Its setup sheet offers only `easy`/`medium` —
+`hard`/`ollamh` render disabled with an explanation (owner decision 2026-09-09,
+WP-4.2): the search is too slow to run in the browser at this board's opening
+branching factor. The cap lives in `game/copenhagen/difficultyCap.ts`
+(`COPENHAGEN_MAX_DIFFICULTY`), not in `engine.ts` — `DIFFICULTIES`/`DIFFICULTY`
+there are unchanged, since scripts and tests still drive the full ladder; a save
+or import carrying `hard`/`ollamh` is clamped to `medium` on load. See TASKS.md's
+Tablut/Copenhagen parity section for when this is expected to lift.
 
 The duplication is an accepted decision, not drift — read
 `docs/adr/0006-tablut-forks-the-rules-rather-than-parameterising-them.md` and its

@@ -369,6 +369,12 @@ export interface Translations {
   taflHotseat: string;
   /** Engine strength, keyed by the difficulty ids in game/tablut/engine.ts. */
   taflDifficulties: Record<string, string>;
+  /** WP-4.2, feature 1: Copenhagen only. Shown beside the Strength row while
+   *  Hard and Ollamh render disabled — see game/copenhagen/difficultyCap.ts. */
+  copenhagenTierCapNotice: string;
+  /** Same area, shown additionally when a restored or imported game carried
+   *  Hard or Ollamh and was clamped down to Medium on load. */
+  copenhagenTierCapClamped: string;
   /** Rule names, keyed by flag name. */
   taflRules: Record<string, string>;
   /** One line each on what the rule actually does. */
@@ -970,6 +976,10 @@ const en: Translations = {
   taflBlack: "Black (the attackers)",
   taflHotseat: "Two players",
   taflDifficulties: { easy: "Easy", medium: "Medium", hard: "Hard", ollamh: "Ollamh" },
+  copenhagenTierCapNotice:
+    "Hard and Ollamh are not offered on the 11×11 board yet: the search is too slow to run in the browser. They return when the game has a server to run on.",
+  copenhagenTierCapClamped:
+    "This game was saved at Hard or Ollamh; it has been capped to Medium for the same reason.",
   taflRules: {
     kingStrength: "The king is captured by",
     strongKingEdgeRule: "On the board edge the king is",
@@ -1662,6 +1672,10 @@ const es: Translations = {
   taflBlack: "Negras (los atacantes)",
   taflHotseat: "Dos jugadores",
   taflDifficulties: { easy: "F\u00e1cil", medium: "Media", hard: "Dif\u00edcil", ollamh: "Ollamh" },
+  copenhagenTierCapNotice:
+    "Dif\u00edcil y Ollamh todav\u00eda no est\u00e1n disponibles en el tablero de 11\u00d711: la b\u00fasqueda es demasiado lenta para el navegador. Volver\u00e1n cuando el juego tenga un servidor donde ejecutarla.",
+  copenhagenTierCapClamped:
+    "Esta partida se guard\u00f3 en Dif\u00edcil u Ollamh; se ha limitado a Media por el mismo motivo.",
   taflRules: {
     kingStrength: "El Rey es capturado por",
     strongKingEdgeRule: "En el borde del tablero el Rey es",
@@ -2376,6 +2390,11 @@ const ga: Translations = {
   taflBlack: "Dubha (na hionsaitheoiri)",
   taflHotseat: "Beirt imreoiri",
   taflDifficulties: { easy: "Furasta", medium: "Meanach", hard: "Crua", ollamh: "Ollamh" },
+  // DRAFT (unreviewed machine translation), like the rest of this table.
+  copenhagenTierCapNotice:
+    "Nil Crua agus Ollamh ar fail fos ar an gclar 11×11: ta an cuardach ro-mhall le rith sa mbrabhsalai. Fillfidh siad nuair a bheidh freastalai ag an gcluiche chun iad a rith.",
+  copenhagenTierCapClamped:
+    "Sabhaladh an cluiche seo ag Crua no Ollamh; ta se laghdaithe go Meanach ar an gcuis cheanna.",
   taflRules: {
     kingStrength: "Gabhtar an R\u00ed le",
     strongKingEdgeRule: "Ar imeall an chl\u00e1ir t\u00e1 an R\u00ed",

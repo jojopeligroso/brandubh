@@ -124,6 +124,14 @@ Brandubh's numbers did not. Recorded here as one list because it is one gap,
 not scattered wherever each item happens to live — see `docs/ROADMAP.md`
 Session 12 for the plan that addresses it.
 
+- [x] **Copenhagen `hard`/`ollamh` disabled until backend** `[engine]`/`[ui]` — owner
+  decision 2026-09-09 (WP-4.2): playtesting found both tiers too slow to be
+  playable in the browser at this board's opening branching factor. The setup
+  sheet renders them disabled with an explanation (`game/copenhagen/difficultyCap.ts`,
+  `COPENHAGEN_MAX_DIFFICULTY`); `DIFFICULTIES`/`DIFFICULTY` in `engine.ts` are
+  unchanged, since scripts and tests still drive the full ladder. Re-enable
+  after Phase 3.4 (Zobrist hashing / make-unmake) and a measured deadline-depth
+  check.
 - [ ] **Copenhagen eval weights are unmeasured** `[engine]` — `DEFAULT_WEIGHTS` in
   `src/game/copenhagen/engine.ts` are reasoned, not gauntletted, same situation
   as Tablut's line above but with no entry of its own until now.

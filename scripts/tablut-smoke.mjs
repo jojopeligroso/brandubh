@@ -151,6 +151,18 @@ check(
   "the Custom editor renders all five enum controls",
 );
 
+// ── WP-4.2, feature 1: Tablut keeps all four AI levels ───────────────────────
+// The opposite assertion to copenhagen-smoke.mjs's own tier-cap check: this
+// board is unaffected by Copenhagen's Hard/Ollamh cap.
+for (const label of ["Easy", "Medium", "Hard", "Ollamh"]) {
+  const tier = page.getByRole("button", { name: label, exact: true });
+  check(!(await tier.isDisabled()), `the ${label} tier button is not disabled`);
+}
+check(
+  (await setupDialog.getByText(/not offered on the 11×11 board/).count()) === 0,
+  "Copenhagen's tier-cap explanation is never shown here",
+);
+
 // ── Into a game against the engine, as White ─────────────────────────────────
 await page.getByRole("button", { name: "White (the king)" }).click();
 await page.getByRole("button", { name: "Medium" }).click();

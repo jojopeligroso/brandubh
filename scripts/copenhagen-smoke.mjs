@@ -170,6 +170,35 @@ check(
 // started below plays exactly as Copenhagen would — nothing after this point
 // needs the variant switched back.
 
+// ── WP-4.2, feature 1: Hard and Ollamh are capped on this board ──────────────
+// Owner decision 2026-09-09: the 11×11 search is too slow to run in the
+// browser at those tiers — see game/copenhagen/difficultyCap.ts. Tablut is
+// unaffected (see tablut-smoke.mjs, which has no equivalent check).
+const hardTier = page.getByRole("button", { name: "Hard", exact: true });
+const ollamhTier = page.getByRole("button", { name: "Ollamh", exact: true });
+check(await hardTier.isDisabled(), "the Hard tier button is disabled");
+check(await ollamhTier.isDisabled(), "the Ollamh tier button is disabled");
+check(
+  (await hardTier.getAttribute("aria-disabled")) === "true",
+  "the Hard tier button carries aria-disabled",
+);
+check(
+  (await ollamhTier.getAttribute("aria-disabled")) === "true",
+  "the Ollamh tier button carries aria-disabled",
+);
+check(
+  (await setupDialog.getByText(/not offered on the 11×11 board/).count()) > 0,
+  "the tier-cap explanation is shown on the setup sheet",
+);
+// A real click is refused by a disabled control before it ever reaches our
+// handler; force one through anyway, so this also proves the handler's own
+// `if (offered)` guard, not just the browser's disabled semantics.
+await hardTier.click({ force: true }).catch(() => {});
+check(
+  !(await hardTier.evaluate((el) => el.classList.contains("on"))),
+  "clicking the disabled Hard tier does not select it",
+);
+
 // ── Into a game against the engine, as Black ─────────────────────────────────
 // Black, not White: Copenhagen gives the attackers the first move (rule 2), so
 // taking that seat is what puts the human on move and makes "two plies" mean

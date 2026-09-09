@@ -16,6 +16,7 @@ import VictoryOverlay from "./VictoryOverlay";
 import ZenSwitch from "./ZenSwitch";
 import type { BoardGeometry } from "../games/geometry";
 import { DIFFICULTIES, type Difficulty } from "../game/copenhagen/engine";
+import { isDifficultyOffered } from "../game/copenhagen/difficultyCap";
 import {
   allMoves,
   applyMove,
@@ -168,7 +169,18 @@ export default function CopenhagenScreen({
     restored?.customRules ?? CUSTOM_RULE_DEFAULTS,
   );
   const [playMode, setPlayMode] = useState<PlayMode>(restored?.playMode ?? "defenders");
+  // `restored.difficulty` already comes back clamped to COPENHAGEN_MAX_DIFFICULTY
+  // when the save carried Hard or Ollamh (see game/copenhagen/difficultyCap.ts
+  // and persist.ts's restoreGame) — this never reads a level the setup sheet
+  // would refuse to offer.
   const [difficulty, setDifficulty] = useState<Difficulty>(restored?.difficulty ?? "medium");
+  // WP-4.2, feature 1: true for exactly one mount, when the restore above
+  // clamped a saved Hard/Ollamh game down — read once here rather than off
+  // `restored` directly, so it survives the setup sheet closing and reopening
+  // without the load-time event being able to fire again.
+  const [difficultyClampedOnLoad, setDifficultyClampedOnLoad] = useState<boolean>(
+    restored?.difficultyClamped ?? false,
+  );
 
   const rules = useMemo(() => rulesFor(variantId, customRules), [variantId, customRules]);
 
@@ -185,7 +197,12 @@ export default function CopenhagenScreen({
   const [selected, setSelected] = useState<Square | null>(null);
   const [thinking, setThinking] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
-  const [showSetup, setShowSetup] = useState(restored === null);
+  // A clamped restore (feature 1) is the one thing that opens the sheet over a
+  // resumed game: "never silently" means the explanation has to actually be
+  // seen, not just reachable if the player happens to revisit Strength later.
+  const [showSetup, setShowSetup] = useState(
+    restored === null || (restored?.difficultyClamped ?? false),
+  );
   // Restart over an unfinished game is destructive — the autosave is replaced —
   // so it asks first, exactly as the Brandubh shell's new-game path does.
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -964,10 +981,21 @@ export default function CopenhagenScreen({
         <CopenhagenSetup
           t={t}
           initial={currentSetup}
-          onStart={startGame}
+          onStart={(setup) => {
+            setDifficultyClampedOnLoad(false);
+            startGame(setup);
+          }}
           // Backing out is only offered over a game worth returning to; the
           // first visit has nothing behind the sheet.
-          onCancel={canCancelSetup ? () => setShowSetup(false) : null}
+          onCancel={
+            canCancelSetup
+              ? () => {
+                  setDifficultyClampedOnLoad(false);
+                  setShowSetup(false);
+                }
+              : null
+          }
+          difficultyClampedOnLoad={difficultyClampedOnLoad}
         />
       )}
 
@@ -1110,11 +1138,16 @@ function CopenhagenSetup({
   initial,
   onStart,
   onCancel,
+  difficultyClampedOnLoad,
 }: {
   t: Translations;
   initial: GameSetup;
   onStart: (setup: GameSetup) => void;
   onCancel: (() => void) | null;
+  /** WP-4.2, feature 1: true when the game behind this sheet was just resumed
+   *  or imported at Hard/Ollamh and clamped down to Medium — shown once,
+   *  alongside the standing tier-cap explanation below. */
+  difficultyClampedOnLoad: boolean;
 }) {
   const ref = useDialogFocus<HTMLDivElement>();
   const [variantId, setVariantId] = useState(initial.variantId);
@@ -1191,17 +1224,33 @@ function CopenhagenSetup({
               {t.taflStrength}
             </label>
             <div className="seg mt-1">
-              {DIFFICULTIES.map((d) => (
-                <button
-                  key={d}
-                  className={difficulty === d ? "on" : ""}
-                  onClick={() => setDifficulty(d)}
-                  aria-pressed={difficulty === d}
-                >
-                  {t.taflDifficulties[d]}
-                </button>
-              ))}
+              {DIFFICULTIES.map((d) => {
+                const offered = isDifficultyOffered(d);
+                return (
+                  <button
+                    key={d}
+                    className={difficulty === d ? "on" : ""}
+                    onClick={() => {
+                      // A click on a capped tier is a no-op, not just visually
+                      // blocked — see check:copenhagen.
+                      if (offered) setDifficulty(d);
+                    }}
+                    aria-pressed={difficulty === d}
+                    disabled={!offered}
+                    aria-disabled={offered ? undefined : true}
+                  >
+                    {t.taflDifficulties[d]}
+                  </button>
+                );
+              })}
             </div>
+            {/* WP-4.2, feature 1: Hard and Ollamh are capped on this board
+                only — see game/copenhagen/difficultyCap.ts. Never silent: a
+                save or import clamped on load says so here too. */}
+            <p className="mt-1 text-xs text-parchment-dim">{t.copenhagenTierCapNotice}</p>
+            {difficultyClampedOnLoad && (
+              <p className="mt-1 text-xs text-parchment-dim">{t.copenhagenTierCapClamped}</p>
+            )}
           </>
         )}
 

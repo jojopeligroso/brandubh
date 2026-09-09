@@ -205,6 +205,38 @@ describe("save then restore", () => {
   });
 });
 
+// ── The tier cap (WP-4.2, feature 1) ─────────────────────────────────────────
+
+describe("the Copenhagen tier cap", () => {
+  it("clamps a saved ollamh game down to medium on restore, and says so", () => {
+    const states = play(SHORT);
+    const snap = { ...snapshotOf(states), difficulty: "ollamh" as const };
+    const parsed = parseAt(serializeGame(snap));
+    expect(parsed).not.toBeNull();
+    const restored = restoreGame(parsed!);
+    expect(restored).not.toBeNull();
+    expect(restored!.difficulty).toBe("medium");
+    expect(restored!.difficultyClamped).toBe(true);
+  });
+
+  it("clamps a saved hard game down to medium too", () => {
+    const states = play(SHORT);
+    const snap = { ...snapshotOf(states), difficulty: "hard" as const };
+    const parsed = parseAt(serializeGame(snap));
+    const restored = restoreGame(parsed!);
+    expect(restored!.difficulty).toBe("medium");
+    expect(restored!.difficultyClamped).toBe(true);
+  });
+
+  it("leaves a saved medium (or easy) game alone, and does not claim a clamp", () => {
+    const states = play(SHORT);
+    const parsed = parseAt(serializeGame(snapshotOf(states)));
+    const restored = restoreGame(parsed!);
+    expect(restored!.difficulty).toBe("medium");
+    expect(restored!.difficultyClamped).toBe(false);
+  });
+});
+
 // ── Refusals ──────────────────────────────────────────────────────────────────
 
 describe("a save that cannot be trusted is dropped, not half-restored", () => {

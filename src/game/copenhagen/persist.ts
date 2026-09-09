@@ -51,6 +51,7 @@
 //     separate, human-facing serialization, free to evolve independently.
 
 import { DIFFICULTIES, type Difficulty } from "./engine";
+import { clampDifficulty } from "./difficultyCap";
 import type { GameState, GameStatus, PlayMode, Side } from "./types";
 import type { Match, PlayerId } from "../matchSet";
 import type { ClockBanks } from "../clockLine";
@@ -166,6 +167,13 @@ export interface RestoredGame {
   match: Match | null;
   gamesPerSet: number;
   names: { p1: string; p2: string };
+  /**
+   * True when `difficulty` above is not what the save actually recorded — a
+   * `hard`/`ollamh` game clamped down to `COPENHAGEN_MAX_DIFFICULTY` on load
+   * (see `difficultyCap.ts`). The screen reads this to say so in the setup
+   * sheet's tier-cap explanation, rather than clamping silently.
+   */
+  difficultyClamped: boolean;
 }
 
 /** Everything App knows about the live game, as handed to {@link snapshotGame}. */
@@ -426,6 +434,13 @@ export function restoreGame(saved: SavedGame): RestoredGame | null {
     }
   }
 
+  // The tier cap (feature 1, WP-4.2): a save written before the cap existed,
+  // or an import that otherwise carried `hard`/`ollamh`, resumes at the cap
+  // rather than at a level the board can no longer search in time. This is
+  // the one place a restored game's difficulty can differ from what was
+  // saved, so it is also the one place that difference is reported back.
+  const difficulty = clampDifficulty(saved.difficulty);
+
   return {
     id: saved.id,
     createdAt: saved.createdAt,
@@ -435,12 +450,13 @@ export function restoreGame(saved: SavedGame): RestoredGame | null {
     variantId: saved.variantId,
     customRules: saved.customRules,
     playMode: saved.playMode,
-    difficulty: saved.difficulty,
+    difficulty,
     recorded: saved.recorded,
     clock: saved.clock,
     match: saved.match,
     gamesPerSet: saved.gamesPerSet,
     names: saved.names,
+    difficultyClamped: difficulty !== saved.difficulty,
   };
 }
 

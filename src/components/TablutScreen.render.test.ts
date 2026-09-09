@@ -65,6 +65,14 @@ function firstCellLabel(html: string): string | null {
   return m ? m[1] : null;
 }
 
+/** The setup sheet's tier row is a run of plain `<button>…text…</button>`
+ *  elements (no aria-label) — same technique as CopenhagenScreen's own render
+ *  test. */
+function buttonHtmlByText(html: string, text: string): string | null {
+  const matches = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
+  return matches.find((b) => b.includes(`>${text}<`)) ?? null;
+}
+
 describe("TablutScreen render", () => {
   it("draws the board unflipped by default: the top-left square is a9", () => {
     const html = renderScreen();
@@ -89,5 +97,25 @@ describe("TablutScreen render", () => {
     localStorage.setItem("brandubh.boardFlipped", "1");
     const html = renderScreen();
     expect(firstCellLabel(html)).toBe("a9");
+  });
+});
+
+// ── WP-4.2, feature 1: Tablut is unaffected by Copenhagen's tier cap ─────────
+
+describe("TablutScreen render — the tier cap does not apply here", () => {
+  it("renders all four tiers enabled", () => {
+    const html = renderScreen();
+    for (const label of ["Easy", "Medium", "Hard", "Ollamh"]) {
+      const button = buttonHtmlByText(html, label);
+      expect(button).not.toBeNull();
+      expect(button).not.toContain('disabled=""');
+      expect(button).not.toContain("aria-disabled");
+    }
+  });
+
+  it("never shows Copenhagen's tier-cap explanation", () => {
+    const html = renderScreen();
+    expect(html).not.toContain(translations.en.copenhagenTierCapNotice);
+    expect(html).not.toContain(translations.en.copenhagenTierCapClamped);
   });
 });
