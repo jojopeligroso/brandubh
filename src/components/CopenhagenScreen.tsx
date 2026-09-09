@@ -9,7 +9,7 @@ import {
 } from "../game/copenhagen/persist";
 import Board from "./Board";
 import PlayerBar from "./PlayerBar";
-import { GameToolbar, GameMenuSheet } from "./GameToolbar";
+import { GameToolbar, GameMenuSheet, MenuIcon } from "./GameToolbar";
 import MoveLog from "./MoveLog";
 import ReviewBar from "./ReviewBar";
 import VictoryOverlay from "./VictoryOverlay";
@@ -125,6 +125,8 @@ export default function CopenhagenScreen({
   defenderEmblem,
   cornerEmblem,
   onClose,
+  drawerOpen,
+  onOpenDrawer,
 }: {
   t: Translations;
   /** The shared Zen preference — App owns it; both surfaces obey it. */
@@ -135,6 +137,10 @@ export default function CopenhagenScreen({
   defenderEmblem: DefenderEmblemDef;
   cornerEmblem: CornerEmblemDef;
   onClose: () => void;
+  /** Whether the app drawer (see AppDrawer) is currently open, for the
+   *  hamburger's pressed state — App owns the drawer, this screen only opens it. */
+  drawerOpen: boolean;
+  onOpenDrawer: () => void;
 }) {
   const screenRef = useDialogFocus<HTMLDivElement>();
 
@@ -708,7 +714,25 @@ export default function CopenhagenScreen({
             <p className="truncate font-display text-lg text-parchment">{t.gameCopenhagen}</p>
             <p className="truncate text-xs text-parchment-dim">{variantLabel}</p>
           </div>
-          <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="copenhagen-zen-toggle" />
+          <div className="flex items-center gap-2">
+            <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="copenhagen-zen-toggle" />
+            {/* Same control as the shell's Header: this screen is a place you
+                can be for a while, and the drawer (language, settings, the
+                other boardgames) should not require backing out first to
+                reach. See App's openSetupOverlay for the "New game" half of
+                making that true. */}
+            <button
+              className={`iconbtn${drawerOpen ? " on" : ""}`}
+              onClick={onOpenDrawer}
+              aria-label={t.menu}
+              title={t.menu}
+              aria-haspopup="dialog"
+              aria-expanded={drawerOpen}
+              data-testid="menu-toggle"
+            >
+              <MenuIcon />
+            </button>
+          </div>
         </header>
 
         <div className="mt-3">{renderPlayerBar(topSide, "top")}</div>

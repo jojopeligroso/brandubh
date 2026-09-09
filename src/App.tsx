@@ -69,7 +69,7 @@ import {
   type RuleSet,
 } from "./game/variants";
 import PlayerBar from "./components/PlayerBar";
-import { GameToolbar, GameMenuSheet } from "./components/GameToolbar";
+import { GameToolbar, GameMenuSheet, MenuIcon } from "./components/GameToolbar";
 import { decisiveWinner, formatEvalScore } from "./evalBar";
 import { useGameClock } from "./useGameClock";
 import {
@@ -1958,6 +1958,22 @@ export default function App() {
     [states, cursor, humanSide, playFromHere],
   );
 
+  // Analysis's own "play from here": `playFromHere` above branches the *live*
+  // game array by index, which only means something for the line you actually
+  // played — inside a tree, `cursor` names a position, not a slot in that
+  // array, and there is no opponent to ask (analysis is not the live game, so
+  // there is nothing shared to protect). This reuses the same "hand over a
+  // whole position" door the puzzle bank and tutorial attempts already use
+  // (`playFromPosition`), which is exactly what a browsed tree node is.
+  const requestPlayFromAnalysis = useCallback(
+    (vsComputer: boolean) => {
+      const pos = states[cursor];
+      if (!resumable(pos.status)) return;
+      playFromPosition(stateFromBoard(pos.board, pos.turn), vsComputer ? pos.turn : null);
+    },
+    [states, cursor, playFromPosition],
+  );
+
   const doTakeback = useCallback(() => {
     setShowTakeback(false);
     if (analysis || tip < 1) return;
@@ -2074,7 +2090,15 @@ export default function App() {
   // Open the setup overlay over the live board — the drawer's "New game" and the
   // header wordmark both land here. Cancelable, because there is now a view
   // behind it: nothing is reset until a game is actually chosen.
+  //
+  // Also reachable from inside Tablut/Copenhagen now that they carry their own
+  // hamburger into the same drawer (see TablutScreen/CopenhagenScreen). "New
+  // game" only ever means a new Brandubh game — the overlay it opens is this
+  // shell's — so closing those surfaces here is what makes the overlay the
+  // *visible* result of the click rather than one painted behind them.
   const openSetupOverlay = () => {
+    setShowTablut(false);
+    setShowCopenhagen(false);
     setModeOverlayCancelable(true);
     setShowModeOverlay(true);
   };
@@ -2494,7 +2518,15 @@ export default function App() {
         );
       })()}
 
-      {(reviewing || gameOver) && showExtra("nav") && (
+      {/* `reviewing` is definitionally always false in analysis — `cursor` is
+          always the end of the displayed line there (see its definition
+          above), so stepping "back" walks the tree rather than un-reaching the
+          tip. Analysis still needs this bar: every node but a fresh root is a
+          position worth playing on from, it is only never the *live* game's
+          tip. `analysis` is added to the gate rather than folded into
+          `reviewing` itself so the label still reads "Play from here" instead
+          of a reviewing count that would always claim you're at move N/N. */}
+      {(reviewing || gameOver || analysis) && showExtra("nav") && (
         <ReviewBar
           t={t}
           reviewing={reviewing}
@@ -2503,8 +2535,10 @@ export default function App() {
           viewedTerminal={!resumable(game.status)}
           showVsAi={showVsAiBranch}
           onLatest={goLatest}
-          onPlay={() => requestPlayFromHere(false)}
-          onPlayVsAi={() => requestPlayFromHere(true)}
+          onPlay={() => (analysis ? requestPlayFromAnalysis(false) : requestPlayFromHere(false))}
+          onPlayVsAi={() =>
+            analysis ? requestPlayFromAnalysis(true) : requestPlayFromHere(true)
+          }
         />
       )}
 
@@ -2689,8 +2723,18 @@ export default function App() {
           onTutorials={() => setLearnView("tutorials")}
           onPuzzles={() => setLearnView("puzzles")}
           onGameFile={() => setShowGameFile(true)}
-          onTablut={() => setShowTablut(true)}
-          onCopenhagen={() => setShowCopenhagen(true)}
+          // Each is now reachable from *inside* the other (both surfaces carry
+          // the hamburger into this same drawer), so switching must drop the
+          // one you are leaving — otherwise "Copenhagen" from within Tablut
+          // is a no-op, since `showCopenhagen && !showTablut` gates the mount.
+          onTablut={() => {
+            setShowCopenhagen(false);
+            setShowTablut(true);
+          }}
+          onCopenhagen={() => {
+            setShowTablut(false);
+            setShowCopenhagen(true);
+          }}
           onSettings={() => setShowDesign(true)}
           onAbout={() => setShowAbout(true)}
         />
@@ -2710,6 +2754,8 @@ export default function App() {
           defenderEmblem={emblemSet.defenderEmblem}
           cornerEmblem={emblemSet.cornerEmblem}
           onClose={() => setShowTablut(false)}
+          drawerOpen={drawerOpen}
+          onOpenDrawer={() => setDrawerOpen(true)}
         />
       )}
 
@@ -2723,6 +2769,8 @@ export default function App() {
           defenderEmblem={emblemSet.defenderEmblem}
           cornerEmblem={emblemSet.cornerEmblem}
           onClose={() => setShowCopenhagen(false)}
+          drawerOpen={drawerOpen}
+          onOpenDrawer={() => setDrawerOpen(true)}
         />
       )}
 
@@ -2996,21 +3044,6 @@ function Header({
         </button>
       </div>
     </header>
-  );
-}
-
-function MenuIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M4 7h16M4 12h16M4 17h16" />
-    </svg>
   );
 }
 

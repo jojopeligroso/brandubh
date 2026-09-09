@@ -153,6 +153,26 @@ export function GameMenuSheet({
 // ── Icons ────────────────────────────────────────────────────────────────────
 // Stroke-drawn to match the board tools; sized by .toolbar-btn svg.
 
+/**
+ * Three bars — the hamburger that opens the app drawer (see AppDrawer). Lives
+ * here rather than in App.tsx so the Tablut and Copenhagen screens can reach
+ * it too without importing from App, which imports them.
+ */
+export function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
 /** Bulleted list — the menu. */
 function ListIcon() {
   return (
