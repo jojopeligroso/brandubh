@@ -715,24 +715,53 @@ export const FULL_CONFIG: SearchConfig = {
   useQuiescence: true,
   maxQuiescencePly: 6,
   useLMR: true,
-  // PVS ships ON here, where it ships OFF for Brandubh.
+  // PVS ships OFF here too now, matching Brandubh and Tablut — gauntletted
+  // 2026-09-09 (WP-2.0, docs/reports/pvs-tablut-copenhagen.md), settling the
+  // "a gauntlet should settle it" this comment used to end on. The wide-board
+  // premise it used to reason from (Copenhagen's opening is "roughly three
+  // times Brandubh's branching") turned out not to predict the measured
+  // direction: PVS costs more nodes here too, not fewer.
   //
-  // The Brandubh note explains why it was kept as a knob at all: it measured
-  // neutral there because smart ordering plus the TT plus LMR already tighten the
-  // windows, "kept as a knob for wider-branching variants where ordering
-  // dominates less".
+  // scripts/pvsbench.ts --game copenhagen --depths 2,3,4 (14 positions:
+  // opening, 5 hand-built tactics from engine.test.ts/searchInvariants.test.ts
+  // — including the exit-fort and shieldwall fixtures this board alone has —
+  // and 8 self-play samples from mulberry32(20260909)): scores identical
+  // between usePVS true/false at every depth on every position (0
+  // mismatches). Node ratio (on/off) at depth 2: median 1.014, mean 1.008,
+  // max 1.082, min 0.798 (one position where PVS-on was cheaper); depth 3:
+  // median 1.009, mean 1.022, max 1.148; depth 4: median 1.008, mean 1.026,
+  // max 1.094. Smaller than Tablut's overhead but the same sign and the same
+  // failure of the "wider board needs it more" premise: 4-6 of 14 positions
+  // at each depth crossed the ±3% either-way bar, all but one of them costing
+  // MORE nodes with PVS on.
   //
-  // ⚠ This comment used to quote Tablut's branching figures (80/56) as the case
-  // for turning it on here — a verbatim copy that never named Copenhagen's own
-  // numbers. Copenhagen's own opening is wider again: `engine.test.ts` ("the size
-  // of the problem") pins **116 legal attacker moves and 60 defender moves**,
-  // against Brandubh's ~40 — roughly three times Brandubh's branching, not the
-  // Tablut figures this comment was citing. So the premise reads stronger here
-  // than it does for Tablut, but "reads stronger" is not "measured": `usePVS` has
-  // never been gauntletted on this board specifically, on Tablut, or against a
-  // Copenhagen-vs-Copenhagen A/B. It ships on as a considered default on the
-  // strength of the branching figure alone. A gauntlet should settle it.
-  usePVS: true,
+  // Wall-clock at the shipping ladder limits (`medium` 2500ms/depth-3-cap,
+  // `hard` 3000ms/depth-6-cap/floor-3, `ollamh` 8000ms/depth-12-cap/floor-4),
+  // same 14 positions, load 4.2-4.9 (`nproc`=4, shared with other agents).
+  // ⚠ Only `medium` is reachable in the shipped UI on this board today: the
+  // owner has parked `hard`/`ollamh` here until the app has a backend, so
+  // `medium`'s depth is the one that plays a real game. `medium` TIES in
+  // depth reached on all 14 positions — PVS buys no depth at all on the tier
+  // that matters. `hard` ties on 13/14 and PVS OFF reaches one ply deeper on
+  // the 14th (self-play ply 15: depth 3 (on) vs 4 (off)); PVS never won a
+  // depth. `ollamh` (6 curated positions): ties throughout.
+  //
+  // Paired gauntlet (candidate = PVS off, baseline = PVS on, DEFAULT_WEIGHTS
+  // both sides): `npx tsx scripts/pairgauntlet.ts --game copenhagen pvs 2 70
+  // 31010 shallow2` — this board's own recommended depth/pair-count
+  // (docs/reports/paired-gauntlet-instrument.md). WW=17 LL=9 split=44,
+  // net=+8, decisive=26, sign-test p=0.1686 — not significant (closer to
+  // significance than Tablut's run, and in the SAME direction: numerically
+  // favouring PVS off, not on), and 70 pairs is this board's own recommended
+  // floor, not a run cut short.
+  //
+  // Applying the house rule (docs/ROADMAP.md "Verification standard": never
+  // ship a measured regression; a neutral change ships only if free): PVS is
+  // not free (real node cost, same sign as Tablut) and has no significant
+  // measured benefit — and on the one deadline tier a player can actually
+  // reach today, it produced no depth benefit in fourteen for fourteen
+  // positions. Ships off for parity with Brandubh and Tablut.
+  usePVS: false,
   useMateDistance: false,
 };
 

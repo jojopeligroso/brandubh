@@ -1,0 +1,99 @@
+pvsbench: game=copenhagen rules=copenhagen depths=2,3,4
+nproc/uptime should be recorded by the caller around this run.
+
+positions (14): opening | midgame-fixture (searchInvariants, 12-ply self-play) | tactical: king capture in one move (strong king) | tactical: escape in hand | tactical: exit fort one move away | tactical: shieldwall one move away | self-play ply 5 (seed 20260909) | self-play ply 10 (seed 20260909) | self-play ply 15 (seed 20260909) | self-play ply 20 (seed 20260909) | self-play ply 25 (seed 20260909) | self-play ply 30 (seed 20260909) | self-play ply 35 (seed 20260909) | self-play ply 40 (seed 20260909)
+
+── depth 2 ──
+  opening                                              on=    1625 off=    1611 ratio=1.0087 depthReached on/off=2/2 score on/off=180/180
+  midgame-fixture (searchInvariants, 12-ply self-play) on=    2534 off=    2453 ratio=1.0330 depthReached on/off=2/2 score on/off=167/167
+  tactical: king capture in one move (strong king)     on=     111 off=     111 ratio=1.0000 depthReached on/off=1/1 score on/off=1000000/1000000
+  tactical: escape in hand                             on=      38 off=      38 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: exit fort one move away                    on=     149 off=     149 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: shieldwall one move away                   on=     271 off=     271 ratio=1.0000 depthReached on/off=2/2 score on/off=1000000/1000000
+  self-play ply 5 (seed 20260909)                      on=     605 off=     599 ratio=1.0100 depthReached on/off=2/2 score on/off=174/174
+  self-play ply 10 (seed 20260909)                     on=    5328 off=    5028 ratio=1.0597 depthReached on/off=2/2 score on/off=140/140
+  self-play ply 15 (seed 20260909)                     on=    1497 off=    1448 ratio=1.0338 depthReached on/off=2/2 score on/off=164/164
+  self-play ply 20 (seed 20260909)                     on=    3309 off=    3057 ratio=1.0824 depthReached on/off=2/2 score on/off=184/184
+  self-play ply 25 (seed 20260909)                     on=    2175 off=    2726 ratio=0.7979 depthReached on/off=2/2 score on/off=180/180
+  self-play ply 30 (seed 20260909)                     on=    9642 off=    9144 ratio=1.0545 depthReached on/off=2/2 score on/off=280/280
+  self-play ply 35 (seed 20260909)                     on=    1725 off=    1702 ratio=1.0135 depthReached on/off=2/2 score on/off=344/344
+  self-play ply 40 (seed 20260909)                     on=    3995 off=    3940 ratio=1.0140 depthReached on/off=2/2 score on/off=504/504
+
+── depth 3 ──
+  opening                                              on=    8287 off=    8171 ratio=1.0142 depthReached on/off=3/3 score on/off=180/180
+  midgame-fixture (searchInvariants, 12-ply self-play) on=   36418 off=   36203 ratio=1.0059 depthReached on/off=3/3 score on/off=170/170
+  tactical: king capture in one move (strong king)     on=     111 off=     111 ratio=1.0000 depthReached on/off=1/1 score on/off=1000000/1000000
+  tactical: escape in hand                             on=      38 off=      38 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: exit fort one move away                    on=     149 off=     149 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: shieldwall one move away                   on=     271 off=     271 ratio=1.0000 depthReached on/off=2/2 score on/off=1000000/1000000
+  self-play ply 5 (seed 20260909)                      on=    9487 off=    9174 ratio=1.0341 depthReached on/off=3/3 score on/off=200/200
+  self-play ply 10 (seed 20260909)                     on=   47376 off=   45734 ratio=1.0359 depthReached on/off=3/3 score on/off=140/140
+  self-play ply 15 (seed 20260909)                     on=   30706 off=   26746 ratio=1.1481 depthReached on/off=3/3 score on/off=147/147
+  self-play ply 20 (seed 20260909)                     on=   44689 off=   44436 ratio=1.0057 depthReached on/off=3/3 score on/off=184/184
+  self-play ply 25 (seed 20260909)                     on=   19380 off=   18691 ratio=1.0369 depthReached on/off=3/3 score on/off=220/220
+  self-play ply 30 (seed 20260909)                     on=   56545 off=   56050 ratio=1.0088 depthReached on/off=3/3 score on/off=280/280
+  self-play ply 35 (seed 20260909)                     on=   21671 off=   21290 ratio=1.0179 depthReached on/off=3/3 score on/off=330/330
+  self-play ply 40 (seed 20260909)                     on=   60992 off=   60767 ratio=1.0037 depthReached on/off=3/3 score on/off=504/504
+
+── depth 4 ──
+  opening                                              on=   18729 off=   18807 ratio=0.9959 depthReached on/off=4/4 score on/off=180/180
+  midgame-fixture (searchInvariants, 12-ply self-play) on=  192747 off=  191251 ratio=1.0078 depthReached on/off=4/4 score on/off=170/170
+  tactical: king capture in one move (strong king)     on=     111 off=     111 ratio=1.0000 depthReached on/off=1/1 score on/off=1000000/1000000
+  tactical: escape in hand                             on=      38 off=      38 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: exit fort one move away                    on=     149 off=     149 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: shieldwall one move away                   on=     271 off=     271 ratio=1.0000 depthReached on/off=2/2 score on/off=1000000/1000000
+  self-play ply 5 (seed 20260909)                      on=   23697 off=   23538 ratio=1.0068 depthReached on/off=4/4 score on/off=204/204
+  self-play ply 10 (seed 20260909)                     on=  107312 off=  105289 ratio=1.0192 depthReached on/off=4/4 score on/off=140/140
+  self-play ply 15 (seed 20260909)                     on=   56132 off=   51891 ratio=1.0817 depthReached on/off=4/4 score on/off=140/140
+  self-play ply 20 (seed 20260909)                     on=  769472 off=  719978 ratio=1.0687 depthReached on/off=4/4 score on/off=160/160
+  self-play ply 25 (seed 20260909)                     on=   58547 off=   56851 ratio=1.0298 depthReached on/off=4/4 score on/off=220/220
+  self-play ply 30 (seed 20260909)                     on=  600255 off=  548824 ratio=1.0937 depthReached on/off=4/4 score on/off=260/260
+  self-play ply 35 (seed 20260909)                     on=   36519 off=   36328 ratio=1.0053 depthReached on/off=4/4 score on/off=330/330
+  self-play ply 40 (seed 20260909)                     on=  450539 off=  425411 ratio=1.0591 depthReached on/off=4/4 score on/off=517/517
+
+=== node-ratio summary (PVS-on nodes / PVS-off nodes) ===
+depth 2: min=0.7979 median=1.0135 mean=1.0077 max=1.0824 (n=14, >3% deviation: 6/14, mismatches=0)
+depth 3: min=1.0000 median=1.0088 mean=1.0222 max=1.1481 (n=14, >3% deviation: 4/14, mismatches=0)
+depth 4: min=0.9959 median=1.0078 mean=1.0263 max=1.0937 (n=14, >3% deviation: 4/14, mismatches=0)
+
+overall max |ratio-1| across all depths/positions: 20.21% (gauntlet threshold: 3%)
+
+── medium ladder limit: {"maxDepth":3,"deadlineMs":2500} ──
+  opening                                              on: depth=3 nodes=8287 167ms   off: depth=3 nodes=8171 160ms
+  midgame-fixture (searchInvariants, 12-ply self-play) on: depth=3 nodes=36418 712ms   off: depth=3 nodes=36203 662ms
+  tactical: king capture in one move (strong king)     on: depth=1 nodes=111 1ms   off: depth=1 nodes=111 1ms
+  tactical: escape in hand                             on: depth=1 nodes=38 1ms   off: depth=1 nodes=38 0ms
+  tactical: exit fort one move away                    on: depth=1 nodes=149 3ms   off: depth=1 nodes=149 3ms
+  tactical: shieldwall one move away                   on: depth=2 nodes=271 4ms   off: depth=2 nodes=271 4ms
+  self-play ply 5 (seed 20260909)                      on: depth=3 nodes=9487 143ms   off: depth=3 nodes=9174 134ms
+  self-play ply 10 (seed 20260909)                     on: depth=3 nodes=47376 544ms   off: depth=3 nodes=45734 498ms
+  self-play ply 15 (seed 20260909)                     on: depth=3 nodes=30706 890ms   off: depth=3 nodes=26746 623ms
+  self-play ply 20 (seed 20260909)                     on: depth=3 nodes=44689 495ms   off: depth=3 nodes=44436 516ms
+  self-play ply 25 (seed 20260909)                     on: depth=3 nodes=19380 351ms   off: depth=3 nodes=18691 386ms
+  self-play ply 30 (seed 20260909)                     on: depth=3 nodes=56545 744ms   off: depth=3 nodes=56050 734ms
+  self-play ply 35 (seed 20260909)                     on: depth=3 nodes=21671 1486ms   off: depth=3 nodes=21290 1479ms
+  self-play ply 40 (seed 20260909)                     on: depth=3 nodes=60992 685ms   off: depth=3 nodes=60767 656ms
+
+── hard ladder limit: {"maxDepth":6,"deadlineMs":3000,"minDepth":3} ──
+  opening                                              on: depth=5 nodes=111910 2045ms   off: depth=5 nodes=112011 2149ms
+  midgame-fixture (searchInvariants, 12-ply self-play) on: depth=3 nodes=108544 3058ms   off: depth=3 nodes=108544 3001ms
+  tactical: king capture in one move (strong king)     on: depth=1 nodes=111 2ms   off: depth=1 nodes=111 2ms
+  tactical: escape in hand                             on: depth=1 nodes=38 1ms   off: depth=1 nodes=38 1ms
+  tactical: exit fort one move away                    on: depth=1 nodes=149 3ms   off: depth=1 nodes=149 3ms
+  tactical: shieldwall one move away                   on: depth=2 nodes=271 4ms   off: depth=2 nodes=271 4ms
+  self-play ply 5 (seed 20260909)                      on: depth=5 nodes=155648 3028ms   off: depth=5 nodes=153600 3006ms
+  self-play ply 10 (seed 20260909)                     on: depth=4 nodes=107312 2239ms   off: depth=4 nodes=105289 3012ms
+  self-play ply 15 (seed 20260909)                     on: depth=3 nodes=30706 769ms   off: depth=4 nodes=51891 2002ms
+  self-play ply 20 (seed 20260909)                     on: depth=3 nodes=137216 3028ms   off: depth=3 nodes=133120 3053ms
+  self-play ply 25 (seed 20260909)                     on: depth=4 nodes=58547 1290ms   off: depth=4 nodes=56851 1350ms
+  self-play ply 30 (seed 20260909)                     on: depth=3 nodes=133120 3050ms   off: depth=3 nodes=137216 3041ms
+  self-play ply 35 (seed 20260909)                     on: depth=3 nodes=21671 1509ms   off: depth=3 nodes=21290 1444ms
+  self-play ply 40 (seed 20260909)                     on: depth=3 nodes=100352 3047ms   off: depth=3 nodes=94208 3031ms
+
+── ollamh ladder limit: {"maxDepth":12,"deadlineMs":8000,"minDepth":4} ──
+  opening                                              on: depth=5 nodes=111910 1999ms   off: depth=5 nodes=112011 1977ms
+  midgame-fixture (searchInvariants, 12-ply self-play) on: depth=4 nodes=192747 5729ms   off: depth=4 nodes=191251 5704ms
+  tactical: king capture in one move (strong king)     on: depth=1 nodes=111 1ms   off: depth=1 nodes=111 1ms
+  tactical: escape in hand                             on: depth=1 nodes=38 1ms   off: depth=1 nodes=38 0ms
+  tactical: exit fort one move away                    on: depth=1 nodes=149 3ms   off: depth=1 nodes=149 3ms
+  tactical: shieldwall one move away                   on: depth=2 nodes=271 4ms   off: depth=2 nodes=271 4ms

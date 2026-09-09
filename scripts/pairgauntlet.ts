@@ -169,7 +169,7 @@
  * pipe stdout to capture a run.
  */
 import type { GameState, Move, Side } from "../src/game/types";
-import { adapterFor, isGameId, GAME_IDS, type GameAdapter, type Weights } from "./gauntlet/index";
+import { adapterFor, isGameId, GAME_IDS, type GameAdapter, type Weights, type Config } from "./gauntlet/index";
 
 const MAX_PLIES = 200;
 
@@ -315,6 +315,8 @@ function playFrom(
   atkDepth: number,
   defDepth: number,
   seed: number,
+  atkConfig?: Config,
+  defConfig?: Config,
 ): GameOutcome {
   const rngA = mulberry32(seed * 2 + 1);
   const rngD = mulberry32(seed * 2 + 2);
@@ -323,7 +325,7 @@ function playFrom(
   a.resetSearch();
   while (!a.isOver(s) && plies < MAX_PLIES) {
     const atk = s.turn === "attackers";
-    const move = a.search(s, atk ? atkDepth : defDepth, atk ? rngA : rngD, atk ? atkW : defW);
+    const move = a.search(s, atk ? atkDepth : defDepth, atk ? rngA : rngD, atk ? atkW : defW, atk ? atkConfig : defConfig);
     if (!move) break;
     s = a.apply(s, move);
     plies++;
@@ -362,7 +364,11 @@ interface PairRecord {
 
 /** Play one mirrored pair: same opening, candidate as attackers then as
  *  defenders. candDepth/baseDepth allow asymmetric-depth calibration runs;
- *  pass equal values for an eval-weight comparison at fixed depth. */
+ *  pass equal values for an eval-weight comparison at fixed depth.
+ *  candConfig/baseConfig are optional and follow the candidate/baseline
+ *  (like the weights do, not the side) — omit both for the existing
+ *  eval-weight/depth comparisons, which get each adapter's own default
+ *  config unchanged. */
 function playPair(
   a: GameAdapter,
   pairIndex: number,
@@ -372,16 +378,18 @@ function playPair(
   baseDepth: number,
   openingScheme: OpeningScheme,
   openingSeed: number,
+  candConfig?: Config,
+  baseConfig?: Config,
 ): PairRecord {
   const openingRng = mulberry32(openingSeed);
   const opening = generateOpening(a, openingScheme, openingRng);
 
   // Game 1: candidate = attackers, baseline = defenders.
-  const g1 = playFrom(a, opening, candW, baseW, candDepth, baseDepth, pairIndex * 4 + 1);
+  const g1 = playFrom(a, opening, candW, baseW, candDepth, baseDepth, pairIndex * 4 + 1, candConfig, baseConfig);
   const l1 = letterFor(g1.winner, "attackers");
 
   // Game 2: baseline = attackers, candidate = defenders. SAME opening.
-  const g2 = playFrom(a, opening, baseW, candW, baseDepth, candDepth, pairIndex * 4 + 3);
+  const g2 = playFrom(a, opening, baseW, candW, baseDepth, candDepth, pairIndex * 4 + 3, baseConfig, candConfig);
   const l2 = letterFor(g2.winner, "defenders");
 
   const { category, score } = categorize(l1.letter, l2.letter);
@@ -446,13 +454,15 @@ export function runGauntlet(
   openingScheme: OpeningScheme,
   baseSeed: number,
   log: (s: string) => void = console.log,
+  candConfig?: Config,
+  baseConfig?: Config,
 ): GauntletSummary {
   assertSchemeSupported(adapter, openingScheme);
   const records: PairRecord[] = [];
   const t0 = performance.now();
   for (let i = 0; i < nPairs; i++) {
     const openingSeed = baseSeed * 100003 + i; // distinct opening per pair, deterministic
-    const rec = playPair(adapter, i, candW, baseW, candDepth, baseDepth, openingScheme, openingSeed);
+    const rec = playPair(adapter, i, candW, baseW, candDepth, baseDepth, openingScheme, openingSeed, candConfig, baseConfig);
     records.push(rec);
     log(
       `  pair ${i + 1}/${nPairs}: atk=${rec.candAsAttackerResult.letter}(${rec.candAsAttackerResult.plies}p) def=${rec.candAsDefenderResult.letter}(${rec.candAsDefenderResult.plies}p) -> ${rec.category} (score ${rec.score >= 0 ? "+" : ""}${rec.score})`,
@@ -612,12 +622,40 @@ function main() {
     label = `Candidate "${term}" vs DEFAULT ${board} depth=${d} pairs=${p} seed=${sd} opening=${scheme}`;
     console.log(label);
     summary = runGauntlet(adapter, cand, adapter.defaultWeights, d, d, p, scheme, sd);
+  } else if (mode === "pvs") {
+    // Candidate = PVS off, baseline = PVS on (Tablut and Copenhagen ship on;
+    // Brandubh ships off, so this mode is a no-op A/A there, which is fine —
+    // it means the same thing as `aa` for that board). Same DEFAULT_WEIGHTS
+    // both sides, same depth both sides: the only thing varied is `usePVS`.
+    // See WP-2.0 / docs/reports/pvs-tablut-copenhagen.md for why this mode
+    // exists and what it measured.
+    const [depth, pairs, seedArg, opening] = rest.slice(1);
+    const usage = "npx tsx scripts/pairgauntlet.ts [--game <id>] pvs <depth> <pairs> <seed> [opening]";
+    const d = Number(depth), p = Number(pairs);
+    const sd = requireSeed(seedArg, usage);
+    const scheme = resolveScheme(adapter, opening);
+    label = `PVS off (cand) vs PVS on (base) ${board} depth=${d} pairs=${p} seed=${sd} opening=${scheme}`;
+    console.log(label);
+    summary = runGauntlet(
+      adapter,
+      adapter.defaultWeights,
+      adapter.defaultWeights,
+      d,
+      d,
+      p,
+      scheme,
+      sd,
+      console.log,
+      adapter.pvsConfig(false),
+      adapter.pvsConfig(true),
+    );
   } else {
     console.error(
       "usage:\n" +
         "  npx tsx scripts/pairgauntlet.ts [--game <id>] aa <depth> <pairs> <seed> [opening]\n" +
         "  npx tsx scripts/pairgauntlet.ts [--game <id>] calibrate <depthHi> <depthLo> <pairs> <seed> [opening]\n" +
         "  npx tsx scripts/pairgauntlet.ts [--game <id>] cand <term|json> <depth> <pairs> <seed> [opening]\n" +
+        "  npx tsx scripts/pairgauntlet.ts [--game <id>] pvs <depth> <pairs> <seed> [opening]\n" +
         `game (default brandubh): ${GAME_IDS.join(" | ")}\n` +
         `opening (default: book2 on brandubh, shallow2 on tablut/copenhagen): ${OPENING_SCHEMES.join(" | ")}\n` +
         "  book2/book4 are Brandubh-only — the opening book exists for no other board.\n" +

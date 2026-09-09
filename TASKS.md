@@ -134,11 +134,15 @@ Session 12 for the plan that addresses it.
 - [ ] **Copenhagen eval weights are unmeasured** `[engine]` — `DEFAULT_WEIGHTS` in
   `src/game/copenhagen/engine.ts` are reasoned, not gauntletted, same situation
   as Tablut's line above but with no entry of its own until now.
-- [ ] **`usePVS` is unmeasured on both larger boards** `[engine]` — ships on for
-  both by considered default; Copenhagen's copy of the justifying comment cited
-  Tablut's branching figures until this session (see the correction in
-  `src/game/copenhagen/engine.ts`). Neither board has been through the
-  mirrored-pair gauntlet on this flag specifically.
+- [x] **`usePVS` measured on both larger boards** `[engine]` — WP-2.0
+  (2026-09-09, `docs/reports/pvs-tablut-copenhagen.md`): equal-depth node
+  counts (PVS costs MORE nodes than plain alpha-beta on both boards, not
+  fewer — the "wider board has more to save" premise both `FULL_CONFIG`
+  comments used to ship on), ladder wall-clock (PVS never reached a deeper
+  depth under a real deadline on either board), and the mirrored-pair
+  gauntlet at each board's own recommended depth/pairs (Tablut p=0.4545 at 40
+  pairs, Copenhagen p=0.1686 at 70 pairs — neither significant, both leaning
+  toward PVS off). `usePVS` now ships `false` on both, matching Brandubh.
 - [ ] **No gauntlet instrument for either board** `[tests]` — `scripts/pairgauntlet.ts`
   hard-codes `VARIANTS.wtf` and depends on the Brandubh opening book; it cannot
   run against Tablut or Copenhagen without parameterising both.

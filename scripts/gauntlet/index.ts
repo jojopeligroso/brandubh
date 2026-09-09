@@ -27,4 +27,4 @@ export function adapterFor(game: GameId): GameAdapter {
 }
 
 export { GAME_IDS };
-export type { GameAdapter, GameId, Weights } from "./adapter";
+export type { GameAdapter, GameId, Weights, Config } from "./adapter";

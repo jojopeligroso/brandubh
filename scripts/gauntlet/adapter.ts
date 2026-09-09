@@ -37,6 +37,14 @@ export type GameId = (typeof GAME_IDS)[number];
 export type Weights = object;
 
 /**
+ * One game's `SearchConfig`, opaque outside its own adapter for the same
+ * reason `Weights` is: the gauntlet moves a `Config` from an adapter call
+ * (`defaultConfig`, `pvsConfig`) straight to another call on the SAME
+ * adapter's `search`, and never reads a field.
+ */
+export type Config = object;
+
+/**
  * Everything the mirrored-pair gauntlet needs from one boardgame. The ruleset
  * is baked in when the adapter is built, so it never appears in the
  * instrument's own signatures.
@@ -70,8 +78,16 @@ export interface GameAdapter {
 
   /** Clear this game's transposition table. */
   resetSearch(): void;
-  /** A fixed-depth search with no time budget: the move this config plays. */
-  search(s: GameState, maxDepth: number, rng: () => number, w: Weights): Move | null;
+  /** This game's shipped `FULL_CONFIG` — the gauntlet's default search config. */
+  readonly defaultConfig: Config;
+  /** `defaultConfig` with `usePVS` forced to `on`. Exists so a caller can
+   *  compare PVS on vs off through `search`'s optional config param without
+   *  ever reading or constructing a `SearchConfig` itself — see WP-2.0
+   *  (docs/reports/pvs-tablut-copenhagen.md) for what it was built to measure. */
+  pvsConfig(on: boolean): Config;
+  /** A fixed-depth search with no time budget: the move this config plays.
+   *  `config` defaults to `defaultConfig` when omitted. */
+  search(s: GameState, maxDepth: number, rng: () => number, w: Weights, config?: Config): Move | null;
   /** Every root move within `margin` of the best at a fixed depth, exact
    *  scores, no deadline (the multi-PV query `shallowN` openings use). */
   nearBest(s: GameState, depth: number, margin: number): Move[];

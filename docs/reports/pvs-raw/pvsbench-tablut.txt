@@ -1,0 +1,94 @@
+pvsbench: game=tablut rules=tablut-linnaeus depths=3,4,5
+nproc/uptime should be recorded by the caller around this run.
+
+positions (13): opening | midgame-fixture (searchInvariants, 12-ply self-play) | tactical: king capture in one move | tactical: escape one move away | tactical: two-lane fork | tactical: king must dodge a capture | self-play ply 5 (seed 20260909) | self-play ply 10 (seed 20260909) | self-play ply 15 (seed 20260909) | self-play ply 20 (seed 20260909) | self-play ply 25 (seed 20260909) | self-play ply 30 (seed 20260909) | self-play ply 35 (seed 20260909)
+
+── depth 3 ──
+  opening                                              on=    2748 off=    2404 ratio=1.1431 depthReached on/off=3/3 score on/off=80/80
+  midgame-fixture (searchInvariants, 12-ply self-play) on=   18361 off=   16157 ratio=1.1364 depthReached on/off=3/3 score on/off=224/224
+  tactical: king capture in one move                   on=      85 off=      85 ratio=1.0000 depthReached on/off=1/1 score on/off=1000000/1000000
+  tactical: escape one move away                       on=      14 off=      14 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: two-lane fork                              on=     176 off=     176 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: king must dodge a capture                  on=      28 off=      28 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  self-play ply 5 (seed 20260909)                      on=   17346 off=   16655 ratio=1.0415 depthReached on/off=3/3 score on/off=0/0
+  self-play ply 10 (seed 20260909)                     on=   13245 off=   12787 ratio=1.0358 depthReached on/off=3/3 score on/off=-136/-136
+  self-play ply 15 (seed 20260909)                     on=   28857 off=   27986 ratio=1.0311 depthReached on/off=3/3 score on/off=-136/-136
+  self-play ply 20 (seed 20260909)                     on=   14753 off=   13257 ratio=1.1128 depthReached on/off=3/3 score on/off=-264/-264
+  self-play ply 25 (seed 20260909)                     on=   21730 off=   20780 ratio=1.0457 depthReached on/off=3/3 score on/off=-276/-276
+  self-play ply 30 (seed 20260909)                     on=    2757 off=    2805 ratio=0.9829 depthReached on/off=2/2 score on/off=-999998/-999998
+  self-play ply 35 (seed 20260909)                     on=     603 off=     603 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+
+── depth 4 ──
+  opening                                              on=    5037 off=    4668 ratio=1.0790 depthReached on/off=4/4 score on/off=80/80
+  midgame-fixture (searchInvariants, 12-ply self-play) on=   26029 off=   24103 ratio=1.0799 depthReached on/off=4/4 score on/off=224/224
+  tactical: king capture in one move                   on=      85 off=      85 ratio=1.0000 depthReached on/off=1/1 score on/off=1000000/1000000
+  tactical: escape one move away                       on=      14 off=      14 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: two-lane fork                              on=     176 off=     176 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: king must dodge a capture                  on=      28 off=      28 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  self-play ply 5 (seed 20260909)                      on=   62961 off=   60738 ratio=1.0366 depthReached on/off=4/4 score on/off=-24/-24
+  self-play ply 10 (seed 20260909)                     on=   39971 off=   37093 ratio=1.0776 depthReached on/off=4/4 score on/off=-96/-96
+  self-play ply 15 (seed 20260909)                     on=  141090 off=  131339 ratio=1.0742 depthReached on/off=4/4 score on/off=-140/-140
+  self-play ply 20 (seed 20260909)                     on=   34460 off=   32990 ratio=1.0446 depthReached on/off=4/4 score on/off=-326/-326
+  self-play ply 25 (seed 20260909)                     on=   55461 off=   52247 ratio=1.0615 depthReached on/off=4/4 score on/off=-376/-376
+  self-play ply 30 (seed 20260909)                     on=    2757 off=    2805 ratio=0.9829 depthReached on/off=2/2 score on/off=-999998/-999998
+  self-play ply 35 (seed 20260909)                     on=     603 off=     603 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+
+── depth 5 ──
+  opening                                              on=   38124 off=   26244 ratio=1.4527 depthReached on/off=5/5 score on/off=60/60
+  midgame-fixture (searchInvariants, 12-ply self-play) on=   65346 off=   62071 ratio=1.0528 depthReached on/off=5/5 score on/off=194/194
+  tactical: king capture in one move                   on=      85 off=      85 ratio=1.0000 depthReached on/off=1/1 score on/off=1000000/1000000
+  tactical: escape one move away                       on=      14 off=      14 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: two-lane fork                              on=     176 off=     176 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  tactical: king must dodge a capture                  on=      28 off=      28 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+  self-play ply 5 (seed 20260909)                      on=  121289 off=  118092 ratio=1.0271 depthReached on/off=5/5 score on/off=-16/-16
+  self-play ply 10 (seed 20260909)                     on=  163095 off=  147454 ratio=1.1061 depthReached on/off=5/5 score on/off=-176/-176
+  self-play ply 15 (seed 20260909)                     on=  242645 off=  230549 ratio=1.0525 depthReached on/off=5/5 score on/off=-136/-136
+  self-play ply 20 (seed 20260909)                     on=   99524 off=  106130 ratio=0.9378 depthReached on/off=5/5 score on/off=-326/-326
+  self-play ply 25 (seed 20260909)                     on=  102975 off=   97700 ratio=1.0540 depthReached on/off=5/5 score on/off=-376/-376
+  self-play ply 30 (seed 20260909)                     on=    2757 off=    2805 ratio=0.9829 depthReached on/off=2/2 score on/off=-999998/-999998
+  self-play ply 35 (seed 20260909)                     on=     603 off=     603 ratio=1.0000 depthReached on/off=1/1 score on/off=-1000000/-1000000
+
+=== node-ratio summary (PVS-on nodes / PVS-off nodes) ===
+depth 3: min=0.9829 median=1.0311 mean=1.0407 max=1.1431 (n=13, >3% deviation: 7/13, mismatches=0)
+depth 4: min=0.9829 median=1.0366 mean=1.0336 max=1.0799 (n=13, >3% deviation: 7/13, mismatches=0)
+depth 5: min=0.9378 median=1.0000 mean=1.0512 max=1.4527 (n=13, >3% deviation: 6/13, mismatches=0)
+
+overall max |ratio-1| across all depths/positions: 45.27% (gauntlet threshold: 3%)
+
+── medium ladder limit: {"maxDepth":3,"deadlineMs":2500} ──
+  opening                                              on: depth=3 nodes=2748 69ms   off: depth=3 nodes=2404 61ms
+  midgame-fixture (searchInvariants, 12-ply self-play) on: depth=3 nodes=18361 485ms   off: depth=3 nodes=16157 707ms
+  tactical: king capture in one move                   on: depth=1 nodes=85 2ms   off: depth=1 nodes=85 8ms
+  tactical: escape one move away                       on: depth=1 nodes=14 0ms   off: depth=1 nodes=14 0ms
+  tactical: two-lane fork                              on: depth=1 nodes=176 8ms   off: depth=1 nodes=176 1ms
+  tactical: king must dodge a capture                  on: depth=1 nodes=28 1ms   off: depth=1 nodes=28 5ms
+  self-play ply 5 (seed 20260909)                      on: depth=3 nodes=17346 725ms   off: depth=3 nodes=16655 501ms
+  self-play ply 10 (seed 20260909)                     on: depth=3 nodes=13245 222ms   off: depth=3 nodes=12787 215ms
+  self-play ply 15 (seed 20260909)                     on: depth=3 nodes=28857 1062ms   off: depth=3 nodes=27986 517ms
+  self-play ply 20 (seed 20260909)                     on: depth=3 nodes=14753 669ms   off: depth=3 nodes=13257 449ms
+  self-play ply 25 (seed 20260909)                     on: depth=3 nodes=21730 539ms   off: depth=3 nodes=20780 366ms
+  self-play ply 30 (seed 20260909)                     on: depth=2 nodes=2757 162ms   off: depth=2 nodes=2805 116ms
+  self-play ply 35 (seed 20260909)                     on: depth=1 nodes=603 5ms   off: depth=1 nodes=603 5ms
+
+── hard ladder limit: {"maxDepth":6,"deadlineMs":3000,"minDepth":3} ──
+  opening                                              on: depth=5 nodes=38124 1205ms   off: depth=5 nodes=26244 853ms
+  midgame-fixture (searchInvariants, 12-ply self-play) on: depth=3 nodes=18361 642ms   off: depth=5 nodes=62071 1473ms
+  tactical: king capture in one move                   on: depth=1 nodes=85 2ms   off: depth=1 nodes=85 2ms
+  tactical: escape one move away                       on: depth=1 nodes=14 0ms   off: depth=1 nodes=14 0ms
+  tactical: two-lane fork                              on: depth=1 nodes=176 1ms   off: depth=1 nodes=176 1ms
+  tactical: king must dodge a capture                  on: depth=1 nodes=28 1ms   off: depth=1 nodes=28 1ms
+  self-play ply 5 (seed 20260909)                      on: depth=3 nodes=17346 668ms   off: depth=4 nodes=60738 1394ms
+  self-play ply 10 (seed 20260909)                     on: depth=5 nodes=163095 2366ms   off: depth=5 nodes=147454 2103ms
+  self-play ply 15 (seed 20260909)                     on: depth=4 nodes=141090 2606ms   off: depth=4 nodes=131339 2464ms
+  self-play ply 20 (seed 20260909)                     on: depth=5 nodes=260096 3007ms   off: depth=5 nodes=274432 3001ms
+  self-play ply 25 (seed 20260909)                     on: depth=6 nodes=222277 1885ms   off: depth=6 nodes=213380 1787ms
+  self-play ply 30 (seed 20260909)                     on: depth=2 nodes=2757 74ms   off: depth=2 nodes=2805 70ms
+  self-play ply 35 (seed 20260909)                     on: depth=1 nodes=603 5ms   off: depth=1 nodes=603 5ms
+
+── ollamh ladder limit: {"maxDepth":12,"deadlineMs":8000,"minDepth":4} ──
+  opening                                              on: depth=7 nodes=248756 4138ms   off: depth=7 nodes=198894 3141ms
+  midgame-fixture (searchInvariants, 12-ply self-play) on: depth=7 nodes=458478 5193ms   off: depth=7 nodes=475768 5387ms
+  tactical: king capture in one move                   on: depth=1 nodes=85 1ms   off: depth=1 nodes=85 1ms
+  tactical: escape one move away                       on: depth=1 nodes=14 0ms   off: depth=1 nodes=14 0ms
+  tactical: two-lane fork                              on: depth=1 nodes=176 1ms   off: depth=1 nodes=176 1ms
+  tactical: king must dodge a capture                  on: depth=1 nodes=28 0ms   off: depth=1 nodes=28 0ms
