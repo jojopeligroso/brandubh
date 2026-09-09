@@ -35,6 +35,14 @@ function play(moves: string[], rules = baseline): GameState {
 /** Four quiet plies from the opening, White first. Verified against the engine. */
 const SHORT = ["e3-d3", "e8-a8", "d3-d4", "i6-i8"];
 
+/**
+ * The same four plies, reordered for a ruleset whose `firstMove` is
+ * "attackers" (baseline rule 2, corrected 2026-09-09 — see
+ * docs/tablut-rules.md). Every current preset needs this; the legacy ones
+ * still use SHORT above, unchanged.
+ */
+const ATTACKERS_FIRST = ["e8-a8", "e3-d3", "i6-i8", "d3-d4"];
+
 // ── Export ────────────────────────────────────────────────────────────────────
 
 describe("exportGame", () => {
@@ -72,7 +80,14 @@ describe("exportGame", () => {
   });
 
   it("carries a custom ruleset in one Rules tag, and only for custom", () => {
-    const custom = rulesFor("custom", { ...CUSTOM_RULE_DEFAULTS, throneBlocks: "attackers" });
+    // firstMove is pinned to "defenders" so SHORT's move order — unrelated to
+    // the flag this test exercises — stays valid; CUSTOM_RULE_DEFAULTS now
+    // defaults to "attackers" (baseline rule 2, corrected 2026-09-09).
+    const custom = rulesFor("custom", {
+      ...CUSTOM_RULE_DEFAULTS,
+      firstMove: "defenders",
+      throneBlocks: "attackers",
+    });
     const text = exportGame(play(SHORT, custom), custom);
     expect(text).toContain('[Variant "custom"]');
     expect(text).toMatch(/\[Rules "[^"]*throneBlocks=attackers[^"]*"\]/);
@@ -95,7 +110,8 @@ describe("export then import", () => {
 
   it("round-trips every shipped preset", () => {
     for (const rules of Object.values(VARIANTS)) {
-      const text = exportGame(play(SHORT, rules), rules);
+      const moves = rules.firstMove === "attackers" ? ATTACKERS_FIRST : SHORT;
+      const text = exportGame(play(moves, rules), rules);
       const parsed = parseGame(text);
       expect(parsed.ok, `${rules.id} should round-trip`).toBe(true);
       if (parsed.ok) expect(parsed.game.rules.id).toBe(rules.id);
@@ -178,23 +194,39 @@ describe("the parser shrugs off what it can", () => {
   });
 
   it("resolves a variant from a display name or a shorthand", () => {
-    for (const [tag, id] of [
-      ["tablut", "tablut"],
-      ["Tablut · gulo/Dimetr 2025", "tablut-gulo"],
-      ["gulo", "tablut-gulo"],
-      ["corner escape", "tablut-corners"],
-      ["tournament", "tablut-aage"],
-      ["Linnaeus", "tablut"],
+    // An exact id ("tablut") or a bare shorthand ("gulo", "corner escape",
+    // "tournament", "Linnaeus") is unaffected by the 2026-09-09 correction:
+    // exact ids look themselves up directly, and the shorthand heuristics in
+    // gameFile.ts are hardcoded to the legacy ids. The *full display name*
+    // ("Tablut · gulo/Dimetr 2025") is different — that text is unchanged on
+    // the corrected preset (only its id moved to `-2`), and resolveVariant's
+    // exact-name match walks VARIANTS in declaration order, which lists the
+    // corrected presets first — so an exact display name now resolves to the
+    // *current* preset, which is the wanted behaviour: someone pasting a bare
+    // ruleset name gets today's reading, not the one it superseded. Each
+    // entry below carries a move legal for whichever side that resolved
+    // ruleset's `firstMove` actually is.
+    for (const [tag, id, move] of [
+      ["tablut", "tablut", "e3-d3"],
+      ["Tablut · gulo/Dimetr 2025", "tablut-gulo-2", "e8-a8"],
+      ["gulo", "tablut-gulo", "e3-d3"],
+      ["corner escape", "tablut-corners", "e3-d3"],
+      ["tournament", "tablut-aage", "e3-d3"],
+      ["Linnaeus", "tablut", "e3-d3"],
     ] as const) {
-      const parsed = parseGame(`[Variant "${tag}"]\n1. e3-d3\n`);
+      const parsed = parseGame(`[Variant "${tag}"]\n1. ${move}\n`);
       expect(parsed.ok, `"${tag}" should resolve`).toBe(true);
       if (parsed.ok) expect(parsed.game.variantId).toBe(id);
     }
   });
 
   it("ignores an unknown rule key and an unknown enum value", () => {
+    // firstMove=defenders is pinned explicitly: CUSTOM_RULE_DEFAULTS now
+    // defaults to "attackers" (baseline rule 2, corrected 2026-09-09, see
+    // docs/tablut-rules.md), and "e3-d3" is a defenders move, unrelated to
+    // the two flags this test actually exercises (escape, throneBlocks).
     const parsed = parseGame(
-      '[Variant "custom"]\n[Rules "escape=sideways nonsuchRule=1 throneBlocks=attackers"]\n1. e3-d3\n',
+      '[Variant "custom"]\n[Rules "firstMove=defenders escape=sideways nonsuchRule=1 throneBlocks=attackers"]\n1. e3-d3\n',
     );
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {

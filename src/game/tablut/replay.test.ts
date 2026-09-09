@@ -124,8 +124,13 @@ describe("replayPlies: rebuild a Tablut game from an untrusted move list", () =>
   });
 
   it("resolves the ruleset independently on every replay", () => {
-    const plies = [ply("e7", "b7"), ply("e8", "b8")];
+    // Order depends on `firstMove`: the legacy presets kept "defenders"
+    // (their original value), every current preset is "attackers" (baseline
+    // rule 2, corrected 2026-09-09 — see docs/tablut-rules.md).
+    const defendersFirst = [ply("e7", "b7"), ply("e8", "b8")];
+    const attackersFirst = [ply("e8", "b8"), ply("e7", "b7")];
     for (const rules of Object.values(VARIANTS)) {
+      const plies = rules.firstMove === "attackers" ? attackersFirst : defendersFirst;
       const r = replayPlies(plies, rules);
       expect(r.ok).toBe(true);
       if (r.ok) expect(r.states[2].status).toBe("playing");

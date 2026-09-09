@@ -30,26 +30,49 @@ const perftTablut = (state: GameState, rules: TablutRuleSet, depth: number): num
 
 // ── 1. Perft ──────────────────────────────────────────────────────────────────
 //
-// ⚠ PINNED TABLE. Re-pin only after a rule change you can name — the pending
-// "Tablut first mover" review is the one flagged in the work package; a diff
-// here that isn't traceable to a named rule change is a regression in move
+// ⚠ PINNED TABLE. Re-pin only after a rule change you can name; a diff here
+// that isn't traceable to a named rule change is a regression in move
 // generation, not a re-pin.
 //
+// 2026-09-09: `firstMove` was corrected from "defenders" to "attackers" for
+// every current preset (see docs/tablut-rules.md, "Corrections of
+// 2026-09-09"), and each got a `-2` id. That changes the perft root's
+// side-to-move, and Black's opening branching factor differs from White's
+// (80 vs. 56 — see docs/tablut-rules.md's "Not calibrated" section), so the
+// whole table below was re-derived by running, not copied from the legacy
+// one. `LEGACY_PERFT_TABLE`, further down, keeps the untouched pre-correction
+// numbers for the five old ids, which still resolve via `VARIANTS` and must
+// still produce the tree they always did.
+//
 // Every VISIBLE_VARIANTS preset shares initialState's `rules.firstMove`
-// (defenders for all four shipped presets today), so the perft root is the
-// same side-to-move for each; the trees still diverge because `tablut-corners`
+// ("attackers" for all four current presets), so the perft root is the same
+// side-to-move for each; the trees still diverge because `tablut-corners-2`
 // changes the escape condition and makes the corners hostile+restricted,
 // which is reachable earlier here than in Brandubh (this board is bigger and
 // captures/blocked-corner squares affect legal moves from the first few
 // plies onward, not just win detection).
 //
-// Depth 4 is NOT pinned: depth 3 alone already costs ~1.6-2s per preset on an
-// idle machine (measured this session), and perft's branching factor here
-// (~56 legal moves at the root) means depth 4 is on the order of 50x that —
-// tens of seconds per preset, well outside the "~5s per preset" budget from
-// the work package. Extrapolated, not run to completion, for exactly that
-// reason.
+// Depth 4 is NOT pinned: depth 3 alone already costs a few seconds per preset
+// on an idle machine, and perft's branching factor here (~80 legal moves at
+// the root) means depth 4 is on the order of 50x that — tens of seconds per
+// preset, well outside a sane per-push budget.
 const PERFT_TABLE: Record<string, { d1: number; d2: number; d3: number }> = {
+  "tablut-linnaeus-2": { d1: 80, d2: 4400, d3: 353200 },
+  "tablut-2": { d1: 80, d2: 4400, d3: 353200 },
+  "tablut-gulo-2": { d1: 80, d2: 4400, d3: 353200 },
+  "tablut-corners-2": { d1: 72, d2: 3944, d3: 285728 },
+};
+
+/**
+ * ⚠ PINNED TABLE, frozen. The five presets exactly as they shipped before the
+ * 2026-09-09 correction (`firstMove: "defenders"`), kept under their original
+ * ids. These numbers must never change: a legacy id resolves to a ruleset
+ * whose flags are frozen (see `variants.test.ts`'s "legacy presets" block),
+ * so its perft tree is frozen too. If one of these ever needs to move, the
+ * ruleset it is pinning was not actually preserved — investigate the ruleset,
+ * do not re-pin the number.
+ */
+const LEGACY_PERFT_TABLE: Record<string, { d1: number; d2: number; d3: number }> = {
   "tablut-linnaeus": { d1: 56, d2: 4408, d3: 251856 },
   tablut: { d1: 56, d2: 4408, d3: 251856 },
   "tablut-gulo": { d1: 56, d2: 4408, d3: 251856 },
@@ -61,9 +84,32 @@ describe("perft: legal-move-tree node counts from the opening, per shipped prese
     expect(new Set(VISIBLE_VARIANTS)).toEqual(new Set(Object.keys(PERFT_TABLE)));
   });
 
+  it("every legacy id is a key in LEGACY_PERFT_TABLE, and none is visible", () => {
+    const legacyIds = ["tablut-linnaeus", "tablut", "tablut-gulo", "tablut-aage", "tablut-corners"];
+    const pinnedLegacy = new Set(Object.keys(LEGACY_PERFT_TABLE));
+    // tablut-aage has no perft pin (it was never in VISIBLE_VARIANTS and
+    // still isn't, corrected or not — see variants.test.ts).
+    for (const id of legacyIds) if (id !== "tablut-aage") expect(pinnedLegacy.has(id)).toBe(true);
+    for (const id of Object.keys(LEGACY_PERFT_TABLE)) expect(VISIBLE_VARIANTS).not.toContain(id);
+  });
+
   for (const [key, { d1, d2, d3 }] of Object.entries(PERFT_TABLE)) {
     it(
       `${key}: depths 1-3`,
+      () => {
+        const rules = VARIANTS[key];
+        const s = initialState(rules);
+        expect(perftTablut(s, rules, 1)).toBe(d1);
+        expect(perftTablut(s, rules, 2)).toBe(d2);
+        expect(perftTablut(s, rules, 3)).toBe(d3);
+      },
+      20_000,
+    );
+  }
+
+  for (const [key, { d1, d2, d3 }] of Object.entries(LEGACY_PERFT_TABLE)) {
+    it(
+      `${key} (legacy): depths 1-3, unchanged`,
       () => {
         const rules = VARIANTS[key];
         const s = initialState(rules);

@@ -3,7 +3,7 @@
 // The baseline rules of Tablut are not in dispute:
 //
 //   1. Two players. White is the king and his defenders; Black the attackers.
-//   2. White moves first, then the players alternate.
+//   2. The attacking side moves first, then the players alternate.
 //   3. All pieces move horizontally or vertically as far as the path is clear.
 //   4. A piece is captured when it is trapped between two enemies horizontally
 //      or vertically — but only if the *opponent's* move closed the trap. Moving
@@ -11,14 +11,27 @@
 //   5. White wins by moving the king to an edge square.
 //   6. Black wins by capturing the king first.
 //
-// Everything the presets below disagree about is a detail those six rules leave
-// open: what the throne does, whether the corners are special, and how strong
-// the king is. That is the same shape as `../variants.ts` for Brandubh, and the
-// same flat-flag-bag design, so the custom rule editor, the storage format and
-// the export format can all be built the same way. It is a *separate* type,
-// though: an escape condition and a first mover are not Brandubh flags, and
-// nothing has ever been persisted for this game, so there is no back-compatible
-// shape to preserve.
+// Rule 2 was corrected on 2026-09-09 — see "Corrections of 2026-09-09" in
+// docs/tablut-rules.md. The presets shipped before that date had White (the
+// defenders) moving first; three independent sources (aagenielsen.dk,
+// worldtafl.com, and Linnaeus's own silence read against the "Muscovites
+// begin" translation, where the Muscovites are the attackers) agree the
+// attacking side takes the first move. Every *current* preset below asserts
+// the corrected rule. The old, incorrect presets are kept byte-for-byte as
+// LEGACY presets — hidden from the picker, but still resolvable — because a
+// saved game or an exported .tafl file that named one of them was played
+// under `firstMove: "defenders"`, and changing that retroactively would
+// silently turn ply 0 of a real game into an illegal move.
+//
+// Everything the presets below disagree about, beyond that one correction, is
+// a detail those six rules leave open: what the throne does, whether the
+// corners are special, and how strong the king is. That is the same shape as
+// `../variants.ts` for Brandubh, and the same flat-flag-bag design, so the
+// custom rule editor, the storage format and the export format can all be
+// built the same way. It is a *separate* type, though: an escape condition
+// and a first mover are not Brandubh flags, and nothing has ever been
+// persisted for this game under a shape other than this one, so there is no
+// back-compatible shape to preserve beyond the ids themselves.
 
 import type { Side } from "./types";
 
@@ -34,7 +47,11 @@ export interface TablutRuleSet {
    * Brandubh's win condition; it is a genuinely different game, not a tweak.
    */
   escape: "edges" | "corners";
-  /** Who moves first. Baseline rule 2 says White — the opposite of Brandubh. */
+  /**
+   * Who moves first. Baseline rule 2 — the attackers, the same as Brandubh.
+   * Corrected 2026-09-09; the legacy presets kept the old `"defenders"` value
+   * for exactly the presets that shipped with it. See docs/tablut-rules.md.
+   */
   firstMove: Side;
 
   // ── Piece behaviour ──────────────────────────────────────────────────────────
@@ -127,7 +144,7 @@ export interface TablutRuleSet {
    * Attackers win by encircling the king and all remaining defenders with an
    * unbroken ring (board edges do not count as part of the ring).
    *
-   * Off in the minimal presets (`tablut`, `tablut-gulo`), because under edge
+   * Off in the minimal presets (`tablut-2`, `tablut-gulo-2`), because under edge
    * escape "the king cannot reach the rim" is very nearly the same statement as
    * "the king is encircled", and the six baseline rules do not ask for it. On in
    * the Linnaeus/WTF default — the federation's rules include it — where it
@@ -148,8 +165,15 @@ export interface TablutRuleSet {
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 
-/** The six baseline rules and nothing else asserted — the shared foundation. */
-const BASELINE: Omit<TablutRuleSet, "id" | "name" | "blurb"> = {
+/**
+ * The six baseline rules and nothing else asserted, as they were understood
+ * before the 2026-09-09 correction — `firstMove: "defenders"`. Frozen: this is
+ * spread only into the LEGACY presets below, byte-for-byte, so a saved game or
+ * an exported .tafl file naming one of the old ids keeps replaying into the
+ * exact game it was played under. Do not edit this constant to "fix" it —
+ * that is what `BASELINE` below is for.
+ */
+const LEGACY_BASELINE: Omit<TablutRuleSet, "id" | "name" | "blurb"> = {
   escape: "edges",
   firstMove: "defenders",
   armedKing: true,
@@ -167,18 +191,126 @@ const BASELINE: Omit<TablutRuleSet, "id" | "name" | "blurb"> = {
   repetitionResult: "draw",
 };
 
+/**
+ * The six baseline rules, corrected: `firstMove: "attackers"` — see
+ * "Corrections of 2026-09-09" in docs/tablut-rules.md. Every current (visible
+ * or hideable-but-not-legacy) preset below spreads this, not
+ * `LEGACY_BASELINE`.
+ */
+const BASELINE: Omit<TablutRuleSet, "id" | "name" | "blurb"> = {
+  ...LEGACY_BASELINE,
+  firstMove: "attackers",
+};
+
 export const VARIANTS: Record<string, TablutRuleSet> = {
-  "tablut-linnaeus": {
-    id: "tablut-linnaeus",
+  // ── Current presets — corrected 2026-09-09, firstMove: "attackers" ─────────
+
+  "tablut-linnaeus-2": {
+    id: "tablut-linnaeus-2",
     name: "Tablut · Linnaeus 1732",
     blurb:
       "The rules Linnaeus recorded in Lapland in 1732, as the World Tafl " +
-      "Federation reads them. The king falls to four attackers on his throne, to " +
-      "three when the empty throne stands in as the fourth wall beside it, and " +
-      "to the ordinary two anywhere else. The empty throne is hostile, the king " +
-      "escapes to any edge square, an unbroken ring of attackers wins for Black, " +
-      "and a repeated position is on White to break.",
+      "Federation reads them. Black moves first. The king falls to four " +
+      "attackers on his throne, to three when the empty throne stands in as " +
+      "the fourth wall beside it, and to the ordinary two anywhere else. The " +
+      "empty throne is hostile, the king escapes to any edge square, an " +
+      "unbroken ring of attackers wins for Black, and a repeated position is " +
+      "on White to break.",
     ...BASELINE,
+    throneAnvil: "both",
+    throneHostileToKing: true,
+    strongKingOnThrone: true,
+    strongKingAdjacentToThrone: true,
+    encirclementWin: true,
+    repetitionResult: "loss_for_defenders",
+  },
+
+  "tablut-2": {
+    id: "tablut-2",
+    name: "Tablut · baseline",
+    blurb:
+      "The six undisputed rules and nothing more. Black moves first; White " +
+      "wins by reaching any edge square, Black by capturing the king. A trap " +
+      "only captures when the opponent closes it. The throne is inert — " +
+      "soldiers may not stand on it, but either side may cross it — and the " +
+      "corners are ordinary squares. Repetition is a draw.",
+    ...BASELINE,
+  },
+
+  "tablut-gulo-2": {
+    id: "tablut-gulo-2",
+    name: "Tablut · gulo/Dimetr 2025",
+    blurb:
+      "The baseline with the two small changes of detail proposed in July 2025 " +
+      "on aagenielsen.dk by Gustaf Løvenlund (\"gulo\") and Dmitrij Tsvilenev " +
+      "(\"Dimetr\"): the throne cannot be crossed by Black, and the throne is " +
+      "friendly to White — White may pin a soldier against the empty throne, " +
+      "and Black may not. Both are reachable in the custom rule editor.",
+    ...BASELINE,
+    throneBlocks: "attackers",
+    throneAnvil: "defenders",
+  },
+
+  "tablut-aage-2": {
+    id: "tablut-aage-2",
+    name: "Tablut · tournament",
+    blurb:
+      "⚠ UNVERIFIED. Intended as the tournament ruleset played on aagenielsen.dk: " +
+      "Black moves first, edge escape, a hostile empty throne, a king who must " +
+      "be surrounded on all four sides on or beside it, and encirclement wins " +
+      "for Black. The 2026-09-09 sourcing pass corrected the first mover and " +
+      "the encirclement flag against aagenielsen.dk's unified rules page, but a " +
+      "human still needs to eyeball that page's raw HTML for a Tablut-specific " +
+      "section before this stops being a plausible reading rather than a " +
+      "citation — see docs/tablut-rules.md. Prefer the baseline if that matters " +
+      "to you.",
+    ...BASELINE,
+    throneAnvil: "both",
+    throneHostileToKing: true,
+    strongKingOnThrone: true,
+    strongKingAdjacentToThrone: true,
+    encirclementWin: true,
+    repetitionResult: "loss_for_defenders",
+  },
+
+  "tablut-corners-2": {
+    id: "tablut-corners-2",
+    name: "Tablut · corner escape",
+    blurb:
+      "A modern reconstruction in which the king must reach a corner rather than " +
+      "any edge square. Black moves first, the corners become hostile squares " +
+      "only the king may occupy, and encirclement wins for Black. This is a " +
+      "materially different game from the baseline, not a detail — the whole " +
+      "rim stops being a goal.",
+    ...BASELINE,
+    escape: "corners",
+    cornersRestricted: true,
+    cornersHostile: true,
+    encirclementWin: true,
+    repetitionResult: "loss_for_defenders",
+  },
+
+  // ── Legacy presets — kept byte-for-byte, hidden from the picker ────────────
+  //
+  // These are the exact five presets as they shipped before the 2026-09-09
+  // correction (`firstMove: "defenders"`), kept under their original ids so a
+  // saved game (`tablut.game.v1`) or an exported .tafl file naming one of them
+  // keeps replaying into the game it actually recorded. `VARIANTS` keeps
+  // resolving them; `VISIBLE_VARIANTS` below no longer offers them. Do not
+  // "fix" a flag in this section — that is what the corrected preset with the
+  // `-2` suffix above is for.
+
+  "tablut-linnaeus": {
+    id: "tablut-linnaeus",
+    name: "Tablut · Linnaeus 1732 (legacy)",
+    blurb:
+      "LEGACY — kept only so games saved or exported under this id keep their " +
+      "meaning. This preset shipped with White moving first, which the " +
+      "2026-09-09 sourcing pass found to be backwards (see " +
+      "docs/tablut-rules.md): three independent sources agree the attackers " +
+      "move first. New games use “Tablut · Linnaeus 1732” " +
+      "(tablut-linnaeus-2), which corrects it and is otherwise identical.",
+    ...LEGACY_BASELINE,
     throneAnvil: "both",
     throneHostileToKing: true,
     strongKingOnThrone: true,
@@ -189,41 +321,42 @@ export const VARIANTS: Record<string, TablutRuleSet> = {
 
   tablut: {
     id: "tablut",
-    name: "Tablut · baseline",
+    name: "Tablut · baseline (legacy)",
     blurb:
-      "The six undisputed rules and nothing more. White moves first and wins by " +
-      "reaching any edge square; Black wins by capturing the king. A trap only " +
-      "captures when the opponent closes it. The throne is inert — soldiers may " +
-      "not stand on it, but either side may cross it — and the corners are " +
-      "ordinary squares. Repetition is a draw.",
-    ...BASELINE,
+      "LEGACY — kept only so games saved or exported under this id keep their " +
+      "meaning. This preset shipped with White moving first, which the " +
+      "2026-09-09 sourcing pass found to be backwards (see " +
+      "docs/tablut-rules.md). New games use “Tablut · baseline” " +
+      "(tablut-2), which corrects it and is otherwise identical.",
+    ...LEGACY_BASELINE,
   },
 
   "tablut-gulo": {
     id: "tablut-gulo",
-    name: "Tablut · gulo/Dimetr 2025",
+    name: "Tablut · gulo/Dimetr 2025 (legacy)",
     blurb:
-      "The baseline with the two small changes of detail proposed in July 2025 on " +
-      "aagenielsen.dk by Gustaf Løvenlund (\"gulo\") and Dmitrij Tsvilenev " +
-      "(\"Dimetr\"): the throne cannot be crossed by Black, and the throne is " +
-      "friendly to White — White may pin a soldier against the empty throne, and " +
-      "Black may not. Both are reachable in the custom rule editor.",
-    ...BASELINE,
+      "LEGACY — kept only so games saved or exported under this id keep their " +
+      "meaning. This preset shipped with White moving first, which the " +
+      "2026-09-09 sourcing pass found to be backwards (see " +
+      "docs/tablut-rules.md). New games use “Tablut · gulo/Dimetr " +
+      "2025” (tablut-gulo-2), which corrects it and is otherwise " +
+      "identical.",
+    ...LEGACY_BASELINE,
     throneBlocks: "attackers",
     throneAnvil: "defenders",
   },
 
   "tablut-aage": {
     id: "tablut-aage",
-    name: "Tablut · tournament",
+    name: "Tablut · tournament (legacy)",
     blurb:
-      "⚠ UNVERIFIED. Intended as the tournament ruleset played on aagenielsen.dk: " +
-      "edge escape, a hostile empty throne, and a king who must be surrounded on " +
-      "all four sides on or beside it. The site could not be reached to check the " +
-      "wording (see docs/tablut-rules.md), so treat this preset as a plausible " +
-      "reading rather than a citation, and prefer the baseline if that matters " +
-      "to you.",
-    ...BASELINE,
+      "⚠ UNVERIFIED, and LEGACY — kept only so games saved or exported under " +
+      "this id keep their meaning. This preset shipped with White moving " +
+      "first and no encirclement win; the 2026-09-09 sourcing pass found both " +
+      "backwards (see docs/tablut-rules.md). New games use “Tablut · " +
+      "tournament” (tablut-aage-2), which corrects them and is otherwise " +
+      "identical — and is itself still hidden and unverified.",
+    ...LEGACY_BASELINE,
     throneAnvil: "both",
     throneHostileToKing: true,
     strongKingOnThrone: true,
@@ -233,13 +366,15 @@ export const VARIANTS: Record<string, TablutRuleSet> = {
 
   "tablut-corners": {
     id: "tablut-corners",
-    name: "Tablut · corner escape",
+    name: "Tablut · corner escape (legacy)",
     blurb:
-      "A modern reconstruction in which the king must reach a corner rather than " +
-      "any edge square. The corners become hostile squares only the king may " +
-      "occupy, and encirclement wins for Black. This is a materially different " +
-      "game from the baseline, not a detail — the whole rim stops being a goal.",
-    ...BASELINE,
+      "LEGACY — kept only so games saved or exported under this id keep their " +
+      "meaning. This preset shipped with White moving first, which the " +
+      "2026-09-09 sourcing pass found to be backwards (see " +
+      "docs/tablut-rules.md). New games use “Tablut · corner " +
+      "escape” (tablut-corners-2), which corrects it and is otherwise " +
+      "identical.",
+    ...LEGACY_BASELINE,
     escape: "corners",
     cornersRestricted: true,
     cornersHostile: true,
@@ -257,27 +392,37 @@ export const VARIANTS: Record<string, TablutRuleSet> = {
  * `rulesFor` keeps resolving it and games already saved or exported under it
  * still replay. Removing an entry from `VARIANTS` would orphan those; removing
  * it from this list only stops it being offered.
+ *
+ * Only the corrected (`-2`) presets are visible. The five legacy ids above are
+ * deliberately absent — see the LEGACY section's header comment.
+ * `tablut-aage-2` is also absent: unlike the other four, it stays hidden even
+ * corrected, pending a human eyeball of aagenielsen.dk's raw page (see its
+ * blurb and docs/tablut-rules.md).
  */
 export const VISIBLE_VARIANTS: string[] = [
-  "tablut-linnaeus",
-  "tablut",
-  "tablut-gulo",
-  "tablut-corners",
+  "tablut-linnaeus-2",
+  "tablut-2",
+  "tablut-gulo-2",
+  "tablut-corners-2",
 ];
 
 /**
  * The Linnaeus/WTF reading leads, because it is the game as the sources describe
  * it: a king captured by two soldiers *on or beside his own throne* is not
  * Tablut, and shipping that as the default was reported as a rules bug the day
- * it went out. `tablut-aage` is hidden rather than removed — it asserted almost
- * the same flags while UNVERIFIED, and saves and files under it still resolve.
+ * it went out. `tablut-aage-2` is hidden rather than removed — it asserts almost
+ * the same flags while its throne-specific wording is UNVERIFIED — and saves
+ * and files under any legacy id still resolve.
  */
-export const DEFAULT_VARIANT = "tablut-linnaeus";
+export const DEFAULT_VARIANT = "tablut-linnaeus-2";
 
 /** A ruleset without its identity — what the custom rule editor edits. */
 export type CustomRuleSet = Omit<TablutRuleSet, "id" | "name" | "blurb">;
 
-/** Starting point for the custom rule editor — the undisputed baseline. */
+/**
+ * Starting point for the custom rule editor — the undisputed baseline,
+ * corrected: `firstMove: "attackers"`. See docs/tablut-rules.md.
+ */
 export const CUSTOM_RULE_DEFAULTS: CustomRuleSet = { ...BASELINE };
 
 // ── Enum choices ──────────────────────────────────────────────────────────────

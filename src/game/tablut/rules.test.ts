@@ -16,7 +16,13 @@ import {
   winnerOf,
 } from "./rules";
 import { BOARD_SIZE, type Board, type GameState, type Side } from "./types";
-import { CUSTOM_RULE_DEFAULTS, VARIANTS, rulesFor, type TablutRuleSet } from "./variants";
+import {
+  CUSTOM_RULE_DEFAULTS,
+  VARIANTS,
+  VISIBLE_VARIANTS,
+  rulesFor,
+  type TablutRuleSet,
+} from "./variants";
 
 const baseline = VARIANTS.tablut;
 const gulo = VARIANTS["tablut-gulo"];
@@ -111,13 +117,21 @@ describe("initialState", () => {
     expect(s.status).toBe("playing");
   });
 
-  it("gives White the first move — baseline rule 2, the opposite of Brandubh", () => {
-    expect(initialState(baseline).turn).toBe("defenders");
-    for (const id of Object.keys(VARIANTS)) expect(VARIANTS[id].firstMove).toBe("defenders");
+  it("gives the attacking side the first move — baseline rule 2, corrected 2026-09-09", () => {
+    // aagenielsen.dk and worldtafl.com both say the attackers move first, and
+    // Linnaeus's own account is silent — see docs/tablut-rules.md,
+    // "Corrections of 2026-09-09". `baseline` here is the legacy `tablut`
+    // preset (kept at the old, incorrect `"defenders"` on purpose), so this
+    // checks the corrected preset directly rather than through it.
+    expect(initialState(VARIANTS["tablut-2"]).turn).toBe("attackers");
+    for (const id of VISIBLE_VARIANTS) expect(VARIANTS[id].firstMove).toBe("attackers");
   });
 
   it("takes who-moves-first from the ruleset rather than assuming it", () => {
-    expect(initialState(withRules({ firstMove: "attackers" })).turn).toBe("attackers");
+    // CUSTOM_RULE_DEFAULTS now defaults to "attackers" (baseline rule 2,
+    // corrected); overriding to "defenders" proves initialState still reads
+    // the ruleset rather than hardcoding either side.
+    expect(initialState(withRules({ firstMove: "defenders" })).turn).toBe("defenders");
   });
 
   it("is symmetric under a quarter turn", () => {
