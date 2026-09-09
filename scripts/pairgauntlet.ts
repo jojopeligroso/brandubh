@@ -1,5 +1,6 @@
 /* Mirrored-pair gauntlet — the measurement instrument for strength-affecting
- * changes. Run: npx tsx scripts/pairgauntlet.ts <mode> [args...]
+ * changes, on all three tafl boards.
+ * Run: npx tsx scripts/pairgauntlet.ts [--game <id>] <mode> [args...]
  *
  * WHY THIS EXISTS
  * ----------------
@@ -40,6 +41,21 @@
  *     does not manufacture significance out of bias alone.
  *   - Has since detected one real negative on a candidate eval term
  *     (quadrantCoverage at weight 10, 40 pairs: 0W/13L/27split, p=0.000244).
+ * All three of those are **Brandubh** numbers. Tablut and Copenhagen were
+ * validated separately (same protocol, their own A/A controls, side splits,
+ * calibrations and timings) — see the per-board sections of the report. A
+ * board's own validation is the only thing that licenses a verdict on it.
+ *
+ * THE THREE BOARDS
+ * ----------------
+ * `--game brandubh|tablut|copenhagen` (default brandubh). The three games fork
+ * their rules, their engine, their D4 folding and their evaluation weight TYPE
+ * (ADR-0006, ADR-0007) — there is deliberately no shared `EvalWeights`. So the
+ * per-game imports live in `scripts/gauntlet/<game>.ts` behind the `GameAdapter`
+ * interface, and weights are opaque to this file: it hands a `Weights` from one
+ * adapter call straight to the next and never reads a field. Nothing measured
+ * on one board says anything about another, and nothing measured under one
+ * ruleset says anything about another; the run label echoes both.
  *
  * ⚠ POWER ANALYSIS — READ BEFORE CHOOSING A PAIR COUNT
  * ------------------------------------------------------
@@ -66,66 +82,106 @@
  * rate) as the working minimum for a real go/no-go call on a moderate effect.
  * A run of 10 or 16 pairs that comes back "even" has not shown the candidate
  * is neutral — it has not looked hard enough to tell either way. Do not read
- * a small run as a verdict.
+ * a small run as a verdict. The decisive rate differs per board — see each
+ * board's measured rate in the report before budgeting on another board.
  *
  * USAGE
  * -----
- *   npx tsx scripts/pairgauntlet.ts aa <depth> <pairs> <seed> [opening]
+ *   npx tsx scripts/pairgauntlet.ts [--game <id>] aa <depth> <pairs> <seed> [opening]
  *     A/A self-check: DEFAULT_WEIGHTS vs itself. Must come out ~even (net
  *     near 0, no lopsided WW/LL split) if the harness itself is unbiased.
+ *     Also prints the raw per-side win split, which is the board's own side
+ *     bias measured directly — the number the pairing exists to cancel.
  *
- *   npx tsx scripts/pairgauntlet.ts calibrate <depthHi> <depthLo> <pairs> <seed> [opening]
+ *   npx tsx scripts/pairgauntlet.ts [--game <id>] calibrate <depthHi> <depthLo> <pairs> <seed> [opening]
  *     Known-positive calibration: depthHi (candidate) vs depthLo (baseline),
  *     both DEFAULT_WEIGHTS. A correctly-working instrument MUST show depthHi
  *     winning clearly — if it doesn't, the harness itself is broken, not the
  *     engine.
  *
- *   npx tsx scripts/pairgauntlet.ts cand <term> <depth> <pairs> <seed> [opening]
- *     Candidate eval-weight term vs DEFAULT_WEIGHTS, same depth both sides.
- *     term one of: blockerAwareKingDist | shield | liberties | mobility |
- *     quadrantCoverage
+ *   npx tsx scripts/pairgauntlet.ts [--game <id>] cand <term|json> <depth> <pairs> <seed> [opening]
+ *     Candidate eval weights vs DEFAULT_WEIGHTS, same depth both sides.
+ *     <term|json> is either a named override for that game (run with no args
+ *     to see the list — the three weight types differ, so the list does too)
+ *     or a JSON object merged over that game's DEFAULT_WEIGHTS, e.g.
+ *     '{"liberties":12,"mobility":3}'. An unknown key is a hard error naming
+ *     the keys the game actually has, because a silently-ignored knob measures
+ *     nothing but noise.
  *
  * ARGS
+ *   --game  : brandubh (7×7, corner escape, WTF) | tablut (9×9, EDGE escape,
+ *             Linnaeus/WTF) | copenhagen (11×11, corner escape). Default
+ *             brandubh. Each plays under its own DEFAULT_VARIANT ruleset, which
+ *             is echoed in the label.
  *   depth / depthHi / depthLo : fixed maxDepth (no time budget) per side.
  *   pairs   : number of mirrored pairs to play (2x this many games run).
  *   seed    : integer RNG seed for opening generation AND search
  *             tie-breaking. Required, always echoed in the output header —
  *             same seed + same opening scheme reproduces byte-identical play.
- *   opening : "random2" | "random4" | "book2" | "book4" | "none". Defaults to
- *             book2, the scheme measured cleanest for A/A bias (dead-even at
- *             16 pairs; random2 also nets zero but noisier; random4 and book4
- *             both showed a lingering negative net at small sample sizes —
- *             more randomisation measurably re-introduced bias rather than
- *             averaging it out). book2/4 walk the project's own opening book
- *             (src/game/openingBook.ts), falling back to a random legal move
- *             once the walk leaves the book's stored lines.
+ *   opening : "random2" | "random4" | "shallow2" | "shallow4" | "book2" |
+ *             "book4" | "none". Defaults to the game's own default: book2 on
+ *             Brandubh, shallow2 on the two larger boards.
+ *
+ * OPENING SCHEMES, AND WHY book2 IS BRANDUBH-ONLY
+ * -----------------------------------------------
+ * A pair needs an opening that (a) is the SAME for both games of the pair, or
+ * the mirroring does not cancel anything, and (b) VARIES across pairs, or every
+ * pair measures the same single game twice.
+ *
+ *   book2 / book4  Walk the project's opening book (src/game/openingBook.ts)
+ *                  for 2 or 4 plies, choosing uniformly (seeded) among the
+ *                  book's stored replies, falling back to a uniformly-random
+ *                  legal move once the walk leaves the book's lines.
+ *                  **Brandubh only.** The book is a file of 7×7 positions
+ *                  generated for Brandubh under the WTF ruleset, keyed by that
+ *                  game's `hashBoard`; Tablut and Copenhagen ship no book at
+ *                  all. Asked for on either of those boards this is a hard
+ *                  error, not a silent fallback: a scheme that quietly became
+ *                  "random legal moves" would put a scheme name in the run
+ *                  label that did not describe the run.
+ *   shallow2 / 4   The book-free replacement, and the default on Tablut and
+ *                  Copenhagen. Plays 2 or 4 plies by a fixed-depth search
+ *                  (depth SHALLOW_DEPTH), taking the exact scores of every root
+ *                  move within SHALLOW_MARGIN of the best (`scoreRootMoves`,
+ *                  the same multi-PV query the book generator uses) and
+ *                  choosing uniformly (seeded) among them. Deterministic — no
+ *                  deadline anywhere, and the TT is cleared before each ply so
+ *                  a hot table left by the previous pair's games cannot colour
+ *                  the opening. Same seed, same openings, on any machine. It
+ *                  gives what book2 gives on Brandubh: openings that are sane
+ *                  rather than uniformly random, identical within a pair, and
+ *                  different across pairs. It is NOT the book: the book is a
+ *                  deep offline product and this is a shallow live search, so
+ *                  the two are not interchangeable even on Brandubh.
+ *   random2 / 4    Uniformly-random legal plies. Available on every board.
+ *                  Measured NOISIER than book2 on Brandubh: random4 and book4
+ *                  both showed a lingering negative net at small sample sizes —
+ *                  more randomisation measurably re-introduced bias rather than
+ *                  averaging it out.
+ *   none           Every pair starts from the standard opening position. Every
+ *                  pair then plays the same two games; useful only as a
+ *                  degenerate control.
  *
  * OUTPUT: a running per-pair line, then a summary with the pair distribution
- * (WW/LL/split), the net score, decisive-pair count, and the two-sided exact
- * binomial sign-test p-value on WW vs LL among decisive pairs. No file is
- * written; pipe stdout to capture a run.
+ * (WW/LL/split), the net score, decisive-pair count, the two-sided exact
+ * binomial sign-test p-value on WW vs LL among decisive pairs, and the raw
+ * per-side win split (the board's uncancelled side bias). No file is written;
+ * pipe stdout to capture a run.
  */
-import {
-  DEFAULT_WEIGHTS,
-  FULL_CONFIG,
-  pickMove,
-  resetTT,
-  type EvalWeights,
-} from "../src/game/engine";
-import {
-  allMoves,
-  applyMove,
-  hashBoard,
-  initialState,
-  isGameOver,
-  winnerOf,
-} from "../src/game/rules";
-import type { GameState, Side } from "../src/game/types";
-import { VARIANTS } from "../src/game/variants";
-import { loadOpeningBook, bookRulesMatch } from "../src/game/openingBook";
+import type { GameState, Move, Side } from "../src/game/types";
+import { adapterFor, isGameId, GAME_IDS, type GameAdapter, type Weights } from "./gauntlet/index";
 
-const rules = VARIANTS.wtf;
 const MAX_PLIES = 200;
+
+/** Fixed-depth search and score margin the `shallowN` opening schemes use.
+ *  Depth 2 and 50 centipawn-equivalents were chosen by measurement, not taste:
+ *  at the standard opening position they return 5 near-best root moves on
+ *  Brandubh, 4 on Tablut and 15 on Copenhagen (root moves are D4-folded, so
+ *  those are distinct orbits, not mirror images of each other), for under 70ms
+ *  a ply on the largest board. Fewer than ~3 would make every pair's opening
+ *  the same; many more would be `random` wearing a search's name. */
+const SHALLOW_DEPTH = 2;
+const SHALLOW_MARGIN = 50;
 
 // ── deterministic PRNG (mulberry32, as in evaltune.ts/aibench.ts/bookbench.ts) ─
 export function mulberry32(seed: number): () => number {
@@ -140,26 +196,28 @@ export function mulberry32(seed: number): () => number {
 }
 
 // ── opening generation ──────────────────────────────────────────────────────
-export type OpeningScheme = "random2" | "random4" | "book2" | "book4" | "none";
+export const OPENING_SCHEMES = [
+  "random2",
+  "random4",
+  "shallow2",
+  "shallow4",
+  "book2",
+  "book4",
+  "none",
+] as const;
+export type OpeningScheme = (typeof OPENING_SCHEMES)[number];
 
-let book: Record<string, import("../src/game/types").Move[]> | null = null;
-function getBook() {
-  if (book === null) {
-    book = loadOpeningBook();
-    if (!bookRulesMatch(rules)) {
-      console.warn("WARNING: opening book fingerprint does not match VARIANTS.wtf — book openings will be empty/no-op.");
-    }
-  }
-  return book;
+export function isOpeningScheme(s: string): s is OpeningScheme {
+  return (OPENING_SCHEMES as readonly string[]).includes(s);
 }
 
-function randomOpening(rng: () => number, plies: number): GameState {
-  let s = initialState();
+function randomOpening(a: GameAdapter, rng: () => number, plies: number): GameState {
+  let s = a.initialState();
   for (let i = 0; i < plies; i++) {
-    if (isGameOver(s.status)) break;
-    const moves = allMoves(s.board, s.turn, rules);
+    if (a.isOver(s)) break;
+    const moves = a.legalMoves(s);
     if (moves.length === 0) break;
-    s = applyMove(s, moves[Math.floor(rng() * moves.length)], rules);
+    s = a.apply(s, moves[Math.floor(rng() * moves.length)]);
   }
   return s;
 }
@@ -168,39 +226,78 @@ function randomOpening(rng: () => number, plies: number): GameState {
  *  among the book's stored replies at each step (rng-driven, deterministic).
  *  Falls back to a uniformly-random legal move as soon as the walk leaves the
  *  book's stored lines, so the requested ply count is always reached (subject
- *  to game-over). */
-function bookOpening(rng: () => number, plies: number): GameState {
-  const b = getBook();
-  let s = initialState();
+ *  to game-over). Brandubh only — see the header. */
+function bookOpening(a: GameAdapter, rng: () => number, plies: number): GameState {
+  let s = a.initialState();
   for (let i = 0; i < plies; i++) {
-    if (isGameOver(s.status)) break;
-    const key = hashBoard(s.board, s.turn);
-    const bookMoves = b[key];
-    let mv;
+    if (a.isOver(s)) break;
+    const bookMoves = a.bookReplies(s);
+    let mv: Move;
     if (bookMoves && bookMoves.length > 0) {
       mv = bookMoves[Math.floor(rng() * bookMoves.length)];
     } else {
-      const moves = allMoves(s.board, s.turn, rules);
+      const moves = a.legalMoves(s);
       if (moves.length === 0) break;
       mv = moves[Math.floor(rng() * moves.length)];
     }
-    s = applyMove(s, mv, rules);
+    s = a.apply(s, mv);
   }
   return s;
 }
 
-export function generateOpening(scheme: OpeningScheme, rng: () => number): GameState {
+/** Play `plies` from the opening by a fixed-depth search, choosing uniformly
+ *  (seeded) among the moves within SHALLOW_MARGIN of the best. The book-free
+ *  scheme — see the header for what it is and is not. */
+function shallowOpening(a: GameAdapter, rng: () => number, plies: number): GameState {
+  let s = a.initialState();
+  for (let i = 0; i < plies; i++) {
+    if (a.isOver(s)) break;
+    // Cleared per ply: scoreRootMoves reads the shared TT, and a table warm
+    // from the previous pair's games would make the openings depend on run
+    // order rather than on the seed alone.
+    a.resetSearch();
+    const near = a.nearBest(s, SHALLOW_DEPTH, SHALLOW_MARGIN);
+    let mv: Move;
+    if (near.length > 0) {
+      mv = near[Math.floor(rng() * near.length)];
+    } else {
+      const moves = a.legalMoves(s);
+      if (moves.length === 0) break;
+      mv = moves[Math.floor(rng() * moves.length)];
+    }
+    s = a.apply(s, mv);
+  }
+  return s;
+}
+
+export function generateOpening(a: GameAdapter, scheme: OpeningScheme, rng: () => number): GameState {
   switch (scheme) {
     case "random2":
-      return randomOpening(rng, 2);
+      return randomOpening(a, rng, 2);
     case "random4":
-      return randomOpening(rng, 4);
+      return randomOpening(a, rng, 4);
+    case "shallow2":
+      return shallowOpening(a, rng, 2);
+    case "shallow4":
+      return shallowOpening(a, rng, 4);
     case "book2":
-      return bookOpening(rng, 2);
+      return bookOpening(a, rng, 2);
     case "book4":
-      return bookOpening(rng, 4);
+      return bookOpening(a, rng, 4);
     case "none":
-      return initialState();
+      return a.initialState();
+  }
+}
+
+/** A scheme a board cannot run is refused here, before any game is played, so
+ *  the failure is a message rather than a run whose label lies about it. */
+export function assertSchemeSupported(a: GameAdapter, scheme: OpeningScheme): void {
+  if ((scheme === "book2" || scheme === "book4") && !a.hasBook) {
+    throw new Error(
+      `opening scheme "${scheme}" needs an opening book and ${a.game} has none.\n` +
+        `  The book (src/game/openingBook.ts) is a file of Brandubh 7×7 positions under the WTF\n` +
+        `  ruleset; it does not exist for ${a.game}. Use shallow2 (this game's default) or random4.`,
+    );
   }
 }
 
@@ -210,20 +307,28 @@ interface GameOutcome {
   plies: number;
 }
 
-function playFrom(opening: GameState, atkW: EvalWeights, defW: EvalWeights, atkDepth: number, defDepth: number, seed: number): GameOutcome {
+function playFrom(
+  a: GameAdapter,
+  opening: GameState,
+  atkW: Weights,
+  defW: Weights,
+  atkDepth: number,
+  defDepth: number,
+  seed: number,
+): GameOutcome {
   const rngA = mulberry32(seed * 2 + 1);
   const rngD = mulberry32(seed * 2 + 2);
   let s: GameState = opening;
   let plies = 0;
-  resetTT();
-  while (!isGameOver(s.status) && plies < MAX_PLIES) {
+  a.resetSearch();
+  while (!a.isOver(s) && plies < MAX_PLIES) {
     const atk = s.turn === "attackers";
-    const { move } = pickMove(s, rules, { maxDepth: atk ? atkDepth : defDepth }, FULL_CONFIG, atk ? rngA : rngD, atk ? atkW : defW);
+    const move = a.search(s, atk ? atkDepth : defDepth, atk ? rngA : rngD, atk ? atkW : defW);
     if (!move) break;
-    s = applyMove(s, move, rules);
+    s = a.apply(s, move);
     plies++;
   }
-  return { winner: isGameOver(s.status) ? winnerOf(s.status) : null, plies };
+  return { winner: a.winner(s), plies };
 }
 
 // ── pair result classification ──────────────────────────────────────────────
@@ -259,23 +364,24 @@ interface PairRecord {
  *  defenders. candDepth/baseDepth allow asymmetric-depth calibration runs;
  *  pass equal values for an eval-weight comparison at fixed depth. */
 function playPair(
+  a: GameAdapter,
   pairIndex: number,
-  candW: EvalWeights,
-  baseW: EvalWeights,
+  candW: Weights,
+  baseW: Weights,
   candDepth: number,
   baseDepth: number,
   openingScheme: OpeningScheme,
   openingSeed: number,
 ): PairRecord {
   const openingRng = mulberry32(openingSeed);
-  const opening = generateOpening(openingScheme, openingRng);
+  const opening = generateOpening(a, openingScheme, openingRng);
 
   // Game 1: candidate = attackers, baseline = defenders.
-  const g1 = playFrom(opening, candW, baseW, candDepth, baseDepth, pairIndex * 4 + 1);
+  const g1 = playFrom(a, opening, candW, baseW, candDepth, baseDepth, pairIndex * 4 + 1);
   const l1 = letterFor(g1.winner, "attackers");
 
   // Game 2: baseline = attackers, candidate = defenders. SAME opening.
-  const g2 = playFrom(opening, baseW, candW, baseDepth, candDepth, pairIndex * 4 + 3);
+  const g2 = playFrom(a, opening, baseW, candW, baseDepth, candDepth, pairIndex * 4 + 3);
   const l2 = letterFor(g2.winner, "defenders");
 
   const { category, score } = categorize(l1.letter, l2.letter);
@@ -319,13 +425,21 @@ export interface GauntletSummary {
   incompleteGames: number;
   decisive: number; // WW + LL
   signTestP: number; // two-sided binomial p-value on WW vs LL among decisive pairs
+  /** Raw games won by each SIDE across all 2N games, ignoring which config was
+   *  playing it. This is the board's side bias, uncancelled — the quantity the
+   *  pairing exists to neutralise, reported so it is on the record rather than
+   *  merely assumed to have been handled. */
+  attackerWins: number;
+  defenderWins: number;
+  drawnOrIncomplete: number;
   wallMs: number;
   records: PairRecord[];
 }
 
 export function runGauntlet(
-  candW: EvalWeights,
-  baseW: EvalWeights,
+  adapter: GameAdapter,
+  candW: Weights,
+  baseW: Weights,
   candDepth: number,
   baseDepth: number,
   nPairs: number,
@@ -333,11 +447,12 @@ export function runGauntlet(
   baseSeed: number,
   log: (s: string) => void = console.log,
 ): GauntletSummary {
+  assertSchemeSupported(adapter, openingScheme);
   const records: PairRecord[] = [];
   const t0 = performance.now();
   for (let i = 0; i < nPairs; i++) {
     const openingSeed = baseSeed * 100003 + i; // distinct opening per pair, deterministic
-    const rec = playPair(i, candW, baseW, candDepth, baseDepth, openingScheme, openingSeed);
+    const rec = playPair(adapter, i, candW, baseW, candDepth, baseDepth, openingScheme, openingSeed);
     records.push(rec);
     log(
       `  pair ${i + 1}/${nPairs}: atk=${rec.candAsAttackerResult.letter}(${rec.candAsAttackerResult.plies}p) def=${rec.candAsDefenderResult.letter}(${rec.candAsDefenderResult.plies}p) -> ${rec.category} (score ${rec.score >= 0 ? "+" : ""}${rec.score})`,
@@ -349,6 +464,7 @@ export function runGauntlet(
   const split = records.filter((r) => r.category === "split").length;
   const decisive = WW + LL;
   const signTestP = decisive > 0 ? binomTwoSidedP(WW, decisive) : 1;
+  const winners = records.flatMap((r) => [r.candAsAttackerResult.winner, r.candAsDefenderResult.winner]);
   return {
     pairs: nPairs,
     WW,
@@ -358,6 +474,9 @@ export function runGauntlet(
     incompleteGames: records.reduce((a, r) => a + r.incompleteCount, 0),
     decisive,
     signTestP,
+    attackerWins: winners.filter((w) => w === "attackers").length,
+    defenderWins: winners.filter((w) => w === "defenders").length,
+    drawnOrIncomplete: winners.filter((w) => w === "draw" || w === null).length,
     wallMs,
     records,
   };
@@ -367,6 +486,12 @@ function printSummary(label: string, s: GauntletSummary) {
   console.log(`\n=== ${label} ===`);
   console.log(`pairs=${s.pairs}  WW=${s.WW}  LL=${s.LL}  split=${s.split}  net=${s.netScore >= 0 ? "+" : ""}${s.netScore}`);
   console.log(`decisive pairs (WW+LL)=${s.decisive}  sign-test two-sided p=${s.signTestP.toFixed(4)}`);
+  const games = s.pairs * 2;
+  const pct = games > 0 ? ((100 * s.defenderWins) / games).toFixed(1) : "0.0";
+  console.log(
+    `side split (raw games, bias NOT cancelled): attackers=${s.attackerWins}  defenders=${s.defenderWins}  ` +
+      `drawn/incomplete=${s.drawnOrIncomplete}  of ${games}  (defenders ${pct}%)`,
+  );
   console.log(`incomplete games=${s.incompleteGames}  wall=${(s.wallMs / 1000).toFixed(1)}s  (${(s.wallMs / s.pairs).toFixed(0)}ms/pair)`);
   if (s.pairs < 50) {
     console.log(
@@ -377,14 +502,6 @@ function printSummary(label: string, s: GauntletSummary) {
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
-const CANDIDATES: Record<string, EvalWeights> = {
-  blockerAwareKingDist: { ...DEFAULT_WEIGHTS, blockerAwareKingDist: true },
-  shield: { ...DEFAULT_WEIGHTS, shield: 20 },
-  liberties: { ...DEFAULT_WEIGHTS, liberties: 12 },
-  mobility: { ...DEFAULT_WEIGHTS, mobility: 3 },
-  quadrantCoverage: { ...DEFAULT_WEIGHTS, quadrantCoverage: 10 },
-};
-
 function requireSeed(raw: string | undefined, usage: string): number {
   const sd = Number(raw);
   if (raw === undefined || !Number.isFinite(sd)) {
@@ -394,50 +511,119 @@ function requireSeed(raw: string | undefined, usage: string): number {
   return sd;
 }
 
+/** Pull `--game <id>` / `--game=<id>` out of argv wherever it sits, so the
+ *  positional arguments of every mode keep the exact shape they had before the
+ *  flag existed. */
+export function extractGame(argv: string[]): { game: string; rest: string[] } {
+  const rest: string[] = [];
+  let game = "brandubh";
+  for (let i = 0; i < argv.length; i++) {
+    const t = argv[i];
+    if (t === "--game") {
+      game = argv[++i] ?? "";
+    } else if (t.startsWith("--game=")) {
+      game = t.slice("--game=".length);
+    } else {
+      rest.push(t);
+    }
+  }
+  return { game, rest };
+}
+
+function resolveScheme(a: GameAdapter, raw: string | undefined): OpeningScheme {
+  const name = raw ?? a.defaultOpening;
+  if (!isOpeningScheme(name)) {
+    console.error(`unknown opening scheme "${name}". Options: ${OPENING_SCHEMES.join(" | ")}`);
+    process.exit(1);
+  }
+  try {
+    assertSchemeSupported(a, name);
+  } catch (e) {
+    console.error((e as Error).message);
+    process.exit(1);
+  }
+  return name;
+}
+
+/** Named term or JSON object of overrides. */
+function resolveCandidate(a: GameAdapter, raw: string | undefined, usage: string): Weights {
+  if (raw === undefined) {
+    console.error(`a candidate term or JSON weights object is required.\nusage: ${usage}`);
+    process.exit(1);
+  }
+  if (raw.trimStart().startsWith("{")) {
+    try {
+      return a.weightsFromJson(raw);
+    } catch (e) {
+      console.error((e as Error).message);
+      process.exit(1);
+    }
+  }
+  const named = a.candidate(raw);
+  if (!named) {
+    console.error(
+      `unknown term "${raw}" for ${a.game}. Named options: ${a.candidateTerms().join(", ")}\n` +
+        `  (the three games have different weight types, so the lists differ — or pass a JSON object)\n` +
+        `usage: ${usage}`,
+    );
+    process.exit(1);
+  }
+  return named;
+}
+
 function main() {
-  const mode = process.argv[2];
+  const { game, rest } = extractGame(process.argv.slice(2));
+  if (!isGameId(game)) {
+    console.error(`unknown --game "${game}". Options: ${GAME_IDS.join(" | ")}`);
+    process.exit(1);
+  }
+  const adapter = adapterFor(game);
+  const board = `game=${adapter.game} rules=${adapter.rulesId}`;
+
+  const mode = rest[0];
   let summary: GauntletSummary;
   let label: string;
 
   if (mode === "aa") {
-    const [depth, pairs, seedArg, opening] = process.argv.slice(3);
-    const usage = "npx tsx scripts/pairgauntlet.ts aa <depth> <pairs> <seed> [opening]";
+    const [depth, pairs, seedArg, opening] = rest.slice(1);
+    const usage = "npx tsx scripts/pairgauntlet.ts [--game <id>] aa <depth> <pairs> <seed> [opening]";
     const d = Number(depth), p = Number(pairs);
     const sd = requireSeed(seedArg, usage);
-    const scheme = (opening as OpeningScheme) ?? "book2";
-    label = `A/A self-check depth=${d} pairs=${p} seed=${sd} opening=${scheme}`;
+    const scheme = resolveScheme(adapter, opening);
+    label = `A/A self-check ${board} depth=${d} pairs=${p} seed=${sd} opening=${scheme}`;
     console.log(label);
-    summary = runGauntlet(DEFAULT_WEIGHTS, DEFAULT_WEIGHTS, d, d, p, scheme, sd);
+    summary = runGauntlet(adapter, adapter.defaultWeights, adapter.defaultWeights, d, d, p, scheme, sd);
   } else if (mode === "calibrate") {
-    const [depthHi, depthLo, pairs, seedArg, opening] = process.argv.slice(3);
-    const usage = "npx tsx scripts/pairgauntlet.ts calibrate <depthHi> <depthLo> <pairs> <seed> [opening]";
+    const [depthHi, depthLo, pairs, seedArg, opening] = rest.slice(1);
+    const usage = "npx tsx scripts/pairgauntlet.ts [--game <id>] calibrate <depthHi> <depthLo> <pairs> <seed> [opening]";
     const dh = Number(depthHi), dl = Number(depthLo), p = Number(pairs);
     const sd = requireSeed(seedArg, usage);
-    const scheme = (opening as OpeningScheme) ?? "book2";
-    label = `Calibration depthHi=${dh}(cand) vs depthLo=${dl}(base) pairs=${p} seed=${sd} opening=${scheme}`;
+    const scheme = resolveScheme(adapter, opening);
+    label = `Calibration ${board} depthHi=${dh}(cand) vs depthLo=${dl}(base) pairs=${p} seed=${sd} opening=${scheme}`;
     console.log(label);
-    summary = runGauntlet(DEFAULT_WEIGHTS, DEFAULT_WEIGHTS, dh, dl, p, scheme, sd);
+    summary = runGauntlet(adapter, adapter.defaultWeights, adapter.defaultWeights, dh, dl, p, scheme, sd);
   } else if (mode === "cand") {
-    const [term, depth, pairs, seedArg, opening] = process.argv.slice(3);
-    const usage = "npx tsx scripts/pairgauntlet.ts cand <term> <depth> <pairs> <seed> [opening]";
-    const cand = CANDIDATES[term];
-    if (!cand) {
-      console.error(`unknown term "${term}". Options: ${Object.keys(CANDIDATES).join(", ")}\nusage: ${usage}`);
-      process.exit(1);
-    }
+    const [term, depth, pairs, seedArg, opening] = rest.slice(1);
+    const usage = "npx tsx scripts/pairgauntlet.ts [--game <id>] cand <term|json> <depth> <pairs> <seed> [opening]";
+    const cand = resolveCandidate(adapter, term, usage);
     const d = Number(depth), p = Number(pairs);
     const sd = requireSeed(seedArg, usage);
-    const scheme = (opening as OpeningScheme) ?? "book2";
-    label = `Candidate "${term}" vs DEFAULT depth=${d} pairs=${p} seed=${sd} opening=${scheme}`;
+    const scheme = resolveScheme(adapter, opening);
+    label = `Candidate "${term}" vs DEFAULT ${board} depth=${d} pairs=${p} seed=${sd} opening=${scheme}`;
     console.log(label);
-    summary = runGauntlet(cand, DEFAULT_WEIGHTS, d, d, p, scheme, sd);
+    summary = runGauntlet(adapter, cand, adapter.defaultWeights, d, d, p, scheme, sd);
   } else {
     console.error(
       "usage:\n" +
-        "  npx tsx scripts/pairgauntlet.ts aa <depth> <pairs> <seed> [opening]\n" +
-        "  npx tsx scripts/pairgauntlet.ts calibrate <depthHi> <depthLo> <pairs> <seed> [opening]\n" +
-        "  npx tsx scripts/pairgauntlet.ts cand <term> <depth> <pairs> <seed> [opening]\n" +
-        "opening (default book2): random2 | random4 | book2 | book4 | none\n" +
+        "  npx tsx scripts/pairgauntlet.ts [--game <id>] aa <depth> <pairs> <seed> [opening]\n" +
+        "  npx tsx scripts/pairgauntlet.ts [--game <id>] calibrate <depthHi> <depthLo> <pairs> <seed> [opening]\n" +
+        "  npx tsx scripts/pairgauntlet.ts [--game <id>] cand <term|json> <depth> <pairs> <seed> [opening]\n" +
+        `game (default brandubh): ${GAME_IDS.join(" | ")}\n` +
+        `opening (default: book2 on brandubh, shallow2 on tablut/copenhagen): ${OPENING_SCHEMES.join(" | ")}\n` +
+        "  book2/book4 are Brandubh-only — the opening book exists for no other board.\n" +
+        "named cand terms per game:\n" +
+        GAME_IDS.map((g) => `  ${g}: ${adapterFor(g).candidateTerms().join(", ")}`).join("\n") +
+        "\n  or a JSON object of overrides, e.g. '{\"liberties\":12}'\n" +
         "seed is required in every mode and is always echoed in the output header.",
     );
     process.exit(1);

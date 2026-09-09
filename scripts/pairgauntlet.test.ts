@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_WEIGHTS } from "../src/game/engine";
+import { adapterFor } from "./gauntlet/index";
 import { binomTwoSidedP, categorize, runGauntlet } from "./pairgauntlet";
 
 // ── binomTwoSidedP: exact two-sided binomial sign-test, p=0.5 ─────────────────
@@ -87,9 +87,11 @@ describe("categorize", () => {
 // computation every time, on every machine. Only the wall-clock time varies.
 describe("pairgauntlet self-check: a deeper search must beat a shallower one", () => {
   it("depth 2 (candidate) never loses a decisive pair to depth 1 (baseline) over 20 mirrored pairs, book2 opening, seed 7", () => {
+    const brandubh = adapterFor("brandubh");
     const summary = runGauntlet(
-      DEFAULT_WEIGHTS,
-      DEFAULT_WEIGHTS,
+      brandubh,
+      brandubh.defaultWeights,
+      brandubh.defaultWeights,
       2, // candidate depth
       1, // baseline depth
       20, // pairs — below the ~50-60 recommended minimum, kept here for CI
