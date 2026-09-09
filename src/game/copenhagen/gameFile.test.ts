@@ -191,11 +191,21 @@ describe("the parser shrugs off what it can", () => {
   });
 
   it("resolves a variant from a display name or a shorthand", () => {
+    // An exact id ("copenhagen") or a bare shorthand ("hnefatafl", "fetlar")
+    // is unaffected by the 2026-09-09 correction: exact ids look themselves
+    // up directly, and the shorthand heuristics in gameFile.ts are hardcoded
+    // to the legacy ids. The *full display name* is different — that text is
+    // unchanged on the corrected presets (only their id moved to `-2`), and
+    // resolveVariant's exact-name match walks VARIANTS in declaration order,
+    // which lists the corrected presets first — so an exact display name now
+    // resolves to the *current* preset, which is the wanted behaviour:
+    // someone pasting a bare ruleset name gets today's reading, not the one
+    // it superseded. See the equivalent note in ../tablut/gameFile.test.ts.
     for (const [tag, id] of [
       ["copenhagen", "copenhagen"],
-      ["Copenhagen Hnefatafl", "copenhagen"],
+      ["Copenhagen Hnefatafl", "copenhagen-2"],
       ["hnefatafl", "copenhagen"],
-      ["Fetlar Hnefatafl", "copenhagen-fetlar"],
+      ["Fetlar Hnefatafl", "copenhagen-fetlar-2"],
       ["fetlar", "copenhagen-fetlar"],
     ] as const) {
       const parsed = parseGame(`[Variant "${tag}"]\n1. d1-d3\n`);

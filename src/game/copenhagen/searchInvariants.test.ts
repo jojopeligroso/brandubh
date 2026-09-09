@@ -37,18 +37,27 @@ const perftCopenhagen = (state: GameState, rules: CopenhagenRuleSet, depth: numb
 
 // ── 1. Perft ──────────────────────────────────────────────────────────────────
 //
-// ⚠ PINNED TABLE. Re-pin only after a rule change you can name — the pending
-// "Copenhagen repetition default" review is the one flagged in the work
-// package; a diff here that isn't traceable to a named rule change is a
-// regression in move generation, not a re-pin.
+// ⚠ PINNED TABLE. Re-pin only after a rule change you can name; a diff here
+// that isn't traceable to a named rule change is a regression in move
+// generation, not a re-pin.
 //
-// Both shipped presets (copenhagen, copenhagen-fetlar) produce the *same*
+// 2026-09-09: `repetitionResult` was corrected from "loss_for_repeater" to
+// "loss_for_defenders" for the current `copenhagen` preset (see
+// docs/copenhagen-rules.md, "Corrections of 2026-09-09"), and both presets
+// got a `-2` id. Repetition is not reachable from the opening within 3 plies
+// on an 11×11 board, so the corrected presets produce the *identical* opening
+// tree the legacy ones always did — confirmed by running, not assumed, and
+// kept in a separate table (`LEGACY_PERFT_TABLE`) below for the untouched old
+// ids, which still resolve via `VARIANTS` and must still produce the tree
+// they always did.
+//
+// Both current presets (copenhagen-2, copenhagen-fetlar-2) produce the *same*
 // opening tree through depth 3 — the flags they differ on (exit-fort,
-// shieldwall, encirclement, repetition) are none of them reachable from the
-// opening within 3 plies on an 11×11 board.
+// shieldwall, encirclement, repetition, throne-beside-king) are none of them
+// reachable from the opening within 3 plies on an 11×11 board.
 //
 // This is the most expensive perft in the suite by a wide margin: 806,344
-// leaf nodes at depth 3, against Tablut's 251,856 and Brandubh's 39,512 — the
+// leaf nodes at depth 3, against Tablut's 353,200 and Brandubh's 39,512 — the
 // board is bigger (121 squares vs. 81 vs. 49) and every node here also
 // carries Copenhagen's shieldwall-capture check, which the other two boards'
 // captures skip entirely. Measured this session: ~1.6s for depth 1-2 combined
@@ -57,16 +66,27 @@ const perftCopenhagen = (state: GameState, rules: CopenhagenRuleSet, depth: numb
 // preset* for depth 3 alone — too slow to run on every full-suite pass.
 //
 // Depth 3 is therefore gated behind PERFT_DEEP: `PERFT_DEEP=1 npx vitest run
-// src/game/copenhagen/searchInvariants.test.ts` runs it (both presets);
-// without the variable it's skipped and only depths 1-2 run. The pinned
-// number (806,344, both presets) stays in the table either way — it is what
-// the ADR-0007 search-core extraction must re-verify with PERFT_DEEP=1
-// before that refactor lands, not something this suite can afford to spend
-// on every push.
+// src/game/copenhagen/searchInvariants.test.ts` runs it (every preset in both
+// tables); without the variable it's skipped and only depths 1-2 run. The
+// pinned number (806,344, every preset) stays in the tables either way — it
+// is what the ADR-0007 search-core extraction must re-verify with
+// PERFT_DEEP=1 before that refactor lands, not something this suite can
+// afford to spend on every push.
 //
 // Depth 4 is not attempted at all: depth 3's branching factor here (~116 at
 // the root) puts it far outside reach regardless of gating.
 const PERFT_TABLE: Record<string, { d1: number; d2: number; d3: number }> = {
+  "copenhagen-2": { d1: 116, d2: 6788, d3: 806344 },
+  "copenhagen-fetlar-2": { d1: 116, d2: 6788, d3: 806344 },
+};
+
+/**
+ * ⚠ PINNED TABLE, frozen. The two presets exactly as they shipped before the
+ * 2026-09-09 correction, kept under their original ids. These numbers must
+ * never change — see the equivalent note in
+ * `../tablut/searchInvariants.test.ts`.
+ */
+const LEGACY_PERFT_TABLE: Record<string, { d1: number; d2: number; d3: number }> = {
   copenhagen: { d1: 116, d2: 6788, d3: 806344 },
   "copenhagen-fetlar": { d1: 116, d2: 6788, d3: 806344 },
 };
@@ -76,7 +96,11 @@ describe("perft: legal-move-tree node counts from the opening, per shipped prese
     expect(new Set(VISIBLE_VARIANTS)).toEqual(new Set(Object.keys(PERFT_TABLE)));
   });
 
-  for (const [key, { d1, d2 }] of Object.entries(PERFT_TABLE)) {
+  it("every legacy id is a key in LEGACY_PERFT_TABLE, and none is visible", () => {
+    for (const id of Object.keys(LEGACY_PERFT_TABLE)) expect(VISIBLE_VARIANTS).not.toContain(id);
+  });
+
+  for (const [key, { d1, d2 }] of Object.entries({ ...PERFT_TABLE, ...LEGACY_PERFT_TABLE })) {
     it(`${key}: depths 1-2 (depth 3 timed separately below)`, () => {
       const rules = VARIANTS[key];
       const s = initialState(rules);
@@ -85,7 +109,7 @@ describe("perft: legal-move-tree node counts from the opening, per shipped prese
     });
   }
 
-  for (const [key, { d3 }] of Object.entries(PERFT_TABLE)) {
+  for (const [key, { d3 }] of Object.entries({ ...PERFT_TABLE, ...LEGACY_PERFT_TABLE })) {
     it.skipIf(!process.env.PERFT_DEEP)(
       `${key}: depth 3 [PERFT_DEEP] (slow — see timing note on PERFT_TABLE above)`,
       () => {
