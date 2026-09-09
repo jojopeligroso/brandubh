@@ -33,11 +33,13 @@ import type { GameState, Move, PlayMode, Side, Square } from "../game/copenhagen
 import {
   CUSTOM_RULE_DEFAULTS,
   DEFAULT_VARIANT,
+  ENUM_CHOICES,
   VARIANTS,
   VISIBLE_VARIANTS,
   rulesFor,
   type CustomRuleSet,
   type CopenhagenRuleSet,
+  type EnumRuleKey,
 } from "../game/copenhagen/variants";
 import { useAiWorker } from "../game/copenhagen/useAiWorker";
 import { useGameClock } from "../useGameClock";
@@ -1117,7 +1119,9 @@ function CopenhagenRuleEditor({
 }) {
   const keys = Object.keys(CUSTOM_RULE_DEFAULTS) as Array<keyof CustomRuleSet>;
   const bools = keys.filter((k) => typeof CUSTOM_RULE_DEFAULTS[k] === "boolean");
-  const enums = keys.filter((k) => typeof CUSTOM_RULE_DEFAULTS[k] === "string");
+  const enums = keys.filter(
+    (k): k is EnumRuleKey => typeof CUSTOM_RULE_DEFAULTS[k] === "string",
+  );
   return (
     <div className="mt-3 rounded-lg bg-black/20 p-3">
       {enums.map((k) => (
@@ -1155,13 +1159,3 @@ function CopenhagenRuleEditor({
     </div>
   );
 }
-
-/** The values each enum rule offers, in the order they read as a spectrum. Kept
- *  beside the editor because it is a UI ordering, not a rule. */
-const ENUM_CHOICES: Record<string, readonly string[]> = {
-  escape: ["edges", "corners"],
-  firstMove: ["defenders", "attackers"],
-  throneBlocks: ["none", "attackers", "soldiers"],
-  throneAnvil: ["none", "defenders", "both"],
-  repetitionResult: ["none", "draw", "loss_for_defenders"],
-};

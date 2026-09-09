@@ -138,6 +138,19 @@ await more.locator("summary").click();
 check(await more.evaluate((el) => el.open), "More games opens when clicked");
 await page.getByTestId("drawer-tablut").click();
 
+// ── The Custom rule editor must render (WP-0.1 twin of the Copenhagen check) ─
+// Tablut's own table was never wrong the way Copenhagen's stale copy of it
+// was, but the two editors are now structurally identical (`ENUM_CHOICES` in
+// game/tablut/variants.ts), so this is the same regression guard on this
+// board too.
+const setupDialog = page.getByRole("dialog");
+await setupDialog.locator("select").first().selectOption("custom");
+const ruleEditor = setupDialog.locator(".rounded-lg.bg-black\\/20.p-3");
+check(
+  (await ruleEditor.locator(".seg").count()) === 5,
+  "the Custom editor renders all five enum controls",
+);
+
 // ── Into a game against the engine, as White ─────────────────────────────────
 await page.getByRole("button", { name: "White (the king)" }).click();
 await page.getByRole("button", { name: "Medium" }).click();

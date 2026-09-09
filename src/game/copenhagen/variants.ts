@@ -308,6 +308,36 @@ export type CustomRuleSet = Omit<CopenhagenRuleSet, "id" | "name" | "blurb">;
  */
 export const CUSTOM_RULE_DEFAULTS: CustomRuleSet = { ...COPENHAGEN };
 
+// ── Enum choices ──────────────────────────────────────────────────────────────
+// Every string-valued flag in `CustomRuleSet` needs its offered values decided
+// in exactly one place. Before this table existed, the custom rule editor
+// (`CopenhagenScreen.tsx`) and the game file's `Rules` tag (`gameFile.ts`) each
+// kept their own copy, and the editor's was a stale, unedited copy of Tablut's:
+// it had no entries for `kingStrength` or `strongKingEdgeRule` at all — so
+// opening the Custom editor threw on `undefined.map` — and its
+// `repetitionResult` list omitted `loss_for_repeater`, Copenhagen's own shipped
+// default. Both consumers now read this table, so a flag added to
+// `CopenhagenRuleSet` and left out here is a compile error (a missing or
+// excess key on the object literal below), not a runtime crash or a silently
+// unreachable value.
+
+/** The keys of `CustomRuleSet` whose value is an enum (a string), rather than a
+ *  boolean toggle. */
+export type EnumRuleKey = {
+  [K in keyof CustomRuleSet]: CustomRuleSet[K] extends string ? K : never;
+}[keyof CustomRuleSet];
+
+/** The values each enum rule offers, in the order they read as a spectrum. */
+export const ENUM_CHOICES: Record<EnumRuleKey, readonly string[]> = {
+  escape: ["edges", "corners"],
+  firstMove: ["defenders", "attackers"],
+  throneBlocks: ["none", "attackers", "soldiers"],
+  throneAnvil: ["none", "defenders", "both"],
+  kingStrength: ["weak", "near_throne", "strong"],
+  strongKingEdgeRule: ["uncapturable", "available_sides"],
+  repetitionResult: ["none", "draw", "loss_for_defenders", "loss_for_repeater"],
+};
+
 // ── Resolving a ruleset ───────────────────────────────────────────────────────
 // Storage and the export format both have to turn a variant id plus a set of
 // custom flags back into the ruleset a game was played under. Keeping that in
