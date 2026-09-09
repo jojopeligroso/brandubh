@@ -95,7 +95,10 @@ const DIRS: ReadonlyArray<readonly [number, number]> = [
 
 // ── Evaluation (attacker-positive) ────────────────────────────────────────────
 export interface EvalWeights {
-  /** Per (attackers − 2·defenders). Defenders are scarcer (8 v 16), so worth ~2×. */
+  /** Per (attackers − 2·defenders). Defenders are scarcer (12 v 24 here, not the
+   *  Tablut "8 v 16" this comment used to say — copied verbatim from the Tablut
+   *  fork and never updated for Copenhagen's own setup, `variants.ts`), so worth
+   *  ~2× either way: the ratio the ×2 encodes is the same 1:2 on both boards. */
   material: number;
   /** Per move of the king's real distance to the nearest corner, honouring
    *  blockers — not a Manhattan estimate. Positive ⇒ the attackers want him far
@@ -716,15 +719,19 @@ export const FULL_CONFIG: SearchConfig = {
   //
   // The Brandubh note explains why it was kept as a knob at all: it measured
   // neutral there because smart ordering plus the TT plus LMR already tighten the
-  // windows, "kept as a knob for wider-branching variants (Tablut) where ordering
+  // windows, "kept as a knob for wider-branching variants where ordering
   // dominates less".
   //
-  // ⚠ Tablut is wider, but by less than that note's author (or the first draft of
-  // this one) assumed. Measured at the opening position: **80 legal attacker moves
-  // and 56 defender moves, against Brandubh's 40** — half again to twice, not the
-  // "roughly three times" this comment claimed before anyone counted. So the
-  // premise for turning PVS on is weaker than it looked, and this flag is on as a
-  // considered default rather than a measured one. A gauntlet should settle it.
+  // ⚠ This comment used to quote Tablut's branching figures (80/56) as the case
+  // for turning it on here — a verbatim copy that never named Copenhagen's own
+  // numbers. Copenhagen's own opening is wider again: `engine.test.ts` ("the size
+  // of the problem") pins **116 legal attacker moves and 60 defender moves**,
+  // against Brandubh's ~40 — roughly three times Brandubh's branching, not the
+  // Tablut figures this comment was citing. So the premise reads stronger here
+  // than it does for Tablut, but "reads stronger" is not "measured": `usePVS` has
+  // never been gauntletted on this board specifically, on Tablut, or against a
+  // Copenhagen-vs-Copenhagen A/B. It ships on as a considered default on the
+  // strength of the branching figure alone. A gauntlet should settle it.
   usePVS: true,
   useMateDistance: false,
 };

@@ -1,5 +1,13 @@
 // ── Exhaustive game solver (bounded) ──────────────────────────────────────────
 //
+// ⚠ DEAD CODE, verified by grep: nothing under src/ or scripts/ imports this
+// module (2026-09-09). Brandubh's `../solver.ts` is wired into
+// `puzzleBank.test.ts`, `scripts/genpuzzles.ts`, `scripts/handadds.ts` and
+// `scripts/solve.ts`; this twin has no such caller, so the "independent oracle"
+// role described below is not currently exercised for Tablut. Not deleted —
+// see `TASKS.md` ("Tablut and Copenhagen parity") — because wiring it in
+// (recognizer cross-validation, puzzle mining) is the point, not removing it.
+//
 // The Tablut twin of `../solver.ts`, and a near-verbatim one: the algorithm is
 // three-valued minimax over whatever rules module it is handed, so the only thing
 // that had to change is which rules module that is. It exists here for one job in

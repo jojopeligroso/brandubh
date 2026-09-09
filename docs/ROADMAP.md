@@ -468,6 +468,78 @@ file exists to prevent.
   cannot reach the archive should treat those numbers as claims with a stated
   source, not as reproducible facts.
 
+### Session 12 — Tablut and Copenhagen parity *(XL — phased, see plan)* — **NOT STARTED (Phase 0 IN PROGRESS)**
+**Goal:** the search core (ID, TT, killers, LMR, quiescence, PVS, D4 root
+folding) carried over to both larger boards; the rigor behind Brandubh's
+numbers did not. `scripts/pairgauntlet.ts` hard-codes `VARIANTS.wtf` and
+depends on Brandubh's opening book, every Tablut/Copenhagen weight is
+"reasoned, not tuned; do not quote as measured", `usePVS` ships on both under
+a premise the file admits measured weaker than assumed, and no human-play
+evidence exists for any board. Full plan, ground truth and owner decisions:
+`/tmp/brandubh-parity-plan.md` (written 2026-09-09 against `b8afc9a`, 51 files
+/ 1150 tests baseline — see also this session's own WP-0.3, which corrected
+that count where it had gone stale elsewhere in this file's history). Parity
+is defined per board as: a validated gauntlet instrument, every shipped
+weight/flag carrying sample size + p-value or parked at 0/off, matching
+rules/engine test coverage (incl. perft), a matching UI feature column, and
+local human-vs-AI records — the only honest strength metric a backend-less
+app can keep. Five phases, following ADR-0007's extraction order underneath:
+
+- **Phase 0 — correctness + record hygiene** *(Sonnet, parallel)* — **IN PROGRESS**
+  - WP-0.1 Copenhagen custom-rule-editor crash: its `ENUM_CHOICES` is a
+    Tablut copy missing `kingStrength`/`strongKingEdgeRule`/`loss_for_repeater`.
+  - WP-0.2 Tablut shieldwall: `resolveShieldwallCaptures` has zero tests;
+    port the 6-case pattern from Brandubh/Copenhagen.
+  - WP-0.3 Record-hygiene commit (this one).
+  - WP-R Rules sourcing (read-only + web): re-check egress-blocked primary
+    sources (aagenielsen.dk, cyningstan, hnefatafl.org, heroicage, worldtafl)
+    for `strongKingEdgeRule`, Copenhagen repetition rule 8, `tablut-aage`,
+    `copenhagen-fetlar`, the Brandubh throne-adjacent contested pair.
+- **Phase 1 — instrument + invariants** — **NOT STARTED**
+  - WP-1.1 (Opus) Parameterise `pairgauntlet.ts` on a game adapter (`--game`);
+    Brandubh output byte-identical before/after for a fixed seed. Validate per
+    board: A/A control, known-positive calibration (depth d+1 vs d), an
+    inversion observed failing. Record ms/pair at depths 3–4 and recommend a
+    budget for Phase 2.
+  - WP-1.2 (Sonnet) perft(1–3) from the opening for every shipped preset, a
+    search-fingerprint test (pinned score/nodes/bestMove), and a performance
+    guard, for all three boards.
+  - WP-1.3 (Sonnet) Copenhagen engine-suite parity: D4 folding,
+    legacy-vs-full self-play, quiescence horizon, depth floor — 11 tests
+    today against Tablut's 20 and Brandubh's 21.
+- **Phase 2 — tuning** *(Opus designs terms, Sonnet runs gauntlets)* — **NOT STARTED**
+  - WP-2.1 Tablut: PVS on/off, liberties (rim artifact), escapeLane
+    calibration, kingRegion, mobility — ship on replicated significance only.
+  - WP-2.2 Copenhagen: PVS, liberties, kingRegion cap; new shieldwall-threat
+    and exit-fort-progress terms; a quiescence extension for shieldwall.
+  - WP-2.3 Opening books for both boards via parameterised
+    `genbook.ts`/`bookbench.ts`, measured ≥ neutral before shipping.
+  - WP-2.4 Annotation-band calibration per board, after weights settle.
+- **Phase 3 — ADR-0007 extraction + depth parity** *(Opus)* — **NOT STARTED**
+  - WP-3.1 `d4.ts` to one parameterised module. WP-3.2 persist/replay/gameFile
+    parameterised. WP-3.3 search core behind `{ evaluate, allMoves, applyMove,
+    status }`, witnessed by Phase 1's fingerprints staying byte-identical and
+    Brandubh's book + 158 puzzles re-verified. WP-3.4 Zobrist hashing +
+    make/unmake in the shared core, replacing the per-node string hash and
+    board clone — the lever for depth parity on 11×11. Custodial
+    capture/shieldwall merge stays last and optional.
+- **Phase 4 — UI parity** *(Sonnet, mostly needs no shell refactor)* — **NOT STARTED**
+  - WP-4.1 i18n variant names/blurbs, rules/objectives content, import/export
+    UI, board flip, records wiring. WP-4.2 analysis mode + eval bar. WP-4.3
+    review/annotation + eval graph, after WP-2.4. WP-4.4 wire the dead
+    `solver.ts` files into puzzle generation, per board. WP-4.5 match/set
+    hierarchy.
+
+**Git protocol:** each WP its own worktree off `main`
+(`git -C ~/Work/Brandubh worktree add ~/Work/brandubh-wt/<wp> -b wp/<wp> main`),
+commit on branch, no push — the main tree carries uncommitted UI-plumbing
+changes (`App.tsx`, `CopenhagenScreen.tsx`, `GameToolbar.tsx`,
+`TablutScreen.tsx`) that nothing in this plan touches or stashes. Every new
+test is observed failing once before it is trusted. **Owner decisions
+pending:** Phase 3.4 go/no-go once Phase 1's timings are in (it is otherwise
+this roadmap's "deferred / not worth it" item); whether Irish (`ga`) copy for
+new rulesets is agent-drafted or left for the owner; push cadence.
+
 ---
 
 ## Deferred / not worth it (with rationale)

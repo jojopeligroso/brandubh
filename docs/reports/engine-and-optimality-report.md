@@ -64,7 +64,7 @@ clause is in Part V.
 | Booked reply latency | 0.1–0.5 ms (vs 3.2–4.5 s searched) |
 | Opening variety (4-ply lines, seeded) | 20 distinct with book vs 6 without |
 | Final gauntlet | book 28 — no-book 20 (48 games) |
-| Test suite | 496 tests, all green; build clean |
+| Test suite | 1150 tests across 51 files, all green (2026-09-09; was 496/23 when this report was written — see Part VI); build clean |
 
 ---
 
@@ -605,7 +605,18 @@ That sentence is this project's actual achievement, and it is bulletproof.
 
 ## Part VI — How we know: the verification methodology
 
-- **496 automated tests across 23 files**, including: rules-engine fixtures for
+**⚠ The count below is what this report claimed when it was written, and is now
+stale: `npx vitest run` on 2026-09-09 (WP-0.3, `b8afc9a`) reports 1150 tests
+across 51 files, all passing — not the 496/23 this section and the one-pager
+table above still say. The growth is real work landing since (Sessions 7–11
+among it), not a discrepancy to chase down; the number was simply never updated
+after each session that added tests. Recorded rather than silently bumped, per
+this report's own instrument-before-verdict standard — a reader relying on the
+figure below should re-run the command themselves rather than trust either
+number.**
+
+- **496 automated tests across 23 files** (as of this report's writing — see the
+  note just above for the current count), including: rules-engine fixtures for
   every capture/escape/encirclement/repetition subtlety; constructed positions
   where the search must find (or avoid) specific tactics; a demonstration pair
   proving quiescence fixes a horizon blunder the legacy config commits;
@@ -629,7 +640,7 @@ That sentence is this project's actual achievement, and it is bulletproof.
 Reproduce everything:
 
 ```
-npm test                                                  # 496 tests
+npm test                                                  # 1150 tests, 51 files (2026-09-09; was 496/23 when written)
 npm run build                                             # type-check + bundle
 npx tsx scripts/solve.ts                                  # the solvability numbers, §IV
 npx tsx scripts/aibench.ts                                # search benchmarks
