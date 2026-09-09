@@ -193,14 +193,28 @@ same `categorize()` inversion:
    → expected 1 to be +0
 ```
 
-The Copenhagen case is the expensive one and is deliberately kept anyway. It
-costs minutes, not the ~30 s the Tablut case does, and that is the board rather
-than a tuning choice: 116 root moves, three extra terminal checks per node, and
-games of 14 to 151 plies put a single mirrored pair at 45–90 s, so **no pair
-count above zero fits a 60 s budget on this board**. Three pairs is the
-smallest that carries the property at this seed. The alternative — skipping it
-— would be a guard that never runs, which this project has already been bitten
-by twice (`CLAUDE.md` gotchas 9 and 11).
+The Copenhagen case costs minutes, not the ~30 s the Tablut case does, and that
+is the board rather than a tuning choice: 116 root moves, three extra terminal
+checks per node, and games of 14 to 151 plies put a single mirrored pair at
+45–90 s, so **no pair count above zero fits a 60 s budget on this board**.
+Three pairs is the smallest that carries the property at this seed.
+
+**It is therefore gated, not deleted** (branch `wp/1-1b-gate-copenhagen-ci`),
+behind `GAUNTLET_DEEP` — the same idiom, for the same reason, that gates the
+Copenhagen depth-3 perft pins behind `PERFT_DEEP` in
+`src/game/copenhagen/searchInvariants.test.ts`:
+
+```bash
+GAUNTLET_DEEP=1 npx vitest run scripts/pairgauntlet.test.ts
+```
+
+Gating is not a free lunch and the test body says so: this is the only check
+that the instrument still means anything on the largest board, so **a green
+suite without `GAUNTLET_DEEP` set says nothing about Copenhagen.** Running it is
+mandatory before landing a change to a Copenhagen weight or to
+`src/game/copenhagen/{engine,rules,variants,d4}.ts`, and before any change to
+the shared search core, the `GameAdapter` interface, or `pairgauntlet.ts`
+itself. The Brandubh and Tablut cases stay ungated and run on every suite.
 
 ## Numbers
 
@@ -216,13 +230,22 @@ by twice (`CLAUDE.md` gotchas 9 and 11).
   wall on `nproc=4` at load 4–8.
 - `scripts/pairgauntlet.test.ts` went from 12 tests / 21.5s to **14 tests /
   261.6s**: Brandubh 37.5s (unchanged case), Tablut 53.1s, **Copenhagen
-  170.9s**. That file is now the suite's critical path. The Copenhagen case is
-  the cost, it is deliberate, and why it cannot be made cheap is written into
-  the test body and into "The self-check test" above. Whether the suite should
-  carry it is a judgement call with a one-line answer either way; it ships on,
-  because a guard that does not run is the failure mode this project has
-  already been bitten by twice.
+  170.9s**, which made that file the suite's critical path on its own.
 - `npx tsc -b --noEmit`: clean.
+
+**Superseded the same day, on `wp/1-1b-gate-copenhagen-ci`:** the Copenhagen
+case is gated behind `GAUNTLET_DEEP` (see "The self-check test" above). Measured
+on a quiet machine, `nproc=4`, load 1.37 → 4.56:
+
+- default (`npx vitest run scripts/pairgauntlet.test.ts`): **13 passed, 1
+  skipped, 40.0s** — Brandubh 13.4s, Tablut 25.6s.
+- with the flag (`GAUNTLET_DEEP=1 …`): **14 passed, 0 skipped, 355.9s** —
+  Brandubh 20.4s, Tablut 55.2s, Copenhagen 279.2s.
+- `npx tsc -b --noEmit`: clean.
+
+The two runs disagree by 2–3× on the shared cases despite an idle-looking
+machine, which is the load-and-seed variance described under "How to read the
+timings" showing up in the test suite as well.
 
 ## Reproduce
 
@@ -407,12 +430,51 @@ correct run can print. Every run reported here, the regression captures
 included, was audited: **0 mismatches in 336 pair lines.** The contaminated run
 showed 8 mismatches in its 14 lines, which is how it was found.
 
-The raw stdout of every run below, the audit script, and an independent
-re-derivation of each summary from its own pair lines (`logs/summarise.py`,
-which reproduced every `WW`/`LL`/`split`/`p` figure the script printed) live in
-the `logs/` directory of the `wp/1-1-pairgauntlet-all-boards` worktree and are
-deliberately **not committed** — same convention as the engine-audit archive
-noted in `docs/ROADMAP.md`. The commands and seeds below reproduce all of it.
+### Provenance: what survives, and what does not
+
+The raw stdout of every run, the audit script, and an independent re-derivation
+of each summary from its own pair lines (which reproduced every `WW`/`LL`/
+`split`/`p` figure the script printed) were kept untracked in the working
+branch's `logs/` directory and were **not committed**. That directory was
+deleted with the worktree when the branch merged, so it is gone. Being explicit
+about the consequence, rather than leaving the reader to discover it:
+
+**Re-derivable from what is committed** — every *result* in this section. Each
+run is a fixed depth with no deadline and a seeded PRNG, and every command line
+and seed is printed below, so re-running any of them reproduces its pair
+letters, `WW`/`LL`/`split`/`net`/`decisive`, p-value and side split exactly, on
+any machine. That is what recording the seeds was for. It costs machine time
+(the Copenhagen rows, hours) but nothing is lost.
+
+**Not re-derivable**, and to be read as claims with a stated source rather than
+as reproducible facts:
+
+- **Every ms/pair figure and every load average.** Properties of one shared
+  4-core machine at one moment; re-running gives different numbers. They were
+  never reproducible and the timing section already says so.
+- **The regression guard's `md5 c704bf3fc16dee710d91ee06b0195351`.** The
+  captured pre-refactor output is gone. It can be *rebuilt* — the pre-refactor
+  `scripts/pairgauntlet.ts` is in git history at `b8afc9a` — by running the four
+  commands under both versions and hashing the same line selection, which was
+  `grep -E '^  pair |^pairs=|^decisive '` over the concatenated stdout of the
+  four runs in the order listed. That filter is recorded here precisely so the
+  hash is not orphaned. Until someone does that, the hash is a claim.
+- **"336 pair lines, 0 mismatches."** Needs both the logs and the audit script,
+  and has neither. The check itself is a dozen lines and is fully described
+  above (re-derive each pair's category from its own two letters and compare
+  with the printed one); rebuilding it is easy, re-running everything under it
+  is not.
+- **The two contaminations** — the run that picked up the inverted
+  `categorize()`, and the four duplicated jobs. Both narratives rest on logs
+  that no longer exist. They are recorded because a reader deserves to know the
+  timings between 12:22 and 12:47 were taken on an over-subscribed machine, not
+  because anyone can now check it.
+- **The abandoned Copenhagen `calibrate 3 2` run** (4 of 20 pairs in 34
+  minutes). Already reported as not-reported; its log is gone too.
+
+None of the above touches a result. What is unverifiable is the timing, the
+hygiene checks and the incident narrative — not a single `WW`, `LL` or
+p-value.
 
 ---
 

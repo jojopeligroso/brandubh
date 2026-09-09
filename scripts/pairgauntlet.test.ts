@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { adapterFor } from "./gauntlet/index";
 import { binomTwoSidedP, categorize, runGauntlet } from "./pairgauntlet";
 
+// This project has no @types/node dependency (tsconfig's `lib` is browser-only:
+// ES2020 + DOM), so `process` has no ambient type anywhere else. This file runs
+// under vitest's Node environment, where `process.env` genuinely exists at
+// runtime — the minimal ambient declaration below types exactly that, rather
+// than pulling in all of @types/node's Node-API surface for one env read. Same
+// workaround, for the same reason, as src/game/copenhagen/searchInvariants.test.ts.
+declare const process: { env: Record<string, string | undefined> };
+
 // ── binomTwoSidedP: exact two-sided binomial sign-test, p=0.5 ─────────────────
 // Every expected value below is hand-computable from the binomial pmf
 // P(X=i) = C(n,i) * 0.5^n and is independent of this file's implementation —
@@ -140,6 +148,10 @@ describe("pairgauntlet self-check: a deeper search must beat a shallower one", (
 // Both were observed FAILING before being trusted, by inverting the WW and LL
 // branches of `categorize()`; the failures are quoted in
 // docs/reports/paired-gauntlet-instrument.md.
+//
+// The Tablut case runs always. The Copenhagen case is GATED behind
+// GAUNTLET_DEEP — see the comment on it for why, and for when you are obliged
+// to run it.
 describe("pairgauntlet self-check on the larger boards", () => {
   it("Tablut: depth 2 never loses a decisive pair to depth 1 over 8 mirrored pairs, shallow2 opening, seed 7", () => {
     const tablut = adapterFor("tablut");
@@ -159,7 +171,29 @@ describe("pairgauntlet self-check on the larger boards", () => {
     expect(summary.WW).toBeGreaterThan(0);
   }, 120_000);
 
-  it("Copenhagen: depth 2 never loses a decisive pair to depth 1 over 3 mirrored pairs, shallow2 opening, seed 7", () => {
+  // GATED. Measured at 171s in the 2026-09-09 full-suite run, which made this
+  // file (262s) the suite's critical path on its own. That cost is the board,
+  // not a tuning choice: 11×11 with 116 root moves and three extra terminal
+  // checks per node (shieldwall, exit fort, encirclement) measured at roughly
+  // 0.5-0.8s per ply at depth 2, and Copenhagen games at this depth run 14 to
+  // 151 plies, so a single mirrored pair costs 45-90s on its own. There is no
+  // pair count above zero that fits the ~60s a routine CI case may cost here.
+  //
+  // Gated rather than deleted, and the distinction matters: this is the only
+  // check that the mirrored-pair instrument still means anything on the largest
+  // board. Run it:
+  //
+  //     GAUNTLET_DEEP=1 npx vitest run scripts/pairgauntlet.test.ts
+  //
+  // and you MUST run it before landing either of:
+  //   - any change to a Copenhagen evaluation weight or to
+  //     src/game/copenhagen/{engine,rules,variants,d4}.ts;
+  //   - any change to the shared search core, the GameAdapter interface, or
+  //     scripts/pairgauntlet.ts itself.
+  // A green suite without GAUNTLET_DEEP set says nothing about Copenhagen. The
+  // same idiom, for the same reason, gates the depth-3 perft pins in
+  // src/game/copenhagen/searchInvariants.test.ts behind PERFT_DEEP.
+  it.skipIf(!process.env.GAUNTLET_DEEP)("Copenhagen: depth 2 never loses a decisive pair to depth 1 over 3 mirrored pairs, shallow2 opening, seed 7 [GAUNTLET_DEEP]", () => {
     const copenhagen = adapterFor("copenhagen");
     const summary = runGauntlet(
       copenhagen,
@@ -167,15 +201,9 @@ describe("pairgauntlet self-check on the larger boards", () => {
       copenhagen.defaultWeights,
       2,
       1,
-      3, // Three, not eight, and this case still costs MINUTES rather than the
-      // ~30s the Tablut one does. That is not a tuning choice, it is the board:
-      // 11×11 with 116 root moves and three extra terminal checks per node
-      // (shieldwall, exit fort, encirclement) measured at roughly 0.5-0.8s per
-      // ply at depth 2, and Copenhagen games at this depth run 14 to 151 plies,
-      // so a single mirrored pair costs 45-90s on its own. There is no pair
-      // count above zero that fits a 60s budget here. Three is the smallest
-      // count that carries the property at this seed (pair 3 is the decisive
-      // one), and its cost is recorded in the report rather than hidden.
+      3, // Three, not eight: the smallest count that carries the property at
+      // this seed (pair 3 is the decisive one). See the gating comment above
+      // for why it cannot be made cheaper.
       "shallow2",
       7,
       () => {},
