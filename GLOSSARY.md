@@ -20,8 +20,9 @@ _Avoid_: game (one playing), variant, mode, exhibit
 ## Playing
 
 The vocabulary below is **tafl** vocabulary — Brandubh, Tablut and Copenhagen.
-Nine Men's Morris inherits none of it: it has no King, no sides, no throne and no
-custodial capture, and reaching for these words there is an error.
+Nine Men's Morris inherits none of it: it has no King, no throne and no
+custodial capture, its two sides are symmetric, and reaching for these words
+there is an error. Its own vocabulary is the section after this one.
 
 **Raider**:
 An attacking soldier; the side that surrounds the King.
@@ -105,6 +106,52 @@ teaching copy only where a player is likely to have met them elsewhere)
 One move by one side. The move list, the review cursor and the set records all
 count in plies, so "moves" in prose means plies unless a numbered move pair is
 explicitly meant.
+
+## Playing Nine Men's Morris
+
+Its own vocabulary, because it shares none of the section above. A Morris board
+has 24 **points** on three concentric rings joined by four spokes, not squares;
+stones, not pieces; and two symmetric sides, White and Black.
+
+**Mill**:
+Three stones of one side on one of the board's 16 lines — a ring's side or a
+whole spoke. Closing a mill, in either phase, takes one enemy stone off the
+board, and a mill may be opened and closed again later to take another. The word
+belongs to Morris and to nothing else here: the tafl tactic some players call a
+mill is the **Guillotine**, which is why "mill" is on that entry's _Avoid_ line.
+_Avoid_: line, row, three-in-a-row
+
+**Open two**:
+Two stones of one side on a line whose third point is empty — a mill one move
+away. The engine's main positional term after material, and the reason a
+placement is worth more or less than the count of stones on the board says.
+_Avoid_: half mill, broken mill
+
+**Double mill**:
+Five stones placed so that one of them shuttles between two points, closing one
+mill as it opens the other and taking a stone every turn. Usually a won game.
+_Also known as_: running mill; and **svikmølle** in Danish, which is the word
+tafl players borrow as a nickname for the **Guillotine** — the borrowing runs
+from Morris to tafl, not the other way, and only the Morris sense is attested
+(see **Svikmølle** under Named tactics).
+_Avoid_: treadmill, double row
+
+**Placing phase** / **Moving phase**:
+The two phases of a game. In the placing phase each side puts its nine stones
+on empty points, one a turn; in the moving phase, once both hands are empty, a
+stone moves along a line to an adjacent empty point. The phase is a function of
+the two hands and is never stored (`phaseOf`), so it can never disagree with
+them.
+_Avoid_: opening, midgame, endgame (a phase here is a rule, not a stage of play)
+
+**Flying**:
+The relaxation a side down to three stones gets: a stone may move to *any*
+empty point, not only an adjacent one. Not a third phase — it is a property of
+a side inside the moving phase, and it ends if that side ever gets a fourth
+stone back, which it cannot. `flying: "three"` ships; `"none"` is reachable in
+the custom editor and is a different game, turning the three-stone ending from
+a fight into a loss.
+_Avoid_: jumping, hopping
 
 ## Named tactics
 
@@ -271,6 +318,23 @@ deliberate Easy blunder, or no legal move).
 Precomputed best replies for early positions, stored one line per canonical D4
 position so the bundled file stays small.
 
+**Endgame database**:
+A table holding the exact value — win, loss or draw — and the distance to it for
+every position with a given number of stones on each side. Shipped for Nine
+Men's Morris at small stone counts, under `public/morris/db/`, and looked up
+rather than searched: inside a shipped table the engine's play is **proven**,
+which is a word this project otherwise reserves (see `docs/solving.md`). Not an
+**Opening book** (a stored *searched* move, no guarantee) and not a **Solver**
+(one position proved on demand). Built by **retrograde analysis**: start from the
+positions whose value is immediate, then mark a position a win if some move
+reaches a loss for the opponent and a loss if every move reaches a win, repeating
+until a pass changes nothing — whatever is left unresolved is a draw, which is
+why a database draw means "neither side can force a win" and never "agreed".
+_Also known as_: tablebase — the chess word, used in `docs/solving.md` for
+Brandubh's hypothetical tables. **Endgame database** is the word for the Morris
+tables that actually ship.
+_Avoid_: cache, lookup table
+
 **Solver**:
 A sound but bounded exhaustive search used to prove results, not to play. It
 reuses the engine, so it solves under exactly the rules being played.
@@ -279,6 +343,16 @@ reuses the engine, so it solves under exactly the rules being played.
 A pattern that claims a forced win without searching for it. Recognizers must
 be sound: cross-validated against the solver, and never allowed to claim an
 unforced win.
+
+**The 16-fold symmetry**:
+The Morris board's symmetry group: the eight dihedral maps of the square
+composed with the inversion that exchanges the inner and outer rings — sixteen
+point permutations (`PERMS` in `src/game/morris/symmetry.ts`), against the eight
+of D4 on every tafl board. Three things read it, and only one of them is the
+search: the **Endgame database**'s index, where a wrong canonical form is a wrong
+answer rather than a slow one; the solver's memo; and root-move folding, so that
+a varied choice varies between ideas instead of between sixteen copies of one.
+_Avoid_: D4 (eight maps, the tafl group), rotations
 
 ## Review and analysis
 
@@ -589,6 +663,12 @@ off.
   means the first. Resolved: **AI level** and **Grade** in prose, `difficulty`
   in code continues to mean AI level only. The four ladder names are shared
   deliberately — one ladder, two things graded on it.
+- "mill" named two things: the Morris formation and — loosely, by players who
+  know the Danish **svikmølle** — the tafl **Guillotine**. Resolved: **Mill** is
+  the Morris formation and nothing else; the tafl tactic is **Guillotine**, with
+  "mill" kept on its _Avoid_ line. **Double mill** is the Morris term the
+  svikmølle nickname is borrowed *from*, so the two entries now point at each
+  other rather than competing for the word.
 - "guillotine" was briefly both a **Goal** and a **Motif**, in two different
   fields. Resolved: **Motif** only. The property that made it look like a goal
   — that the proof runs past the end of the line — is **Truncated**, which
