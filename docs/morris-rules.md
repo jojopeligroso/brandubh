@@ -241,11 +241,59 @@ exchange for being short enough to verify by eye.
 ### Which tables ship
 
 <!-- TABLE-STATS -->
-<!-- Per-table numbers go here: key, entries, win / loss / draw counts, max
-     depth in plies, raw bytes, gzipped bytes, and the total shipped size.
-     Printed by `npx tsx scripts/morris-solve.ts`; the 3-3 table's statistics
-     are pinned in `src/game/morris/db/index.test.ts`. Not filled in yet —
-     leave this block until the numbers are measured rather than estimated. -->
+Measured, not estimated: `npx tsx scripts/morris-solve.ts --max-stones 8`, one
+core, 149 s wall clock for the lot (solve, verify, gzip and write). Every table
+was verified entry by entry against freshly generated successors before it was
+written; all six fit the ~1.5 MB budget, so all six ship.
+
+| table | entries | win | loss | draw | max depth | raw | gzip | gzip, no depths |
+| ----- | ------- | --- | ---- | ---- | --------- | --- | ---- | --------------- |
+| 3-3 | 210,140 | 174,485 | 35,303 | 352 | 26 | 205 KB | 51.2 KB | 12.0 KB |
+| 3-4 | 945,630 | 126,377 | 0 | 819,253 | 33 | 924 KB | 73.0 KB | 58.3 KB |
+| 4-3 | 862,980 | 84,303 | 3,660 | 775,017 | 32 | 843 KB | 7.0 KB | 5.0 KB |
+| 3-5 | 3,215,142 | 7,277 | 12,203 | 3,195,662 | 31 | 3.07 MB | 27.0 KB | 25.0 KB |
+| 5-3 | 2,742,270 | 611,683 | 0 | 2,130,587 | 3 | 2.62 MB | 21.0 KB | 17.8 KB |
+| 4-4 | 3,667,665 | 212 | 57 | 3,667,396 | 9 | 3.50 MB | 4.1 KB | 1.4 KB |
+| **all six** | **11,643,827** | | | | | **11.1 MB** | **183.3 KB** | **119.5 KB** |
+
+The last column is the same tables with the *depths thrown away* — two bits per
+position instead of eight. Shipping depths costs 64 KB of the 183 KB, and buys
+the thing that makes a won endgame actually get won: the engine picks the child
+with the smallest distance, rather than shuffling inside a position it knows it
+has won. The owner asked to see that number rather than be argued at; it is 35%
+of the download.
+
+Four of these rows look odd at a glance, and each one is the flying rule talking:
+
+- **3-3 is where the game is decided** — 83% of its entries are wins for the
+  side to move. A three-stone side flies, so any two of its stones on one line
+  with the third point empty is a mill *this move*, and a mill takes the
+  opponent's third stone, which ends the game. Nothing about that is deep: the
+  wins that are not immediate run out to 26 plies, but most are one.
+- **3-4 and 5-3 contain no losses at all.** A three-stone side can never be
+  blocked (it flies to any empty point, and there are always empties), so for it
+  to be *lost* every one of its ~50 moves would have to lose. That never happens
+  in either table.
+- **5-3 wins are never deeper than 3 plies.** The five-stone side forces a mill
+  at once or not at all; a flying three-stone side cannot be herded, so anything
+  that is not an immediate or one-threat win is a draw.
+- **4-4 is a draw table** — 3,667,396 of 3,667,665 entries. A capture there
+  leads to 3-4 with the three-stone side to move, and 3-4 has no losses, so
+  capturing cannot win. What is left is blocking, and in the whole table exactly
+  **6** positions are a four-stone side with no move at all. Two of them are a
+  ring's four corners held against that ring's four midpoints — the outer ring's
+  version and the inner ring's are *one* position under the ring inversion, which
+  is why there are two of these and not three — and the other four are four stones
+  packed along one edge behind four blockers (`a7 d7 g7 g4` against
+  `d6 a4 f4 g1`, and three more of that shape). The 212 wins are those six
+  positions and the short forcing lines into them, out to 9 plies. Gzip tells the
+  same story in one number: 3.5 MB of table, 4.1 KB compressed, because it is
+  nearly all the same byte.
+
+The 3-3 statistics in that table are pinned in
+`src/game/morris/db/retrograde.test.ts`, which re-solves the level from scratch
+and re-runs the verifier over all 210,140 entries on every test run. If one of
+those numbers moves, every shipped table has to be regenerated.
 
 The manifest in `public/morris/db/manifest.json` is the authority on what is
 actually shipped (`{key, entries, bytes, sha256}` per table); the loader reads

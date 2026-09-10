@@ -21,35 +21,27 @@
 //
 // `dbBaseUrl` is the one field the tafl workers have no analogue of. Gasser's
 // retrograde tables are what make `ollamh` *perfect* once play reaches one, and
-// they are files to be fetched rather than code to be bundled. **This worker is
-// deliberately not wired to them yet**: the probe is an argument to the engine
-// rather than an import inside it, so a worker with no tables is a complete,
-// working worker that plays on search alone — and `dbBaseUrl` already crosses the
-// boundary, so wiring it later changes this file and nothing upstream of it.
+// they are files to be fetched rather than code to be bundled — so the probe is an
+// argument to the engine rather than an import inside it, and a worker whose
+// fetch fails (offline, an old deploy without the files, no gzip support) is a
+// complete, working worker that plays on search alone.
 //
-// Wiring is this much, against `db/`'s own API (contract §7-§8):
+// `probeFor` (db/probeFor.ts) owns the two decisions this file must not repeat:
+// which tables the *current* stone counts can still reach (`tableKeysFor`, so a
+// 9-v-9 opening does not pull the whole set — a side's stones only ever go down),
+// and caching them in module state so a session pays for each file once. It is
+// asked for `ollamh` only: the engine drops a probe on every other tier on
+// purpose (`chooseMoveDetailed`), so fetching for them would be wasted bytes.
+// Analysis requests get the same probe when a URL is supplied — a read-only
+// evaluation of a solved position should say so.
 //
-//     import { fetchManifest, fetchTables, tableKeysFor } from "./db/loader";
-//     import { makeProbe } from "./db/probe";
-//
-//     const tables = new Map<string, Uint8Array>();   // module state: load once
-//     // …inside onmessage, made `async`, before choosing a move:
-//     const shipped = (await fetchManifest(req.dbBaseUrl))?.tables.map((t) => t.key) ?? [];
-//     const probe = req.dbBaseUrl
-//       ? makeProbe(
-//           await fetchTables(req.dbBaseUrl, tableKeysFor(mover, opp, shipped), tables),
-//         )
-//       : null;
-//     chooseMoveDetailed(req.state, req.difficulty, req.rules, Math.random, probe);
-//
-// Two details that are easy to get wrong and are why this sketch names real
-// functions rather than a hypothetical one: only the tables the *current* stone
-// counts can still reach should be fetched (`tableKeysFor`, so a 9-v-9 opening
-// does not pull the whole set), and the engine hands the probe to `ollamh` only —
-// `chooseMoveDetailed` drops it on every other tier on purpose.
+// The handler is `async` because the fetch is; that is safe with `useAiWorker`'s
+// protocol, which terminates a busy worker before sending a new request, so two
+// replies can never race on one instance.
 import { ANALYSIS_DEEP_LIMITS, analysePosition, chooseMoveDetailed, type Difficulty } from "./engine";
 import type { GameState, Move } from "./types";
 import type { MorrisRuleSet } from "./variants";
+import { probeFor } from "./db/probeFor";
 
 /** Pick the AI's move for the live game. */
 export interface AiMoveRequest {
@@ -101,14 +93,29 @@ const ctx = self as unknown as {
   postMessage: (message: AiResponse) => void;
 };
 
-ctx.onmessage = (e) => {
+ctx.onmessage = async (e) => {
   const req = e.data;
   // GameState / MorrisRuleSet / Move are plain data, so they cross the worker
   // boundary by structured clone with no special handling.
+  const wantsTables = req.dbBaseUrl && (req.kind === "analysis" || req.difficulty === "ollamh");
+  let probe = null;
+  if (wantsTables && req.dbBaseUrl) {
+    try {
+      probe = await probeFor(req.dbBaseUrl, req.state);
+    } catch {
+      probe = null; // a broken fetch is "search it", never a lost move
+    }
+  }
   const info =
     req.kind === "analysis"
-      ? analysePosition(req.state, req.rules, req.deep ? ANALYSIS_DEEP_LIMITS : undefined)
-      : chooseMoveDetailed(req.state, req.difficulty, req.rules);
+      ? analysePosition(
+          req.state,
+          req.rules,
+          req.deep ? ANALYSIS_DEEP_LIMITS : undefined,
+          undefined,
+          probe ?? undefined,
+        )
+      : chooseMoveDetailed(req.state, req.difficulty, req.rules, Math.random, probe ?? undefined);
   ctx.postMessage({
     id: req.id,
     move: info.move,
