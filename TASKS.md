@@ -260,17 +260,18 @@ what this fork cost and `docs/morris-rules.md` for what is and is not sourced.
   board — and it is also the one that cannot be honestly labelled "proven"
   without the tables underneath it, so a best-effort book comes first and is
   labelled the way `docs/solving.md` requires.
-- [ ] **Only the smallest endgame tables ship** `[engine]` — the full ordered set
-  for 3..9 stones is 9,193,626,407 entries (≈ 9.2 GB at one byte each), against
-  a shipped budget of ~1.5 MB compressed. Everything above the shipped counts is
-  search, so `ollamh` is perfect only in the late endgame. Generating more
-  (`npx tsx scripts/morris-solve.ts --max-stones N`) is bounded by what the
-  bundle can carry, not by the script — a lazily-fetched table set behind the
-  manifest is the way up, and needs a size policy before a generation run.
-- [ ] **`<!-- TABLE-STATS -->` is unfilled** `[docs]` — both `docs/morris-rules.md`
-  and ADR-0008 carry the placeholder block for per-table entries, win/loss/draw
-  counts, maximum depth and bytes. Fill from the generator's own output; do not
-  estimate.
+- [ ] **Only the tables up to nine stones ship** `[engine]` — ten tables (3-3 …
+  5-4, 50,082,731 entries, 548 KB gzipped, 848 s to generate) ship under
+  `public/morris/db/`, so `ollamh` is perfect in the moving phase from nine
+  stones on the board down and search above that. The full ordered set for 3..9
+  stones is 9,193,626,407 entries (≈ 9.2 GB at one byte each). The ten-stone
+  level (3-7, 7-3, 4-6, 6-4, 5-5, ≈ 122 million entries) is the next step: a few
+  hours offline with the edge cache off, and a download of a few megabytes,
+  which needs a size policy before it is run
+  (`npx tsx scripts/morris-solve.ts --max-stones 10`).
+- [x] **`<!-- TABLE-STATS -->` is filled** `[docs]` — both `docs/morris-rules.md`
+  and ADR-0008 carry the measured per-table numbers from the generator's own
+  output (2026-09-10, max-stones 9). Regenerate and re-fill together.
 - [ ] **The tables do not model the two practical draw rules** `[engine]` — they
   are computed under the paper's rules, so a table WIN is a live win only while
   `sinceMill + depth < 100`. Encoded depth is capped at 63 plies and the limit is

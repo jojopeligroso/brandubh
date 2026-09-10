@@ -6,7 +6,7 @@
     "removeFromMillsWhenAllInMills": true,
     "doubleMillRemoves": "one"
   },
-  "generated": "npx tsx scripts/morris-solve.ts --max-stones 8",
+  "generated": "npx tsx scripts/morris-solve.ts --max-stones 9",
   "tables": [
     {
       "key": "3-3",
@@ -48,6 +48,19 @@
       "maxDepth": 31
     },
     {
+      "key": "3-6",
+      "m": 3,
+      "o": 6,
+      "entries": 8573712,
+      "bytes": 8573712,
+      "gzipBytes": 217791,
+      "sha256": "b5f02309fc300ec749ce630a064c3c4d632158882c0c60f60c164e941a7b9a61",
+      "win": 0,
+      "loss": 242104,
+      "draw": 8331608,
+      "maxDepth": 6
+    },
+    {
       "key": "4-3",
       "m": 4,
       "o": 3,
@@ -74,6 +87,19 @@
       "maxDepth": 9
     },
     {
+      "key": "4-5",
+      "m": 4,
+      "o": 5,
+      "entries": 11736528,
+      "bytes": 11736528,
+      "gzipBytes": 15493,
+      "sha256": "ff666272f9ea316b5dc1777bdfde4ad44247a6f6579b3bb98a38605f4f52c973",
+      "win": 76,
+      "loss": 2451,
+      "draw": 11734001,
+      "maxDepth": 28
+    },
+    {
       "key": "5-3",
       "m": 5,
       "o": 3,
@@ -85,6 +111,32 @@
       "loss": 0,
       "draw": 2130587,
       "maxDepth": 3
+    },
+    {
+      "key": "5-4",
+      "m": 5,
+      "o": 4,
+      "entries": 10969080,
+      "bytes": 10969080,
+      "gzipBytes": 32096,
+      "sha256": "38f2950057814fb098ef000529f65f780208f2486b936ad91ac7cabd788401fd",
+      "win": 10797,
+      "loss": 9,
+      "draw": 10958274,
+      "maxDepth": 29
+    },
+    {
+      "key": "6-3",
+      "m": 6,
+      "o": 3,
+      "entries": 7159584,
+      "bytes": 7159584,
+      "gzipBytes": 108393,
+      "sha256": "61637b073cd07482aea42bb438c4118cd1f4a234c98c8da98af6771eda5fe038",
+      "win": 2836676,
+      "loss": 0,
+      "draw": 4322908,
+      "maxDepth": 7
     }
   ]
 }

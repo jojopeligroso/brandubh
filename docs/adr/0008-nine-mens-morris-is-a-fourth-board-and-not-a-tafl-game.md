@@ -137,10 +137,13 @@ table:
 Sizes and per-table statistics:
 
 <!-- TABLE-STATS -->
-<!-- Per-table numbers (key, entries, win/loss/draw, max depth, raw and gzipped
-     bytes, shipped total) go here and in docs/morris-rules.md, from
-     `npx tsx scripts/morris-solve.ts`. Not filled in yet — leave the block
-     until the numbers are measured rather than estimated. -->
+Measured on 2026-09-10 (`npx tsx scripts/morris-solve.ts --max-stones 9`, one
+core, 848 s): ten tables — 3-3, 3-4, 4-3, 3-5, 5-3, 4-4, 3-6, 6-3, 4-5, 5-4 —
+50,082,731 entries, 47.8 MB raw, **548 KB gzipped** (370 KB without the depths),
+every entry verified against its successors with zero disagreements. All ten
+ship, so the moving phase is played perfectly from nine stones on the board
+down. The per-table breakdown, and why the flying rule makes several of the
+tables almost entirely draws, is in `docs/morris-rules.md`.
 
 **What this buys and what it does not** is the part that has to stay honest, and
 `docs/morris-rules.md` states it at length: **perfect once play reaches a shipped

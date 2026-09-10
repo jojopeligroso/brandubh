@@ -241,10 +241,12 @@ exchange for being short enough to verify by eye.
 ### Which tables ship
 
 <!-- TABLE-STATS -->
-Measured, not estimated: `npx tsx scripts/morris-solve.ts --max-stones 8`, one
-core, 149 s wall clock for the lot (solve, verify, gzip and write). Every table
-was verified entry by entry against freshly generated successors before it was
-written; all six fit the ~1.5 MB budget, so all six ship.
+Measured, not estimated: `npx tsx scripts/morris-solve.ts --max-stones 9`, one
+core, 848 s wall clock for the lot (solve, verify, gzip and write; the eight-stone
+set alone takes 149 s). Every table was verified entry by entry against freshly
+generated successors before it was written; all ten fit the ~1.5 MB budget, so
+all ten ship — every moving-phase position with nine or fewer stones on the
+board is played perfectly.
 
 | table | entries | win | loss | draw | max depth | raw | gzip | gzip, no depths |
 | ----- | ------- | --- | ---- | ---- | --------- | --- | ---- | --------------- |
@@ -254,13 +256,23 @@ written; all six fit the ~1.5 MB budget, so all six ship.
 | 3-5 | 3,215,142 | 7,277 | 12,203 | 3,195,662 | 31 | 3.07 MB | 27.0 KB | 25.0 KB |
 | 5-3 | 2,742,270 | 611,683 | 0 | 2,130,587 | 3 | 2.62 MB | 21.0 KB | 17.8 KB |
 | 4-4 | 3,667,665 | 212 | 57 | 3,667,396 | 9 | 3.50 MB | 4.1 KB | 1.4 KB |
-| **all six** | **11,643,827** | | | | | **11.1 MB** | **183.3 KB** | **119.5 KB** |
+| 3-6 | 8,573,712 | 0 | 242,104 | 8,331,608 | 6 | 8.18 MB | 212.7 KB | 164.2 KB |
+| 6-3 | 7,159,584 | 2,836,676 | 0 | 4,322,908 | 7 | 6.83 MB | 105.9 KB | 62.3 KB |
+| 4-5 | 11,736,528 | 76 | 2,451 | 11,734,001 | 28 | 11.2 MB | 15.1 KB | 5.9 KB |
+| 5-4 | 10,969,080 | 10,797 | 9 | 10,958,274 | 29 | 10.5 MB | 31.3 KB | 17.6 KB |
+| **all ten** | **50,082,731** | | | | | **47.8 MB** | **548.3 KB** | **369.5 KB** |
+
+The nine-stone level (3-6 with 6-3) is the expensive one: 454 s of the 848,
+because its 454 million in-level edges no longer fit the edge cache and are
+regenerated on every sweep. The ten-stone level (3-7, 7-3, 4-6, 6-4, 5-5, some
+122 million entries) was not attempted; it is an offline job of a few hours and
+a download of a few megabytes, and `TASKS.md` records it as the next step.
 
 The last column is the same tables with the *depths thrown away* — two bits per
-position instead of eight. Shipping depths costs 64 KB of the 183 KB, and buys
+position instead of eight. Shipping depths costs 179 KB of the 548 KB, and buys
 the thing that makes a won endgame actually get won: the engine picks the child
 with the smallest distance, rather than shuffling inside a position it knows it
-has won. The owner asked to see that number rather than be argued at; it is 35%
+has won. The owner asked to see that number rather than be argued at; it is 33%
 of the download.
 
 Four of these rows look odd at a glance, and each one is the flying rule talking:
@@ -289,6 +301,11 @@ Four of these rows look odd at a glance, and each one is the flying rule talking
   positions and the short forcing lines into them, out to 9 plies. Gzip tells the
   same story in one number: 3.5 MB of table, 4.1 KB compressed, because it is
   nearly all the same byte.
+- **3-6 has no wins and 6-3 no losses**: three flying stones against six never
+  force anything, and the six can force a mill (or block nothing — they cannot
+  block a flier) within 7 plies in 2.8 million positions or not at all. The
+  nine-stone tables are where the flying rule stops dominating: 4-5 and 5-4 are
+  99.98% draws with wins running out to 29 plies.
 
 The 3-3 statistics in that table are pinned in
 `src/game/morris/db/retrograde.test.ts`, which re-solves the level from scratch
