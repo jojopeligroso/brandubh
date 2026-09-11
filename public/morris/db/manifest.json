@@ -1,0 +1,142 @@
+{
+  "format": "morris-db-1",
+  "variant": "morris-gasser-1",
+  "rules": {
+    "flying": "three",
+    "removeFromMillsWhenAllInMills": true,
+    "doubleMillRemoves": "one"
+  },
+  "generated": "npx tsx scripts/morris-solve.ts --max-stones 9",
+  "tables": [
+    {
+      "key": "3-3",
+      "m": 3,
+      "o": 3,
+      "entries": 210140,
+      "bytes": 210140,
+      "gzipBytes": 52410,
+      "sha256": "9e3dbf519ec803223d1841da7d167367c202eb696174662e29d11cfd3b586b2c",
+      "win": 174485,
+      "loss": 35303,
+      "draw": 352,
+      "maxDepth": 26
+    },
+    {
+      "key": "3-4",
+      "m": 3,
+      "o": 4,
+      "entries": 945630,
+      "bytes": 945630,
+      "gzipBytes": 74750,
+      "sha256": "8beea65da424744dc52937bd5b7ea41aa4ca787af7bec4e377f755b7c9d6e4a5",
+      "win": 126377,
+      "loss": 0,
+      "draw": 819253,
+      "maxDepth": 33
+    },
+    {
+      "key": "3-5",
+      "m": 3,
+      "o": 5,
+      "entries": 3215142,
+      "bytes": 3215142,
+      "gzipBytes": 27638,
+      "sha256": "56ae15d94a88e90b73f6e7146d616727af949f6aa92c850a5199a393e5234b05",
+      "win": 7277,
+      "loss": 12203,
+      "draw": 3195662,
+      "maxDepth": 31
+    },
+    {
+      "key": "3-6",
+      "m": 3,
+      "o": 6,
+      "entries": 8573712,
+      "bytes": 8573712,
+      "gzipBytes": 217791,
+      "sha256": "b5f02309fc300ec749ce630a064c3c4d632158882c0c60f60c164e941a7b9a61",
+      "win": 0,
+      "loss": 242104,
+      "draw": 8331608,
+      "maxDepth": 6
+    },
+    {
+      "key": "4-3",
+      "m": 4,
+      "o": 3,
+      "entries": 862980,
+      "bytes": 862980,
+      "gzipBytes": 7189,
+      "sha256": "1ddeb3201453afdbd2fff86c07a616e3a37642d731d42a522d131ac1c2bca6eb",
+      "win": 84303,
+      "loss": 3660,
+      "draw": 775017,
+      "maxDepth": 32
+    },
+    {
+      "key": "4-4",
+      "m": 4,
+      "o": 4,
+      "entries": 3667665,
+      "bytes": 3667665,
+      "gzipBytes": 4157,
+      "sha256": "f90d6caa5bea4a2559fcddf447ef60053c211a4a6ff0f65eedd327a094486879",
+      "win": 212,
+      "loss": 57,
+      "draw": 3667396,
+      "maxDepth": 9
+    },
+    {
+      "key": "4-5",
+      "m": 4,
+      "o": 5,
+      "entries": 11736528,
+      "bytes": 11736528,
+      "gzipBytes": 15493,
+      "sha256": "ff666272f9ea316b5dc1777bdfde4ad44247a6f6579b3bb98a38605f4f52c973",
+      "win": 76,
+      "loss": 2451,
+      "draw": 11734001,
+      "maxDepth": 28
+    },
+    {
+      "key": "5-3",
+      "m": 5,
+      "o": 3,
+      "entries": 2742270,
+      "bytes": 2742270,
+      "gzipBytes": 21516,
+      "sha256": "3e54a6af46354a7a8e2428a013b365229de2d8bfbc14648c991256890503291d",
+      "win": 611683,
+      "loss": 0,
+      "draw": 2130587,
+      "maxDepth": 3
+    },
+    {
+      "key": "5-4",
+      "m": 5,
+      "o": 4,
+      "entries": 10969080,
+      "bytes": 10969080,
+      "gzipBytes": 32096,
+      "sha256": "38f2950057814fb098ef000529f65f780208f2486b936ad91ac7cabd788401fd",
+      "win": 10797,
+      "loss": 9,
+      "draw": 10958274,
+      "maxDepth": 29
+    },
+    {
+      "key": "6-3",
+      "m": 6,
+      "o": 3,
+      "entries": 7159584,
+      "bytes": 7159584,
+      "gzipBytes": 108393,
+      "sha256": "61637b073cd07482aea42bb438c4118cd1f4a234c98c8da98af6771eda5fe038",
+      "win": 2836676,
+      "loss": 0,
+      "draw": 4322908,
+      "maxDepth": 7
+    }
+  ]
+}

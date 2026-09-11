@@ -218,6 +218,122 @@ Session 12 for the plan that addresses it.
   unverified preset offered in the picker, not held back. See
   `docs/copenhagen-rules.md` and `docs/tablut-rules.md`.
 
+## Nine Men's Morris parity
+
+The fourth board (`src/game/morris/`) ships with its own rules, engine, endgame
+databases, screen and `.morris` format, and with the same gaps the third board
+has — plus two of its own, because its one source could not be read and its top
+level makes a claim about perfection. See
+`docs/adr/0008-nine-mens-morris-is-a-fourth-board-and-not-a-tafl-game.md` for
+what this fork cost and `docs/morris-rules.md` for what is and is not sourced.
+
+- [ ] **Gasser's paper has not been read** `[rules]` — **the biggest open item on
+  this board.** Every rule the shipped `morris-gasser-1` preset credits to
+  "Solving Nine Men's Morris" came through search-engine excerpts; the full text
+  is blocked at every host carrying it (checked host by host, 2026-09-10 — see
+  `docs/morris-rules.md`, "How this was sourced"). The owner will paste the text;
+  the thirteen-item re-verification checklist is in that file under "When the
+  paper text arrives". Two of those items (`doubleMillRemoves`,
+  `removeFromMillsWhenAllInMills`) and two more (`flying`, blocked-player-loses)
+  are **inside** the retrograde analysis, so a correction there means
+  regenerating every shipped table, not just flipping a flag.
+- [ ] **Morris eval weights are unmeasured** `[engine]` — `DEFAULT_WEIGHTS` in
+  `src/game/morris/engine.ts` are hand-set: material over board and hand, mills,
+  open twos, potential double mills, mobility, blocked stones, flying threats.
+  Same situation as Tablut's and Copenhagen's lines above, with less to transfer
+  than between any two boards here — not one of those terms has a tafl
+  counterpart. Do not quote them as measured. The ladder's depths (2 / 4 / 8 / 24
+  plies) are hand-set with them.
+- [ ] **Branching factor not measured** `[tests]` — Copenhagen's `engine.test.ts`
+  pins its opening (116/60); Morris has no equivalent. What is known is
+  arithmetic, not measurement: exactly 24 opening placements, 4 of them distinct
+  up to the 16-fold symmetry; 32 edges with degrees 2/3/4 (average 8/3), so the
+  moving phase offers ≤ 4 destinations per stone before removal choices multiply
+  it. Pin the real per-phase numbers, including the removal multiplier, which is
+  the term nothing else here has.
+- [ ] **No opening book, and the obvious future work is Gasser's own** `[engine]`
+  — `hard`/`ollamh` search from the opening like the other two larger boards.
+  The difference is that here the shape of the answer is published: Gasser's
+  **18-ply alpha-beta search over the placing phase**, backed by the full
+  database set, is what proved the initial position a draw. An 18-ply book over
+  the placing phase is therefore the single highest-value engine item on this
+  board — and it is also the one that cannot be honestly labelled "proven"
+  without the tables underneath it, so a best-effort book comes first and is
+  labelled the way `docs/solving.md` requires.
+- [ ] **Only the tables up to nine stones ship** `[engine]` — ten tables (3-3 …
+  5-4, 50,082,731 entries, 548 KB gzipped, 848 s to generate) ship under
+  `public/morris/db/`, so `ollamh` is perfect in the moving phase from nine
+  stones on the board down and search above that. The full ordered set for 3..9
+  stones is 9,193,626,407 entries (≈ 9.2 GB at one byte each). The ten-stone
+  level (3-7, 7-3, 4-6, 6-4, 5-5, ≈ 122 million entries) is the next step: a few
+  hours offline with the edge cache off, and a download of a few megabytes,
+  which needs a size policy before it is run
+  (`npx tsx scripts/morris-solve.ts --max-stones 10`).
+- [x] **`<!-- TABLE-STATS -->` is filled** `[docs]` — both `docs/morris-rules.md`
+  and ADR-0008 carry the measured per-table numbers from the generator's own
+  output (2026-09-10, max-stones 9). Regenerate and re-fill together.
+- [ ] **The tables do not model the two practical draw rules** `[engine]` — they
+  are computed under the paper's rules, so a table WIN is a live win only while
+  `sinceMill + depth < 100`. Encoded depth is capped at 63 plies and the limit is
+  100, so the gap only bites in positions reached with the counter well advanced;
+  the engine does not currently reason about it. Derived, not measured — see
+  `docs/morris-rules.md`, "What the tables do not know".
+- [ ] **No analysis surface** `[ui]` — same wiring gap as the other two larger
+  boards: `MorrisScreen.tsx` passes `analysisShown={false}` to `GameToolbar`, so
+  the eval bar, best-move arrow and analysis mode Brandubh has are off.
+  `analysePosition` and `ANALYSIS_LIMITS` exist in the engine and are consumed
+  only internally.
+- [ ] **No records, match sets, puzzles, review or annotation** `[ui]` — the whole
+  review/teaching stack is still Brandubh-only. The local human-vs-computer
+  results line (`aiResults`, `store: "morris"`) is the one piece that is wired.
+- [ ] **No gauntlet instrument, no perft pins, no performance guard** `[tests]` —
+  the three items the Tablut/Copenhagen list carries, now true on a fourth board.
+  `scripts/pairgauntlet.ts` is still hard-coded to `VARIANTS.wtf` and the
+  Brandubh opening book.
+- [ ] **`solver.ts` exists to cross-check the databases and nothing else**
+  `[tests]` — unlike the two dead tafl solvers, this one is used: a bounded AND-OR
+  search sampled against every shipped table. It is not wired into play or into
+  any recognizer, and there are no Morris recognizers to cross-validate.
+- [ ] **The `ga` strings are unreviewed machine drafts** `[ui]` — the new
+  `morris*` keys follow the existing convention: complete in the `ga` table
+  because TypeScript requires it, marked as drafts, and `ga` stays out of
+  `VISIBLE_LANGS` until a human Irish speaker signs the copy off (see
+  `CLAUDE.md`). `morrisStatuses` and `morrisRuleValues` are the two keyed records
+  where a missing entry is a silent English fallback rather than a type error —
+  `i18n.test.ts` covers the rule keys; the status map is worth a check of its own.
+- [ ] **The review-cursor/`thinking` deadlock is still live on the two tafl
+  surfaces** `[ui]` — found by the 2026-09-11 review of this change and fixed **on
+  Morris only**, because the other two are out of its scope. The shape is identical:
+  `CopenhagenScreen.tsx:492-510` and `TablutScreen.tsx`'s engine-turn effect set
+  `live = false` in the cleanup and neither clear `thinking` nor reset
+  `askedFor.current`, so stepping the review cursor during a think discards the
+  reply, leaves `thinking` true, and the unchanged ask-key stops the engine being
+  asked again — a board dead until Undo or Restart. Morris's fix is two lines in
+  that cleanup plus `src/components/morrisEngineTurn.ts` (the decision, extracted so
+  it can be unit-tested with no jsdom) and a `check:morris` assertion; porting it is
+  two small edits and the same smoke assertion twice. Brandubh's own shell
+  (`App.tsx`) is **not** affected: it keeps no ask-key at all, and the same effect
+  that declines to reply (`aiMayReply` false — off the tip, paused, analysis) calls
+  `setThinking(false)` on its way out, so returning to the tip simply asks again.
+- [ ] **The transposition table's hard ceiling exists in one engine of four**
+  `[engine]` — same review. `ttStore` in `src/game/morris/engine.ts` now drops the
+  table when it reaches `4 × TT_MAX`, because `TT_MAX` is only checked when a search
+  *starts* and one deadline-free deep search can grow the `Map` to its platform
+  limit and throw `RangeError: Map maximum size exceeded` instead of playing a move.
+  The `if (TT.size > TT_MAX) TT.clear()`-on-entry pattern is verbatim in
+  `src/game/engine.ts`, `src/game/tablut/engine.ts` and
+  `src/game/copenhagen/engine.ts`, all three with the same gap. Reachable there the
+  same way (a deadline-free `maxDepth` high enough, which is how the suites drive a
+  deterministic search), and the fix is the same three lines plus the injectable
+  ceiling the test needs.
+- [ ] **A fourth surface flag, not a surface value** `[ui]` — `showMorris` joins
+  `showTablut` and `showCopenhagen`, so mutual exclusion is now three pairs of
+  hand-written conditions instead of one, and `App.mutualExclusion.test.ts` grows
+  with them (quadratically in the flags, so a fifth board makes six). One
+  `surface` value with four states is the shape; it is part of ADR-0007's
+  deferred shell refactor, which ADR-0008 records as the only urgent item left on
+  that list.
+
 ## Not implemented (documented as future)
 
 - [x] **Shieldwall capture** — done (`72a7e19`), and this line claimed "no code, no

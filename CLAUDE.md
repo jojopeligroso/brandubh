@@ -1,9 +1,10 @@
 # Brandubh — project notes for Claude
 
 A React 18 + TypeScript + Vite SPA (Tailwind v4) implementing Brandubh, the
-Irish 7×7 tafl game, plus two larger tafl boardgames reached from the drawer.
-No router, no backend: `src/App.tsx` is the shell, pure game logic lives in
-`src/game/`, and screens are conditionally-rendered overlays.
+Irish 7×7 tafl game, plus two larger tafl boardgames and Nine Men's Morris,
+all three reached from the drawer. No router, no backend: `src/App.tsx` is the
+shell, pure game logic lives in `src/game/`, and screens are
+conditionally-rendered overlays.
 
 ## Commands
 
@@ -46,8 +47,23 @@ No router, no backend: `src/App.tsx` is the shell, pure game logic lives in
   `index.html`'s pre-paint script carries a hand-written list of surface keys and
   is the one place adding a board can silently go wrong. Run it after touching
   the same files, or anything under `src/game/copenhagen/`
+- `npm run check:morris` — the same for the Morris surface, which is not a grid
+  and so breaks in its own ways: the board must render exactly **24 point
+  targets** (`a7 … a1`, `d7` top-middle) rather than a square lattice, closing a
+  mill must enter a **removal step** that highlights only the stones the rules
+  actually allow taking, the engine's reply must be *shown* on the point it went
+  to, and the surface must survive leave/re-entry and a full reload. The suites
+  are pure logic: they can prove `removable()` correct and cannot see whether the
+  board lit those stones. It also asserts the **inverse** of the tafl surfaces'
+  theme rule — Ballinderry is **kept** on Morris (a 24-hole peg board is a
+  truthful Morris board) with the stored choice untouched, and `morris.surface.v1`
+  is deliberately **absent** from `index.html`'s pre-paint list for that reason,
+  which makes that hand-written list the one place this decision can silently
+  rot. Run it after touching `.morris-board`/`.morris-screen` in `src/index.css`,
+  `components/MorrisBoard.tsx`, `components/MorrisScreen.tsx`, `theme.ts` or
+  anything under `src/game/morris/`
 
-## Three boardgames, forked on purpose
+## Four boardgames, forked on purpose
 
 Brandubh (7×7, corner escape) lives in `src/game/`. **Tablut** (9×9, Black moves
 first, the king escapes to any edge square) lives in `src/game/tablut/` with its
@@ -110,19 +126,57 @@ acted on.** ADR-0007 records why (Copenhagen brings new rules, and extracting a
 core while adding them makes a failure impossible to attribute), the evidence that
 the trigger was right (shieldwall capture now exists three times; `d4.ts` is three
 copies of nine lines; two real bugs came from constants that were correct in the
-file they were copied from), and the order to take the extraction in. If you are
-adding a **fourth** board, read ADR-0007 first: the shell refactor, not the rules
-core, is the thing that now gets worse with every board.
+file they were copied from), and the order to take the extraction in. ADR-0007
+also says a fourth board should wait for the shell refactor; the owner added one
+anyway on 2026-09-10, and `docs/adr/0008-nine-mens-morris-is-a-fourth-board-and-not-a-tafl-game.md`
+records that decision, the one respect in which the objection did not apply, and
+what it cost. **If you are adding a fifth board, read ADR-0007's shell-refactor
+item and ADR-0008's consequences first: the shell, not the rules core, is what
+gets worse with every board.**
 
-What *is* shared, and should stay shared: `Board` (via the optional geometry in
-`src/games/geometry.ts`), `orientation.ts`, `gameOverText.ts`, `GameStatus`, the
-`tafl*` i18n keys (the strings every board says identically — only what a *game*
-asserts gets its own key), and the already game-agnostic
-`clock`/`clockLine`/`matchSet`/`records`/`puzzleProgress`/`trainer`/`grade`/
-`sides`. Each game's presets and their sourcing are in `docs/tablut-rules.md` and
-`docs/copenhagen-rules.md`; both carry a preset marked ⚠ UNVERIFIED, because every
-tafl rules site is blocked behind the egress proxy and the corroboration came
-through search excerpts rather than full text.
+**Nine Men's Morris** (24 points on three rings, nine stones a side, no king)
+lives in `src/game/morris/` — the same *file* shape again (types, rules, variants,
+engine, solver, worker, persistence, screen) and almost none of the same content,
+because it is not a tafl game: a graph rather than a grid, symmetric sides, a
+placing and a moving phase, a turn that carries its own capture (so no
+quiescence), and a **16-element** symmetry group that `makeD4(n)` cannot express.
+Save key `morris.game.v1`, surface key `morris.surface.v1`, file format
+`morris-1` with extension **`.morris`** (a `.tafl` would be a lie), screen
+`components/MorrisScreen.tsx` with its own `components/MorrisBoard.tsx` (an SVG
+board — `Board`'s geometry seam is for square lattices and was not stretched),
+and one visible preset, `morris-gasser-1`.
+
+Two things about that preset need respecting. It adds **two practical draw rules
+that are not in Gasser's paper** — `repetitionResult: "draw"` (threefold) and
+`noMillDrawMoves: "50"` (fifty moves each with no mill closed), owner decision
+2026-09-10, both settable to `"none"` in the custom editor, and `"none"` on both
+is the game Gasser actually solved. And **the paper could not be read**: every
+host carrying "Solving Nine Men's Morris" is blocked by the egress proxy, so
+every rule credited to Gasser is a search excerpt marked ⚠ UNVERIFIED
+(excerpt) in `docs/morris-rules.md`, which also holds the re-verification
+checklist for when the owner pastes the text. `ollamh` ships small endgame
+databases generated by Gasser's retrograde analysis (`scripts/morris-solve.ts`,
+with a verifier pass), and its claim is exactly two-part: **perfect once play
+reaches a shipped table, deep-search best-effort before that** — the bar
+`docs/solving.md` set. Do not let either half of that sentence travel without
+the other.
+
+What *is* shared, and should stay shared, in two tiers. The **three tafl
+boards** share `Board` (via the optional geometry in `src/games/geometry.ts`),
+`orientation.ts`, `gameOverText.ts`, `GameStatus`, `sides`, and the `tafl*` i18n
+keys (the strings every tafl board says identically — only what a *game* asserts
+gets its own key). **All four boards** share what is genuinely game-agnostic:
+`clock`/`clockLine`/`matchSet`/`records`/`puzzleProgress`/`trainer`/`grade`,
+`aiResults`, and the shell furniture (PlayerBar, GameToolbar, GameMenuSheet,
+MoveLog, ReviewBar, VictoryOverlay, ZenSwitch, the dialog/motion/clock hooks,
+theme tokens). Morris shares the second tier only — it has no king, no sides in
+the tafl sense and no square lattice, so reaching for the first tier there is an
+error rather than a saving. Each game's presets and their sourcing are in
+`docs/tablut-rules.md`, `docs/copenhagen-rules.md` and `docs/morris-rules.md`;
+each tafl file carries a preset marked ⚠ UNVERIFIED, and on Morris *every* rule
+credited to the paper is marked so — in both cases because the sources sit
+behind the egress proxy and the corroboration came through search excerpts
+rather than full text.
 
 ## Decisions to respect
 

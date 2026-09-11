@@ -387,6 +387,53 @@ export interface Translations {
   /** Labels for the enum rules' values, keyed by value. */
   taflRuleValues: Record<string, string>;
 
+  // ── Nine Men's Morris (the fourth board, same drawer section) ───────────────
+  // ADR-0008: Morris is not a tafl game, so its copy is its own block rather
+  // than more `tafl*` keys. The genuinely game-agnostic strings above are still
+  // shared — `newGame`, `taflPlay`, `taflStrength`, `taflDifficulties`,
+  // `taflHotseat`, the import/export copy — because "Play" is "Play" on any
+  // board. What a *game* asserts is here: its sides, its phases, its rules and
+  // its endings, none of which say anything about a king.
+  gameMorris: string;
+  /** One line on the setup card: what the game is. */
+  morrisBlurb: string;
+  /** The two sides, plainly. Not `taflWhite`/`taflBlack`, which name the king's
+   *  side and the raiders — there is neither here. */
+  morrisWhite: string;
+  morrisBlack: string;
+  /** The prompt over the board, one per thing the player is being asked for. */
+  morrisPlace: string;
+  morrisMove: string;
+  morrisFly: string;
+  morrisRemove: string;
+  /** Stats strip: stones still to place, and which phase the game is in. */
+  morrisInHand: string;
+  morrisPhasePlacing: string;
+  morrisPhaseMoving: string;
+  morrisMoves: string;
+  morrisLegalMoves: string;
+  /** The victory curtain's headline. "The raiders" and "the King" mean nothing
+   *  on this board, so it says who won instead. */
+  morrisWhiteWins: string;
+  morrisBlackWins: string;
+  /** Why the game ended, keyed by `MorrisStatus` — one entry per non-playing
+   *  status. A `Record` cannot make `tsc` check that, so `i18n.test.ts` does. */
+  morrisStatuses: Record<string, string>;
+  /** Rule names, keyed by the flag names in game/morris/variants.ts. */
+  morrisRules: Record<string, string>;
+  /** One line each on what the rule actually does. */
+  morrisRuleHints: Record<string, string>;
+  /** Labels for the enum rules' values, keyed by value. */
+  morrisRuleValues: Record<string, string>;
+  /** The setup sheet's two-part claim about `ollamh`, which must never travel
+   *  as half a sentence — see docs/solving.md. */
+  morrisTablesNote: string;
+  /** Stats strip, when the engine's reply came out of a shipped endgame table
+   *  rather than out of the search. */
+  morrisSolvedNote: string;
+  /** The game file's own title: `.morris`, not `.tafl` (ADR-0008). */
+  morrisGameFileTitle: string;
+
   // Variant display
   variantNames: Record<string, string>;
   variantBlurbs: Record<string, string>;
@@ -986,6 +1033,64 @@ const en: Translations = {
   copenhagenTierCapClamped:
     "This game was saved at Hard or Ollamh; it has been capped to Medium for the same reason.",
   aiResultsLabel: "Your record vs the computer:",
+  gameMorris: "Nine Men's Morris",
+  morrisBlurb:
+    "Twenty-four points on three rings, nine stones each. Place them one at a time, then move them along the lines: three in a row is a mill, and every mill you close takes an enemy stone. Leave your opponent with two stones, or with no move to make, and you win.",
+  morrisWhite: "White",
+  morrisBlack: "Black",
+  morrisPlace: "Place a stone on an empty point.",
+  morrisMove: "Move one of your stones along a line to an empty point.",
+  morrisFly: "Down to three stones \u2014 your stones may fly to any empty point.",
+  morrisRemove: "A mill! Take one of the marked enemy stones.",
+  morrisInHand: "In hand",
+  morrisPhasePlacing: "Placing",
+  morrisPhaseMoving: "Moving",
+  morrisMoves: "Moves",
+  morrisLegalMoves: "Moves available",
+  morrisWhiteWins: "White wins",
+  morrisBlackWins: "Black wins",
+  morrisStatuses: {
+    white_win_stones: "White wins \u2014 Black is down to two stones.",
+    black_win_stones: "Black wins \u2014 White is down to two stones.",
+    white_win_blocked: "White wins \u2014 Black has no move to make.",
+    black_win_blocked: "Black wins \u2014 White has no move to make.",
+    white_win_resign: "Black resigned.",
+    black_win_resign: "White resigned.",
+    white_win_time: "Black ran out of time.",
+    black_win_time: "White ran out of time.",
+    draw_repetition: "Drawn \u2014 the same position for the third time.",
+    draw_no_mill: "Drawn \u2014 fifty moves each with no mill closed.",
+  },
+  morrisRules: {
+    firstMove: "First stone",
+    flying: "Flying",
+    removeFromMillsWhenAllInMills: "Take from a mill when every enemy stone is in one",
+    doubleMillRemoves: "Closing two mills at once takes",
+    repetitionResult: "Threefold repetition",
+    noMillDrawMoves: "Fifty moves with no mill",
+  },
+  morrisRuleHints: {
+    firstMove: "Who places the first stone. White by convention, and nothing in the game depends on it \u2014 the board is colour-blind until the first stone lands.",
+    flying: "A player reduced to three stones may move to any empty point instead of along a line.",
+    removeFromMillsWhenAllInMills: "Gasser's reading: with every enemy stone in a mill, any of them may be taken. Off, a mill closed against them takes nothing at all.",
+    doubleMillRemoves: "Gasser's reading is one stone. Two makes a double mill the strongest formation on the board rather than a mild convenience.",
+    repetitionResult: "A practical draw, and not Gasser's \u2014 his databases need no repetition rule, but a played game does.",
+    noMillDrawMoves: "Fifty moves by each side in the moving phase with no stone taken. Practical again, and not Gasser's.",
+  },
+  morrisRuleValues: {
+    white: "White",
+    black: "Black",
+    none: "None",
+    three: "At three stones",
+    one: "One stone",
+    two: "Two stones",
+    draw: "Draw",
+    "50": "Draw at fifty",
+  },
+  morrisTablesNote:
+    "Ollamh plays a small endgame perfectly, out of solved tables that ship with the app; before it reaches one, it is a deep search doing its best.",
+  morrisSolvedNote: "Ollamh is reading the endgame tables: this position is solved.",
+  morrisGameFileTitle: "Game file (.morris)",
   taflRules: {
     kingStrength: "The king is captured by",
     strongKingEdgeRule: "On the board edge the king is",
@@ -1045,6 +1150,7 @@ const en: Translations = {
   },
 
   variantNames: {
+    "morris-gasser-1": "Gasser's rules",
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 World Tafl Federation",
     custom: "Custom",
@@ -1064,6 +1170,8 @@ const en: Translations = {
     "copenhagen-fetlar-2": "Fetlar Hnefatafl",
   },
   variantBlurbs: {
+    "morris-gasser-1":
+      "\u26a0 UNVERIFIED (excerpt). The standard game, with the rule readings Ralph Gasser used when he solved Nine Men's Morris in 1996: closing two mills at once still takes one stone, and when every enemy stone is in a mill, any of them may be taken. Nine stones each, placed one per turn, then moved along the lines \u2014 and a player down to three stones may fly to any empty point. Every host carrying the paper is blocked from this app's build environment, so each rule credited to it came through a search excerpt rather than his own text (see docs/morris-rules.md). The threefold-repetition and fifty-move draws are practical additions by this app, not his.",
     walker:
       "Reconstruction by Damian Walker (Cyningstan, 2011), based on MacWhite\u2019s 1946 article. The throne is not a hostile square. No strong-king rule \u2014 the king is captured by two pieces anywhere on the board. Repetition is a draw.",
     wtf:
@@ -1705,6 +1813,64 @@ const es: Translations = {
   copenhagenTierCapClamped:
     "Esta partida se guard\u00f3 en Dif\u00edcil u Ollamh; se ha limitado a Media por el mismo motivo.",
   aiResultsLabel: "Tu r\u00e9cord contra el ordenador:",
+  gameMorris: "Juego del molino",
+  morrisBlurb:
+    "Veinticuatro puntos en tres anillos y nueve fichas por bando. Se colocan de una en una y luego se mueven por las l\u00edneas: tres en l\u00ednea forman un molino, y cada molino que cierras te deja quitar una ficha enemiga. Gana quien deje al rival con dos fichas o sin ning\u00fan movimiento.",
+  morrisWhite: "Blancas",
+  morrisBlack: "Negras",
+  morrisPlace: "Coloca una ficha en un punto vac\u00edo.",
+  morrisMove: "Mueve una de tus fichas por una l\u00ednea hasta un punto vac\u00edo.",
+  morrisFly: "Te quedan tres fichas: pueden volar a cualquier punto vac\u00edo.",
+  morrisRemove: "\u00a1Molino! Quita una de las fichas enemigas se\u00f1aladas.",
+  morrisInHand: "En mano",
+  morrisPhasePlacing: "Colocaci\u00f3n",
+  morrisPhaseMoving: "Movimiento",
+  morrisMoves: "Movimientos",
+  morrisLegalMoves: "Movimientos posibles",
+  morrisWhiteWins: "Ganan las blancas",
+  morrisBlackWins: "Ganan las negras",
+  morrisStatuses: {
+    white_win_stones: "Ganan las blancas: las negras se quedan con dos fichas.",
+    black_win_stones: "Ganan las negras: las blancas se quedan con dos fichas.",
+    white_win_blocked: "Ganan las blancas: las negras no tienen ning\u00fan movimiento.",
+    black_win_blocked: "Ganan las negras: las blancas no tienen ning\u00fan movimiento.",
+    white_win_resign: "Las negras abandonaron.",
+    black_win_resign: "Las blancas abandonaron.",
+    white_win_time: "A las negras se les acab\u00f3 el tiempo.",
+    black_win_time: "A las blancas se les acab\u00f3 el tiempo.",
+    draw_repetition: "Tablas: la misma posici\u00f3n por tercera vez.",
+    draw_no_mill: "Tablas: cincuenta movimientos de cada bando sin cerrar un molino.",
+  },
+  morrisRules: {
+    firstMove: "Primera ficha",
+    flying: "Vuelo",
+    removeFromMillsWhenAllInMills: "Quitar de un molino cuando todas las enemigas est\u00e1n en uno",
+    doubleMillRemoves: "Cerrar dos molinos a la vez quita",
+    repetitionResult: "Triple repetici\u00f3n",
+    noMillDrawMoves: "Cincuenta movimientos sin molino",
+  },
+  morrisRuleHints: {
+    firstMove: "Qui\u00e9n coloca la primera ficha. Las blancas por costumbre, y nada en el juego depende de ello: el tablero no distingue colores hasta que cae la primera ficha.",
+    flying: "Quien se queda con tres fichas puede mover a cualquier punto vac\u00edo en vez de por una l\u00ednea.",
+    removeFromMillsWhenAllInMills: "La lectura de Gasser: si todas las fichas enemigas est\u00e1n en molinos, puede quitarse cualquiera. Desactivado, un molino cerrado contra ellas no quita nada.",
+    doubleMillRemoves: "Gasser lee una sola ficha. Con dos, el molino doble pasa a ser la formaci\u00f3n m\u00e1s fuerte del tablero y no una comodidad menor.",
+    repetitionResult: "Tablas pr\u00e1cticas, y no de Gasser: sus bases de datos no necesitan regla de repetici\u00f3n, pero una partida jugada s\u00ed.",
+    noMillDrawMoves: "Cincuenta movimientos de cada bando en la fase de movimiento sin quitar ninguna ficha. Pr\u00e1ctica otra vez, y no de Gasser.",
+  },
+  morrisRuleValues: {
+    white: "Blancas",
+    black: "Negras",
+    none: "Ninguno",
+    three: "Con tres fichas",
+    one: "Una ficha",
+    two: "Dos fichas",
+    draw: "Tablas",
+    "50": "Tablas a los cincuenta",
+  },
+  morrisTablesNote:
+    "Ollamh juega a la perfecci\u00f3n los finales peque\u00f1os, con tablas resueltas que vienen con la aplicaci\u00f3n; antes de llegar a una, es una b\u00fasqueda profunda haciendo lo que puede.",
+  morrisSolvedNote: "Ollamh est\u00e1 leyendo las tablas de finales: esta posici\u00f3n est\u00e1 resuelta.",
+  morrisGameFileTitle: "Archivo de partida (.morris)",
   taflRules: {
     kingStrength: "El Rey es capturado por",
     strongKingEdgeRule: "En el borde del tablero el Rey es",
@@ -1764,6 +1930,7 @@ const es: Translations = {
   },
 
   variantNames: {
+    "morris-gasser-1": "Reglas de Gasser",
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Federaci\u00f3n Mundial de Tafl",
     custom: "Personalizado",
@@ -1776,6 +1943,8 @@ const es: Translations = {
     "copenhagen-fetlar-2": "Hnefatafl de Fetlar",
   },
   variantBlurbs: {
+    "morris-gasser-1":
+      "\u26a0 SIN VERIFICAR (extracto). El juego est\u00e1ndar, con las lecturas de las reglas que us\u00f3 Ralph Gasser al resolver el juego del molino en 1996: cerrar dos molinos a la vez sigue quitando una sola ficha, y cuando todas las fichas enemigas est\u00e1n en molinos puede quitarse cualquiera. Nueve fichas por bando, colocadas de una en una y luego movidas por las l\u00edneas \u2014 y quien se queda con tres puede volar a cualquier punto vac\u00edo. Ning\u00fan servidor con el art\u00edculo es accesible desde el entorno de compilaci\u00f3n de esta aplicaci\u00f3n, as\u00ed que cada regla atribuida a \u00e9l proviene de un extracto de b\u00fasqueda y no de su propio texto (v\u00e9ase docs/morris-rules.md). Las tablas por triple repetici\u00f3n y por cincuenta movimientos son a\u00f1adidos pr\u00e1cticos de esta aplicaci\u00f3n, no suyos.",
     walker:
       "Reconstrucci\u00f3n de Damian Walker (Cyningstan, 2011), basada en el art\u00edculo de MacWhite de 1946. El trono no es una casilla hostil. Sin regla de rey fuerte \u2014 el rey es capturado por dos piezas en cualquier lugar del tablero. La repetici\u00f3n es tablas.",
     wtf:
@@ -2440,6 +2609,66 @@ const ga: Translations = {
   copenhagenTierCapClamped:
     "Sabhaladh an cluiche seo ag Crua no Ollamh; ta se laghdaithe go Meanach ar an gcuis cheanna.",
   aiResultsLabel: "Do thaifead in aghaidh an riomhaire:",
+  // DRAFT (machine) \u2014 unreviewed, like the rest of this table; 'ga' stays out
+  // of VISIBLE_LANGS until a human Irish speaker signs it off (see CLAUDE.md).
+  gameMorris: "Cluiche an Mhuilinn",
+  morrisBlurb:
+    "Ceithre phointe is fiche ar thr\u00ed fh\u00e1inne, naoi gcloch an taobh. Cuir s\u00edos ceann ar cheann iad, ansin bog ar na l\u00ednte iad: tr\u00ed cinn i l\u00edne is muileann, agus baineann gach muileann a dh\u00fanann t\u00fa cloch den namhaid. Buaigh tr\u00ed do ch\u00e9ile comhraic a fh\u00e1g\u00e1il le dh\u00e1 chloch n\u00f3 gan beart ar bith.",
+  morrisWhite: "B\u00e1na",
+  morrisBlack: "Dubha",
+  morrisPlace: "Cuir cloch ar phointe folamh.",
+  morrisMove: "Bog ceann de do chlocha ar l\u00edne go pointe folamh.",
+  morrisFly: "Tr\u00ed chloch f\u00e1gtha \u2014 f\u00e9adfaidh do chlocha eitilt go pointe folamh ar bith.",
+  morrisRemove: "Muileann! Bain ceann de chlocha aibhsithe an namhaid.",
+  morrisInHand: "I l\u00e1imh",
+  morrisPhasePlacing: "Cur s\u00edos",
+  morrisPhaseMoving: "Bogadh",
+  morrisMoves: "Bearta",
+  morrisLegalMoves: "Bearta ar f\u00e1il",
+  morrisWhiteWins: "Buann na B\u00e1na",
+  morrisBlackWins: "Buann na Dubha",
+  morrisStatuses: {
+    white_win_stones: "Buann na B\u00e1na \u2014 n\u00edl ach dh\u00e1 chloch f\u00e1gtha ag na Dubha.",
+    black_win_stones: "Buann na Dubha \u2014 n\u00edl ach dh\u00e1 chloch f\u00e1gtha ag na B\u00e1na.",
+    white_win_blocked: "Buann na B\u00e1na \u2014 n\u00edl beart ar bith ag na Dubha.",
+    black_win_blocked: "Buann na Dubha \u2014 n\u00edl beart ar bith ag na B\u00e1na.",
+    white_win_resign: "Gh\u00e9ill na Dubha.",
+    black_win_resign: "Gh\u00e9ill na B\u00e1na.",
+    white_win_time: "Chuaigh na Dubha thar am.",
+    black_win_time: "Chuaigh na B\u00e1na thar am.",
+    draw_repetition: "Comhsc\u00f3r \u2014 an su\u00edomh c\u00e9anna an tr\u00edu huair.",
+    draw_no_mill: "Comhsc\u00f3r \u2014 caoga beart an taobh gan muileann a dh\u00fanadh.",
+  },
+  morrisRules: {
+    firstMove: "An ch\u00e9ad chloch",
+    flying: "Eitilt",
+    removeFromMillsWhenAllInMills: "Bain as muileann nuair at\u00e1 gach cloch namhad i gceann",
+    doubleMillRemoves: "Baineann dh\u00e1 mhuileann in \u00e9ineacht",
+    repetitionResult: "Athr\u00e1 tr\u00ed huaire",
+    noMillDrawMoves: "Caoga beart gan muileann",
+  },
+  morrisRuleHints: {
+    firstMove: "C\u00e9 a chuireann an ch\u00e9ad chloch s\u00edos. Na B\u00e1na de ghn\u00e1th, agus n\u00ed bhraitheann aon rud sa chluiche air.",
+    flying: "F\u00e9adfaidh imreoir a bhfuil tr\u00ed chloch aige bogadh go pointe folamh ar bith in \u00e1it ar l\u00edne.",
+    removeFromMillsWhenAllInMills: "L\u00e9amh Gasser: m\u00e1 t\u00e1 gach cloch namhad i muileann, is f\u00e9idir ceann ar bith a bhaint. M\u00fachta, n\u00ed bhaineann muileann a dh\u00fantar ina n-aghaidh rud ar bith.",
+    doubleMillRemoves: "L\u00e9ann Gasser cloch amh\u00e1in. Le dh\u00e1 cheann, is \u00e9 an muileann d\u00fabailte an fhoirmi\u00f3cht is treise ar an gcl\u00e1r.",
+    repetitionResult: "Comhsc\u00f3r praitici\u00fail, nach bhfuil ag Gasser \u2014 n\u00ed g\u00e1 riail athr\u00e1 ar bhunachar, ach is g\u00e1 \u00ed i gcluiche a imr\u00edtear.",
+    noMillDrawMoves: "Caoga beart ag gach taobh sa ch\u00e9im bhogtha gan cloch a bhaint. Praitici\u00fail ar\u00eds, nach bhfuil ag Gasser.",
+  },
+  morrisRuleValues: {
+    white: "B\u00e1na",
+    black: "Dubha",
+    none: "Ceann ar bith",
+    three: "Ag tr\u00ed chloch",
+    one: "Cloch amh\u00e1in",
+    two: "Dh\u00e1 chloch",
+    draw: "Comhsc\u00f3r",
+    "50": "Comhsc\u00f3r ag caoga",
+  },
+  morrisTablesNote:
+    "Imr\u00edonn Ollamh cluiche deiridh beag gan locht, as t\u00e1bla\u00ed r\u00e9itithe a thagann leis an aip; sula sroicheann s\u00e9 ceann, cuardach domhain ag d\u00e9anamh a dh\u00edchill at\u00e1 ann.",
+  morrisSolvedNote: "T\u00e1 Ollamh ag l\u00e9amh t\u00e1bla\u00ed an chluiche deiridh: t\u00e1 an su\u00edomh seo r\u00e9itithe.",
+  morrisGameFileTitle: "Comhad cluiche (.morris)",
   taflRules: {
     kingStrength: "Gabhtar an R\u00ed le",
     strongKingEdgeRule: "Ar imeall an chl\u00e1ir t\u00e1 an R\u00ed",
@@ -2499,6 +2728,7 @@ const ga: Translations = {
   },
 
   variantNames: {
+    "morris-gasser-1": "Rialacha Gasser",
     walker: "Brandubh \u00b7 Walker",
     wtf: "Brandubh \u00b7 Cumann Domhanda Tafl",
     custom: "Saincheaptha",
@@ -2515,6 +2745,9 @@ const ga: Translations = {
     "copenhagen-fetlar-2": "Hnefatafl Fetlar",
   },
   variantBlurbs: {
+    // DRAFT (machine) \u2014 unreviewed, like the rest of this table.
+    "morris-gasser-1":
+      "\u26a0 GAN FH\u00cdORU\u00da (sliocht). An cluiche caighde\u00e1nach, le l\u00e9amh na rialacha a bh\u00ed ag Ralph Gasser nuair a r\u00e9itigh s\u00e9 Cluiche an Mhuilinn in 1996: baineann dh\u00e1 mhuileann in \u00e9ineacht cloch amh\u00e1in f\u00f3s, agus nuair at\u00e1 gach cloch namhad i muileann is f\u00e9idir ceann ar bith a bhaint. Naoi gcloch an taobh, ceann sa seal \u2014 agus f\u00e9adfaidh imreoir a bhfuil tr\u00ed chloch aige eitilt go pointe folamh ar bith. T\u00e1 gach su\u00edomh a bhfuil an p\u00e1ip\u00e9ar air bactha \u00f3n timpeallacht t\u00f3g\u00e1la seo, mar sin tr\u00ed sliocht cuardaigh a th\u00e1inig gach riail a luaitear leis (f\u00e9ach docs/morris-rules.md). Is breisi\u00fa praitici\u00fail \u00f3n aip f\u00e9in an comhsc\u00f3r athr\u00e1 agus an comhsc\u00f3r caoga beart, nach leis-sean iad.",
     walker:
       "At\u00f3g\u00e1il le Damian Walker (Cyningstan, 2011), bunaithe ar alt MacWhite 1946. N\u00ed cearn\u00f3g naimhdeach \u00ed an r\u00edchathaoir. Gan riail r\u00ed l\u00e1idir \u2014 gabhtar an r\u00ed ag d\u00e1 ph\u00edosa in \u00e1it ar bith ar an gcl\u00e1r. Is cluiche cothrom an athr\u00e1.",
     wtf:

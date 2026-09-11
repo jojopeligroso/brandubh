@@ -4,6 +4,8 @@ import { isGaelicLang, toSeanchloTable } from "./gaelic";
 import { TUTORIALS, type TutorialMistake } from "./game/tutorials";
 import { CUSTOM_RULE_DEFAULTS as TABLUT_RULE_DEFAULTS } from "./game/tablut/variants";
 import { CUSTOM_RULE_DEFAULTS as COPENHAGEN_RULE_DEFAULTS } from "./game/copenhagen/variants";
+import { CUSTOM_RULE_DEFAULTS as MORRIS_RULE_DEFAULTS } from "./game/morris/variants";
+import type { MorrisStatus } from "./game/morris/types";
 
 const LANGS = Object.keys(translations) as Lang[];
 
@@ -129,19 +131,26 @@ describe("tutorial copy covers the tutorial data", () => {
 // `undefined`, and nothing else in the project would fail.
 
 describe("every rule the editors can show has copy for it", () => {
+  // Each entry names the ruleset *and the tables its editor reads*, because the
+  // fourth board does not read the same ones: Morris is not a tafl game
+  // (ADR-0008), so `MorrisScreen`'s editor looks its flags up in `morrisRules` /
+  // `morrisRuleHints` / `morrisRuleValues`. Before these names were part of the
+  // loop, adding a board here meant this test asserted copy in a table that
+  // board never renders — passing while the card showed `undefined`.
   const RULESETS = [
-    ["Tablut", TABLUT_RULE_DEFAULTS as Record<string, unknown>],
-    ["Copenhagen", COPENHAGEN_RULE_DEFAULTS as Record<string, unknown>],
+    ["Tablut", TABLUT_RULE_DEFAULTS as Record<string, unknown>, "taflRules", "taflRuleHints", "taflRuleValues"],
+    ["Copenhagen", COPENHAGEN_RULE_DEFAULTS as Record<string, unknown>, "taflRules", "taflRuleHints", "taflRuleValues"],
+    ["Morris", MORRIS_RULE_DEFAULTS as Record<string, unknown>, "morrisRules", "morrisRuleHints", "morrisRuleValues"],
   ] as const;
 
   for (const lang of LANGS) {
     const t = translations[lang];
 
-    for (const [game, defaults] of RULESETS) {
+    for (const [game, defaults, namesKey, hintsKey, valuesKey] of RULESETS) {
       it(`names and explains every ${game} flag in ${lang}`, () => {
         for (const key of Object.keys(defaults)) {
-          expect(t.taflRules[key], `${lang}: taflRules.${key}`).toBeTruthy();
-          expect(t.taflRuleHints[key], `${lang}: taflRuleHints.${key}`).toBeTruthy();
+          expect(t[namesKey][key], `${lang}: ${namesKey}.${key}`).toBeTruthy();
+          expect(t[hintsKey][key], `${lang}: ${hintsKey}.${key}`).toBeTruthy();
         }
       });
 
@@ -149,11 +158,46 @@ describe("every rule the editors can show has copy for it", () => {
         for (const value of Object.values(defaults)) {
           if (typeof value !== "string") continue;
           // The default value is the one the editor is guaranteed to render; the
-          // rest are covered by the ENUM_RULE_VALUES parity test in each game's
-          // gameFile.test.ts, which is where the full value list lives.
-          expect(t.taflRuleValues[value], `${lang}: taflRuleValues.${value}`).toBeTruthy();
+          // rest are covered where each game's full value list lives — the
+          // ENUM_RULE_VALUES parity test in the tafl games' gameFile.test.ts, and
+          // `game/morris/ruleChoices.test.ts` for Morris, whose own
+          // gameFile.test.ts does not carry that list.
+          expect(t[valuesKey][value], `${lang}: ${valuesKey}.${value}`).toBeTruthy();
         }
       });
     }
   }
+});
+
+// ── Morris endings ────────────────────────────────────────────────────────────
+// `morrisGameOverText` (game/morris/gameOverText.ts) is a lookup into
+// `morrisStatuses` rather than the tafl version's `switch`, so `tsc` cannot
+// notice a status with no sentence — a finished game would simply show a blank
+// result line. This is what notices. The list is written out rather than derived
+// because `MorrisStatus` is a type: a new member has to be added here too, which
+// is the prompt to write its copy.
+
+describe("every Morris ending has copy for it", () => {
+  const ENDINGS: Exclude<MorrisStatus, "playing">[] = [
+    "white_win_stones",
+    "black_win_stones",
+    "white_win_blocked",
+    "black_win_blocked",
+    "white_win_resign",
+    "black_win_resign",
+    "white_win_time",
+    "black_win_time",
+    "draw_repetition",
+    "draw_no_mill",
+  ];
+
+  it.each(LANGS)("%s names every way a Morris game can end", (code) => {
+    const t = translations[code];
+    for (const status of ENDINGS) {
+      expect(t.morrisStatuses[status], `${code}: morrisStatuses.${status}`).toBeTruthy();
+    }
+    // And nothing else: a stale key here is a sentence for an ending that no
+    // longer exists, which would read as copy for a status the game can reach.
+    expect(Object.keys(t.morrisStatuses).sort()).toEqual([...ENDINGS].sort());
+  });
 });

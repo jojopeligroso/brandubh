@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Emblem } from "./Board";
 import type { Emblems } from "./ObjectivesContent";
 import type { Translations } from "../i18n";
-import type { Side } from "../game/types";
+import type { Piece, Side } from "../game/types";
 
 /**
  * The end-of-game curtain: an unmissable full-screen announcement of who won
@@ -10,6 +10,14 @@ import type { Side } from "../game/types";
  * or dismiss to review the final position). Shown once per live game end —
  * never when browsing back into a finished game (see the status-transition
  * watcher in App.tsx).
+ *
+ * `winner` is a tafl side because the *styling* is — the card's tone, the seat
+ * colours and `victory-${winner}` all come from the shared palette. A board whose
+ * sides are not attackers and defenders maps onto them and overrides the two
+ * things that would then be a lie: `title`, because "the raiders win" is not what
+ * happened, and `emblemPiece`, because the winner's stone is not a king's. Both
+ * are optional and neither changes anything for the three boards that do not pass
+ * them (see MorrisScreen, and ADR-0008 on what Morris shares).
  */
 export default function VictoryOverlay({
   t,
@@ -18,6 +26,8 @@ export default function VictoryOverlay({
   moveCount,
   emblems,
   primaryLabel,
+  title,
+  emblemPiece,
   onPrimary,
   onDismiss,
   onReview,
@@ -28,6 +38,10 @@ export default function VictoryOverlay({
   moveCount: number;
   emblems: Emblems;
   primaryLabel: string;
+  /** Overrides the headline, for a board whose sides are not the tafl ones. */
+  title?: string;
+  /** Overrides the stone drawn above it, for the same reason. */
+  emblemPiece?: Piece;
   onPrimary: () => void;
   onDismiss: () => void;
   onReview: () => void;
@@ -40,8 +54,10 @@ export default function VictoryOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [onDismiss]);
 
-  const title =
-    winner === "attackers" ? t.victoryRaiders : winner === "defenders" ? t.victoryKing : t.victoryDraw;
+  const headline =
+    title ??
+    (winner === "attackers" ? t.victoryRaiders : winner === "defenders" ? t.victoryKing : t.victoryDraw);
+  const piece: Piece = emblemPiece ?? (winner === "attackers" ? "attacker" : "king");
   const tone =
     winner === "attackers" ? "text-blood" : winner === "defenders" ? "text-gold" : "text-parchment";
 
@@ -70,9 +86,9 @@ export default function VictoryOverlay({
         {winner !== "draw" && (
           <div className="flex justify-center">
             <div className="victory-emblem">
-              <div className={`piece ${winner === "attackers" ? "attacker" : "king"}`}>
+              <div className={`piece ${piece}`}>
                 <Emblem
-                  piece={winner === "attackers" ? "attacker" : "king"}
+                  piece={piece}
                   attackerEmblem={emblems.attackerEmblem}
                   kingEmblem={emblems.kingEmblem}
                   defenderEmblem={emblems.defenderEmblem}
@@ -82,7 +98,7 @@ export default function VictoryOverlay({
           </div>
         )}
         <h2 id="victory-title" className={`font-display text-4xl leading-tight ${tone}`}>
-          {title}
+          {headline}
         </h2>
         <p className="text-sm italic text-parchment">{reason}</p>
         <p className="font-mono text-xs tabular-nums text-parchment-dim">

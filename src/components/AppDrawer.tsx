@@ -17,11 +17,13 @@ import { useDialogFocus } from "../useDialogFocus";
  * In-game actions (resign, takeback, flips) deliberately stay in the bottom
  * toolbar's action sheet: this drawer is the app's navigation, not the game's.
  *
- * The one collapsed section is **More games**, which is where the other tafl
+ * The one collapsed section is **More games**, which is where the other
  * boardgames live (Tablut 9×9, see docs/adr/0006-…; Copenhagen Hnefatafl 11×11,
- * see docs/adr/0007-…). They are listed largest-last, which is also
- * smallest-first: Brandubh, then Tablut, then Copenhagen, so the section reads as
- * one family growing rather than an arbitrary list. It is collapsed because
+ * see docs/adr/0007-…; Nine Men's Morris, see docs/adr/0008-…). The three tafl
+ * boards are listed largest-last, which is also smallest-first: Brandubh, then
+ * Tablut, then Copenhagen, so they read as one family growing rather than an
+ * arbitrary list — and Morris comes after all of them, because it is not a member
+ * of that family at all and its own icon says so. It is collapsed because
  * Brandubh is what this app is, and an always-open list of alternatives would say
  * otherwise;
  * it uses a native `<details>`, which is the app's existing collapsible idiom
@@ -42,6 +44,7 @@ export default function AppDrawer({
   onGameFile,
   onTablut,
   onCopenhagen,
+  onMorris,
   onSettings,
   onAbout,
 }: {
@@ -61,6 +64,8 @@ export default function AppDrawer({
   onTablut: () => void;
   /** Open the Copenhagen surface (see components/CopenhagenScreen). */
   onCopenhagen: () => void;
+  /** Open the Nine Men's Morris surface (see components/MorrisScreen). */
+  onMorris: () => void;
   onSettings: () => void;
   onAbout: () => void;
 }) {
@@ -133,6 +138,7 @@ export default function AppDrawer({
             <summary className="drawer-section drawer-summary">{t.drawerMoreGames}</summary>
             {item(t.gameTablut, <GridIcon />, onTablut, "drawer-tablut")}
             {item(t.gameCopenhagen, <GridIcon />, onCopenhagen, "drawer-copenhagen")}
+            {item(t.gameMorris, <MorrisIcon />, onMorris, "drawer-morris")}
           </details>
         </nav>
 
@@ -226,6 +232,22 @@ function GridIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
       <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
       <path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17" />
+    </svg>
+  );
+}
+
+/** Three nested squares joined at their midpoints — a Morris board, and
+ *  deliberately not `GridIcon`: the other three rows are square lattices of
+ *  different sizes, and this row is a different *game*. Drawn from the same
+ *  indexing the board itself uses (see game/morris/rules.ts): three rings on one
+ *  lattice, joined by four spokes through the midpoints. */
+function MorrisIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden>
+      <rect x="3.5" y="3.5" width="17" height="17" />
+      <rect x="7" y="7" width="10" height="10" />
+      <rect x="10.5" y="10.5" width="3" height="3" />
+      <path d="M12 3.5v7M12 13.5v7M3.5 12h7M13.5 12h7" />
     </svg>
   );
 }

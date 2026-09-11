@@ -23,6 +23,11 @@
         // is *painted* changes; the stored choice above is left as the player set
         // it. The surface keys are listed rather than derived because this copy
         // cannot import them — add a board, add its key here.
+        //
+        // This list is NOT "the surfaces": it is "the surfaces that fall
+        // Ballinderry back". `morris.surface.v1` is deliberately absent, because
+        // a 24-hole peg board is a truthful Morris board and the theme is kept
+        // there — see ADR-0008, and `npm run check:morris`, which asserts it.
         if (
           t === "ballinderry" &&
           (localStorage.getItem("tablut.surface.v1") === "1" ||
