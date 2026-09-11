@@ -1,18 +1,26 @@
 import { markGlyph, type Mark } from "../game/annotate";
-import type { GameState, Move } from "../game/types";
 import type { Translations } from "../i18n";
 
 /**
  * The collapsible move log — one grid cell per ply, colour-coded by the side
  * that moved, clickable to jump the timeline there.
  *
- * Shared between the Brandubh shell and the Tablut surface, which is why the
- * move's *name* arrives as a function: the two boards agree on every type here
- * (`game/tablut/types` re-exports them) but not on coordinates — Tablut's files
- * run a–i. Marks are the one Brandubh-only extra (the annotation pass lives in
- * the shell); a surface with no review pass simply omits them.
+ * Shared by all four boards, which is why the move's *name* arrives as a
+ * function: the three tafl boards agree on every type here (`game/tablut/types`
+ * and `game/copenhagen/types` re-export them) but not on coordinates — Tablut's
+ * files run a–i, Copenhagen's a–k. Marks are the one Brandubh-only extra (the
+ * annotation pass lives in the shell); a surface with no review pass omits them.
+ *
+ * The ply list is **structural and generic** rather than a `GameState`, because
+ * the fourth board's state is not one: Morris has no king, no captures and no
+ * `moveCount`, and its move is a point plus an optional removal (ADR-0008). All
+ * this component ever needed was "a list of plies, each with a move I can name and
+ * a side that made it", so that is what it asks for — the three tafl screens pass
+ * their `GameState` unchanged (extra fields are simply unread), and Morris maps
+ * its colours onto the two seat names the styling is keyed by. Widening the type
+ * was the whole of making this reusable; nothing about the rendering changed.
  */
-export default function MoveLog({
+export default function MoveLog<M>({
   t,
   game,
   activeIndex,
@@ -21,12 +29,13 @@ export default function MoveLog({
   onMoveClick,
 }: {
   t: Translations;
-  game: GameState;
+  /** Anything with a ply list: `{ history: [{ move, sideThatMoved }] }`. */
+  game: { history: readonly { move: M; sideThatMoved: string }[] };
   activeIndex: number;
   /** Per-ply annotations, index-aligned with `game.history` (Session 7d). */
   marks?: (Mark | null)[] | null;
   /** Names a move in this board's coordinates. */
-  moveName: (m: Move) => string;
+  moveName: (m: M) => string;
   onMoveClick: (i: number) => void;
 }) {
   if (game.history.length === 0) return null;

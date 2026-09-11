@@ -1,0 +1,1530 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  clearSavedGame,
+  loadResumableGame,
+  newGameId,
+  saveGame,
+  snapshotGame,
+  type RestoredGame,
+} from "../game/morris/persist";
+import MorrisBoard, { MORRIS_TRAVEL_MS, type MorrisPreview, type MorrisReveal } from "./MorrisBoard";
+import PlayerBar from "./PlayerBar";
+import { GameToolbar, GameMenuSheet, MenuIcon } from "./GameToolbar";
+import MoveLog from "./MoveLog";
+import ReviewBar from "./ReviewBar";
+import VictoryOverlay from "./VictoryOverlay";
+import ZenSwitch from "./ZenSwitch";
+import { DIFFICULTIES, type Difficulty } from "../game/morris/engine";
+import { formatTierLine, recordIfTerminal, summary as aiResultsSummary } from "../game/aiResults";
+import {
+  allMoves,
+  flyingFor,
+  initialState,
+  isGameOver,
+  applyMove,
+  moveName,
+  phaseOf,
+  stonesOf,
+  winnerOf,
+} from "../game/morris/rules";
+import { cellOf, other, type GameState, type Move, type MorrisStatus, type PlayMode, type Side } from "../game/morris/types";
+import {
+  CUSTOM_RULE_DEFAULTS,
+  DEFAULT_VARIANT,
+  ENUM_CHOICES,
+  VARIANTS,
+  VISIBLE_VARIANTS,
+  ruleFlags,
+  rulesFor,
+  type CustomRuleSet,
+  type EnumRuleKey,
+  type MorrisRuleSet,
+} from "../game/morris/variants";
+import { useAiWorker } from "../game/morris/useAiWorker";
+import { useGameClock } from "../useGameClock";
+import {
+  CUSTOM_TIME_CONTROL_ID,
+  DEFAULT_CUSTOM_INCREMENT,
+  DEFAULT_CUSTOM_MINUTES,
+  DEFAULT_TIME_CONTROL_ID,
+  TIME_PRESETS,
+  resolveTimeControl,
+  type ClockSelection,
+} from "../game/clock";
+import {
+  banksAt,
+  initialClockLine,
+  recordArrival,
+  truncateTo,
+  type ClockBanks,
+  type ClockLine,
+} from "../game/clockLine";
+import { morrisGameOverText } from "../game/morris/gameOverText";
+import type { ZenConfig } from "../zen";
+import type { Translations } from "../i18n";
+import type { CornerEmblemDef } from "../cornerEmblems";
+import type { DefenderEmblemDef } from "../defenderEmblems";
+import type { EmblemDef } from "../emblems";
+import type { KingEmblemDef } from "../kingEmblems";
+import { useDialogFocus } from "../useDialogFocus";
+import { usePrefersReducedMotion } from "../usePrefersReducedMotion";
+import { loadFlipFlag, saveFlipFlag } from "../boardFlipPrefs";
+import MorrisGameFilePanel from "./MorrisGameFilePanel";
+import type { GameFileMeta, ParsedGame } from "../game/morris/gameFile";
+
+/** This screen's own flip-preference keys — see src/boardFlipPrefs.ts for why
+ *  they are not Brandubh's `BOARD_FLIP_*_KEY`. */
+const FLIP_H_KEY = "morris.boardFlipped";
+const FLIP_V_KEY = "morris.boardFlippedV";
+
+/**
+ * How long the square the engine's stone left stays lit, from the moment the move
+ * is shown. Outlasts the travel on purpose — the highlight is still answering
+ * "where did that come from?" after the stone has landed and the eye has followed
+ * it. The same 1400ms `AI_ORIGIN_MS` gives the square boards.
+ */
+const REVEAL_ORIGIN_MS = 1400;
+
+// ── Seats: where this game's colours meet the shell's furniture ───────────────
+// `PlayerBar`, `useGameClock` and `clockLine` are shell pieces that predate this
+// board and are keyed by the tafl seats — `attackers` and `defenders` — for their
+// styling (`.playerbar-defenders`, the `--def`/`--atk` seat dots) and for their
+// two clock banks. Morris has White and Black.
+//
+// They meet here, in four lines, and nowhere else: nothing under
+// `src/game/morris/` knows the word "attackers", and nothing here teaches the
+// rules about seats. White maps onto `defenders` because `--def` is the light
+// stone on every theme, which is the same reason `MorrisBoard` fills a white
+// stone with it — so the bars, the dots and the board agree about which colour is
+// which without anyone restating it.
+
+type Seat = keyof ClockBanks;
+const seatOf = (side: Side): Seat => (side === "white" ? "defenders" : "attackers");
+
+/** The human's side, or null over the board — there they play both. */
+const humanSideOf = (mode: PlayMode): Side | null => (mode === "hotseat" ? null : mode);
+/** The engine's side: whatever the human did not take. Null over the board. */
+const aiSideOf = (mode: PlayMode): Side | null => {
+  const human = humanSideOf(mode);
+  return human ? other(human) : null;
+};
+/**
+ * Clock placement, Lichess-style: the away side above the board, the near side
+ * below. Against the engine the human always sits at the bottom, whichever colour
+ * they took; over the board White takes the bottom seat, because White places
+ * first and the near chair is the one that starts.
+ */
+const clockPlacement = (mode: PlayMode): { top: Side; bottom: Side } => {
+  const human = humanSideOf(mode);
+  return human ? { top: other(human), bottom: human } : { top: "black", bottom: "white" };
+};
+
+/** A loss on time, which is the one status a rewind has to be able to lift (the
+ *  Morris counterpart of `isTimeLoss` in game/clockLine.ts, which is typed to the
+ *  tafl statuses). */
+const isTimeLoss = (status: MorrisStatus): boolean =>
+  status === "white_win_time" || status === "black_win_time";
+
+/** Every stone a turn takes, in the order the board offers them. Two only under
+ *  the non-shipped `doubleMillRemoves: "two"` reading — see `variants.ts`. */
+const removalsOf = (m: Move): number[] =>
+  [m.remove, m.remove2 ?? null].filter((r): r is number => r !== null);
+
+/**
+ * The Nine Men's Morris surface — a full-screen place, reached from the drawer's
+ * More games section, not a mode of the Brandubh shell.
+ *
+ * ## Why it is a separate screen
+ *
+ * The same argument the Tablut and Copenhagen screens make, now for the fourth
+ * time, and ADR-0008 takes the repetition as a cost it chose to pay rather than an
+ * accident. `App.tsx` is four thousand lines built around a tafl `RuleSet`, and
+ * this game's is a different *type* again (`MorrisRuleSet`: a flying rule, a
+ * removal rule, two draw rules — not one of them a Brandubh flag), over a
+ * different `GameState` with no king, no captures and two hands of stones.
+ * Threading a fourth ruleset through one shell means a four-way narrowing at every
+ * site that touches it, which makes the shell worse for all four games.
+ *
+ * What forks is the *game*; the furniture does not. This screen renders the very
+ * same components the shell does — `PlayerBar` seats, the bottom `GameToolbar` and
+ * its menu sheet, `MoveLog`, `ReviewBar`, `VictoryOverlay`, the `ZenSwitch` — so
+ * all four boards look and handle the same. The one piece it cannot share is the
+ * board itself: twenty-four points on three rings is not a value of `Board`'s
+ * geometry parameter, so `MorrisBoard` is its own SVG (see its header).
+ *
+ * The clock is the shell's own `useGameClock` + `clockLine` book-keeping, which
+ * were boardgame-agnostic from the start; the four lines that map White and Black
+ * onto their two seats are above. Zen is one preference across every surface: App
+ * owns the config and this screen receives it.
+ *
+ * What is still the shell's alone: analysis, the eval bar, the review pass,
+ * puzzles, match sets. The same list the third board is waiting on, and for the
+ * same reason — the shell refactor ADR-0007 deferred and ADR-0008 calls the only
+ * urgent item left.
+ *
+ * ## The removal step
+ *
+ * The one interaction no other board here has. A Morris turn is atomic — the
+ * stone it takes is part of the move (`Move.remove`, see `game/morris/types.ts`) —
+ * but a *player* needs two clicks to express it, so the board holds a `pending`
+ * move between them: the stone is not placed and nothing is committed until a
+ * victim is chosen, and anything else clicked in between is ignored rather than
+ * guessed at. Undo cancels it. That keeps every other part of this screen — undo,
+ * the autosave, the move log, the export — working in whole turns, which is the
+ * whole reason the rules made a turn atomic in the first place.
+ *
+ * ## Persistence
+ *
+ * The same contract as the other three: a refresh must never lose a game in
+ * progress. The screen restores its save silently on mount — no setup sheet over a
+ * game already underway — and autosaves on every move through
+ * `game/morris/persist.ts`, under Morris's own key, with the review cursor and the
+ * clock banks riding along. App keeps the surface itself persistent (see
+ * `morris.surface.v1`), so closing the tab mid-game lands back on this board.
+ */
+export default function MorrisScreen({
+  t,
+  zen,
+  onZenEnabled,
+  attackerEmblem,
+  kingEmblem,
+  defenderEmblem,
+  cornerEmblem,
+  onClose,
+  drawerOpen,
+  onOpenDrawer,
+}: {
+  t: Translations;
+  /** The shared Zen preference — App owns it; every surface obeys it. */
+  zen: ZenConfig;
+  onZenEnabled: (v: boolean) => void;
+  attackerEmblem: EmblemDef;
+  kingEmblem: KingEmblemDef;
+  defenderEmblem: DefenderEmblemDef;
+  cornerEmblem: CornerEmblemDef;
+  onClose: () => void;
+  /** Whether the app drawer (see AppDrawer) is currently open, for the
+   *  hamburger's pressed state — App owns the drawer, this screen only opens it. */
+  drawerOpen: boolean;
+  onOpenDrawer: () => void;
+}) {
+  const screenRef = useDialogFocus<HTMLDivElement>();
+
+  // The saved game, restored once per mount. Restoring is silent — the player
+  // left a board and gets the same board back; only a first visit (or a game
+  // already concluded and replaced) opens on the setup sheet.
+  const [restored] = useState<RestoredGame | null>(loadResumableGame);
+
+  const [variantId, setVariantId] = useState<string>(restored?.variantId ?? DEFAULT_VARIANT);
+  const [customRules, setCustomRules] = useState<CustomRuleSet>(
+    restored?.customRules ?? CUSTOM_RULE_DEFAULTS,
+  );
+  const [playMode, setPlayMode] = useState<PlayMode>(restored?.playMode ?? "white");
+  // All four levels are offered on this board — no tier cap, so nothing clamps a
+  // restored difficulty the way Copenhagen's `difficultyCap.ts` does.
+  const [difficulty, setDifficulty] = useState<Difficulty>(restored?.difficulty ?? "medium");
+
+  const rules = useMemo(() => rulesFor(variantId, customRules), [variantId, customRules]);
+
+  // ── Move timeline ───────────────────────────────────────────────────────────
+  // `states[k]` is the position after k moves; `cursor` is the position on screen
+  // — the same model the shell uses, so browsing with the arrows only moves the
+  // cursor and never discards moves.
+  const [states, setStates] = useState<GameState[]>(
+    () => restored?.states ?? [initialState(rulesFor(DEFAULT_VARIANT, CUSTOM_RULE_DEFAULTS))],
+  );
+  const [cursor, setCursor] = useState<number>(() =>
+    restored ? Math.min(restored.cursor, restored.states.length - 1) : 0,
+  );
+  const [selected, setSelected] = useState<number | null>(null);
+  /**
+   * A move whose mill is waiting for its victim: the two points it joins, and the
+   * stones already chosen (one, under every shipped preset). Never committed to
+   * the timeline — the turn reaches `applyMove` whole or not at all.
+   */
+  const [pending, setPending] = useState<{ from: number | null; to: number; taken: number[] } | null>(
+    null,
+  );
+  const [thinking, setThinking] = useState(false);
+  const [showVictory, setShowVictory] = useState(false);
+  const [showSetup, setShowSetup] = useState(restored === null);
+  // Restart over an unfinished game is destructive — the autosave is replaced —
+  // so it asks first, exactly as the Brandubh shell's new-game path does.
+  const [confirmRestart, setConfirmRestart] = useState(false);
+  const [confirmResign, setConfirmResign] = useState(false);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [showGameFile, setShowGameFile] = useState(false);
+  /** True when the engine's last reply came out of a shipped endgame table rather
+   *  than out of the search — the one claim `ollamh` may make about being
+   *  *perfect*, so it is shown exactly when it is true (see docs/solving.md). */
+  const [fromDatabase, setFromDatabase] = useState(false);
+
+  // ── Board orientation (view only) ───────────────────────────────────────────
+  // The same two independent mirrors every other board offers. Nothing here
+  // touches the game: it is a preference about which way up the board is drawn,
+  // not a fact about the position, and a point keeps its name either way.
+  const [flippedH, setFlippedH] = useState<boolean>(() => loadFlipFlag(FLIP_H_KEY));
+  const [flippedV, setFlippedV] = useState<boolean>(() => loadFlipFlag(FLIP_V_KEY));
+  useEffect(() => {
+    saveFlipFlag(FLIP_H_KEY, flippedH);
+  }, [flippedH]);
+  useEffect(() => {
+    saveFlipFlag(FLIP_V_KEY, flippedV);
+  }, [flippedV]);
+
+  const tip = states.length - 1;
+  const atTip = cursor === tip;
+  const reviewing = !atTip;
+  const game = states[cursor];
+  const tipState = states[tip];
+  const gameOver = isGameOver(tipState.status);
+  const viewedOver = isGameOver(game.status);
+  const humanSide = humanSideOf(playMode);
+  const aiSide = aiSideOf(playMode);
+
+  // An optional extra shows when Zen is off, or when it has been opted in — the
+  // same predicate the shell applies to the same shared config.
+  const showNav = !zen.enabled || zen.extras["nav"];
+
+  // The game's identity for the autosave: a resumed game keeps its id and start
+  // time — it is the same game, not a copy — and `startGame` mints fresh ones.
+  const gameId = useRef<string>(restored?.id ?? newGameId());
+  const gameStartedAt = useRef<number>(restored?.createdAt ?? Date.now());
+
+  // Which position the engine was already asked about — see the engine effect.
+  const askedFor = useRef<string>("");
+  // Whether the previous render was already a finished game. Seeded from the
+  // restore so re-entering a concluded game shows the final board quietly rather
+  // than replaying the victory curtain.
+  const wasOver = useRef(
+    restored ? isGameOver(restored.states[restored.states.length - 1].status) : false,
+  );
+
+  const { requestMove, cancel } = useAiWorker();
+  const reducedMotion = usePrefersReducedMotion();
+
+  /**
+   * Where the endgame tables live.
+   *
+   * Computed on the main thread and handed to the worker, because a worker has no
+   * `document` and guessing a path from `import.meta.url` breaks under a non-root
+   * base (see `ai.worker.ts`). Guarded for the no-document case, because these
+   * suites render this screen with `react-dom/server` and no DOM at all.
+   */
+  const dbBaseUrl = useMemo(
+    () => (typeof document === "undefined" ? undefined : new URL("morris/db/", document.baseURI).href),
+    [],
+  );
+
+  // ── Showing the engine's move ───────────────────────────────────────────────
+  // The Morris counterpart of `src/useAiReveal.ts`, which is typed to the tafl
+  // board (squares, pieces, capture lists) and would have to be widened into
+  // nothing to serve both. Two pieces of state, one timer: what is travelling, and
+  // the point it left, which stays lit after it has landed.
+  const [reveal, setReveal] = useState<MorrisReveal | null>(null);
+  const revealTimer = useRef<number | null>(null);
+  /** How long the move just pushed is still being shown for. See `push`. */
+  const revealDelay = useRef(0);
+  const clearReveal = useCallback(() => {
+    if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
+    revealTimer.current = null;
+    setReveal(null);
+  }, []);
+  useEffect(() => clearReveal, [clearReveal]);
+  /** Announce a move against the position it is played *from*, and return how long
+   *  it will be in the air — the curtain waits that out, so a game that ends on the
+   *  engine's move is not curtained over a stone still travelling. */
+  const revealMove = useCallback(
+    (move: Move, side: Side): number => {
+      if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
+      setReveal({ from: move.from, to: move.to, side });
+      revealTimer.current = window.setTimeout(() => setReveal(null), REVEAL_ORIGIN_MS);
+      // A placement has no origin to travel from: it fades in where it lands.
+      return move.from === null || reducedMotion ? 0 : MORRIS_TRAVEL_MS;
+    },
+    [reducedMotion],
+  );
+
+  // ── Clock (the shell's own hook and book-keeping, reused whole) ─────────────
+  const [clockSel, setClockSel] = useState<ClockSelection>(() => {
+    const c = restored?.clock;
+    if (!c)
+      return {
+        enabled: false,
+        controlId: DEFAULT_TIME_CONTROL_ID,
+        customMinutes: DEFAULT_CUSTOM_MINUTES,
+        customIncrement: DEFAULT_CUSTOM_INCREMENT,
+      };
+    const preset = TIME_PRESETS.find(
+      (p) => p.initialSeconds === c.initialSeconds && p.incrementSeconds === c.incrementSeconds,
+    );
+    return preset
+      ? {
+          enabled: true,
+          controlId: preset.id,
+          customMinutes: DEFAULT_CUSTOM_MINUTES,
+          customIncrement: DEFAULT_CUSTOM_INCREMENT,
+        }
+      : {
+          enabled: true,
+          controlId: CUSTOM_TIME_CONTROL_ID,
+          customMinutes: Math.max(1, Math.round(c.initialSeconds / 60)),
+          customIncrement: c.incrementSeconds,
+        };
+  });
+  const timeControl = useMemo(
+    () =>
+      resolveTimeControl(
+        clockSel.enabled,
+        clockSel.controlId,
+        clockSel.customMinutes,
+        clockSel.customIncrement,
+      ),
+    [clockSel],
+  );
+
+  // A flag (bank hits zero) is a loss on time for that seat, applied to the tip.
+  const onFlag = useCallback((loser: Seat) => {
+    setStates((prev) => {
+      if (isGameOver(prev[prev.length - 1].status)) return prev;
+      const status: MorrisStatus = loser === "defenders" ? "black_win_time" : "white_win_time";
+      const copy = [...prev];
+      copy[copy.length - 1] = { ...copy[copy.length - 1], status };
+      return copy;
+    });
+  }, []);
+  const clock = useGameClock(timeControl, atTip && !gameOver && !showSetup, onFlag);
+
+  const [clockLine, setClockLine] = useState<ClockLine>(() => initialClockLine(timeControl));
+  // A new bank/increment re-arms the live clock; the recorded line starts over
+  // with it. Declared before the mount-restore effect so on mount the restore runs
+  // second and wins.
+  useEffect(() => {
+    setClockLine(initialClockLine(timeControl));
+  }, [timeControl]);
+
+  // Put a restored game's banks back, once, on mount — only onto the matching
+  // control (which it is by construction: the selection above came from it).
+  const clockRestored = useRef(false);
+  useEffect(() => {
+    if (clockRestored.current) return;
+    clockRestored.current = true;
+    const c = restored?.clock;
+    if (!c || !timeControl) return;
+    if (
+      c.initialSeconds !== timeControl.initialSeconds ||
+      c.incrementSeconds !== timeControl.incrementSeconds
+    )
+      return;
+    clock.restore(c);
+    setClockLine(c.line.length ? c.line : initialClockLine(timeControl));
+    // Mount-only by design; the guards above make a re-run harmless anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Each new move at the tip presses the mover's clock; the resulting banks are
+  // the arrival time of the position just reached — same wiring as the shell.
+  const prevTipRef = useRef(tip);
+  useEffect(() => {
+    const prev = prevTipRef.current;
+    prevTipRef.current = tip;
+    if (!clock.enabled) return;
+    if (tip !== prev + 1) return; // rewinds are handled by rewindTo
+    const banks = clock.press(seatOf(other(states[tip].turn)));
+    setClockLine((line) => recordArrival(line, tip, banks));
+    // Only react to timeline length changes, not cursor scrubbing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tip]);
+
+  /**
+   * Begin a fresh game under the given setup, committed in one step. The setup
+   * sheet drafts these values locally, so browsing it — toggling a seat, reading a
+   * variant blurb — never touches the game behind it. A new ruleset is necessarily
+   * a new game (the opening depends on `firstMove`), and a new game is a new
+   * identity, so the previous save is superseded rather than silently continued.
+   */
+  const startGame = useCallback(
+    (setup: GameSetup) => {
+      cancel();
+      setVariantId(setup.variantId);
+      setCustomRules(setup.customRules);
+      setPlayMode(setup.playMode);
+      setDifficulty(setup.difficulty);
+      setClockSel(setup.clock);
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
+      setStates([initialState(rulesFor(setup.variantId, setup.customRules))]);
+      setCursor(0);
+      setSelected(null);
+      setPending(null);
+      setFromDatabase(false);
+      clearReveal();
+      setThinking(false);
+      setShowVictory(false);
+      setShowSetup(false);
+      setGameMenuOpen(false);
+      // The board arrives whole; the clock must not read it as a move played.
+      prevTipRef.current = 0;
+      const tc = resolveTimeControl(
+        setup.clock.enabled,
+        setup.clock.controlId,
+        setup.clock.customMinutes,
+        setup.clock.customIncrement,
+      );
+      setClockLine(initialClockLine(tc));
+      clock.reset();
+      // A fresh opening can repeat an old key (same length, same turn), so the
+      // engine must be free to be asked again — this is what un-stalls Restart
+      // when the engine has the first move.
+      askedFor.current = "";
+      wasOver.current = false;
+    },
+    [cancel, clearReveal, clock],
+  );
+
+  // Live play only ever commits from the tip, so this appends and follows.
+  // `revealMs` is how long the move is still being *shown* for afterwards — the
+  // engine's travelling stone, zero for a human move.
+  const push = useCallback(
+    (move: Move, from: GameState, rs: MorrisRuleSet, revealMs = 0) => {
+      revealDelay.current = revealMs;
+      setStates((prev) => [...prev, applyMove(from, move, rs)]);
+      setCursor((c) => c + 1);
+      setSelected(null);
+      setPending(null);
+    },
+    [],
+  );
+
+  // ── Autosave ────────────────────────────────────────────────────────────────
+  // Written on every move and cursor step, exactly as the other three do, with the
+  // clock banks riding along. An untouched opening is nothing worth resuming, so
+  // it clears instead — which is also how a superseded game's save is forgotten
+  // when a new one starts.
+  const clockRef = useRef(clock);
+  clockRef.current = clock;
+  const clockLineRef = useRef(clockLine);
+  clockLineRef.current = clockLine;
+  const persistGame = useCallback(() => {
+    if (states.length <= 1) {
+      clearSavedGame();
+      return;
+    }
+    const c = clockRef.current;
+    saveGame(
+      snapshotGame({
+        id: gameId.current,
+        createdAt: gameStartedAt.current,
+        states,
+        cursor,
+        variantId,
+        customRules,
+        playMode,
+        difficulty,
+        recorded: false,
+        clock: timeControl
+          ? {
+              initialSeconds: timeControl.initialSeconds,
+              incrementSeconds: timeControl.incrementSeconds,
+              remaining: c.remaining,
+              active: c.active,
+              started: c.started,
+              flagged: c.flagged,
+              line: clockLineRef.current,
+            }
+          : null,
+        // No match sets on this surface yet; the save format carries them for the
+        // day the shell holds more than one game.
+        match: null,
+        gamesPerSet: 1,
+        names: { p1: "", p2: "" },
+      }),
+    );
+  }, [states, cursor, variantId, customRules, playMode, difficulty, timeControl]);
+  useEffect(() => {
+    persistGame();
+  }, [persistGame]);
+  // Leaving the page is the one moment the ticking clock has to be captured — the
+  // same pagehide/visibilitychange pair the shell listens for.
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") persistGame();
+    };
+    window.addEventListener("pagehide", persistGame);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", persistGame);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, [persistGame]);
+
+  // ── The engine's turn ───────────────────────────────────────────────────────
+  // Keyed on the game's identity and position rather than on a move counter, so an
+  // undo that lands back on the engine's turn asks again rather than sitting still
+  // — and a fresh game can never be confused with the one before it. Gated on
+  // `atTip`: the engine never plays under a reviewer's feet.
+  useEffect(() => {
+    if (gameOver || aiSide === null || tipState.turn !== aiSide || showSetup || !atTip) return;
+    const key = `${gameId.current}:${states.length}:${tipState.turn}`;
+    if (askedFor.current === key) return;
+    askedFor.current = key;
+    let live = true;
+    setThinking(true);
+    // The tables are only passed on the tier that claims them: `ollamh` is the
+    // one level that promises perfect endgame play, and `chooseMoveDetailed`
+    // drops a probe on every other tier anyway (see engine.ts).
+    requestMove(tipState, difficulty, rules, difficulty === "ollamh" ? dbBaseUrl : undefined).then(
+      (info) => {
+        if (!live) return;
+        setThinking(false);
+        if (!info.move) return;
+        setFromDatabase(info.fromDatabase === true);
+        // Announced against the position it is played from — the stone, and
+        // anything it takes, are still standing there. The move itself commits
+        // immediately.
+        const travelMs = revealMove(info.move, tipState.turn);
+        push(info.move, tipState, rules, travelMs);
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [
+    tipState,
+    states.length,
+    atTip,
+    aiSide,
+    gameOver,
+    difficulty,
+    rules,
+    requestMove,
+    revealMove,
+    push,
+    showSetup,
+    dbBaseUrl,
+  ]);
+
+  // The victory curtain fires once, on the transition into a finished game.
+  useEffect(() => {
+    const rising = gameOver && !wasOver.current;
+    wasOver.current = gameOver;
+    if (!rising) return;
+    // The one moment a human-vs-computer game is known to have reached a real
+    // result rather than being abandoned. `recordIfTerminal` itself excludes
+    // hotseat (`humanSide === null`) and a non-terminal winner, so the call is a
+    // safe no-op in either case even if this guard is ever loosened.
+    recordIfTerminal("morris", {
+      winner: winnerOf(tipState.status),
+      humanSide,
+      rulesetId: rules.id,
+      difficulty,
+      endedAt: Date.now(),
+    });
+    if (!revealDelay.current) {
+      setShowVictory(true);
+      return;
+    }
+    const id = window.setTimeout(() => setShowVictory(true), revealDelay.current);
+    return () => window.clearTimeout(id);
+  }, [gameOver, tipState.status, humanSide, rules.id, difficulty]);
+
+  // Escape unwinds one layer at a time — curtain, menu, confirms, a pending
+  // removal, then the sheet, then the surface itself — rather than dropping the
+  // player back to the 7×7 board from under a modal.
+  const canCancelSetup = states.length > 1;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showVictory) {
+        setShowVictory(false);
+        return;
+      }
+      if (showGameFile) {
+        setShowGameFile(false);
+        return;
+      }
+      if (gameMenuOpen) {
+        // The sheet closes itself on Escape; swallow the layer here too so the
+        // press cannot fall through to the surface below.
+        return;
+      }
+      if (confirmRestart) {
+        setConfirmRestart(false);
+        return;
+      }
+      if (confirmResign) {
+        setConfirmResign(false);
+        return;
+      }
+      if (pending) {
+        // A half-expressed turn is a layer of its own: Escape puts the stone back
+        // rather than leaving the board waiting for a victim.
+        setPending(null);
+        return;
+      }
+      if (showSetup && canCancelSetup) {
+        setShowSetup(false);
+        return;
+      }
+      if (showSetup) return; // first visit: the sheet is the room
+      onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    onClose,
+    showVictory,
+    showGameFile,
+    gameMenuOpen,
+    confirmRestart,
+    confirmResign,
+    pending,
+    showSetup,
+    canCancelSetup,
+  ]);
+
+  // ── Returning the live game to an earlier position ──────────────────────────
+  const rewindTo = useCallback(
+    (ply: number) => {
+      cancel();
+      setThinking(false);
+      setShowVictory(false);
+      setStates((prev) => {
+        const next = prev.slice(0, ply + 1);
+        if (isTimeLoss(next[ply].status)) next[ply] = { ...next[ply], status: "playing" };
+        return next;
+      });
+      setCursor(ply);
+      setClockLine((line) => truncateTo(line, ply));
+      prevTipRef.current = ply;
+      if (clock.enabled && timeControl) {
+        clock.resumeAt(banksAt(clockLine, ply, timeControl), seatOf(states[ply].turn), ply > 0);
+      }
+      setSelected(null);
+      setPending(null);
+      setFromDatabase(false);
+      // The engine's reveal describes a position this rewind has just replaced.
+      clearReveal();
+      askedFor.current = "";
+    },
+    [cancel, clearReveal, clock, clockLine, states, timeControl],
+  );
+
+  // Step back past the engine's reply as well as your own move, so a takeback
+  // returns you to a position you can actually act on. A pending removal is
+  // cancelled instead: there is nothing to take back yet.
+  const takeback = useCallback(() => {
+    if (pending) {
+      setPending(null);
+      return;
+    }
+    const back = aiSide !== null && tip >= 2 ? 2 : 1;
+    if (tip < back) return;
+    rewindTo(tip - back);
+  }, [aiSide, pending, tip, rewindTo]);
+
+  const resign = useCallback(() => {
+    setConfirmResign(false);
+    if (gameOver || !atTip) return;
+    const loser: Side = humanSide === null ? tipState.turn : humanSide;
+    const status: MorrisStatus = loser === "white" ? "black_win_resign" : "white_win_resign";
+    cancel();
+    setThinking(false);
+    setSelected(null);
+    setPending(null);
+    setStates((prev) => {
+      const copy = [...prev];
+      copy[copy.length - 1] = { ...copy[copy.length - 1], status };
+      return copy;
+    });
+  }, [gameOver, atTip, humanSide, tipState.turn, cancel]);
+
+  // ── Import (see docs/design/game-import-export.md) ──────────────────────────
+  // An imported game is a move list from the opening (game/morris/replay.ts), so —
+  // same invariant the shell's own import keeps — it is savable and exportable
+  // however the board it replaces got there. It gets a fresh identity, and it
+  // always lands hotseat: an import is often mid-position and often on the side
+  // the engine would otherwise move for, so switching the AI straight back on
+  // would have it play atop the import the instant it lands.
+  const loadImportedGame = useCallback(
+    (imported: ParsedGame) => {
+      cancel();
+      setThinking(false);
+      clearReveal();
+      setShowVictory(false);
+      setFromDatabase(false);
+      gameId.current = newGameId();
+      gameStartedAt.current = Date.now();
+      const tipIndex = imported.states.length - 1;
+      // The timeline arrives whole, so the clock must not read the jump as a move
+      // being played, and a finished import is history, not a live result, so it
+      // never rises into the victory curtain.
+      prevTipRef.current = tipIndex;
+      wasOver.current = isGameOver(imported.states[tipIndex].status);
+      setVariantId(imported.variantId);
+      if (imported.variantId === "custom") setCustomRules(ruleFlags(imported.rules));
+      setPlayMode("hotseat");
+      setStates(imported.states);
+      setCursor(tipIndex);
+      setSelected(null);
+      setPending(null);
+      setShowSetup(false);
+      setGameMenuOpen(false);
+      setClockLine(initialClockLine(timeControl));
+      clock.reset();
+      askedFor.current = "";
+    },
+    [cancel, clearReveal, clock, timeControl],
+  );
+
+  const goPrev = useCallback(() => {
+    setSelected(null);
+    setPending(null);
+    setCursor((c) => Math.max(0, c - 1));
+  }, []);
+  const goNext = useCallback(() => {
+    setSelected(null);
+    setPending(null);
+    setCursor((c) => Math.min(tip, c + 1));
+  }, [tip]);
+  const goLatest = useCallback(() => {
+    setSelected(null);
+    setPending(null);
+    setCursor(tip);
+  }, [tip]);
+
+  // ── Interaction ─────────────────────────────────────────────────────────────
+  const controllable: Side | null = humanSide;
+  const interactive = atTip && !gameOver && !thinking && !showSetup;
+  const myTurn = interactive && (controllable === null || controllable === game.turn);
+
+  /** Every legal turn from the position on screen. One entry per *victim* when a
+   *  turn closes a mill, because those are different games — so this is both the
+   *  move source below and the honest "moves available" count. */
+  const moves = useMemo<Move[]>(() => (viewedOver ? [] : allMoves(game, rules)), [game, rules, viewedOver]);
+
+  /** The turns the pending move could still become, given the victims already
+   *  chosen. */
+  const pendingOptions = useMemo<Move[]>(() => {
+    if (!pending) return [];
+    return moves.filter(
+      (m) =>
+        m.from === pending.from &&
+        m.to === pending.to &&
+        pending.taken.every((r) => removalsOf(m).includes(r)),
+    );
+  }, [moves, pending]);
+
+  /** Enemy stones the removal step still offers. Derived from the move list rather
+   *  than from `removable()` directly, so what the board lights and what the rules
+   *  accept are the same list by construction. */
+  const removableNow = useMemo<number[]>(() => {
+    if (!pending) return [];
+    const out = new Set<number>();
+    for (const m of pendingOptions)
+      for (const r of removalsOf(m)) if (!pending.taken.includes(r)) out.add(r);
+    return [...out];
+  }, [pending, pendingOptions]);
+
+  /** Empty points a click would play to: every empty point while placing, the
+   *  selected stone's destinations while moving, and none at all while a mill is
+   *  waiting for its victim. */
+  const legalTargets = useMemo<number[]>(() => {
+    if (pending || !myTurn) return [];
+    const placing = game.inHand[game.turn] > 0;
+    const out = new Set<number>();
+    for (const m of moves) {
+      if (placing ? m.from === null : m.from !== null && m.from === selected) out.add(m.to);
+    }
+    return [...out];
+  }, [moves, pending, myTurn, selected, game.inHand, game.turn]);
+
+  /** Commit these options, or enter the removal step if the player has to choose
+   *  which stone the mill takes. */
+  const chooseOrCommit = useCallback(
+    (options: Move[], from: number | null, to: number) => {
+      if (options.length === 0) return;
+      const only = options[0];
+      if (options.length === 1 && removalsOf(only).length === 0) {
+        push(only, game, rules);
+        return;
+      }
+      // A mill: the move is held, unplayed, until a victim is picked. With
+      // `doubleMillRemoves: "two"` it waits for the second one as well, and
+      // `pendingOptions` narrows after each click.
+      setSelected(null);
+      setPending({ from, to, taken: [] });
+    },
+    [game, push, rules],
+  );
+
+  const onPointClick = (i: number) => {
+    if (!myTurn) return;
+
+    // The removal step owns every click while it is open: anything that is not a
+    // stone this mill may take is ignored rather than guessed at.
+    if (pending) {
+      if (!removableNow.includes(i)) return;
+      const taken = [...pending.taken, i];
+      const done = pendingOptions.find((m) => {
+        const rs = removalsOf(m);
+        return rs.length === taken.length && taken.every((r) => rs.includes(r));
+      });
+      if (done) push(done, game, rules);
+      else setPending({ ...pending, taken });
+      return;
+    }
+
+    if (game.inHand[game.turn] > 0) {
+      chooseOrCommit(
+        moves.filter((m) => m.from === null && m.to === i),
+        null,
+        i,
+      );
+      return;
+    }
+
+    // Moving: a second click on the selected stone puts it down, a click on a
+    // legal destination plays, and anything else re-selects or clears.
+    if (selected === i) {
+      setSelected(null);
+      return;
+    }
+    if (selected !== null) {
+      const options = moves.filter((m) => m.from === selected && m.to === i);
+      if (options.length > 0) {
+        chooseOrCommit(options, selected, i);
+        return;
+      }
+    }
+    setSelected(game.board[i] === cellOf(game.turn) ? i : null);
+  };
+
+  /** The pending turn, for the board to draw: the stone is already where the
+   *  player put it, even though the turn itself is not in the timeline yet. */
+  const previewMove: MorrisPreview | null = pending
+    ? { from: pending.from, to: pending.to, side: game.turn }
+    : null;
+
+  const lastMove = game.history.length ? game.history[game.history.length - 1].move : null;
+  const winner = winnerOf(tipState.status);
+  const phase = phaseOf(game);
+  const variantLabel = t.variantNames[rules.id] ?? rules.name;
+  const currentSetup: GameSetup = { variantId, customRules, playMode, difficulty, clock: clockSel };
+
+  /** What the player is being asked for, in words. Only shown when it is actually
+   *  their turn — a prompt over the engine's turn would be describing someone
+   *  else's move. */
+  const prompt = !myTurn
+    ? null
+    : pending
+      ? t.morrisRemove
+      : game.inHand[game.turn] > 0
+        ? t.morrisPlace
+        : flyingFor(game, game.turn, rules)
+          ? t.morrisFly
+          : t.morrisMove;
+
+  // A finished game (or an untouched board) has nothing to lose; mid-game the
+  // restart asks first.
+  const requestRestart = () =>
+    !gameOver && states.length > 1 ? setConfirmRestart(true) : startGame(currentSetup);
+
+  // ── Seats ───────────────────────────────────────────────────────────────────
+  // Browsing the game shows each position's own clocks — the times it was first
+  // offered with — rather than the live banks.
+  const viewedBanks = reviewing ? banksAt(clockLine, cursor, timeControl) : clock.remaining;
+  const { top: topSide, bottom: bottomSide } = clockPlacement(playMode);
+  // Flipping the board north–south flips the clocks with it — the same rule every
+  // other board follows, and for the same reason: the clocks are the two players'
+  // chairs, seated above and below the board.
+  const topPlayer = flippedV ? bottomSide : topSide;
+  const bottomPlayer = flippedV ? topSide : bottomSide;
+  // The AI seat reads tier over colour ("Medium / White"); a human seat's name
+  // *is* the colour, so its sub line stays empty rather than repeating it.
+  const sideName = (side: Side): string => (side === "white" ? t.morrisWhite : t.morrisBlack);
+  const seatName = (side: Side): string =>
+    side === aiSide ? t.taflDifficulties[difficulty] : sideName(side);
+  const renderPlayerBar = (side: Side, position: "top" | "bottom") => (
+    <PlayerBar
+      name={seatName(side)}
+      sub={side === aiSide ? sideName(side) : ""}
+      side={seatOf(side)}
+      // The stones this side has taken off the board: nine placed minus what the
+      // opponent still has. The one number a Morris player actually counts.
+      captures={9 - stonesOf(game, other(side))}
+      clockEnabled={clock.enabled}
+      ms={viewedBanks[seatOf(side)]}
+      active={
+        !isGameOver(game.status) &&
+        (reviewing || !clock.enabled || !clock.started
+          ? game.turn === side
+          : clock.active === seatOf(side))
+      }
+      running={clock.running}
+      flagged={!reviewing && clock.flagged === seatOf(side)}
+      increment={timeControl?.incrementSeconds ?? 0}
+      flagLabel={t.flagLabel}
+      thinking={thinking && side === aiSide}
+      moveCount={position === "bottom" ? game.history.length : undefined}
+    />
+  );
+
+  // Who goes in the exported file's [White] / [Black] tags — the same rule every
+  // other board's export meta follows: the AI's tier when it holds that colour,
+  // the plain colour name otherwise.
+  const exportMeta: GameFileMeta = {
+    event: t.gameMorris,
+    white: seatName("white"),
+    black: seatName("black"),
+  };
+
+  // An optional extra shows when Zen is off, or when it has been opted in.
+  const showFlip = !zen.enabled || zen.extras["flip"];
+
+  // Everything wordy lives behind the toolbar's list icon, as in the shell.
+  const menuItems = [
+    { label: t.newGame, onClick: () => setShowSetup(true) },
+    { label: t.taflRestart, onClick: requestRestart },
+    ...(atTip && !gameOver && (tip >= 1 || pending !== null)
+      ? [{ label: t.taflUndo, onClick: takeback }]
+      : []),
+    ...(clock.enabled && clock.started && atTip && !gameOver
+      ? [{ label: clock.paused ? t.resume : t.pause, onClick: clock.togglePause }]
+      : []),
+    ...(atTip && !gameOver && tip >= 1
+      ? [{ label: t.resign, danger: true, onClick: () => setConfirmResign(true) }]
+      : []),
+    ...(showFlip
+      ? [
+          { label: t.flipBoardH, onClick: () => setFlippedH((f) => !f) },
+          { label: t.flipBoardV, onClick: () => setFlippedV((f) => !f) },
+        ]
+      : []),
+    { label: t.morrisGameFileTitle, onClick: () => setShowGameFile(true) },
+  ];
+
+  return (
+    <div className="morris-screen fixed inset-0 z-50 overflow-y-auto" ref={screenRef} tabIndex={-1}>
+      <div className="mx-auto flex min-h-full max-w-md flex-col px-3 pb-24 pt-3">
+        <header className="flex items-center justify-between gap-2">
+          <button className="iconbtn" onClick={onClose} aria-label={t.back}>
+            ‹
+          </button>
+          <div className="min-w-0 text-center">
+            <p className="truncate font-display text-lg text-parchment">{t.gameMorris}</p>
+            <p className="truncate text-xs text-parchment-dim">{variantLabel}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="morris-zen-toggle" />
+            {/* Same control as the shell's Header: this screen is a place you can
+                be for a while, and the drawer (language, settings, the other
+                boardgames) should not require backing out first to reach. */}
+            <button
+              className={`iconbtn${drawerOpen ? " on" : ""}`}
+              onClick={onOpenDrawer}
+              aria-label={t.menu}
+              title={t.menu}
+              aria-haspopup="dialog"
+              aria-expanded={drawerOpen}
+              data-testid="menu-toggle"
+            >
+              <MenuIcon />
+            </button>
+          </div>
+        </header>
+
+        <div className="mt-3">{renderPlayerBar(topPlayer, "top")}</div>
+
+        <div className="mt-3">
+          <MorrisBoard
+            board={game.board}
+            turn={game.turn}
+            legalTargets={legalTargets}
+            selected={selected}
+            lastMove={lastMove}
+            removable={removableNow}
+            preview={previewMove}
+            reveal={reveal}
+            interactive={myTurn}
+            controllable={controllable}
+            flippedH={flippedH}
+            flippedV={flippedV}
+            attackerEmblem={attackerEmblem}
+            defenderEmblem={defenderEmblem}
+            onPointClick={onPointClick}
+          />
+        </div>
+
+        <div className="mt-3">{renderPlayerBar(bottomPlayer, "bottom")}</div>
+
+        {/* The result, said in place — a restored finished game has no curtain to
+            say it, and a browsed terminal position deserves the line too. */}
+        {viewedOver && (
+          <p className="mt-2 text-center text-sm text-parchment">{morrisGameOverText(game.status, t)}</p>
+        )}
+
+        {/* What the board is waiting for. The removal step is the one prompt this
+            game genuinely needs: a mill has been closed and nothing has happened
+            yet, which is the only moment on any of the four boards where a click
+            is owed before the turn exists. */}
+        {!viewedOver && prompt && (
+          <p className="mt-2 text-center text-sm text-parchment" data-testid="morris-prompt">
+            {prompt}
+          </p>
+        )}
+
+        {!zen.enabled && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-parchment-dim">
+            <span data-testid="morris-inhand">
+              {t.morrisInHand}: {t.morrisWhite} {game.inHand.white} · {t.morrisBlack}{" "}
+              {game.inHand.black}
+            </span>
+            <span>{phase === "placing" ? t.morrisPhasePlacing : t.morrisPhaseMoving}</span>
+            <span>
+              {t.morrisMoves}: {game.history.length}
+            </span>
+            <span>
+              {t.morrisLegalMoves}: {moves.length}
+            </span>
+            {/* Shown only when the last reply really came out of a table — the
+                honest half of `ollamh`'s two-part claim (docs/solving.md). */}
+            {fromDatabase && (
+              <span className="text-gold/90" data-testid="morris-solved-note">
+                {t.morrisSolvedNote}
+              </span>
+            )}
+          </div>
+        )}
+
+        {(showNav || gameOver) && (
+          <>
+            <GameToolbar
+              menuOpen={gameMenuOpen}
+              menuLabel={t.menu}
+              onMenu={() => setGameMenuOpen((v) => !v)}
+              cycleLabel={t.newGame}
+              cycleEnabled={gameOver}
+              onCycle={() => setShowSetup(true)}
+              analysisShown={false}
+              analysisOn={false}
+              analysisEnabled={false}
+              analysisLabel={t.analysisMode}
+              onAnalysis={() => {}}
+              canPrev={cursor > 0}
+              canNext={cursor < tip}
+              prevLabel={t.prevMove}
+              nextLabel={t.nextMove}
+              onPrev={goPrev}
+              onNext={goNext}
+            />
+            {gameMenuOpen && (
+              <GameMenuSheet title={t.menu} items={menuItems} onClose={() => setGameMenuOpen(false)} />
+            )}
+          </>
+        )}
+
+        {(reviewing || gameOver) && showNav && (
+          <ReviewBar
+            t={t}
+            reviewing={reviewing}
+            moveNumber={cursor}
+            totalMoves={tip}
+            viewedTerminal={viewedOver && !isTimeLoss(game.status)}
+            showVsAi={false}
+            onLatest={goLatest}
+            onPlay={() => rewindTo(cursor)}
+            onPlayVsAi={() => {}}
+          />
+        )}
+
+        <MoveLog
+          t={t}
+          // The log is keyed by the shell's two seat names for its colours, so the
+          // plies are handed over in those terms — the same four-line mapping the
+          // bars and the clock use, and the only thing MoveLog needs to know about
+          // a board it otherwise shares unchanged.
+          game={{
+            history: tipState.history.map((h) => ({
+              move: h.move,
+              sideThatMoved: seatOf(h.sideThatMoved),
+            })),
+          }}
+          activeIndex={cursor - 1}
+          moveName={moveName}
+          onMoveClick={(i) => {
+            setSelected(null);
+            setPending(null);
+            setCursor(i + 1);
+          }}
+        />
+
+        {/* The second way out of Zen, at the foot of everything that scrolls —
+            same rule as the shell: no Zen setting may lock you out of the control
+            that would undo it. */}
+        {zen.enabled && (
+          <div className="zen-foot">
+            <ZenSwitch t={t} on={zen.enabled} onChange={onZenEnabled} testId="morris-zen-foot" />
+          </div>
+        )}
+      </div>
+
+      {showSetup && (
+        <MorrisSetup
+          t={t}
+          initial={currentSetup}
+          onStart={startGame}
+          // Backing out is only offered over a game worth returning to; the first
+          // visit has nothing behind the sheet.
+          onCancel={canCancelSetup ? () => setShowSetup(false) : null}
+        />
+      )}
+
+      {confirmRestart && (
+        <MorrisConfirm
+          title={t.newGameTitle}
+          body={t.newGameBody}
+          confirmLabel={t.taflRestart}
+          cancelLabel={t.back}
+          onConfirm={() => {
+            setConfirmRestart(false);
+            startGame(currentSetup);
+          }}
+          onCancel={() => setConfirmRestart(false)}
+        />
+      )}
+
+      {confirmResign && (
+        <MorrisConfirm
+          title={t.resignTitle}
+          body={t.resignBody}
+          confirmLabel={t.resign}
+          cancelLabel={t.back}
+          onConfirm={resign}
+          onCancel={() => setConfirmResign(false)}
+        />
+      )}
+
+      {showVictory && winner && (
+        <VictoryOverlay
+          t={t}
+          // The curtain's styling is keyed by the tafl seats; its words and its
+          // stone are not, so both are overridden here (see VictoryOverlay).
+          winner={winner === "draw" ? "draw" : seatOf(winner)}
+          title={
+            winner === "draw" ? t.victoryDraw : winner === "white" ? t.morrisWhiteWins : t.morrisBlackWins
+          }
+          emblemPiece={winner === "white" ? "defender" : "attacker"}
+          reason={morrisGameOverText(tipState.status, t)}
+          moveCount={tipState.history.length}
+          emblems={{ attackerEmblem, kingEmblem, defenderEmblem, cornerEmblem }}
+          primaryLabel={t.newGame}
+          onPrimary={() => {
+            setShowVictory(false);
+            setShowSetup(true);
+          }}
+          onDismiss={() => setShowVictory(false)}
+          // There is no review pass on this side, so "review" is just dismissing
+          // the curtain to look at the final position.
+          onReview={() => setShowVictory(false)}
+        />
+      )}
+
+      {/* The game file — this screen's own copy of the shell's Tools destination,
+          wired to Morris's own `.morris` codec. There is no non-opening starting
+          position on this screen, so unlike the shell's panel it never needs the
+          position-export refusal. */}
+      {showGameFile && (
+        <div
+          className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => setShowGameFile(false)}
+        >
+          <div
+            className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="morris-gamefile-modal"
+          >
+            <div className="flex justify-end">
+              <button className="btn" onClick={() => setShowGameFile(false)} aria-label={t.close}>
+                ✕
+              </button>
+            </div>
+            <MorrisGameFilePanel
+              t={t}
+              state={tipState}
+              rules={rules}
+              meta={exportMeta}
+              onImport={(g) => {
+                loadImportedGame(g);
+                setShowGameFile(false);
+              }}
+              placement="modal"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Everything the setup sheet chooses, committed in one step when Play is pressed. */
+interface GameSetup {
+  variantId: string;
+  customRules: CustomRuleSet;
+  playMode: PlayMode;
+  difficulty: Difficulty;
+  clock: ClockSelection;
+}
+
+/** The surface's own confirm card — the same shape the shell's ConfirmDialog has. */
+function MorrisConfirm({
+  title,
+  body,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="card mx-4 w-full max-w-sm space-y-5 p-8 text-center">
+        <p className="font-display text-lg text-parchment">{title}</p>
+        <p className="text-sm text-parchment-dim">{body}</p>
+        <div className="flex justify-center gap-3">
+          <button className="btn" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+          <button className="btn btn-primary" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Opponent, seat, strength, rules and clock — everything chosen before the first
+ * move.
+ *
+ * The sheet drafts its choices locally and commits them all at once through
+ * `onStart`. Nothing here reaches the live game while the sheet is open, so it can
+ * be browsed — and backed out of, when `onCancel` is offered — over a game in
+ * progress without disturbing it.
+ */
+function MorrisSetup({
+  t,
+  initial,
+  onStart,
+  onCancel,
+}: {
+  t: Translations;
+  initial: GameSetup;
+  onStart: (setup: GameSetup) => void;
+  onCancel: (() => void) | null;
+}) {
+  const ref = useDialogFocus<HTMLDivElement>();
+  const [variantId, setVariantId] = useState(initial.variantId);
+  const [customRules, setCustomRules] = useState(initial.customRules);
+  const [playMode, setPlayMode] = useState(initial.playMode);
+  const [difficulty, setDifficulty] = useState(initial.difficulty);
+  const [clock, setClock] = useState<ClockSelection>(initial.clock);
+  const rules = rulesFor(variantId, customRules);
+  // The compact human-vs-computer record, per AI level. Recomputed on every
+  // render of the sheet rather than memoized — cheap (bounded to 500 stored
+  // games) and it must pick up a game that just ended behind this very sheet.
+  const aiRecordLine = formatTierLine(aiResultsSummary("morris"), DIFFICULTIES, t.taflDifficulties);
+  return (
+    <div
+      className="settings-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+      onClick={onCancel ?? undefined}
+    >
+      <div
+        className="settings-sheet card max-h-[88vh] w-full overflow-y-auto rounded-b-none p-6 sm:max-w-lg sm:rounded-2xl"
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="font-display text-xl text-parchment">{t.gameMorris}</h2>
+          {onCancel && (
+            <button className="btn" onClick={onCancel} aria-label={t.close}>
+              ✕
+            </button>
+          )}
+        </div>
+        <p className="mt-1 text-sm text-parchment-dim">{t.morrisBlurb}</p>
+
+        <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+          {t.variant}
+        </label>
+        <select
+          className="btn mt-1 w-full"
+          value={variantId}
+          onChange={(e) => setVariantId(e.target.value)}
+        >
+          {/* Driven by VISIBLE_VARIANTS, so hiding a preset is a one-line change in
+              game/morris/variants.ts rather than a hand-edit here. */}
+          {VISIBLE_VARIANTS.map((id) => (
+            <option key={id} value={id}>
+              {t.variantNames[id] ?? VARIANTS[id].name}
+            </option>
+          ))}
+          <option value="custom">{t.variantNames["custom"] ?? "Custom"}</option>
+        </select>
+        <p className="mt-1 text-xs text-parchment-dim">{t.variantBlurbs[rules.id] ?? rules.blurb}</p>
+
+        {variantId === "custom" && (
+          <MorrisRuleEditor t={t} rules={customRules} onChange={setCustomRules} />
+        )}
+
+        <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+          {t.taflOpponent}
+        </label>
+        <div className="seg mt-1">
+          {(["white", "black", "hotseat"] as const).map((m) => (
+            <button
+              key={m}
+              className={playMode === m ? "on" : ""}
+              onClick={() => setPlayMode(m)}
+              aria-pressed={playMode === m}
+            >
+              {m === "hotseat" ? t.taflHotseat : m === "white" ? t.morrisWhite : t.morrisBlack}
+            </button>
+          ))}
+        </div>
+
+        {playMode !== "hotseat" && (
+          <>
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+              {t.taflStrength}
+            </label>
+            <div className="seg mt-1">
+              {/* All four levels, with no cap: unlike the 11×11 board, this tree is
+                  narrow enough for the top tiers to answer in time — and `ollamh`
+                  has the endgame tables behind it. */}
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d}
+                  className={difficulty === d ? "on" : ""}
+                  onClick={() => setDifficulty(d)}
+                  aria-pressed={difficulty === d}
+                >
+                  {t.taflDifficulties[d]}
+                </button>
+              ))}
+            </div>
+            {/* Both halves of what `ollamh` is, in one sentence, because neither
+                half may travel without the other (docs/solving.md). */}
+            <p className="mt-1 text-xs text-parchment-dim">{t.morrisTablesNote}</p>
+            {aiRecordLine && (
+              <p className="mt-1 text-xs text-parchment-dim">
+                {t.aiResultsLabel} {aiRecordLine}
+              </p>
+            )}
+          </>
+        )}
+
+        {/* The clock — the shell's preset ladder, chosen before the game it belongs
+            to exists, so it travels with the rest of the setup. */}
+        <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-parchment-dim">
+          {t.chooseTime}
+        </label>
+        <select
+          className="btn mt-1 w-full"
+          value={clock.enabled ? clock.controlId : "off"}
+          onChange={(e) =>
+            setClock((c) =>
+              e.target.value === "off"
+                ? { ...c, enabled: false }
+                : { ...c, enabled: true, controlId: e.target.value },
+            )
+          }
+          aria-label={t.chooseTime}
+        >
+          <option value="off">{t.off}</option>
+          {TIME_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.id}
+            </option>
+          ))}
+        </select>
+
+        <button
+          className="btn primary mt-5 w-full"
+          onClick={() => onStart({ variantId, customRules, playMode, difficulty, clock })}
+        >
+          {t.taflPlay}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The custom rule editor.
+ *
+ * Built from the ruleset's own shape rather than a hand-written list, so a rule
+ * added to `MorrisRuleSet` shows up here without anyone remembering to add it —
+ * the same property `gameFile.ts` gets from deriving its `Rules` tag. The labels
+ * and hints come from i18n, keyed by flag name, and `i18n.test.ts` is what notices
+ * a missing one (a `Record<string, string>` cannot make `tsc` do it).
+ */
+function MorrisRuleEditor({
+  t,
+  rules,
+  onChange,
+}: {
+  t: Translations;
+  rules: CustomRuleSet;
+  onChange: (flags: CustomRuleSet) => void;
+}) {
+  const keys = Object.keys(CUSTOM_RULE_DEFAULTS) as Array<keyof CustomRuleSet>;
+  const bools = keys.filter((k) => typeof CUSTOM_RULE_DEFAULTS[k] === "boolean");
+  const enums = keys.filter((k): k is EnumRuleKey => typeof CUSTOM_RULE_DEFAULTS[k] === "string");
+  return (
+    <div className="mt-3 rounded-lg bg-black/20 p-3">
+      {enums.map((k) => (
+        <div key={k} className="mb-3">
+          <p className="text-xs font-semibold text-parchment">{t.morrisRules[k]}</p>
+          <p className="mb-1 text-xs text-parchment-dim">{t.morrisRuleHints[k]}</p>
+          <div className="seg">
+            {ENUM_CHOICES[k].map((v) => (
+              <button
+                key={v}
+                className={rules[k] === v ? "on" : ""}
+                onClick={() => onChange({ ...rules, [k]: v })}
+                aria-pressed={rules[k] === v}
+              >
+                {t.morrisRuleValues[v] ?? v}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {bools.map((k) => (
+        <label key={k} className="mb-2 flex items-start gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={rules[k] as boolean}
+            onChange={(e) => onChange({ ...rules, [k]: e.target.checked })}
+          />
+          <span>
+            <span className="font-semibold text-parchment">{t.morrisRules[k]}</span>
+            <br />
+            <span className="text-parchment-dim">{t.morrisRuleHints[k]}</span>
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}

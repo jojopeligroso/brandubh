@@ -15,6 +15,7 @@
     "check:evalbar": "npm run build && node scripts/evalbar-geometry.mjs",
     "check:tablut": "npm run build && node scripts/tablut-smoke.mjs",
     "check:copenhagen": "npm run build && node scripts/copenhagen-smoke.mjs",
+    "check:morris": "npm run build && node scripts/morris-smoke.mjs",
     "check:ai-reveal": "npm run build && node scripts/ai-reveal.mjs"
   },
   "dependencies": {

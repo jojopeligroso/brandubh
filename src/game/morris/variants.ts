@@ -156,7 +156,7 @@ const GASSER: Omit<MorrisRuleSet, "id" | "name" | "blurb"> = {
 export const VARIANTS: Record<string, MorrisRuleSet> = {
   "morris-gasser-1": {
     id: "morris-gasser-1",
-    name: "Nine Men's Morris",
+    name: "Gasser's rules",
     blurb:
       "The standard game, with the rule readings Ralph Gasser used when he " +
       "solved Nine Men's Morris in 1996: closing two mills at once still takes " +

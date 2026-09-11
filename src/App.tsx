@@ -6,6 +6,7 @@ import LearnModal, { type LearnView } from "./components/LearnModal";
 import VictoryOverlay from "./components/VictoryOverlay";
 import TablutScreen from "./components/TablutScreen";
 import CopenhagenScreen from "./components/CopenhagenScreen";
+import MorrisScreen from "./components/MorrisScreen";
 import GameFilePanel from "./components/GameFilePanel";
 import GameReview from "./components/GameReview";
 import PuzzlePanel from "./components/PuzzlePanel";
@@ -49,6 +50,10 @@ import {
   rememberSurfaceOpen as rememberCopenhagenSurface,
   wasSurfaceOpen as wasCopenhagenSurfaceOpen,
 } from "./game/copenhagen/persist";
+import {
+  rememberSurfaceOpen as rememberMorrisSurface,
+  wasSurfaceOpen as wasMorrisSurfaceOpen,
+} from "./game/morris/persist";
 import {
   matchTotals,
   newMatch,
@@ -592,12 +597,18 @@ export default function App() {
    * it was on, exactly as a reload mid-Brandubh lands on the Brandubh one. The
    * 7×7 shell is only returned to by the player's own back button.
    *
-   * The two flags are separate keys and deliberately not one "which surface"
-   * enum: they are written by two independent modules that know nothing of each
-   * other, and a shared key would make each one's storage the other's problem.
-   * They cannot both be true — the drawer is the only way in, and it closes
-   * behind you — and if a hand-edited localStorage ever said otherwise, the
+   * The three flags are separate keys and deliberately not one "which surface"
+   * enum: they are written by three independent modules that know nothing of each
+   * other, and a shared key would make each one's storage the others' problem.
+   * No two can be true — the drawer is the only way in, and it closes the other
+   * two behind you — and if a hand-edited localStorage ever said otherwise, the
    * render order below picks one rather than stacking them.
+   *
+   * This is the cost ADR-0008 predicted and measured: the conditions grow
+   * quadratically in the flags, so every mount gate names the others and every
+   * drawer handler closes them. The right shape is one `surface` value with four
+   * states, and it waits on the shell refactor — see ADR-0007's last item and
+   * `App.mutualExclusion.test.ts`, which grows with this list.
    */
   const [showTablut, setShowTablut] = useState(wasTablutSurfaceOpen);
   useEffect(() => {
@@ -609,12 +620,26 @@ export default function App() {
     rememberCopenhagenSurface(showCopenhagen);
   }, [showCopenhagen]);
 
+  const [showMorris, setShowMorris] = useState(wasMorrisSurfaceOpen);
+  useEffect(() => {
+    rememberMorrisSurface(showMorris);
+  }, [showMorris]);
+
   // Paint the theme. Down here rather than beside `useState(loadTheme)` because
   // it needs to know which board is on screen: Ballinderry is a 7×7 board of
   // drilled holes, not a palette, so it does not follow the player onto the 9×9
   // or the 11×11 (see resolveTheme in theme.ts). The stored choice is unaffected
   // either way, so the picker still reads Ballinderry on either surface and the
   // board comes back on exit.
+  //
+  // `showMorris` is deliberately **not** a term in this condition, and that is the
+  // one line of this file a reader is most likely to "fix". A Morris board is
+  // twenty-four points on the same 7×7 lattice, and a peg board with a hole at
+  // each of them is a *truthful* Morris board — so Ballinderry is kept there
+  // rather than falling back, and `[data-theme="ballinderry"] .morris-board` draws
+  // the holes itself. See ADR-0008 ("Ballinderry is allowed on Morris"), which is
+  // also why `morris.surface.v1` is absent from the matching list in index.html,
+  // and why `npm run check:morris` asserts the theme *survives* this surface.
   useEffect(() => {
     applyTheme(theme, showTablut || showCopenhagen);
   }, [theme, showTablut, showCopenhagen]);
@@ -2099,6 +2124,7 @@ export default function App() {
   const openSetupOverlay = () => {
     setShowTablut(false);
     setShowCopenhagen(false);
+    setShowMorris(false);
     setModeOverlayCancelable(true);
     setShowModeOverlay(true);
   };
@@ -2723,17 +2749,26 @@ export default function App() {
           onTutorials={() => setLearnView("tutorials")}
           onPuzzles={() => setLearnView("puzzles")}
           onGameFile={() => setShowGameFile(true)}
-          // Each is now reachable from *inside* the other (both surfaces carry
-          // the hamburger into this same drawer), so switching must drop the
-          // one you are leaving — otherwise "Copenhagen" from within Tablut
-          // is a no-op, since `showCopenhagen && !showTablut` gates the mount.
+          // Each is reachable from *inside* the others (every surface carries the
+          // hamburger into this same drawer), so switching must drop the one you
+          // are leaving — otherwise "Copenhagen" from within Tablut is a no-op,
+          // since `showCopenhagen && !showTablut` gates the mount. Three boards
+          // means each handler now closes two; see ADR-0008 on why that is
+          // written out rather than expressed once.
           onTablut={() => {
             setShowCopenhagen(false);
+            setShowMorris(false);
             setShowTablut(true);
           }}
           onCopenhagen={() => {
             setShowTablut(false);
+            setShowMorris(false);
             setShowCopenhagen(true);
+          }}
+          onMorris={() => {
+            setShowTablut(false);
+            setShowCopenhagen(false);
+            setShowMorris(true);
           }}
           onSettings={() => setShowDesign(true)}
           onAbout={() => setShowAbout(true)}
@@ -2769,6 +2804,24 @@ export default function App() {
           defenderEmblem={emblemSet.defenderEmblem}
           cornerEmblem={emblemSet.cornerEmblem}
           onClose={() => setShowCopenhagen(false)}
+          drawerOpen={drawerOpen}
+          onOpenDrawer={() => setDrawerOpen(true)}
+        />
+      )}
+
+      {/* The fourth board (ADR-0008). The gate names both other surfaces for the
+          reason the comment at `showTablut` gives: the flags are independent, so
+          the render order is what guarantees only one surface is ever mounted. */}
+      {showMorris && !showTablut && !showCopenhagen && (
+        <MorrisScreen
+          t={t}
+          zen={zen}
+          onZenEnabled={setZenEnabled}
+          attackerEmblem={emblemSet.attackerEmblem}
+          kingEmblem={emblemSet.kingEmblem}
+          defenderEmblem={emblemSet.defenderEmblem}
+          cornerEmblem={emblemSet.cornerEmblem}
+          onClose={() => setShowMorris(false)}
           drawerOpen={drawerOpen}
           onOpenDrawer={() => setDrawerOpen(true)}
         />

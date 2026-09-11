@@ -2853,18 +2853,298 @@ button.settings-row:hover {
    A puzzle is a place, not a dialog: the layer is opaque, so the live game —
    its board, its toolbar — is never visible behind an exercise. Same canvas as
    the app body, so arriving reads as a change of room rather than a curtain. */
-/* Two full-screen *places* that mount over the shell rather than beside it: the
-   puzzle trainer and the Tablut board. Both need the app's own background, not
-   transparency — without it the shell's seats, toolbar and wordmark show through
-   and the header buttons collide with the hamburger behind them. Found in the
-   driven-browser pass, which is what that pass is for. */
+/* The full-screen *places* that mount over the shell rather than beside it: the
+   puzzle trainer and the three other boardgames. Each needs the app's own
+   background, not transparency — without it the shell's seats, toolbar and
+   wordmark show through and the header buttons collide with the hamburger behind
+   them. Found in the driven-browser pass, which is what that pass is for. */
 .puzzle-screen,
 .tablut-screen,
-.copenhagen-screen {
+.copenhagen-screen,
+.morris-screen {
   background:
     radial-gradient(1200px 600px at 50% -10%, var(--app-bg-radial) 0%, transparent 60%),
     linear-gradient(160deg, var(--app-bg-1) 0%, var(--app-bg-2) 100%);
   background-color: var(--app-bg-2);
+}
+
+/* ── The Morris board ─────────────────────────────────────────────────────────
+   Twenty-four points on three rings, drawn as one SVG (see
+   components/MorrisBoard.tsx for why it is not `.board`). Everything here is
+   theme tokens and nothing is per-theme, so all fourteen themes get a Morris
+   board for free: the ground is the same gradient `.board` paints, the lines are
+   `--line` (the incised-grid colour every theme already defines), the points are
+   `--motif-ink`, and the stones are `--def` and `--atk` — the piece colours the
+   player chose, not a palette of this board's own.
+
+   The one exception is Ballinderry, at the end of this block, and it is the
+   *inverse* of the rule the two bigger tafl boards follow: that theme is kept
+   here rather than falling back to Gokstad, because a peg board with a hole at
+   each of twenty-four points is a truthful Morris board. See ADR-0008 and
+   docs/ballinderry-board.md before touching it. */
+.morris-board {
+  --line: color-mix(in srgb, var(--motif-ink) 58%, transparent);
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  background:
+    /* fine diagonal hatching (surface grain) — the same three layers `.board`
+       paints, minus the chequer it has no squares for. */
+    repeating-linear-gradient(
+      135deg,
+      transparent 0px,
+      transparent 3px,
+      color-mix(in srgb, var(--motif-ink) 9%, transparent) 3px,
+      color-mix(in srgb, var(--motif-ink) 9%, transparent) 4px
+    ),
+    radial-gradient(ellipse 18% 22% at 25% 35%, color-mix(in srgb, var(--motif-ink) 16%, transparent) 0%, transparent 100%),
+    radial-gradient(ellipse 14% 18% at 72% 68%, color-mix(in srgb, var(--motif-ink) 12%, transparent) 0%, transparent 100%),
+    linear-gradient(150deg, var(--board-c1) 0%, var(--board-c2) 45%, var(--board-c3) 100%);
+  border: 3px solid color-mix(in srgb, var(--board-c3) 62%, #000 38%);
+  outline: 3px solid color-mix(in srgb, var(--board-c3) 45%, #000 55%);
+  outline-offset: 2px;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--color-gold) 28%, transparent),
+    inset 0 2px 30px color-mix(in srgb, var(--motif-ink) 55%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--board-c3) 60%, #000 40%),
+    0 0 0 8px color-mix(in srgb, #000 70%, transparent),
+    0 20px 45px -20px rgba(0, 0, 0, 0.9),
+    0 3px 8px rgba(0, 0, 0, 0.4);
+  transition:
+    background 240ms ease,
+    box-shadow 240ms ease,
+    border-color 240ms ease;
+}
+
+/* The board: three rings and four spokes, in two strokes — the cut and the pale
+   inlay reading through it (see the comment in MorrisBoard.tsx). `--line` is the
+   hairline colour `.cell` rules its grid with; `--cell-dark` is the tone the
+   square boards' chequer shows through that grid, which on Gokstad is the pale
+   oak the theme note describes and on every other theme is a light tint. Where a
+   theme empties it (Ballinderry), the inlay simply vanishes and the cut is left,
+   which is what a peg board with no ruled grid should look like. */
+.morris-line {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 7;
+  stroke-linejoin: round;
+}
+.morris-inlay {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cell-dark) 75%, transparent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+/* Coordinates, in the cló face under a Gaelic locale like the square boards'. */
+.morris-coord {
+  font-family: var(--font-display, inherit);
+  font-size: 34px;
+  font-weight: 700;
+  /* No theme defines `--coord` today; the fallback is what every board's
+     coordinates are drawn in, so a theme that wants its own can add one without
+     touching this file. */
+  fill: var(--coord, var(--motif-ink));
+  opacity: 0.85;
+  text-transform: lowercase;
+  user-select: none;
+}
+:root[data-lang-gaelic] .morris-coord {
+  font-family: "Gadelica", var(--font-display);
+}
+
+/* Every point is a hit target a whole cell wide, so a point is as easy to reach
+   with a thumb as a square is on the other boards. */
+.morris-hit {
+  fill: transparent;
+}
+.morris-point {
+  cursor: default;
+}
+.morris-point.is-pickable {
+  cursor: pointer;
+}
+.morris-point:focus-visible .morris-hit {
+  fill: color-mix(in srgb, var(--color-gold) 14%, transparent);
+  stroke: var(--color-gold);
+  stroke-width: 2;
+}
+.morris-point:focus {
+  outline: none;
+}
+
+/* The station each stone stands on — the chequer's counterpart on a board with no
+   squares, in the chequer's own token. `--cell-dark` is `transparent` under
+   Ballinderry, so `color-mix` leaves nothing behind there and the drilled hole is
+   the only thing marking the point, which is what that board actually looks like. */
+.morris-station {
+  fill: color-mix(in srgb, var(--cell-dark) 45%, transparent);
+}
+
+/* The point itself, when nothing stands on it. */
+.morris-pip {
+  fill: color-mix(in srgb, var(--motif-ink) 62%, transparent);
+}
+/* Where a click would play — the same legal-move dot the square boards draw,
+   scaled to a point rather than a cell. */
+.morris-dot {
+  fill: color-mix(in srgb, var(--motif-ink) 65%, transparent);
+  stroke: color-mix(in srgb, var(--color-parchment) 26%, transparent);
+  stroke-width: 3;
+  animation: morris-pop 140ms ease-out;
+}
+
+/* The stones. `--def` is White and `--atk` is Black — the player's own piece
+   colours, so the theme chips still describe this board too. */
+.morris-stone circle {
+  stroke-width: 2;
+}
+.morris-stone.is-white circle {
+  fill: var(--def);
+  stroke: color-mix(in srgb, var(--def) 55%, #000 38%);
+}
+.morris-stone.is-black circle {
+  fill: var(--atk);
+  stroke: color-mix(in srgb, var(--atk) 55%, #000 35%);
+}
+.morris-emblem.is-white {
+  color: var(--def-ink);
+  opacity: 0.8;
+}
+.morris-emblem.is-black {
+  color: var(--atk-ink);
+  opacity: 0.85;
+}
+.morris-stone {
+  animation: morris-place 180ms cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+/* The real stone waits, invisible, under its travelling copy. */
+.morris-stone.in-flight {
+  visibility: hidden;
+}
+/* The stone of a turn that has been begun and not finished — its mill is waiting
+   for a victim (see MorrisPreview in components/MorrisBoard.tsx). Drawn slightly
+   lifted off the board rather than dimmed: it *is* where it is going, and the
+   thing that is unfinished is the removal, not the placement. */
+.morris-stone.is-preview circle {
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.55));
+}
+
+/* The stone picked up, the stones a mill may take, and the point the engine's
+   stone came from. Three rings, three meanings, all the same geometry. */
+.morris-selected {
+  fill: none;
+  stroke: var(--color-gold);
+  stroke-width: 4;
+}
+.morris-removable {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-blood) 85%, transparent);
+  stroke-width: 5;
+  animation: morris-pulse 1.6s ease-in-out infinite;
+}
+.morris-origin {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-gold) 70%, transparent);
+  stroke-width: 3;
+  stroke-dasharray: 6 7;
+}
+/* Both ends of the last move, and the point it took a stone from. */
+.morris-point.is-lastmove .morris-hit,
+.morris-point.is-taken .morris-hit {
+  fill: color-mix(in srgb, var(--color-gold) 13%, transparent);
+}
+
+/* The engine's stone in flight. The transition is the reveal: the stone is drawn
+   at its destination and pushed back to its origin for one frame, then let go —
+   see MorrisBoard's `flying` state, which also owns the duration handed in here
+   as `--morris-travel` (a stylesheet with its own copy of 520ms is a copy that
+   will one day disagree with the timer it is racing). */
+.morris-mover {
+  transition: transform var(--morris-travel, 520ms) cubic-bezier(0.3, 0.1, 0.25, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .morris-mover {
+    transition: none;
+  }
+  .morris-removable {
+    animation: none;
+  }
+  .morris-stone,
+  .morris-dot {
+    animation: none;
+  }
+}
+
+@keyframes morris-place {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+@keyframes morris-pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes morris-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Ballinderry on the Morris board ──────────────────────────────────────────
+   The one theme that changes the board's *construction* rather than its colours,
+   and the one surface where it is **kept** rather than falling back (ADR-0008;
+   `resolveTheme` in src/theme.ts falls it back on the 9×9 and the 11×11, and
+   `applyTheme` is deliberately not told about this surface).
+
+   The object it is named for is a 7×7 yew peg board with 49 drilled holes (NMI
+   1932:6583 — read docs/ballinderry-board.md, which records what is attested and
+   what is filled in). What is reused here is the *hole*, which is attested, and
+   nothing else: the 24 points are drilled and the incised lines all but vanish,
+   because a peg board has no ruled grid — exactly as `--line: transparent`
+   empties the square board's grid under this theme. What is **not** reused is the
+   `--n`-tiled 49-hole tile (there are 24 points here, not 49) or the carved
+   ornament panels (they are the 7×7 object's own frame, and claiming them for a
+   board it never was would be the one thing that doc forbids).
+
+   The holes are drawn by MorrisBoard at every point and hidden by default, so a
+   theme change repaints without a re-render; the bore carries
+   `data-testid="morris-hole"`, which is what `npm run check:morris` counts. */
+.morris-hole,
+.morris-hole-lip {
+  display: none;
+}
+[data-theme="ballinderry"] .morris-board .morris-hole,
+[data-theme="ballinderry"] .morris-board .morris-hole-lip {
+  display: block;
+}
+/* Faint rather than absent: a peg board has no ruled grid, but the *lines of
+   play* still have to be readable, so they are left as the ghost of a scribed
+   line instead of being emptied altogether. */
+[data-theme="ballinderry"] .morris-board {
+  --line: color-mix(in srgb, var(--motif-ink) 14%, transparent);
+}
+[data-theme="ballinderry"] .morris-board .morris-line {
+  stroke-width: 4;
+}
+/* A pegged stone sits in its hole rather than on the surface, so it keeps a
+   tighter, higher highlight and drops a shorter shadow. */
+[data-theme="ballinderry"] .morris-board .morris-stone circle {
+  stroke: color-mix(in srgb, var(--motif-ink) 45%, transparent);
+}
+/* The pip is the hole here, so the painted point would sit inside it. */
+[data-theme="ballinderry"] .morris-board .morris-pip {
+  display: none;
 }
 
 /* The seat dots on the Tablut and Copenhagen bars, matching the piece colours the

@@ -175,6 +175,14 @@ export function applyPieceColors(colors: PieceColors): void {
 // The chosen theme is left alone — this is about what gets *painted* on a surface
 // it does not describe, not about the player's choice, which persists untouched
 // and is what the picker keeps showing.
+//
+// **Nine Men's Morris keeps it.** The fourth board is not a bigger lattice: its
+// twenty-four points sit on the same 7×7 grid, and a peg board with a hole at each
+// of them is a *truthful* Morris board (drilled merels boards are attested — the
+// Ballinderry object itself is not one, and nothing here claims otherwise). So
+// `MorrisScreen` simply never raises the flag below, `[data-theme="ballinderry"]
+// .morris-board` draws those twenty-four holes itself, and this module needed no
+// change to allow it. See ADR-0008, "Ballinderry is allowed on Morris".
 
 const BOARD_SPECIFIC_THEMES = new Set<ThemeId>(["ballinderry"]);
 
@@ -193,11 +201,13 @@ export function resolveTheme(theme: ThemeId, offBrandubhBoard: boolean): ThemeId
 /**
  * Paint `theme` and remember it.
  *
- * `offBrandubhBoard` — true on the Tablut and Copenhagen surfaces — changes what
- * is painted and never what is stored: a player who chose Ballinderry still has
- * Ballinderry chosen while they are looking at one of the bigger boards, and gets
- * it back on the way out. The flag is deliberately "not the 7×7 board" rather
- * than a list of surfaces, so a fourth board is covered by whoever passes it.
+ * `offBrandubhBoard` — true on the Tablut and Copenhagen surfaces, and **false on
+ * Morris** — changes what is painted and never what is stored: a player who chose
+ * Ballinderry still has Ballinderry chosen while they are looking at one of the
+ * bigger boards, and gets it back on the way out. The flag is deliberately "this
+ * board-specific theme does not describe what is on screen" rather than a list of
+ * surfaces, which is exactly why the fourth board needed nothing here: Morris's
+ * twenty-four points sit on the 7×7 lattice, so it does not raise it (ADR-0008).
  */
 export function applyTheme(theme: ThemeId, offBrandubhBoard = false): void {
   document.documentElement.setAttribute("data-theme", resolveTheme(theme, offBrandubhBoard));
