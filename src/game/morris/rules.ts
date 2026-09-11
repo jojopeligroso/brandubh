@@ -145,9 +145,10 @@ export const MILLS: readonly (readonly [number, number, number])[] = (() => {
   return out;
 })();
 
-/** The indices into `MILLS` of every mill through a point — two for a corner
- *  (its two ring sides), two for an outer/inner midpoint, three for a middle-ring
- *  midpoint. */
+/** The indices into `MILLS` of every mill through a point — **exactly two for
+ *  every point**: a corner's two ring sides, or a midpoint's one ring side plus
+ *  its spoke. 16 mills × 3 points = 24 points × 2, which is the arithmetic
+ *  `db/geometry.ts` asserts (and the reason no point is a special case here). */
 export const MILLS_OF: readonly (readonly number[])[] = (() => {
   const out: number[][] = Array.from({ length: POINT_COUNT }, () => []);
   MILLS.forEach((mill, m) => mill.forEach((p) => out[p].push(m)));
@@ -437,6 +438,13 @@ const illegal = (why: string): never => {
  * file or a mis-wired board click. The checks are deliberately the same ones
  * `allMoves` generates by, so "throws" and "not in `allMoves`" mean the same
  * thing — which is what lets a replay or an import validate by construction.
+ *
+ * That equivalence is why a two-stone removal has a **canonical order**:
+ * `allMoves` emits each unordered victim pair once, ascending (`remove <
+ * remove2`), so this accepts only that order. `g7xb6xe5` is not a second spelling
+ * of `g7xe5xb6`, it is a move `allMoves` never generates — and the place a
+ * hand-written spelling is normalised is `parseMoveName`, not here, so that the
+ * one invariant the engine relies on stays a single `<`.
  */
 export function applyMove(state: GameState, move: Move, rules: MorrisRuleSet): GameState {
   if (state.status !== "playing") illegal("the game is over");
@@ -486,12 +494,22 @@ export function applyMove(state: GameState, move: Move, rules: MorrisRuleSet): G
     if (move.remove !== null) illegal("every opponent stone is in a mill and protected");
     if (remove2 !== null) illegal("every opponent stone is in a mill and protected");
   } else {
-    if (move.remove === null) illegal("a closed mill must take a stone");
-    else if (!prey.includes(move.remove)) illegal(`${pointName(move.remove)} may not be taken`);
+    // Bound once so the pair can be compared below: `illegal` returns `never`, but
+    // not in a shape the compiler narrows across the next statement.
+    const first = move.remove;
+    if (first === null) illegal("a closed mill must take a stone");
+    else if (!prey.includes(first)) illegal(`${pointName(first)} may not be taken`);
     if (takesTwo) {
       if (remove2 === null) illegal("a double mill must take two stones under this ruleset");
       else if (!prey.includes(remove2)) illegal(`${pointName(remove2)} may not be taken`);
-      else if (remove2 === move.remove) illegal("a double mill must take two different stones");
+      else if (remove2 === first) illegal("a double mill must take two different stones");
+      // Ascending, because that is the one spelling `allMoves` emits (see the
+      // header): accepting the swap would make a move legal here that no
+      // generator, search or `findLegalMove` ever produces.
+      else if (first !== null && remove2 < first)
+        illegal(
+          `a double mill's victims must be named in ascending order, not ${pointName(first)} then ${pointName(remove2)}`,
+        );
     } else if (remove2 !== null) illegal("only one stone may be taken");
   }
 
@@ -585,7 +603,10 @@ const MOVE_RE = /^([a-g][1-7])(?:-([a-g][1-7]))?((?:x[a-g][1-7])*)$/;
 
 /** The inverse of `moveName`, or `null` if the token is not a move at all. Parses
  *  shape only: whether the move is *legal* is `applyMove`'s answer, not this
- *  one's. */
+ *  one's — with one normalisation, because shape is exactly what it is for: a
+ *  double removal is sorted into the ascending order `allMoves` and `applyMove`
+ *  agree on, so a hand-written `g7xe5xb6` imports as the move it obviously
+ *  means. */
 export function parseMoveName(s: string): Move | null {
   const m = MOVE_RE.exec(s.trim());
   if (!m) return null;
@@ -594,6 +615,7 @@ export function parseMoveName(s: string): Move | null {
   if (first === -1 || (m[2] && second === -1)) return null;
   const takes = (m[3].match(/[a-g][1-7]/g) ?? []).map(pointIndex);
   if (takes.some((t) => t === -1) || takes.length > 2) return null;
+  takes.sort((a, b) => a - b);
   const move: Move = {
     from: m[2] ? first : null,
     to: m[2] ? second : first,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   DECISIVE,
   DEFAULT_WEIGHTS,
@@ -13,8 +13,10 @@ import {
   foldRootMoves,
   pickMove,
   resetTT,
+  setTtCeiling,
   stabilizerOf,
   ttKey,
+  ttSize,
   type DbProbe,
 } from "./engine";
 import { allMoves, applyMove, initialState, masksOf, moveName, pointIndex } from "./rules";
@@ -541,5 +543,46 @@ describe("the engine plays the ruleset it is handed", () => {
     // a4-b4-c4 next and takes Black's third stone.
     expect(moveName(r.move!)).toBe("d7-g7");
     expect(r.score).toBeLessThanOrEqual(-DECISIVE);
+  });
+});
+
+// ── The transposition table's hard ceiling ────────────────────────────────────
+// `TT_MAX` is checked when a search *starts*, which is a policy about what a new
+// search inherits and no protection at all against one search outgrowing the
+// table on its own. A deadline-free deep search does exactly that, and the way it
+// failed was not a bad move but `RangeError: Map maximum size exceeded` — so
+// `ttStore` now drops the table at a hard ceiling, and what matters is that a
+// search survives having its table pulled out from under it mid-iteration.
+//
+// The ceiling is injected rather than reached: filling 1.6M entries honestly would
+// cost the suite a gigabyte of heap to prove one `if`.
+describe("the transposition table's ceiling", () => {
+  afterEach(() => {
+    setTtCeiling();
+    resetTT();
+  });
+
+  it("drops the table instead of overflowing it, and the search carries on", () => {
+    resetTT();
+    setTtCeiling(64);
+    const s = stateOf({ turn: "white", hands: { white: 9, black: 9 } });
+    // No deadline at all — the shape that has no way back to the entry check.
+    const r = pickMove(s, gasser, { maxDepth: 4 }, FULL_CONFIG, fixed, DEFAULT_WEIGHTS, () => 0);
+    expect(r.move).not.toBeNull();
+    expect(allMoves(s, gasser).map(moveName)).toContain(moveName(r.move!));
+    // Many more than 64 positions were stored, and the table is still inside its
+    // ceiling: the valve tripped repeatedly and nothing threw.
+    expect(r.nodes).toBeGreaterThan(64);
+    expect(ttSize()).toBeLessThanOrEqual(64);
+  });
+
+  it("keeps the ceiling a ceiling across searches", () => {
+    resetTT();
+    setTtCeiling(8);
+    const s = stateOf({ white: ["a4", "d6", "d5"], black: ["a7", "d7", "g7"], turn: "white" });
+    for (let i = 0; i < 3; i++) {
+      expect(() => pickMove(s, gasser, { maxDepth: 5 }, FULL_CONFIG, fixed, DEFAULT_WEIGHTS, () => 0)).not.toThrow();
+      expect(ttSize()).toBeLessThanOrEqual(8);
+    }
   });
 });

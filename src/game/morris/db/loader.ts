@@ -69,6 +69,15 @@ function warnOnce(message: string): void {
   console.info(`[morris/db] ${message}`);
 }
 
+/** One manifest entry, as far as anything here trusts it: an object naming a table
+ *  key this build understands. The numbers beside the key are only ever reported,
+ *  never computed with, so they are not checked. */
+function isManifestTable(entry: unknown): entry is ManifestTable {
+  if (typeof entry !== "object" || entry === null) return false;
+  const key = (entry as { key?: unknown }).key;
+  return typeof key === "string" && parseDbKey(key) !== null;
+}
+
 /** Parse (and sanity-check) a manifest body. Exported so the Node twin and the
  *  tests share one reader. */
 export function parseManifest(text: string): Manifest | null {
@@ -81,7 +90,11 @@ export function parseManifest(text: string): Manifest | null {
   if (typeof raw !== "object" || raw === null) return null;
   const candidate = raw as Partial<Manifest>;
   if (candidate.format !== DB_FORMAT || !Array.isArray(candidate.tables)) return null;
-  const tables = candidate.tables.filter((t) => parseDbKey(t.key) !== null);
+  // Every entry is unknown data until it has been checked, `null` and `3` included
+  // — the types above describe the manifest this project *writes*, not the bytes a
+  // stale deploy or a hostile host can serve. Reading `.key` off an unchecked entry
+  // is how a bad manifest became a thrown TypeError instead of a null return.
+  const tables = (candidate.tables as readonly unknown[]).filter(isManifestTable);
   if (candidate.rules === undefined || candidate.variant === undefined) return null;
   return {
     format: candidate.format,

@@ -148,7 +148,7 @@ and one visible preset, `morris-gasser-1`.
 
 Two things about that preset need respecting. It adds **two practical draw rules
 that are not in Gasser's paper** — `repetitionResult: "draw"` (threefold) and
-`noMillDrawMoves: "50"` (fifty moves each with no stone removed), owner decision
+`noMillDrawMoves: "50"` (fifty moves each with no mill closed), owner decision
 2026-09-10, both settable to `"none"` in the custom editor, and `"none"` on both
 is the game Gasser actually solved. And **the paper could not be read**: every
 host carrying "Solving Nine Men's Morris" is blocked by the egress proxy, so

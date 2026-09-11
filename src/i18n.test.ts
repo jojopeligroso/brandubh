@@ -158,8 +158,10 @@ describe("every rule the editors can show has copy for it", () => {
         for (const value of Object.values(defaults)) {
           if (typeof value !== "string") continue;
           // The default value is the one the editor is guaranteed to render; the
-          // rest are covered by the ENUM_RULE_VALUES parity test in each game's
-          // gameFile.test.ts, which is where the full value list lives.
+          // rest are covered where each game's full value list lives — the
+          // ENUM_RULE_VALUES parity test in the tafl games' gameFile.test.ts, and
+          // `game/morris/ruleChoices.test.ts` for Morris, whose own
+          // gameFile.test.ts does not carry that list.
           expect(t[valuesKey][value], `${lang}: ${valuesKey}.${value}`).toBeTruthy();
         }
       });

@@ -389,6 +389,27 @@ interface TTEntry {
 }
 const TT = new Map<string, TTEntry>();
 const TT_MAX = 400_000;
+/**
+ * The hard ceiling `ttStore` itself enforces, as opposed to `TT_MAX`, which is
+ * only looked at when a search *starts*.
+ *
+ * The difference matters because one search can outgrow the table on its own. A
+ * deadline-free deep search (`{maxDepth: 20}` with `now` pinned, which is how the
+ * tests drive a deterministic search) never returns to the entry check, so the
+ * `Map` grows until the engine does not lose a game but *throws* —
+ * `RangeError: Map maximum size exceeded` at ~16.7M entries, which is the worst
+ * possible way for a transposition table to be full.
+ *
+ * Four × `TT_MAX` rather than `TT_MAX` because the entry check is the policy
+ * ("start a search with at most this much carried over") and this is the
+ * safety-valve ("never hold more than this at all"), and a valve that trips at
+ * the policy's own number would throw away a live search's work every time a
+ * single search reached the steady state the policy is happy with.
+ */
+const TT_CEILING = 4 * TT_MAX;
+// Injectable only so a test can drive a real search past it; production never
+// changes it. See `setTtCeiling`.
+let ttCeiling = TT_CEILING;
 let TT_GEN = 0;
 
 /** The position's transposition key. */
@@ -416,6 +437,12 @@ function mateFromTT(v: number, ply: number): number {
 }
 
 function ttStore(key: string, depth: number, value: number, flag: Flag, move: Move | null): void {
+  // Dropped whole rather than evicted entry by entry: a `Map` has no cheap "oldest
+  // key", the generation counter already means a surviving entry is not trusted
+  // blindly, and losing the table costs a search time while overflowing it costs
+  // the search. Clearing mid-iteration is safe because nothing outside the table
+  // points into it — the running search holds its own best move and score.
+  if (TT.size >= ttCeiling) TT.clear();
   const prev = TT.get(key);
   if (prev && prev.gen === TT_GEN && prev.depth > depth) return;
   TT.set(key, { depth, value, flag, move, gen: TT_GEN });
@@ -425,6 +452,19 @@ function ttStore(key: string, depth: number, value: number, flag: Flag, move: Mo
 export function resetTT(): void {
   TT.clear();
   TT_GEN = 0;
+}
+
+// ── Test seams for the ceiling ────────────────────────────────────────────────
+// The ceiling is a number that only matters in the one case nothing else in the
+// suite reaches (millions of stores inside a single search), so it is injectable:
+// a test lowers it, drives a real search past it, and asserts the table was
+// dropped instead of the engine throwing. Filling 1.6M entries for real would cost
+// the suite a gigabyte to prove arithmetic.
+/** How many entries the table currently holds. Tests only. */
+export const ttSize = (): number => TT.size;
+/** Lower (or, with no argument, restore) the hard ceiling. Tests only. */
+export function setTtCeiling(entries?: number): void {
+  ttCeiling = entries ?? TT_CEILING;
 }
 
 // ── Search context ────────────────────────────────────────────────────────────

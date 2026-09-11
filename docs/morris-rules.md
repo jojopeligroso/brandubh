@@ -133,7 +133,7 @@ the default. Source column:
 | 7 | A player reduced to fewer than three stones loses | `computeStatus` | — | S⚠ |
 | 8 | A player with no legal move on their turn loses | `hasAnyMove` | — | S⚠ |
 | 9 | Threefold repetition is a draw | `repetitionResult` | `"draw"` | **O** |
-| 10 | Fifty moves by each side without a stone being removed is a draw | `noMillDrawMoves` | `"50"` | **O** |
+| 10 | Fifty moves by each side without a **mill being closed** is a draw | `noMillDrawMoves` | `"50"` | **O** |
 
 Six flags, and only two of them (6a, 6b) are sourced to the paper even at
 excerpt level. That is the honest state of this preset.
@@ -155,10 +155,14 @@ Three details of that are the project's reading rather than anyone's rule:
   player can never be blocked: eighteen stones on twenty-four points leaves an
   empty point at every turn, and removals only make that more true. **D** —
   derivable, not assumed.
-- The no-legal-move test does not fire while `flying` applies to the side to
-  move. A flying player with an empty point anywhere on the board has a move by
-  construction, so the check would be dead code; it is skipped rather than
-  computed. **D**.
+- The no-legal-move test is **computed in every moving-phase position**,
+  flying included: `computeStatus` calls `anyMoveFor`, and it is `anyMoveFor`
+  that knows about flying — a side down to three stones under `flying: "three"`
+  has a move exactly when some point is empty (`rules.ts`), so the answer is
+  returned from that one test instead of the adjacency scan. The distinction
+  matters because the check is **not** skipped: with `flying: "none"` in the
+  custom editor a three-stone side really can be blocked, and that is the
+  position the test exists for. **D**.
 
 **`flying: "three"` is a flag and not a constant** for the same reason
 `firstMove` is one on the tafl boards: the custom rule editor can turn it off,
@@ -184,8 +188,14 @@ board, so the shipped preset adds two terminations:
   placing phase cannot repeat at all and this is in practice a moving-phase
   rule.
 - **`noMillDrawMoves: "50"`** — fifty moves by *each* side (100 plies) with no
-  stone removed is a draw. The counter is `sinceMill`, it resets on every
-  removal, and it runs **only** in the moving phase.
+  **mill closed** is a draw. The counter is `sinceMill`, it resets whenever a
+  mill is closed — which is the rule's own wording, and is why it resets even in
+  the rare position where the mill can take nothing at all
+  (`removeFromMillsWhenAllInMills: false` against a fully-milled opponent) — and
+  it runs **only** in the moving phase. Under the shipped preset a closed mill
+  always takes a stone, so "mill closed" and "stone removed" pick out the same
+  plies there; with that flag off they come apart, and the code
+  (`formedMill || move.remove !== null`, `rules.ts`) follows the mill.
 
 Both are exposed in the custom rule editor with `"none"` available, and
 `"none"` on both is the setting that plays the game Gasser solved. They are

@@ -226,7 +226,7 @@ published rules actually disagree about — closing two mills at once still take
 **one** stone, and when every enemy stone is in a mill then any of them may be
 taken — plus two *practical* draw rules that are **not** in the paper and are
 labelled as an owner decision: threefold repetition, and fifty moves by each side
-without a stone being removed. Both are one flag away from `"none"` in the custom
+without a mill being closed. Both are one flag away from `"none"` in the custom
 rule editor, and `"none"` on both is the game Gasser actually solved.
 
 Games save, export and import as their own `.morris` files (`morris-1`), not as

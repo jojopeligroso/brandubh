@@ -3137,8 +3137,10 @@ button.settings-row:hover {
 [data-theme="ballinderry"] .morris-board .morris-line {
   stroke-width: 4;
 }
-/* A pegged stone sits in its hole rather than on the surface, so it keeps a
-   tighter, higher highlight and drops a shorter shadow. */
+/* A pegged stone sits in its hole rather than on the surface, so its rim is the
+   bore's shadow rather than a lit edge: the stroke is darkened and that is the
+   whole of it. The highlight and shadow are the shared .morris-stone rules' and
+   are deliberately left alone — a peg's gradients are the hole's, underneath. */
 [data-theme="ballinderry"] .morris-board .morris-stone circle {
   stroke: color-mix(in srgb, var(--motif-ink) 45%, transparent);
 }

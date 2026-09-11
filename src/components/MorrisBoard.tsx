@@ -357,7 +357,14 @@ export default function MorrisBoard({
             key={i}
             className={classes}
             role="button"
-            tabIndex={0}
+            // An inert board is inert to the keyboard too: while the engine is
+            // thinking, a finished game is on screen or the cursor is back in the
+            // review, the click handler below does nothing, so leaving 24 focus
+            // stops that silently swallow Enter is a lie a screen reader repeats
+            // twenty-four times. Taken off the tab order and announced disabled
+            // together — either alone is the same lie in the other direction.
+            tabIndex={interactive ? 0 : -1}
+            aria-disabled={interactive ? undefined : true}
             aria-label={side ? `${name} ${side}` : name}
             data-point={name}
             data-testid="morris-point"

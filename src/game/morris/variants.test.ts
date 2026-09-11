@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   CUSTOM_RULE_DEFAULTS,
   DEFAULT_VARIANT,
-  ENUM_CHOICES,
   VARIANTS,
   VISIBLE_VARIANTS,
   ruleFlags,
   rulesFor,
   type CustomRuleSet,
-  type EnumRuleKey,
 } from "./variants";
 
 // A preset is *data*, and a wrong flag in data is silent — it does not fail to
@@ -86,34 +84,9 @@ describe("resolving a ruleset", () => {
 });
 
 // ── ENUM_CHOICES ──────────────────────────────────────────────────────────────
-// The parity the table exists to hold. Derived from the runtime type of each
-// default rather than from `ENUM_CHOICES` itself, so the two cannot agree by
-// construction — this is the mistake that shipped in Copenhagen's rule editor
-// (a stale copy with two flags missing, which threw `undefined.map` when opened).
-
-const ALL_KEYS = Object.keys(CUSTOM_RULE_DEFAULTS) as Array<keyof CustomRuleSet>;
-const ENUM_KEYS = ALL_KEYS.filter(
-  (k): k is EnumRuleKey => typeof CUSTOM_RULE_DEFAULTS[k] === "string",
-);
-
-describe("Morris's ENUM_CHOICES", () => {
-  it("has an entry for every string-valued flag, and none for anything else", () => {
-    for (const key of ENUM_KEYS)
-      expect(Object.keys(ENUM_CHOICES), `missing choices for "${key}"`).toContain(key);
-    expect(Object.keys(ENUM_CHOICES).sort()).toEqual([...ENUM_KEYS].sort());
-  });
-
-  it("offers every shipped preset's own value for each enum flag", () => {
-    for (const [id, preset] of Object.entries(VARIANTS))
-      for (const key of ENUM_KEYS)
-        expect(ENUM_CHOICES[key], `${id}.${key} = ${preset[key]}`).toContain(preset[key]);
-  });
-
-  it("offers no duplicate and no empty choice list", () => {
-    for (const key of ENUM_KEYS) {
-      const values = ENUM_CHOICES[key];
-      expect(values.length).toBeGreaterThan(1);
-      expect(new Set(values).size).toBe(values.length);
-    }
-  });
-});
+// Asserted in `ruleChoices.test.ts`, not here. That file is the Morris twin of
+// `../copenhagen/ruleChoices.test.ts` and holds the whole parity — every
+// string-valued flag has choices and nothing else does, every preset's own value
+// is offered, no duplicates, and copy for every value in every locale — so a
+// second, shorter copy of three of those five assertions lived here until this
+// review and only made two places to update.

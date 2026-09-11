@@ -755,6 +755,124 @@ check(
   `the point it came from is left lit (${fromName})`,
 );
 
+// ── Stepping the review cursor while the engine thinks ────────────────────────
+// The regression this section exists for cannot be seen from the suites. The
+// engine-turn effect's cleanup runs when `atTip` goes false, and it used to mark the
+// worker's reply to be discarded while leaving `thinking` set *and* the position's
+// ask-key recorded — so on the way back to the tip the engine was not asked again
+// (same game, same position, same key) and the board was dead until Undo or
+// Restart. Nothing rendered wrongly and nothing threw; the board simply stopped
+// answering, which is why it needs a behavioural check in a real browser.
+//
+// Both halves of the invariant are asserted: a discarded reply must clear
+// `thinking` (the seat stops being marked the moment the cursor leaves the tip) and
+// an abandoned question must be asked again (the reply still arrives after the
+// cursor comes back). See src/components/morrisEngineTurn.ts.
+//
+// Ollamh, three plies into the placing phase, on purpose: it is the slowest tier
+// (an eight-second budget) in the branchiest phase, which is what makes "during the
+// think" something a driven browser can hit reliably.
+//
+// Seeded through an *init script* rather than `page.evaluate` + reload, because the
+// screen is mounted here: its `pagehide` autosave fires on the way out of a reload
+// and would write the live game straight over a value written before it. An init
+// script runs after that, on the way in. (The section above can use `evaluate`
+// because the surface is closed at that point and nothing is listening.)
+await page.addInitScript(() => {
+  try {
+    const now = Date.now();
+    localStorage.setItem("morris.surface.v1", "1");
+    localStorage.setItem(
+      "morris.game.v1",
+      JSON.stringify({
+        v: 1,
+        id: "cursor-during-think",
+        createdAt: now,
+        savedAt: now,
+        variantId: "morris-gasser-1",
+        customRules: {},
+        playMode: "white",
+        difficulty: "ollamh",
+        // White d7, Black a7, White d6, Black a4 — four placements, no mill, and
+        // **White to play**: an odd number here would leave the engine on move, and
+        // the board would be inert for the click below rather than after it.
+        moves: [
+          [-1, 1, -1],
+          [-1, 0, -1],
+          [-1, 9, -1],
+          [-1, 7, -1],
+        ],
+        status: "playing",
+        cursor: 4,
+        recorded: false,
+        clock: null,
+        match: null,
+        gamesPerSet: 1,
+        names: { p1: "", p2: "" },
+      }),
+    );
+  } catch {
+    /* localStorage unavailable */
+  }
+});
+await page.reload({ waitUntil: "networkidle" });
+await mb.waitFor();
+const prevBtn = page.locator('.morris-screen [aria-label="Previous move"]');
+const nextBtn = page.locator('.morris-screen [aria-label="Next move"]');
+// The cursor controls live in the toolbar, which Zen hides — a player reaches them
+// the same way, by turning Zen off.
+if ((await prevBtn.count()) === 0)
+  await page.locator('.morris-screen [data-testid="morris-zen-toggle"]').click();
+check((await prevBtn.count()) === 1, "the cursor controls are on screen");
+const thinkingSeats = () => page.locator('.morris-screen [aria-label="thinking"]').count();
+const pliesNow = () => page.locator(".morris-screen ol li").count();
+const pliesBefore = await pliesNow();
+check(pliesBefore === 4, "the seeded placing phase resumed, White to play", `saw ${pliesBefore} plies`);
+await mb.locator('[data-point="g7"]').click();
+const placed = await page
+  .waitForFunction(
+    (n) => document.querySelectorAll(".morris-screen ol li").length === n,
+    pliesBefore + 1,
+    { timeout: 10000 },
+  )
+  .then(() => true)
+  .catch(() => false);
+check(placed, "the human's placement is logged");
+const thinkingShown = await page
+  .waitForFunction(
+    () => document.querySelectorAll('.morris-screen [aria-label="thinking"]').length === 1,
+    undefined,
+    { timeout: 10000 },
+  )
+  .then(() => true)
+  .catch(() => false);
+check(thinkingShown, "the engine's seat is marked thinking while it searches");
+// ◀ mid-think: the reply in flight is now going to be thrown away, so the flag it
+// would have cleared has to be cleared here instead.
+await prevBtn.click();
+const thinkingCleared = await page
+  .waitForFunction(
+    () => document.querySelectorAll('.morris-screen [aria-label="thinking"]').length === 0,
+    undefined,
+    { timeout: 10000 },
+  )
+  .then(() => true)
+  .catch(() => false);
+check(thinkingCleared, "stepping off the tip stops the seat being marked thinking");
+// ▶ back to the tip: the position is unchanged, so the fix is what makes it ask
+// again — and the move count reaching 5 is the engine having answered.
+await nextBtn.click();
+const answered = await page
+  .waitForFunction(
+    (n) => document.querySelectorAll(".morris-screen ol li").length >= n,
+    pliesBefore + 2,
+    { timeout: 60000 },
+  )
+  .then(() => true)
+  .catch(() => false);
+check(answered, "the engine still answers after the cursor is stepped during its think");
+check((await thinkingSeats()) === 0, "…and nothing is left marked thinking afterwards");
+
 check(pageErrors.length === 0, "no uncaught page errors", pageErrors.join(" | "));
 
 await browser.close();

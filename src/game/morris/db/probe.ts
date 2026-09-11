@@ -15,6 +15,12 @@
 //   • A stone count pair whose table was not shipped or not loaded. A returned
 //     `null` is the normal case, not an error: only the last few stone counts are
 //     ever shipped.
+//   • **Everything, when the rules do not match.** A table is an answer about the
+//     game its generator played, so `ProbeOptions.rules` pairs the tables' flags
+//     with the ones in force and a mismatch refuses every lookup. Without that
+//     pairing a game played with `flying: "none"` reads "win in 1" off a flight no
+//     player may make — and presents it as *perfect* play, which is the one way
+//     these files can be worse than having no files at all.
 //
 // The one thing it answers *approximately*, stated rather than hidden: a table
 // entry is addressed by position alone, so it knows nothing about `sinceMill` or
@@ -35,6 +41,7 @@
 import { POINT_COUNT, type GameState } from "../types";
 import { type Wdl, dbKey, entryDepth, entryValue, indexOf, wdlOf } from "./index";
 import { popcount } from "./geometry";
+import { type MoveGenRules, sameMoveGenRules } from "./generate";
 
 /** What a probed position is worth to the side to move. */
 export interface DbValue {
@@ -48,12 +55,26 @@ export interface DbValue {
 export type Probe = (state: GameState) => DbValue | null;
 
 /** Tuning for the one place a table's answer and the shipped preset's practical
- *  draw rules can disagree. */
+ *  draw rules can disagree, and the rule pairing that decides whether the tables
+ *  are about this game at all. */
 export interface ProbeOptions {
   /** When set, a win that cannot be delivered inside this many plies — counting
    *  the position's own `sinceMill` — is reported as a draw instead. Off by
    *  default; see the head comment. */
   pessimisticNoMillPlies?: number;
+  /**
+   * The two rule sets that have to agree before a table's answer means anything:
+   * `tables` is what the tables were generated under (a manifest's `rules`, or
+   * `GASSER_DB_RULES` for the shipped set) and `game` is what is being played. If
+   * the three moving-phase flags differ, every probe returns `null` — "search it"
+   * — because the tables answer a different game. Given as one field rather than
+   * two optional ones so it cannot be half-supplied.
+   *
+   * Omitted means unchecked, which is only right for a caller that has already
+   * paired them (`probeFor` refuses a mismatched manifest before it fetches
+   * anything) or for a test building both sides itself.
+   */
+  rules?: { tables: Partial<MoveGenRules>; game: Partial<MoveGenRules> };
 }
 
 /** The two occupancy masks of a board, white first. */
@@ -101,6 +122,11 @@ export function makeProbe(
   opts: ProbeOptions = {},
 ): Probe {
   const limit = opts.pessimisticNoMillPlies;
+  // Refused whole rather than per position: tables built under other rules are not
+  // *less* accurate here and there, they are about another game, and a probe that
+  // answered sometimes would be the worst of both.
+  if (opts.rules !== undefined && !sameMoveGenRules(opts.rules.tables, opts.rules.game))
+    return () => null;
   return (state: GameState): DbValue | null => {
     if (state.inHand.white !== 0 || state.inHand.black !== 0) return null;
     const { white, black } = masksOfBoard(state);

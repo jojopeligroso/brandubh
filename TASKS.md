@@ -301,6 +301,31 @@ what this fork cost and `docs/morris-rules.md` for what is and is not sourced.
   `CLAUDE.md`). `morrisStatuses` and `morrisRuleValues` are the two keyed records
   where a missing entry is a silent English fallback rather than a type error —
   `i18n.test.ts` covers the rule keys; the status map is worth a check of its own.
+- [ ] **The review-cursor/`thinking` deadlock is still live on the two tafl
+  surfaces** `[ui]` — found by the 2026-09-11 review of this change and fixed **on
+  Morris only**, because the other two are out of its scope. The shape is identical:
+  `CopenhagenScreen.tsx:492-510` and `TablutScreen.tsx`'s engine-turn effect set
+  `live = false` in the cleanup and neither clear `thinking` nor reset
+  `askedFor.current`, so stepping the review cursor during a think discards the
+  reply, leaves `thinking` true, and the unchanged ask-key stops the engine being
+  asked again — a board dead until Undo or Restart. Morris's fix is two lines in
+  that cleanup plus `src/components/morrisEngineTurn.ts` (the decision, extracted so
+  it can be unit-tested with no jsdom) and a `check:morris` assertion; porting it is
+  two small edits and the same smoke assertion twice. Brandubh's own shell
+  (`App.tsx`) is **not** affected: it keeps no ask-key at all, and the same effect
+  that declines to reply (`aiMayReply` false — off the tip, paused, analysis) calls
+  `setThinking(false)` on its way out, so returning to the tip simply asks again.
+- [ ] **The transposition table's hard ceiling exists in one engine of four**
+  `[engine]` — same review. `ttStore` in `src/game/morris/engine.ts` now drops the
+  table when it reaches `4 × TT_MAX`, because `TT_MAX` is only checked when a search
+  *starts* and one deadline-free deep search can grow the `Map` to its platform
+  limit and throw `RangeError: Map maximum size exceeded` instead of playing a move.
+  The `if (TT.size > TT_MAX) TT.clear()`-on-entry pattern is verbatim in
+  `src/game/engine.ts`, `src/game/tablut/engine.ts` and
+  `src/game/copenhagen/engine.ts`, all three with the same gap. Reachable there the
+  same way (a deadline-free `maxDepth` high enough, which is how the suites drive a
+  deterministic search), and the fix is the same three lines plus the injectable
+  ceiling the test needs.
 - [ ] **A fourth surface flag, not a surface value** `[ui]` — `showMorris` joins
   `showTablut` and `showCopenhagen`, so mutual exclusion is now three pairs of
   hand-written conditions instead of one, and `App.mutualExclusion.test.ts` grows

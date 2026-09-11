@@ -14,8 +14,8 @@
 //     key, not Brandubh's or either tafl board's;
 //   • all four difficulty tiers are offered, with none of Copenhagen's
 //     `disabled` attributes: the tier cap is that board's and not this one's;
-//   • the custom rule editor renders one `.seg` control per enum flag (the bug
-//     `ruleChoices.test.ts` documents, caught in markup rather than in a browser).
+//   • the variant picker offers Custom at all (the editor behind it is component
+//     state away and so is a `npm run check:morris` assertion, not this file's).
 import { beforeEach, describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -26,7 +26,6 @@ import { ATTACKER_EMBLEMS } from "../emblems";
 import { DEFENDER_EMBLEMS } from "../defenderEmblems";
 import { KING_EMBLEMS } from "../kingEmblems";
 import { CORNER_EMBLEMS } from "../cornerEmblems";
-import { ENUM_CHOICES } from "../game/morris/variants";
 
 /** The suites are pure logic with no jsdom (see CLAUDE.md), so storage is a map.
  *  Same stand-in `game/morris/persist.test.ts` uses. */
@@ -244,11 +243,19 @@ describe("MorrisScreen render — a resumed game", () => {
   });
 
   it("resumes at the difficulty it was saved at — nothing is clamped here", () => {
-    localStorage.setItem("morris.game.v1", JSON.stringify({ ...SAVE, difficulty: "ollamh" }));
-    const html = renderScreen();
-    // No sheet means no tier row to read, so the check is that the sheet did not
-    // open at all: Copenhagen opens it precisely *because* it clamped.
-    expect(html).not.toContain(translations.en.morrisBlurb);
+    // Observed rather than inferred: the engine's seat is labelled with its tier
+    // ("Ollamh / White"), so the restored difficulty is on screen and a clamp would
+    // show up as the wrong word rather than as a test that passes either way. The
+    // save above is `hard`, which is the other half of the assertion — Copenhagen
+    // would have turned both of these into `medium` (difficultyCap.ts).
+    for (const tier of ["ollamh", "hard", "easy"] as const) {
+      localStorage.setItem("morris.game.v1", JSON.stringify({ ...SAVE, difficulty: tier }));
+      const html = renderScreen();
+      expect(html, tier).toContain(translations.en.taflDifficulties[tier]);
+      expect(html, tier).not.toContain(translations.en.taflDifficulties.medium);
+      // …and no setup sheet: Copenhagen opens it precisely *because* it clamped.
+      expect(html, tier).not.toContain(translations.en.morrisBlurb);
+    }
   });
 
   it("logs the mill's removal in the move log, victim named", () => {
@@ -257,24 +264,15 @@ describe("MorrisScreen render — a resumed game", () => {
   });
 });
 
-describe("MorrisScreen render — the custom rule editor", () => {
-  it("renders one segmented control per enum flag", () => {
-    // The bug this guards against is Copenhagen's (see ruleChoices.test.ts): an
-    // editor reading a stale copy of another game's choices threw `undefined.map`
-    // and rendered nothing at all. Counted against ENUM_CHOICES rather than a
-    // literal, so adding a flag does not need this number changed — it needs the
-    // flag's choices added, which is the point.
-    //
-    // The sheet's `variantId` is component state, so SSR cannot switch it to
-    // "custom"; what is asserted here is that the editor's source of truth has an
-    // entry per flag and that the screen reads *that* table. The rendered editor
-    // itself is exercised by `npm run check:morris`.
-    const html = renderScreen();
-    expect(Object.keys(ENUM_CHOICES).length).toBeGreaterThan(0);
-    for (const key of Object.keys(ENUM_CHOICES)) {
-      expect(translations.en.morrisRules[key], key).toBeTruthy();
-      expect(translations.en.morrisRuleHints[key], key).toBeTruthy();
-    }
-    expect(html).toContain('value="custom"');
+describe("MorrisScreen render — the variant picker", () => {
+  it("offers Custom, which is the only way into the rule editor", () => {
+    // Retitled in review: this test cannot see a segmented control. The sheet's
+    // `variantId` is component state and SSR cannot switch it to "custom", so the
+    // editor is never rendered here — the rendered editor is a `npm run
+    // check:morris` assertion, and the table behind it is asserted by
+    // `game/morris/ruleChoices.test.ts` (one entry per enum flag) and
+    // `i18n.test.ts` (copy for every flag and value). What is left for this file,
+    // and is genuinely its own, is that the picker offers the option at all.
+    expect(renderScreen()).toContain('value="custom"');
   });
 });

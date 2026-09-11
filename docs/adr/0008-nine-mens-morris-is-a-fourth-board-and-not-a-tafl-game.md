@@ -166,7 +166,7 @@ single point of failure for everything the databases claim.
 ### Two practical draw rules the paper does not have
 
 The shipped preset adds `repetitionResult: "draw"` (threefold) and
-`noMillDrawMoves: "50"` (fifty moves each with no stone removed). **Owner
+`noMillDrawMoves: "50"` (fifty moves each with no mill closed). **Owner
 decision, 2026-09-10, not in Gasser.** A retrograde draw means "neither side can
 force a win", which is a statement about the game tree and not a way to end an
 afternoon; two stones shuffling between four points need a rule.
@@ -188,8 +188,12 @@ Copenhagen surfaces, because the theme draws a 7×7 board of 49 drilled holes an
 that is a lie about a 9×9 or an 11×11 board. Morris does not raise that flag:
 `applyTheme` is passed `showTablut || showCopenhagen`, **not** `showMorris`, and
 `[data-theme="ballinderry"] .morris-board` gets its own treatment — the 24 points
-drawn as drilled holes with the two radial gradients `.board::before` uses, no
-incised lines, stones as pegs. The `--n`-tiled 49-hole tile and the ornament
+drawn as drilled holes with the two radial gradients `.board::before` uses,
+**faint** incised lines, stones as pegs. Faint and not absent because a Morris
+board without its lines is unreadable — the points alone do not say which of them
+are joined — so `--line` is taken down to 14% of `--motif-ink` on this surface
+rather than to `transparent` as the square board's grid is: the ghost of a scribed
+line, which is the most a peg board can honestly show. The `--n`-tiled 49-hole tile and the ornament
 panels are not reused.
 
 The argument is narrow on purpose. A peg board with holes where the points are
@@ -211,8 +215,9 @@ One cost falls out of this, and it is a trap: `index.html`'s pre-paint script
 carries a hand-written list of surface keys so a reload onto a surface does not
 flash Ballinderry before React runs. **`morris.surface.v1` is deliberately not
 added to it.** That list is therefore no longer "the surfaces" but "the surfaces
-that fall Ballinderry back", and nothing at the call site says so. It needs a
-comment, and `npm run check:morris` asserts the positive case (Ballinderry
+that fall Ballinderry back", which the call site now says in so many words (the
+comment above the list in `index.html`), and `npm run check:morris` asserts the
+positive case (Ballinderry
 *kept* on the Morris surface, the stored value untouched) precisely because
 `check:copenhagen` exists for the negative one — that list is the single place
 where adding a board goes wrong silently.

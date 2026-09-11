@@ -60,6 +60,34 @@ export const GASSER_DB_RULES: MoveGenRules = {
   doubleMillRemoves: "one",
 };
 
+/**
+ * Whether two rule sets produce the same successors, and therefore whether a table
+ * generated under one is an answer about a game played under the other.
+ *
+ * This is the guard a table lookup needs and the one the first version of the probe
+ * path did not have: a table says "win in 1" because the mover can *fly* to a mill,
+ * and handed to a game played with `flying: "none"` that is not an approximation,
+ * it is a different game's answer presented as perfect play. Three flags, compared
+ * field by field rather than by `JSON.stringify`, so key order and any extra field
+ * a future manifest carries cannot change the answer.
+ *
+ * Either side may be `null`/`undefined`/incomplete, because one of them is normally
+ * a *parsed manifest's* `rules` — unknown data from a file, whatever its declared
+ * type — and the safe answer for anything unrecognised is "no, do not use these
+ * tables".
+ */
+export function sameMoveGenRules(
+  a: Partial<MoveGenRules> | null | undefined,
+  b: Partial<MoveGenRules> | null | undefined,
+): boolean {
+  if (!a || !b) return false;
+  return (
+    a.flying === b.flying &&
+    a.removeFromMillsWhenAllInMills === b.removeFromMillsWhenAllInMills &&
+    a.doubleMillRemoves === b.doubleMillRemoves
+  );
+}
+
 /** Worst case: 9 stones × 23 destinations × 36 victim pairs is the "two" reading's
  *  bound; the shipped reading needs 207 × 9. Sized once, reused forever. */
 const CAPACITY = 8192;

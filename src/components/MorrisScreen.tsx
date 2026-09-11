@@ -41,6 +41,7 @@ import {
   type MorrisRuleSet,
 } from "../game/morris/variants";
 import { useAiWorker } from "../game/morris/useAiWorker";
+import { NOT_ASKED, nextAskKey } from "./morrisEngineTurn";
 import { useGameClock } from "../useGameClock";
 import {
   CUSTOM_TIME_CONTROL_ID,
@@ -258,6 +259,18 @@ export default function MorrisScreen({
    *  than out of the search — the one claim `ollamh` may make about being
    *  *perfect*, so it is shown exactly when it is true (see docs/solving.md). */
   const [fromDatabase, setFromDatabase] = useState(false);
+  /**
+   * Whether this game's finish has already been banked into the local
+   * human-vs-computer results (`recordIfTerminal`, below). It is what the
+   * autosave's `recorded` field means, so it is written there rather than the
+   * hard-coded `false` this screen shipped with — a resumed finished game
+   * described itself as unbanked, which is exactly the state that would invite a
+   * second banking if anything ever read the flag back.
+   *
+   * Seeded from the save for the same reason, and state rather than a ref so the
+   * autosave effect re-runs and the corrected value actually reaches disk.
+   */
+  const [resultBanked, setResultBanked] = useState(restored?.recorded ?? false);
 
   // ── Board orientation (view only) ───────────────────────────────────────────
   // The same two independent mirrors every other board offers. Nothing here
@@ -291,8 +304,9 @@ export default function MorrisScreen({
   const gameId = useRef<string>(restored?.id ?? newGameId());
   const gameStartedAt = useRef<number>(restored?.createdAt ?? Date.now());
 
-  // Which position the engine was already asked about — see the engine effect.
-  const askedFor = useRef<string>("");
+  // Which position the engine was already asked about — see the engine effect and
+  // `./morrisEngineTurn.ts`, which owns what this value means.
+  const askedFor = useRef<string>(NOT_ASKED);
   // Whether the previous render was already a finished game. Seeded from the
   // restore so re-entering a concluded game shows the final board quietly rather
   // than replaying the victory curtain.
@@ -384,7 +398,12 @@ export default function MorrisScreen({
   );
 
   // A flag (bank hits zero) is a loss on time for that seat, applied to the tip.
+  // A half-made turn goes with it, exactly as `resign` and `rewindTo` drop theirs:
+  // the mill was never played, and leaving it behind draws a preview stone on a
+  // board that is already behind the victory curtain.
   const onFlag = useCallback((loser: Seat) => {
+    setSelected(null);
+    setPending(null);
     setStates((prev) => {
       if (isGameOver(prev[prev.length - 1].status)) return prev;
       const status: MorrisStatus = loser === "defenders" ? "black_win_time" : "white_win_time";
@@ -476,8 +495,9 @@ export default function MorrisScreen({
       // A fresh opening can repeat an old key (same length, same turn), so the
       // engine must be free to be asked again — this is what un-stalls Restart
       // when the engine has the first move.
-      askedFor.current = "";
+      askedFor.current = NOT_ASKED;
       wasOver.current = false;
+      setResultBanked(false);
     },
     [cancel, clearReveal, clock],
   );
@@ -521,7 +541,7 @@ export default function MorrisScreen({
         customRules,
         playMode,
         difficulty,
-        recorded: false,
+        recorded: resultBanked,
         clock: timeControl
           ? {
               initialSeconds: timeControl.initialSeconds,
@@ -540,7 +560,7 @@ export default function MorrisScreen({
         names: { p1: "", p2: "" },
       }),
     );
-  }, [states, cursor, variantId, customRules, playMode, difficulty, timeControl]);
+  }, [states, cursor, variantId, customRules, playMode, difficulty, timeControl, resultBanked]);
   useEffect(() => {
     persistGame();
   }, [persistGame]);
@@ -564,9 +584,19 @@ export default function MorrisScreen({
   // — and a fresh game can never be confused with the one before it. Gated on
   // `atTip`: the engine never plays under a reviewer's feet.
   useEffect(() => {
-    if (gameOver || aiSide === null || tipState.turn !== aiSide || showSetup || !atTip) return;
-    const key = `${gameId.current}:${states.length}:${tipState.turn}`;
-    if (askedFor.current === key) return;
+    const key = nextAskKey(
+      {
+        gameId: gameId.current,
+        plies: states.length,
+        turn: tipState.turn,
+        aiSide,
+        gameOver,
+        showSetup,
+        atTip,
+      },
+      askedFor.current,
+    );
+    if (key === null) return;
     askedFor.current = key;
     let live = true;
     setThinking(true);
@@ -587,7 +617,16 @@ export default function MorrisScreen({
       },
     );
     return () => {
+      // The invariant this cleanup exists for (see ./morrisEngineTurn.ts): a
+      // discarded reply must never leave `thinking` set — the promise clears the
+      // flag and this is the path where the promise's result is thrown away — and
+      // an abandoned question is not an asked one, so the key is forgotten and the
+      // same position is asked again on the way back to the tip. Without the two
+      // lines below `live`, stepping the review cursor during a think left the
+      // board dead with the engine apparently still thinking.
       live = false;
+      setThinking(false);
+      askedFor.current = NOT_ASKED;
     };
   }, [
     tipState,
@@ -620,6 +659,10 @@ export default function MorrisScreen({
       difficulty,
       endedAt: Date.now(),
     });
+    // Banked (or deliberately skipped by `recordIfTerminal` itself) — either way
+    // this game's result has been through the recorder once, which is what the
+    // save's `recorded` flag states.
+    setResultBanked(true);
     if (!revealDelay.current) {
       setShowVictory(true);
       return;
@@ -705,7 +748,7 @@ export default function MorrisScreen({
       setFromDatabase(false);
       // The engine's reveal describes a position this rewind has just replaced.
       clearReveal();
-      askedFor.current = "";
+      askedFor.current = NOT_ASKED;
     },
     [cancel, clearReveal, clock, clockLine, states, timeControl],
   );
@@ -761,6 +804,9 @@ export default function MorrisScreen({
       // never rises into the victory curtain.
       prevTipRef.current = tipIndex;
       wasOver.current = isGameOver(imported.states[tipIndex].status);
+      // An import is history, not a result this session played: it never rises into
+      // the curtain and so it is never banked.
+      setResultBanked(false);
       setVariantId(imported.variantId);
       if (imported.variantId === "custom") setCustomRules(ruleFlags(imported.rules));
       setPlayMode("hotseat");
@@ -772,7 +818,7 @@ export default function MorrisScreen({
       setGameMenuOpen(false);
       setClockLine(initialClockLine(timeControl));
       clock.reset();
-      askedFor.current = "";
+      askedFor.current = NOT_ASKED;
     },
     [cancel, clearReveal, clock, timeControl],
   );

@@ -4,7 +4,18 @@
 // tables, and decide which ones are worth fetching. This is that glue, and nothing
 // else — the whole module is a cache keyed by base URL plus one arithmetic rule.
 //
-//     const probe = req.dbBaseUrl ? await probeFor(req.dbBaseUrl, req.state) : null;
+//     const probe = req.dbBaseUrl
+//       ? await probeFor(req.dbBaseUrl, req.state, req.rules)
+//       : null;
+//
+// The ruleset is an argument and not an afterthought: a table is an answer about
+// the game its generator played, and the manifest records which game that was. A
+// custom ruleset that changes any of the three moving-phase flags (`flying`,
+// `removeFromMillsWhenAllInMills`, `doubleMillRemoves`) gets **no** probe at all
+// rather than a stranger's answers — checked here, before anything is fetched, so
+// a mismatched ruleset also costs no download. `Setup → Custom → Flying = None →
+// Ollamh` is the reachable case, and without this check it read a flying win off
+// a table and labelled it perfect play.
 //
 // The rule (contract §8): a side's stone count — board plus hand — only ever goes
 // *down*, so a game standing at m and o stones can only ever reach tables (m′, o′)
@@ -25,6 +36,7 @@
 
 import type { GameState } from "../types";
 import { type Probe, makeProbe } from "./probe";
+import { type MoveGenRules, sameMoveGenRules } from "./generate";
 import { type Manifest, fetchManifest, fetchTables, tableKeysFor } from "./loader";
 
 const manifests = new Map<string, Manifest | null>();
@@ -41,16 +53,28 @@ function totalStones(state: GameState, side: "white" | "black"): number {
 
 /**
  * A probe over the tables this position can still reach, loading whatever is
- * missing first. `null` when the manifest is unreachable, nothing is shipped for
- * these stone counts, or gzip is unavailable — all of which mean "search it".
+ * missing first. `null` when the manifest is unreachable, **the manifest's rules
+ * are not the rules being played**, nothing is shipped for these stone counts, or
+ * gzip is unavailable — all of which mean "search it".
+ *
+ * `rules` is the ruleset the game is actually being played under; only its three
+ * moving-phase flags are read, which is why the parameter is the narrower
+ * `MoveGenRules` and a whole `MorrisRuleSet` satisfies it.
  */
-export async function probeFor(baseUrl: string, state: GameState): Promise<Probe | null> {
+export async function probeFor(
+  baseUrl: string,
+  state: GameState,
+  rules: MoveGenRules,
+): Promise<Probe | null> {
   let manifest = manifests.get(baseUrl);
   if (manifest === undefined) {
     manifest = await fetchManifest(baseUrl);
     manifests.set(baseUrl, manifest);
   }
   if (manifest === null) return null;
+  // Before the fetch, because a mismatch is permanent for this game: nothing the
+  // download could contain would be an answer about it.
+  if (!sameMoveGenRules(manifest.rules, rules)) return null;
   const mover = state.turn;
   const opponent = mover === "white" ? "black" : "white";
   const wanted = tableKeysFor(
@@ -66,7 +90,10 @@ export async function probeFor(baseUrl: string, state: GameState): Promise<Probe
   }
   await fetchTables(baseUrl, wanted, tables);
   if (tables.size === 0) return null;
-  return makeProbe(tables);
+  // The pairing is handed on as well as checked above: the probe itself then
+  // carries the refusal, so it cannot outlive the check by being cached or passed
+  // around.
+  return makeProbe(tables, { rules: { tables: manifest.rules, game: rules } });
 }
 
 /** Forget everything loaded for a base URL. For tests, and for a worker that is

@@ -26,12 +26,15 @@
 // fetch fails (offline, an old deploy without the files, no gzip support) is a
 // complete, working worker that plays on search alone.
 //
-// `probeFor` (db/probeFor.ts) owns the two decisions this file must not repeat:
-// which tables the *current* stone counts can still reach (`tableKeysFor`, so a
-// 9-v-9 opening does not pull the whole set — a side's stones only ever go down),
-// and caching them in module state so a session pays for each file once. It is
-// asked for `ollamh` only: the engine drops a probe on every other tier on
-// purpose (`chooseMoveDetailed`), so fetching for them would be wasted bytes.
+// `probeFor` (db/probeFor.ts) owns the three decisions this file must not repeat:
+// whether the shipped tables are about the game being played at all (the
+// manifest's rules against `req.rules` — which is why the ruleset is passed for
+// *both* kinds of request, not only to the search), which tables the *current*
+// stone counts can still reach (`tableKeysFor`, so a 9-v-9 opening does not pull
+// the whole set — a side's stones only ever go down), and caching them in module
+// state so a session pays for each file once. It is asked for `ollamh` only: the
+// engine drops a probe on every other tier on purpose (`chooseMoveDetailed`), so
+// fetching for them would be wasted bytes.
 // Analysis requests get the same probe when a URL is supplied — a read-only
 // evaluation of a solved position should say so.
 //
@@ -101,7 +104,10 @@ ctx.onmessage = async (e) => {
   let probe = null;
   if (wantsTables && req.dbBaseUrl) {
     try {
-      probe = await probeFor(req.dbBaseUrl, req.state);
+      // `req.rules` goes with the state: the tables answer the game their
+      // generator played, so a custom ruleset that changes a moving-phase flag
+      // gets no probe rather than another game's perfect play (see probeFor).
+      probe = await probeFor(req.dbBaseUrl, req.state, req.rules);
     } catch {
       probe = null; // a broken fetch is "search it", never a lost move
     }

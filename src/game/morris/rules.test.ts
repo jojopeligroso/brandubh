@@ -589,6 +589,19 @@ describe("move names", () => {
     );
   });
 
+  it("normalises a hand-written double removal into the canonical order", () => {
+    // A file written by hand may name the two victims either way round; the move it
+    // means is the same move, and the one order `applyMove` accepts is ascending, so
+    // the sorting happens here — at the parse, where shape is the whole job — rather
+    // than loosening the rules.
+    const swapped = parseMoveName("a7-a4xc4xb2");
+    expect(swapped).toEqual({ from: p("a7"), to: p("a4"), remove: p("b2"), remove2: p("c4") });
+    expect(moveName(swapped!)).toBe("a7-a4xb2xc4");
+    // Single removals and plain moves are untouched by it.
+    expect(parseMoveName("d7xd2")).toEqual({ from: null, to: p("d7"), remove: p("d2") });
+    expect(parseMoveName("a7-a4")).toEqual({ from: p("a7"), to: p("a4"), remove: null });
+  });
+
   it("rejects what is not a move token", () => {
     for (const bad of ["", "a8", "h7", "d4", "a7-", "a7-a4x", "a7a4", "xd2", "a7-a4xb2xc4xd5"])
       expect(parseMoveName(bad), bad).toBeNull();
@@ -697,6 +710,30 @@ describe("applyMove throws on an illegal move", () => {
     expect(() =>
       applyMove(double, { from: null, to: p("a7"), remove: p("c5"), remove2: p("c5") }, two),
     ).toThrow(/two different stones/);
+  });
+
+  it("rejects a double removal named in descending order", () => {
+    // `allMoves` emits each victim *pair* once, ascending (rules.ts), so the swapped
+    // spelling is a move it never generates — and `applyMove`'s header promises
+    // "throws ⇔ not in allMoves", which is what lets `findLegalMove` validate an
+    // import by construction. Accepting the swap broke that equivalence silently.
+    const two = variant({ doubleMillRemoves: "two" });
+    const double = stateOf({
+      white: ["d7", "g7", "a1", "a4"],
+      black: ["c5", "e5", "e3"],
+      turn: "white",
+      hands: { white: 5, black: 5 },
+    });
+    expect(p("c5")).toBeLessThan(p("e5")); // the canonical order is by point index
+    expect(() =>
+      applyMove(double, { from: null, to: p("a7"), remove: p("c5"), remove2: p("e5") }, two),
+    ).not.toThrow();
+    expect(() =>
+      applyMove(double, { from: null, to: p("a7"), remove: p("e5"), remove2: p("c5") }, two),
+    ).toThrow(/ascending/);
+    const generated = allMoves(double, two).map(moveName);
+    expect(generated).toContain("a7xc5xe5");
+    expect(generated).not.toContain("a7xe5xc5");
   });
 
   it("rejects any move at all once the game is over", () => {
