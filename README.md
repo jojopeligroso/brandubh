@@ -7,6 +7,11 @@ built-in AI, with two historical rule variants and a custom rule editor.
 
 ![Brandubh board](docs/screenshot.png)
 
+<video width="100%" controls muted>
+  <source src="promo/brandubh-suite-promo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
 - ⚔️ Correct, tested tafl engine (custodial capture, hostile corners & throne, strong-king throne capture)
 - 🤖 Iterative-deepening alpha–beta AI (transposition table + quiescence search) that runs in a Web Worker, so hard-level thinking never freezes the board — across four difficulty levels, up to **Ollamh** and its opening book
 - 👑 Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
