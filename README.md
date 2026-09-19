@@ -7,19 +7,19 @@ built-in AI, with two historical rule variants and a custom rule editor.
 
 ![Brandubh board](docs/screenshot.png)
 
-<video width="100%" controls muted>
-  <source src="promo/brandubh-suite-promo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![All four boards in play: Brandubh, Tablut, Copenhagen and Nine Men's Morris](promo/brandubh-suite-promo.gif)
 
-- ⚔️ Correct, tested tafl engine (custodial capture, hostile corners & throne, strong-king throne capture)
-- 🤖 Iterative-deepening alpha–beta AI (transposition table + quiescence search) that runs in a Web Worker, so hard-level thinking never freezes the board — across four difficulty levels, up to **Ollamh** and its opening book
-- 👑 Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
-- 🌐 Localised in English and Spanish
-- ⏱️ Optional Lichess-style chess clock (**off by default** — no timer) — a time bank plus per-move Fischer increment (**3+2** when enabled), bullet → rapid presets and a custom control, with flag-on-time
-- 🧘 **Zen mode** — a calm, over-the-board layout showing only the board, whose turn it is, the clock and the move log; game controls are contextual (a minimal "Next game" / "Next set" prompt appears only when a game ends), and every other panel (scoreboard, captured tray, move nav, rules, takeback, resign, pause, settings) is an opt-in extra you can reveal from settings
-- 📱 Mobile-first, no backend, works offline — pure static SPA
-- 🎨 Carved-wood board, crown / shield / axe piece emblems, move log, undo
+*Twenty seconds across all four boards — also as a
+[full-quality MP4](promo/brandubh-suite-promo.mp4).*
+
+- Correct, tested tafl engine (custodial capture, hostile corners & throne, strong-king throne capture)
+- Iterative-deepening alpha–beta AI (transposition table + quiescence search) that runs in a Web Worker, so hard-level thinking never freezes the board — across four difficulty levels, up to **Ollamh** and its opening book
+- Two rule variants: **World Tafl Federation** and **Walker** — plus a custom rule editor
+- Localised in English and Spanish
+- Optional Lichess-style chess clock (**off by default** — no timer) — a time bank plus per-move Fischer increment (**3+2** when enabled), bullet → rapid presets and a custom control, with flag-on-time
+- **Zen mode** — a calm, over-the-board layout showing only the board, whose turn it is, the clock and the move log; game controls are contextual (a minimal "Next game" / "Next set" prompt appears only when a game ends), and every other panel (scoreboard, captured tray, move nav, rules, takeback, resign, pause, settings) is an opt-in extra you can reveal from settings
+- Mobile-first, no backend, works offline — pure static SPA
+- Carved-wood board, crown / shield / axe piece emblems, move log, undo
 
 ## Quick start
 
@@ -89,8 +89,8 @@ competitively on Aage Nielsen’s hnefatafl site and by the World Tafl Federatio
 
 | Side | Wins by |
 |------|---------|
-| 👑 **King’s side (defenders)** | Getting the **King to any corner**. |
-| ⚔️ **Attackers (raiders)** | **Capturing the King**. |
+| **King’s side (defenders)** | Getting the **King to any corner**. |
+| **Attackers (raiders)** | **Capturing the King**. |
 
 - The King is captured by being surrounded **on two opposite sides** in the open
   (a raider, a hostile corner, or the board edge does **not** help here — the
