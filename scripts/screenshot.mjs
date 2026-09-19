@@ -66,8 +66,16 @@ await new Promise((r) => server.listen(0, r));
 const { port } = server.address();
 
 const browser = await chromium.launch({ executablePath: CHROME });
+// The viewport height is the cover image's framing, not an arbitrary number.
+// The board is top-anchored and the bottom furniture (divider, Zen switch,
+// move toolbar) is pinned to the foot of the viewport, so every pixel of
+// height beyond what the two blocks need becomes dead background between
+// them. At 1880 that was ~1100px of empty gradient, 57% of the image, which
+// is what the README actually showed. Keep this just tall enough to seat the
+// toolbar under the board; re-check the output if the board or the toolbar
+// changes height.
 const page = await browser.newPage({
-  viewport: { width: 860, height: 1880 },
+  viewport: { width: 860, height: 840 },
   deviceScaleFactor: 1,
 });
 // Pin the theme before the app's first paint. `pickDefaultTheme()` picks
